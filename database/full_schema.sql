@@ -57,6 +57,9 @@ DO $$ BEGIN
     CREATE TYPE invite_status AS ENUM ('pending', 'accepted', 'rejected', 'expired');
     CREATE TYPE participant_status AS ENUM ('going', 'interested');
     
+    -- Verification (Manager Application)
+    CREATE TYPE verification_status AS ENUM ('pending', 'approved', 'rejected');
+    
     -- Push Notifications
     CREATE TYPE push_token_status AS ENUM ('active', 'revoked', 'expired');
     
@@ -133,6 +136,7 @@ CREATE TRIGGER update_users_updated_at
 -- ============================================
 CREATE TABLE IF NOT EXISTS sites (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code VARCHAR(20) UNIQUE, -- Auto-generated: CHNAM001, SHBAC001, etc.
     name VARCHAR(255) NOT NULL,
     description TEXT,
     history TEXT,
@@ -154,6 +158,7 @@ CREATE TABLE IF NOT EXISTS sites (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sites_code ON sites(code);
 CREATE INDEX IF NOT EXISTS idx_sites_name_trgm ON sites USING GIN (name gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_sites_search ON sites(name, province, district);
 CREATE INDEX IF NOT EXISTS idx_sites_coords ON sites(latitude, longitude);
@@ -245,6 +250,89 @@ CREATE INDEX IF NOT EXISTS idx_push_tokens_device ON user_push_tokens(user_id, d
 DROP TRIGGER IF EXISTS update_user_push_tokens_updated_at ON user_push_tokens;
 CREATE TRIGGER update_user_push_tokens_updated_at
     BEFORE UPDATE ON user_push_tokens
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================
+-- 3.5 VERIFICATION REQUESTS (Manager Application)
+-- ============================================
+CREATE TABLE IF NOT EXISTS verification_requests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    
+    -- Option 1: Apply cho site có sẵn
+    requested_site_id UUID REFERENCES sites(id) ON DELETE SET NULL,
+    
+    -- Option 2: Đề xuất site mới (nếu requested_site_id NULL)
+    proposed_site_name VARCHAR(255),
+    proposed_site_address TEXT,
+    proposed_site_province VARCHAR(100),
+    proposed_site_district VARCHAR(100),
+    proposed_site_region site_region,
+    proposed_site_type site_type,
+    proposed_site_latitude DECIMAL(9,6) CHECK (proposed_site_latitude IS NULL OR (proposed_site_latitude BETWEEN -90 AND 90)),
+    proposed_site_longitude DECIMAL(9,6) CHECK (proposed_site_longitude IS NULL OR (proposed_site_longitude BETWEEN -180 AND 180)),
+    proposed_site_description TEXT,
+    
+    -- Verification documents
+    certificate_url TEXT,
+    introduction TEXT,
+    
+    -- Status & Review
+    status verification_status DEFAULT 'pending',
+    reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    rejection_reason TEXT,
+    verified_at TIMESTAMP WITH TIME ZONE,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_verification_requests_user ON verification_requests(user_id);
+CREATE INDEX IF NOT EXISTS idx_verification_requests_status ON verification_requests(status);
+CREATE INDEX IF NOT EXISTS idx_verification_requests_site ON verification_requests(requested_site_id) WHERE requested_site_id IS NOT NULL;
+
+-- Unique: Chỉ 1 pending request per user
+CREATE UNIQUE INDEX IF NOT EXISTS uq_verification_requests_user_pending
+ON verification_requests(user_id) WHERE status = 'pending';
+
+-- Constraint: Phải chọn 1 trong 2 (site có sẵn HOẶC đề xuất mới)
+-- Siết chặt: nếu chọn site có sẵn thì TẤT CẢ proposed_* phải NULL
+ALTER TABLE verification_requests
+ADD CONSTRAINT chk_verification_site_selection
+CHECK (
+  (
+    requested_site_id IS NOT NULL
+    AND proposed_site_name IS NULL
+    AND proposed_site_address IS NULL
+    AND proposed_site_province IS NULL
+    AND proposed_site_district IS NULL
+    AND proposed_site_region IS NULL
+    AND proposed_site_type IS NULL
+    AND proposed_site_latitude IS NULL
+    AND proposed_site_longitude IS NULL
+    AND proposed_site_description IS NULL
+  )
+  OR
+  (
+    requested_site_id IS NULL
+    AND proposed_site_name IS NOT NULL
+    AND proposed_site_province IS NOT NULL
+    AND proposed_site_region IS NOT NULL
+    AND proposed_site_type IS NOT NULL
+  )
+);
+
+-- Constraint: Khi rejected phải có lý do
+ALTER TABLE verification_requests
+ADD CONSTRAINT chk_verification_rejection
+CHECK (status <> 'rejected' OR rejection_reason IS NOT NULL);
+
+-- Trigger
+DROP TRIGGER IF EXISTS update_verification_requests_updated_at ON verification_requests;
+CREATE TRIGGER update_verification_requests_updated_at
+    BEFORE UPDATE ON verification_requests
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 

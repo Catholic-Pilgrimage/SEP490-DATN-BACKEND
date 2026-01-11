@@ -84,9 +84,15 @@
  *             id:
  *               type: string
  *               format: uuid
+ *             code:
+ *               type: string
+ *               example: "CHNAM001"
+ *               description: "Mã địa điểm (auto-generated)"
  *             name:
  *               type: string
  *             description:
+ *               type: string
+ *             history:
  *               type: string
  *             address:
  *               type: string
@@ -106,6 +112,10 @@
  *               type: string
  *             cover_image:
  *               type: string
+ *             opening_hours:
+ *               type: object
+ *             contact_info:
+ *               type: object
  *             status:
  *               type: string
  *               example: "approved"
@@ -115,6 +125,9 @@
  *               type: string
  *               format: uuid
  *             created_at:
+ *               type: string
+ *               format: date-time
+ *             updated_at:
  *               type: string
  *               format: date-time
  */

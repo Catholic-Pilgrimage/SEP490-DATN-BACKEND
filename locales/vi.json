@@ -44,7 +44,19 @@
   },
   "site": {
     "create_success": "Tạo địa điểm thành công",
-    "already_exists": "Địa điểm đã tồn tại"
+    "update_success": "Cập nhật địa điểm thành công",
+    "delete_success": "Xóa địa điểm thành công",
+    "get_success": "Lấy thông tin địa điểm thành công",
+    "list_success": "Lấy danh sách địa điểm thành công",
+    "already_exists": "Địa điểm đã tồn tại",
+    "not_found": "Không tìm thấy địa điểm",
+    "invalid_region": "Vùng miền không hợp lệ",
+    "invalid_type": "Loại địa điểm không hợp lệ",
+    "invalid_coordinates": "Tọa độ không hợp lệ",
+    "cannot_delete_has_data": "Không thể xóa địa điểm đã có dữ liệu liên quan",
+    "already_deleted": "Địa điểm đã bị xóa trước đó",
+    "restore_success": "Khôi phục địa điểm thành công",
+    "not_deleted": "Địa điểm chưa bị xóa"
   },
   "validation": {
     "failed": "Dữ liệu không hợp lệ",

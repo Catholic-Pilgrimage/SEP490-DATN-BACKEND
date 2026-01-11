@@ -13,7 +13,7 @@ router.get('/', (req, res) => {
       docs: '/api-docs',
       auth: '/api/auth',
       admin: '/api/admin',
-      sites: '/api/sites'
+      sites: '/api/admin/sites'
     }
   });
 });
@@ -24,7 +24,7 @@ router.use('/auth', authRoutes);
 // Admin routes
 router.use('/admin', adminRoutes);
 
-// Site routes
-router.use('/sites', siteRoutes);
+// Site routes (Admin only)
+router.use('/admin/sites', siteRoutes);
 
 module.exports = router;

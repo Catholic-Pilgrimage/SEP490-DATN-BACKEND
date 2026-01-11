@@ -7,6 +7,11 @@ const Site = sequelize.define('Site', {
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true
     },
+    code: {
+        type: DataTypes.STRING(20),
+        unique: true,
+        allowNull: true // Will be auto-generated
+    },
     name: {
         type: DataTypes.STRING(255),
         allowNull: false

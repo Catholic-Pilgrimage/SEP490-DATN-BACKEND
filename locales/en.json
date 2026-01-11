@@ -44,7 +44,19 @@
   },
   "site": {
     "create_success": "Site created successfully",
-    "already_exists": "Site already exists"
+    "update_success": "Site updated successfully",
+    "delete_success": "Site deleted successfully",
+    "get_success": "Get site successfully",
+    "list_success": "Get sites list successfully",
+    "already_exists": "Site already exists",
+    "not_found": "Site not found",
+    "invalid_region": "Invalid region",
+    "invalid_type": "Invalid site type",
+    "invalid_coordinates": "Invalid coordinates",
+    "cannot_delete_has_data": "Cannot delete site with related data",
+    "already_deleted": "Site has already been deleted",
+    "restore_success": "Site restored successfully",
+    "not_deleted": "Site is not deleted"
   },
   "validation": {
     "failed": "Validation failed",
