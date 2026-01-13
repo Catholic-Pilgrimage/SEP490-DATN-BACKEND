@@ -8,18 +8,31 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-const storage = new CloudinaryStorage({
+// Image storage (for cover_image, avatar, etc.)
+const imageStorage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: {
-        folder: 'catholic_pilgrimage',
+        folder: 'catholic_pilgrimage/images',
         allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
         transformation: [{ width: 1000, height: 1000, crop: 'limit' }]
     }
 });
 
-const upload = multer({ storage: storage });
+// Document storage (for PDF, certificates, etc.)
+const documentStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'catholic_pilgrimage/documents',
+        allowed_formats: ['pdf', 'jpg', 'png', 'jpeg', 'webp'],
+        resource_type: 'auto'
+    }
+});
+
+const upload = multer({ storage: imageStorage });
+const uploadDocument = multer({ storage: documentStorage });
 
 module.exports = {
     cloudinary,
-    upload
+    upload,
+    uploadDocument
 };

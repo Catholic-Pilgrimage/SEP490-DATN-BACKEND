@@ -27,7 +27,7 @@ class SiteService {
     const regionCode = REGION_CODES[region];
     const prefix = `${typeCode}${regionCode}`;
 
-    // Find the last (highest) code with this prefix
+    
     const lastSite = await Site.findOne({
       where: {
         code: { [Op.like]: `${prefix}%` }
@@ -37,7 +37,7 @@ class SiteService {
 
     let nextNumber = 1;
     if (lastSite && lastSite.code) {
-      // Extract number from code: CHNAM001 → 001 → 1
+      
       const lastNumber = parseInt(lastSite.code.replace(prefix, ''));
       nextNumber = lastNumber + 1;
     }
@@ -166,7 +166,7 @@ class SiteService {
       }
 
       // Filter by status
-      if (status && ['pending', 'approved', 'rejected', 'hidden'].includes(status)) {
+      if (status && ['pending', 'approved', 'rejected'].includes(status)) {
         where.status = status;
       }
 
@@ -333,18 +333,18 @@ class SiteService {
         throw new Error('Site not found');
       }
 
-      // Fields that can be updated
+
       const allowedFields = [
         'name', 'description', 'history', 'address', 'province', 'district',
         'latitude', 'longitude', 'region', 'type', 'patron_saint',
         'cover_image', 'opening_hours', 'contact_info', 'status'
       ];
 
-      // Filter only allowed fields
+
       const dataToUpdate = {};
       for (const field of allowedFields) {
         if (updateData[field] !== undefined) {
-          // Trim string fields
+
           if (typeof updateData[field] === 'string' && ['name', 'address', 'province', 'district', 'patron_saint'].includes(field)) {
             dataToUpdate[field] = updateData[field].trim();
           } else {
@@ -353,7 +353,7 @@ class SiteService {
         }
       }
 
-      // Check if name+province already exists (if updating name or province)
+
       if (dataToUpdate.name || dataToUpdate.province) {
         const { Op } = require('sequelize');
         const checkName = dataToUpdate.name || site.name;

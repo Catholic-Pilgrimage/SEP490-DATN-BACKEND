@@ -151,7 +151,7 @@
  *         name: status
  *         schema:
  *           type: string
- *           enum: [pending, approved, rejected, hidden]
+ *           enum: [pending, approved, rejected]
  *         description: Lọc theo trạng thái
  *       - in: query
  *         name: is_active
@@ -364,7 +364,7 @@
  *                 description: Ảnh bìa mới
  *               status:
  *                 type: string
- *                 enum: [pending, approved, rejected, hidden]
+ *                 enum: [pending, approved, rejected]
  *               opening_hours:
  *                 type: string
  *                 description: JSON string

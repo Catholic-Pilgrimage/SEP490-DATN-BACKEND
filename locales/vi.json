@@ -25,7 +25,8 @@
     "refresh_token_not_found": "Refresh token không tồn tại",
     "refresh_token_expired": "Refresh token đã hết hạn",
     "unauthorized": "Chưa xác thực",
-    "forbidden": "Không có quyền truy cập"
+    "forbidden": "Không có quyền truy cập",
+    "insufficient_permissions": "Bạn không có quyền thực hiện hành động này"
   },
   "admin": {
     "get_users_success": "Lấy danh sách người dùng thành công",
@@ -57,6 +58,18 @@
     "already_deleted": "Địa điểm đã bị xóa trước đó",
     "restore_success": "Khôi phục địa điểm thành công",
     "not_deleted": "Địa điểm chưa bị xóa"
+  },
+  "verification": {
+    "create_success": "Gửi yêu cầu xác minh thành công",
+    "get_success": "Lấy thông tin yêu cầu thành công",
+    "list_success": "Lấy danh sách yêu cầu thành công",
+    "approve_success": "Phê duyệt yêu cầu thành công",
+    "reject_success": "Từ chối yêu cầu thành công",
+    "not_found": "Không tìm thấy yêu cầu xác minh",
+    "only_pilgrim": "Chỉ người hành hương mới có thể gửi yêu cầu",
+    "already_pending": "Bạn đã có yêu cầu đang chờ xử lý",
+    "not_pending": "Yêu cầu không ở trạng thái chờ xử lý",
+    "rejection_reason_required": "Vui lòng nhập lý do từ chối"
   },
   "validation": {
     "failed": "Dữ liệu không hợp lệ",

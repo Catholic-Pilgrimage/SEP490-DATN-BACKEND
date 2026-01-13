@@ -11,6 +11,10 @@ const PasswordReset = sequelize.define('PasswordReset', {
         type: DataTypes.UUID,
         allowNull: false
     },
+    email: {
+        type: DataTypes.STRING(255),
+        allowNull: false
+    },
     otp: {
         type: DataTypes.STRING(6),
         allowNull: false

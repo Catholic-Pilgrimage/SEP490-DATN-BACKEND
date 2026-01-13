@@ -38,7 +38,7 @@ const MassSchedule = sequelize.define('MassSchedule', {
     },
     // NEW: Added for Manager approval
     status: {
-        type: DataTypes.ENUM('pending', 'approved', 'rejected', 'hidden'),
+        type: DataTypes.ENUM('pending', 'approved', 'rejected'),
         defaultValue: 'approved'
     },
     created_by: {

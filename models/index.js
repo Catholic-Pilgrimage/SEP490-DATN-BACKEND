@@ -6,6 +6,7 @@ const PasswordReset = require('./PasswordReset');
 const Site = require('./Site');
 const SiteMedia = require('./SiteMedia');
 const MassSchedule = require('./MassSchedule');
+const VerificationRequest = require('./VerificationRequest');
 
 // ============================================
 // ASSOCIATIONS
@@ -36,6 +37,13 @@ MassSchedule.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
 User.hasMany(MassSchedule, { foreignKey: 'created_by', as: 'createdSchedules' });
 MassSchedule.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
 
+// VerificationRequest - User (applicant)
+User.hasMany(VerificationRequest, { foreignKey: 'user_id', as: 'verificationRequests' });
+VerificationRequest.belongsTo(User, { foreignKey: 'user_id', as: 'applicant' });
+
+// VerificationRequest - User (reviewer)
+VerificationRequest.belongsTo(User, { foreignKey: 'reviewed_by', as: 'reviewer' });
+
 // ============================================
 // EXPORT
 // ============================================
@@ -47,7 +55,8 @@ const db = {
   PasswordReset,
   Site,
   SiteMedia,
-  MassSchedule
+  MassSchedule,
+  VerificationRequest
 };
 
 module.exports = db;

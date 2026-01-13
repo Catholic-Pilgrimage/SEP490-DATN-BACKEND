@@ -242,16 +242,16 @@ class AuthService {
                 throw new Error('User not found');
             }
 
-            // Verify current password
+          
             const isValidPassword = await bcrypt.compare(currentPassword, user.password_hash);
             if (!isValidPassword) {
                 throw new Error('Current password is incorrect');
             }
 
-            // Hash new password
+          
             const newPasswordHash = await bcrypt.hash(newPassword, 10);
 
-            // Update password
+          
             await user.update({ password_hash: newPasswordHash });
 
            
@@ -279,10 +279,11 @@ class AuthService {
 
           
             const otp = Math.floor(100000 + Math.random() * 900000).toString();
-            const expiresAt = new Date(Date.now() + 10 * 60 * 1000); 
-          
+            const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
             await PasswordReset.create({
                 user_id: user.id,
+                email: normalizedEmail,
                 otp,
                 expires_at: expiresAt
             });
@@ -326,21 +327,20 @@ class AuthService {
                 throw new Error('Invalid OTP');
             }
 
-            // Check if OTP expired
+      
             if (new Date() > resetRecord.expires_at) {
                 throw new Error('OTP has expired');
             }
 
-            // Hash new password
+          
             const newPasswordHash = await bcrypt.hash(newPassword, 10);
 
-            // Update password
+          
             await user.update({ password_hash: newPasswordHash });
 
-            // Mark OTP as used
+        
             await resetRecord.update({ is_used: true });
 
-            // Xóa tất cả refresh tokens
             await RefreshToken.destroy({ where: { user_id: user.id } });
 
             Logger.info(`Password reset successful: ${normalizedEmail}`);

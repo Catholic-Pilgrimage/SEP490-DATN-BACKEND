@@ -58,11 +58,11 @@ const authMiddleware = async (req, res, next) => {
 const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return ResponseUtil.unauthorized(res, 'Unauthorized');
+      return ResponseUtil.unauthorized(res, req.__('auth.unauthorized'));
     }
 
     if (!roles.includes(req.user.role)) {
-      return ResponseUtil.forbidden(res, 'Insufficient permissions');
+      return ResponseUtil.forbidden(res, req.__('auth.insufficient_permissions'));
     }
 
     next();

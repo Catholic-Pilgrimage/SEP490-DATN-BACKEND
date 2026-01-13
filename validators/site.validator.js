@@ -140,8 +140,8 @@ class SiteValidator {
 
     body('status')
       .optional()
-      .isIn(['pending', 'approved', 'rejected', 'hidden'])
-      .withMessage('Trạng thái phải là pending, approved, rejected hoặc hidden'),
+      .isIn(['pending', 'approved', 'rejected'])
+      .withMessage('Trạng thái phải là pending, approved hoặc rejected'),
 
     body('opening_hours')
       .optional()

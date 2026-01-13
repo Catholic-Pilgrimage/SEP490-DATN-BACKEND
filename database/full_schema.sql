@@ -28,7 +28,7 @@ DO $$ BEGIN
     -- Sites
     CREATE TYPE site_region AS ENUM ('Bac', 'Trung', 'Nam');
     CREATE TYPE site_type AS ENUM ('church', 'shrine', 'monastery', 'center', 'other');
-    CREATE TYPE site_status AS ENUM ('pending', 'approved', 'rejected', 'hidden');
+    CREATE TYPE site_status AS ENUM ('pending', 'approved', 'rejected');
     CREATE TYPE media_type AS ENUM ('image', 'video', 'panorama');
     
     -- Nearby Places (NEW)
@@ -42,7 +42,7 @@ DO $$ BEGIN
     
     -- Journal & Community
     CREATE TYPE journal_privacy AS ENUM ('private', 'public');
-    CREATE TYPE content_status AS ENUM ('draft', 'published', 'pending', 'approved', 'rejected', 'hidden');
+    CREATE TYPE content_status AS ENUM ('draft', 'published', 'pending', 'approved', 'rejected');
     CREATE TYPE group_privacy AS ENUM ('public', 'private', 'closed');
     CREATE TYPE group_member_role AS ENUM ('admin', 'member');
     
@@ -183,13 +183,15 @@ ON users(site_id)
 WHERE role = 'manager';
 
 -- Constraint: Role-Site validation rules
--- manager/local_guide MUST have site_id
+-- manager CAN have site_id (creates after verification)
+-- local_guide MUST have site_id
 -- pilgrim MUST NOT have site_id
 -- admin can have or not
 ALTER TABLE users
 ADD CONSTRAINT chk_users_role_site
 CHECK (
-  (role IN ('manager', 'local_guide') AND site_id IS NOT NULL)
+  (role = 'manager')
+  OR (role = 'local_guide' AND site_id IS NOT NULL)
   OR (role = 'pilgrim' AND site_id IS NULL)
   OR (role = 'admin')
 );
@@ -259,22 +261,16 @@ CREATE TRIGGER update_user_push_tokens_updated_at
 CREATE TABLE IF NOT EXISTS verification_requests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    code VARCHAR(10) UNIQUE, -- Auto-generated: VR001, VR002...
     
-    -- Option 1: Apply cho site có sẵn
-    requested_site_id UUID REFERENCES sites(id) ON DELETE SET NULL,
+    -- Basic site info (for Admin to review)
+    site_name VARCHAR(255) NOT NULL,
+    site_address TEXT,
+    site_province VARCHAR(100) NOT NULL,
+    site_type site_type,
+    site_region site_region,
     
-    -- Option 2: Đề xuất site mới (nếu requested_site_id NULL)
-    proposed_site_name VARCHAR(255),
-    proposed_site_address TEXT,
-    proposed_site_province VARCHAR(100),
-    proposed_site_district VARCHAR(100),
-    proposed_site_region site_region,
-    proposed_site_type site_type,
-    proposed_site_latitude DECIMAL(9,6) CHECK (proposed_site_latitude IS NULL OR (proposed_site_latitude BETWEEN -90 AND 90)),
-    proposed_site_longitude DECIMAL(9,6) CHECK (proposed_site_longitude IS NULL OR (proposed_site_longitude BETWEEN -180 AND 180)),
-    proposed_site_description TEXT,
-    
-    -- Verification documents
+    -- Proof documents
     certificate_url TEXT,
     introduction TEXT,
     
@@ -291,38 +287,10 @@ CREATE TABLE IF NOT EXISTS verification_requests (
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_verification_requests_user ON verification_requests(user_id);
 CREATE INDEX IF NOT EXISTS idx_verification_requests_status ON verification_requests(status);
-CREATE INDEX IF NOT EXISTS idx_verification_requests_site ON verification_requests(requested_site_id) WHERE requested_site_id IS NOT NULL;
 
 -- Unique: Chỉ 1 pending request per user
 CREATE UNIQUE INDEX IF NOT EXISTS uq_verification_requests_user_pending
 ON verification_requests(user_id) WHERE status = 'pending';
-
--- Constraint: Phải chọn 1 trong 2 (site có sẵn HOẶC đề xuất mới)
--- Siết chặt: nếu chọn site có sẵn thì TẤT CẢ proposed_* phải NULL
-ALTER TABLE verification_requests
-ADD CONSTRAINT chk_verification_site_selection
-CHECK (
-  (
-    requested_site_id IS NOT NULL
-    AND proposed_site_name IS NULL
-    AND proposed_site_address IS NULL
-    AND proposed_site_province IS NULL
-    AND proposed_site_district IS NULL
-    AND proposed_site_region IS NULL
-    AND proposed_site_type IS NULL
-    AND proposed_site_latitude IS NULL
-    AND proposed_site_longitude IS NULL
-    AND proposed_site_description IS NULL
-  )
-  OR
-  (
-    requested_site_id IS NULL
-    AND proposed_site_name IS NOT NULL
-    AND proposed_site_province IS NOT NULL
-    AND proposed_site_region IS NOT NULL
-    AND proposed_site_type IS NOT NULL
-  )
-);
 
 -- Constraint: Khi rejected phải có lý do
 ALTER TABLE verification_requests

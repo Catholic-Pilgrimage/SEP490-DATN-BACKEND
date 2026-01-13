@@ -10,7 +10,7 @@ const Site = sequelize.define('Site', {
     code: {
         type: DataTypes.STRING(20),
         unique: true,
-        allowNull: true // Will be auto-generated
+        allowNull: true
     },
     name: {
         type: DataTypes.STRING(255),
@@ -94,7 +94,7 @@ const Site = sequelize.define('Site', {
         type: DataTypes.STRING,
         defaultValue: 'pending',
         validate: {
-            isIn: [['pending', 'approved', 'rejected', 'hidden']]
+            isIn: [['pending', 'approved', 'rejected']]
         }
     },
     is_active: {

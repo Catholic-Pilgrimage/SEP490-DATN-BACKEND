@@ -25,7 +25,8 @@
     "refresh_token_not_found": "Refresh token not found",
     "refresh_token_expired": "Refresh token expired",
     "unauthorized": "Unauthorized",
-    "forbidden": "Forbidden"
+    "forbidden": "Forbidden",
+    "insufficient_permissions": "You do not have permission to perform this action"
   },
   "admin": {
     "get_users_success": "Get users successfully",
@@ -57,6 +58,18 @@
     "already_deleted": "Site has already been deleted",
     "restore_success": "Site restored successfully",
     "not_deleted": "Site is not deleted"
+  },
+  "verification": {
+    "create_success": "Verification request submitted successfully",
+    "get_success": "Verification request retrieved successfully",
+    "list_success": "Verification requests retrieved successfully",
+    "approve_success": "Verification request approved successfully",
+    "reject_success": "Verification request rejected successfully",
+    "not_found": "Verification request not found",
+    "only_pilgrim": "Only pilgrims can submit verification requests",
+    "already_pending": "You already have a pending verification request",
+    "not_pending": "Request is not in pending status",
+    "rejection_reason_required": "Rejection reason is required"
   },
   "validation": {
     "failed": "Validation failed",
