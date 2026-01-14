@@ -252,6 +252,91 @@ class EmailService {
       throw error;
     }
   }
+
+  /**
+   * Send Local Guide credentials email
+   */
+  static async sendLocalGuideCredentials(email, fullName, password, siteName) {
+    try {
+      Logger.info(`Sending credentials to Local Guide: ${email}`);
+
+      const currentYear = new Date().getFullYear();
+
+      const htmlContent = `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>Thông tin tài khoản Local Guide</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Arial, sans-serif;">
+  <div style="font-family: 'Segoe UI', Tahoma, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #fff;">
+    ${this.getEmailHeader()}
+    
+    <div style="padding: 30px; background: #fff;">
+      <h2 style="color: #4a0e4e; font-weight: normal;">Chào mừng đến với Catholic Pilgrimage!</h2>
+      
+      <p style="color: #333; line-height: 1.8; font-size: 16px;">
+        Xin chào <strong>${fullName}</strong>,
+      </p>
+      
+      <p style="color: #333; line-height: 1.8; font-size: 16px;">
+        Bạn đã được thêm làm <strong>Hướng dẫn viên địa phương (Local Guide)</strong> cho địa điểm:
+      </p>
+      
+      <div style="background: linear-gradient(135deg, #fef9e7 0%, #fcf3cf 100%); padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px solid #d4af37;">
+        <p style="color: #4a0e4e; font-size: 18px; font-weight: bold; margin: 0;">&#9962; ${siteName}</p>
+      </div>
+      
+      <p style="color: #333; line-height: 1.8; font-size: 16px;">
+        Dưới đây là thông tin đăng nhập của bạn:
+      </p>
+      
+      <div style="background: #f8f6f0; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 10px 0; color: #666; width: 100px;">Email:</td>
+            <td style="padding: 10px 0; color: #333; font-weight: bold;">${email}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 0; color: #666;">Mật khẩu:</td>
+            <td style="padding: 10px 0; color: #4a0e4e; font-weight: bold; font-size: 18px; letter-spacing: 2px;">${password}</td>
+          </tr>
+        </table>
+      </div>
+      
+      <p style="color: #c0392b; font-weight: bold;">
+        &#9888; Vui lòng đổi mật khẩu ngay sau khi đăng nhập lần đầu!
+      </p>
+      
+      <div style="text-align: center; margin-top: 30px; padding: 20px; background: #f8f6f0; border-radius: 8px;">
+        <p style="color: #7b1fa2; font-style: italic; margin: 0;">
+          "Hãy đi khắp tứ phương thiên hạ, loan báo Tin Mừng cho mọi loài thụ tạo"
+        </p>
+        <p style="color: #999; font-size: 12px; margin: 10px 0 0 0;">- Mc 16:15</p>
+      </div>
+    </div>
+    
+    ${this.getEmailFooter(currentYear)}
+  </div>
+</body>
+</html>`;
+
+      const result = await resend.emails.send({
+        from: emailConfig.from,
+        to: email,
+        subject: `[Catholic Pilgrimage] Thông tin tài khoản Local Guide - ${siteName}`,
+        html: htmlContent
+      });
+
+      Logger.info(`Local Guide credentials email sent successfully to ${email}`);
+      return result;
+    } catch (error) {
+      Logger.error('Send Local Guide credentials email error:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = EmailService;

@@ -116,9 +116,6 @@
  *               type: object
  *             contact_info:
  *               type: object
- *             status:
- *               type: string
- *               example: "approved"
  *             is_active:
  *               type: boolean
  *             created_by:

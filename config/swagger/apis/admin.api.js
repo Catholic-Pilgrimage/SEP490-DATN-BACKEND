@@ -121,7 +121,7 @@
 /**
  * @swagger
  * /api/admin/users/{id}/status:
- *   put:
+ *   patch:
  *     summary: Cập nhật status user - Block/Unblock (Admin only)
  *     tags: [Admin]
  *     security:

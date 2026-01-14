@@ -57,7 +57,7 @@ const User = sequelize.define('User', {
             isIn: [['vi', 'en']]
         }
     },
-    // NEW: Simplified Manager/Guide management
+
     site_id: {
         type: DataTypes.UUID,
         allowNull: true,

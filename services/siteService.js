@@ -1,43 +1,39 @@
-const { Site } = require('../models');
+const { Site, User, VerificationRequest } = require('../models');
+const { Op } = require('sequelize');
 const Logger = require('../utils/logger.util');
 
 // Site code constants
 const TYPE_CODES = {
-  'church': 'CH',
-  'shrine': 'SH',
-  'monastery': 'MO',
-  'center': 'CE',
-  'other': 'OT'
+  church: 'CH',
+  shrine: 'SH',
+  monastery: 'MO',
+  center: 'CE',
+  other: 'OT'
 };
 
 const REGION_CODES = {
-  'Bac': 'BAC',
-  'Trung': 'TRUNG',
-  'Nam': 'NAM'
+  Bac: 'BAC',
+  Trung: 'TRUNG',
+  Nam: 'NAM'
 };
 
 class SiteService {
+
   /**
    * Generate unique site code: CHNAM001, SHBAC001, etc.
-   * Uses Find Last + Increment to avoid duplicates when sites are deleted
    */
   static async generateSiteCode(type, region) {
-    const { Op } = require('sequelize');
-    const typeCode = TYPE_CODES[type];
-    const regionCode = REGION_CODES[region];
+    const typeCode = TYPE_CODES[type] || 'OT';
+    const regionCode = REGION_CODES[region] || 'NAM';
     const prefix = `${typeCode}${regionCode}`;
 
-    
     const lastSite = await Site.findOne({
-      where: {
-        code: { [Op.like]: `${prefix}%` }
-      },
+      where: { code: { [Op.like]: `${prefix}%` } },
       order: [['code', 'DESC']]
     });
 
     let nextNumber = 1;
     if (lastSite && lastSite.code) {
-      
       const lastNumber = parseInt(lastSite.code.replace(prefix, ''));
       nextNumber = lastNumber + 1;
     }
@@ -46,133 +42,215 @@ class SiteService {
   }
 
   /**
-   * Create new site (Admin only)
+   * Format site response with creator info
    */
-  static async createSite(siteData, adminId) {
+  static formatSiteResponse(site, creator = null) {
+    return {
+      id: site.id,
+      code: site.code,
+      name: site.name,
+      description: site.description,
+      history: site.history,
+      address: site.address,
+      province: site.province,
+      district: site.district,
+      latitude: site.latitude,
+      longitude: site.longitude,
+      region: site.region,
+      type: site.type,
+      patron_saint: site.patron_saint,
+      cover_image: site.cover_image,
+      opening_hours: site.opening_hours,
+      contact_info: site.contact_info,
+      is_active: site.is_active,
+      created_by: creator ? {
+        id: creator.id,
+        full_name: creator.full_name,
+        email: creator.email
+      } : site.created_by,
+      created_at: site.created_at,
+      updated_at: site.updated_at
+    };
+  }
+
+
+
+  /**
+   * Manager: Create site (max 1 site per manager, auto-approved)
+   */
+  static async createManagerSite(managerId, siteData) {
     try {
-      const {
-        name,
-        description,
-        history,
-        address,
-        province,
-        district,
-        latitude,
-        longitude,
-        region,
-        type,
-        patron_saint,
-        cover_image,
-        opening_hours,
-        contact_info
-      } = siteData;
-
-      const existingSite = await Site.findOne({
-        where: {
-          name: name.trim(),
-          province: province?.trim()
-        }
-      });
-
-      if (existingSite) {
-        throw new Error('Site already exists');
+      const manager = await User.findByPk(managerId);
+      if (!manager) {
+        throw new Error('Manager not found');
+      }
+      if (manager.role !== 'manager') {
+        throw new Error('Only managers can create sites');
+      }
+      if (manager.site_id) {
+        throw new Error('Manager already has a site');
       }
 
+      // Get approved verification request for prefill data
+      const verificationRequest = await VerificationRequest.findOne({
+        where: { user_id: managerId, status: 'approved' }
+      });
 
-      const code = await this.generateSiteCode(type, region);
+      const {
+        name, description, history, address, province, district,
+        latitude, longitude, region, type, patron_saint,
+        cover_image, opening_hours, contact_info
+      } = siteData;
+
+
+      const siteName = name || verificationRequest?.site_name;
+      const siteProvince = province || verificationRequest?.site_province;
+      const siteAddress = address || verificationRequest?.site_address;
+      const siteType = type || verificationRequest?.site_type || 'church';
+      const siteRegion = region || verificationRequest?.site_region || 'Nam';
+
+      if (!siteName) throw new Error('Site name is required');
+      if (!siteProvince) throw new Error('Province is required');
+
+
+      const existingSite = await Site.findOne({
+        where: { name: siteName.trim(), province: siteProvince.trim() }
+      });
+      if (existingSite) {
+        throw new Error('Site already exists in this province');
+      }
+
+      const code = await this.generateSiteCode(siteType, siteRegion);
 
       const site = await Site.create({
         code,
-        name: name.trim(),
+        name: siteName.trim(),
         description,
         history,
-        address,
-        province: province?.trim(),
+        address: siteAddress,
+        province: siteProvince.trim(),
         district: district?.trim(),
         latitude,
         longitude,
-        region,
-        type,
+        region: siteRegion,
+        type: siteType,
         patron_saint,
         cover_image,
         opening_hours,
         contact_info,
-        created_by: adminId,
-        status: 'approved',
+        created_by: managerId,
         is_active: true
       });
 
-      Logger.info(`Site created by admin: ${site.code} - ${site.name}`);
+      // Link site to manager
+      await User.update({ site_id: site.id }, { where: { id: managerId } });
 
-      return {
-        id: site.id,
-        code: site.code,
-        name: site.name,
-        description: site.description,
-        history: site.history,
-        address: site.address,
-        province: site.province,
-        district: site.district,
-        latitude: site.latitude,
-        longitude: site.longitude,
-        region: site.region,
-        type: site.type,
-        patron_saint: site.patron_saint,
-        cover_image: site.cover_image,
-        opening_hours: site.opening_hours,
-        contact_info: site.contact_info,
-        status: site.status,
-        is_active: site.is_active,
-        created_by: site.created_by,
-        created_at: site.created_at,
-        updated_at: site.updated_at
-      };
+      Logger.info(`Site created by manager ${managerId}: ${site.code} - ${site.name}`);
+      return this.formatSiteResponse(site, manager);
     } catch (error) {
-      Logger.error('Create site error:', error);
+      Logger.error('Manager create site error:', error);
       throw error;
     }
   }
 
   /**
-   * Get all sites with pagination and filters (Admin)
+   * Manager: Get my site
+   */
+  static async getManagerSite(managerId) {
+    try {
+      const manager = await User.findByPk(managerId);
+      if (!manager) throw new Error('Manager not found');
+      if (!manager.site_id) throw new Error('Manager has no site');
+
+      const site = await Site.findByPk(manager.site_id);
+      if (!site) throw new Error('Site not found');
+
+      // Get creator info
+      const creator = await User.findByPk(site.created_by);
+      return this.formatSiteResponse(site, creator);
+    } catch (error) {
+      Logger.error('Get manager site error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Manager: Update my site
+   */
+  static async updateManagerSite(managerId, updateData) {
+    try {
+      const manager = await User.findByPk(managerId);
+      if (!manager) throw new Error('Manager not found');
+      if (!manager.site_id) throw new Error('Manager has no site');
+
+      const site = await Site.findByPk(manager.site_id);
+      if (!site) throw new Error('Site not found');
+
+      // Manager can update these fields (not status)
+      const allowedFields = [
+        'name', 'description', 'history', 'address', 'province', 'district',
+        'latitude', 'longitude', 'patron_saint', 'cover_image',
+        'opening_hours', 'contact_info'
+      ];
+
+      const dataToUpdate = {};
+      for (const field of allowedFields) {
+        if (updateData[field] !== undefined) {
+          if (typeof updateData[field] === 'string' &&
+            ['name', 'address', 'province', 'district', 'patron_saint'].includes(field)) {
+            dataToUpdate[field] = updateData[field].trim();
+          } else {
+            dataToUpdate[field] = updateData[field];
+          }
+        }
+      }
+
+      // Check duplicate if name/province changed
+      if (dataToUpdate.name || dataToUpdate.province) {
+        const checkName = dataToUpdate.name || site.name;
+        const checkProvince = dataToUpdate.province || site.province;
+        const existingSite = await Site.findOne({
+          where: {
+            name: checkName,
+            province: checkProvince,
+            id: { [Op.ne]: site.id }
+          }
+        });
+        if (existingSite) throw new Error('Site already exists');
+      }
+
+      await site.update(dataToUpdate);
+      Logger.info(`Site updated by manager ${managerId}: ${site.code}`);
+
+      // Get creator info
+      const creator = await User.findByPk(site.created_by);
+      return this.formatSiteResponse(site, creator);
+    } catch (error) {
+      Logger.error('Manager update site error:', error);
+      throw error;
+    }
+  }
+
+
+
+  /**
+   * Admin: Get all sites with filters
    */
   static async getSites(options = {}) {
     try {
-      const {
-        page = 1,
-        limit = 10,
-        region,
-        type,
-        status,
-        is_active,
-        search
-      } = options;
-
+      const { page = 1, limit = 10, region, type, is_active, search } = options;
       const where = {};
-
 
       if (is_active !== undefined) {
         where.is_active = is_active === 'true' || is_active === true;
       }
-
-      // Filter by region
       if (region && ['Bac', 'Trung', 'Nam'].includes(region)) {
         where.region = region;
       }
-
-      // Filter by type
       if (type && ['church', 'shrine', 'monastery', 'center', 'other'].includes(type)) {
         where.type = type;
       }
-
-      // Filter by status
-      if (status && ['pending', 'approved', 'rejected'].includes(status)) {
-        where.status = status;
-      }
-
-      // Search by name or code
       if (search) {
-        const { Op } = require('sequelize');
         where[Op.or] = [
           { name: { [Op.iLike]: `%${search}%` } },
           { code: { [Op.iLike]: `%${search}%` } }
@@ -180,7 +258,6 @@ class SiteService {
       }
 
       const offset = (page - 1) * limit;
-
       const { rows: sites, count: total } = await Site.findAndCountAll({
         where,
         limit: parseInt(limit),
@@ -197,13 +274,10 @@ class SiteService {
           address: site.address,
           province: site.province,
           district: site.district,
-          latitude: site.latitude,
-          longitude: site.longitude,
           region: site.region,
           type: site.type,
           patron_saint: site.patron_saint,
           cover_image: site.cover_image,
-          status: site.status,
           is_active: site.is_active,
           created_at: site.created_at
         })),
@@ -221,39 +295,16 @@ class SiteService {
   }
 
   /**
-   * Get site by ID (Admin)
+   * Admin: Get site by ID
    */
   static async getSiteById(siteId) {
     try {
       const site = await Site.findByPk(siteId);
+      if (!site) throw new Error('Site not found');
 
-      if (!site) {
-        throw new Error('Site not found');
-      }
-
-      return {
-        id: site.id,
-        code: site.code,
-        name: site.name,
-        description: site.description,
-        history: site.history,
-        address: site.address,
-        province: site.province,
-        district: site.district,
-        latitude: site.latitude,
-        longitude: site.longitude,
-        region: site.region,
-        type: site.type,
-        patron_saint: site.patron_saint,
-        cover_image: site.cover_image,
-        opening_hours: site.opening_hours,
-        contact_info: site.contact_info,
-        status: site.status,
-        is_active: site.is_active,
-        created_by: site.created_by,
-        created_at: site.created_at,
-        updated_at: site.updated_at
-      };
+      // Get creator info
+      const creator = await User.findByPk(site.created_by);
+      return this.formatSiteResponse(site, creator);
     } catch (error) {
       Logger.error('Get site by ID error:', error);
       throw error;
@@ -261,91 +312,24 @@ class SiteService {
   }
 
   /**
-   * Soft delete site (set is_active = false)
-   */
-  static async deleteSite(siteId) {
-    try {
-      const site = await Site.findByPk(siteId);
-
-      if (!site) {
-        throw new Error('Site not found');
-      }
-
-      if (!site.is_active) {
-        throw new Error('Site already deleted');
-      }
-
-      await site.update({ is_active: false });
-
-      Logger.info(`Site soft deleted: ${site.code} - ${site.name}`);
-
-      return {
-        id: site.id,
-        code: site.code,
-        name: site.name,
-        is_active: site.is_active
-      };
-    } catch (error) {
-      Logger.error('Delete site error:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Restore soft deleted site (set is_active = true)
-   */
-  static async restoreSite(siteId) {
-    try {
-      const site = await Site.findByPk(siteId);
-
-      if (!site) {
-        throw new Error('Site not found');
-      }
-
-      if (site.is_active) {
-        throw new Error('Site is not deleted');
-      }
-
-      await site.update({ is_active: true });
-
-      Logger.info(`Site restored: ${site.code} - ${site.name}`);
-
-      return {
-        id: site.id,
-        code: site.code,
-        name: site.name,
-        is_active: site.is_active
-      };
-    } catch (error) {
-      Logger.error('Restore site error:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Update site information (Admin only)
+   * Admin: Update site (can change status)
    */
   static async updateSite(siteId, updateData) {
     try {
       const site = await Site.findByPk(siteId);
-
-      if (!site) {
-        throw new Error('Site not found');
-      }
-
+      if (!site) throw new Error('Site not found');
 
       const allowedFields = [
         'name', 'description', 'history', 'address', 'province', 'district',
         'latitude', 'longitude', 'region', 'type', 'patron_saint',
-        'cover_image', 'opening_hours', 'contact_info', 'status'
+        'cover_image', 'opening_hours', 'contact_info'
       ];
-
 
       const dataToUpdate = {};
       for (const field of allowedFields) {
         if (updateData[field] !== undefined) {
-
-          if (typeof updateData[field] === 'string' && ['name', 'address', 'province', 'district', 'patron_saint'].includes(field)) {
+          if (typeof updateData[field] === 'string' &&
+            ['name', 'address', 'province', 'district', 'patron_saint'].includes(field)) {
             dataToUpdate[field] = updateData[field].trim();
           } else {
             dataToUpdate[field] = updateData[field];
@@ -353,12 +337,9 @@ class SiteService {
         }
       }
 
-
       if (dataToUpdate.name || dataToUpdate.province) {
-        const { Op } = require('sequelize');
         const checkName = dataToUpdate.name || site.name;
         const checkProvince = dataToUpdate.province || site.province;
-
         const existingSite = await Site.findOne({
           where: {
             name: checkName,
@@ -366,41 +347,53 @@ class SiteService {
             id: { [Op.ne]: siteId }
           }
         });
-
-        if (existingSite) {
-          throw new Error('Site already exists');
-        }
+        if (existingSite) throw new Error('Site already exists');
       }
 
       await site.update(dataToUpdate);
+      Logger.info(`Site updated by admin: ${site.code}`);
 
-      Logger.info(`Site updated: ${site.code} - ${site.name}`);
-
-      return {
-        id: site.id,
-        code: site.code,
-        name: site.name,
-        description: site.description,
-        history: site.history,
-        address: site.address,
-        province: site.province,
-        district: site.district,
-        latitude: site.latitude,
-        longitude: site.longitude,
-        region: site.region,
-        type: site.type,
-        patron_saint: site.patron_saint,
-        cover_image: site.cover_image,
-        opening_hours: site.opening_hours,
-        contact_info: site.contact_info,
-        status: site.status,
-        is_active: site.is_active,
-        created_by: site.created_by,
-        created_at: site.created_at,
-        updated_at: site.updated_at
-      };
+      // Get creator info
+      const creator = await User.findByPk(site.created_by);
+      return this.formatSiteResponse(site, creator);
     } catch (error) {
       Logger.error('Update site error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Admin: Soft delete site
+   */
+  static async deleteSite(siteId) {
+    try {
+      const site = await Site.findByPk(siteId);
+      if (!site) throw new Error('Site not found');
+      if (!site.is_active) throw new Error('Site already deleted');
+
+      await site.update({ is_active: false });
+      Logger.info(`Site soft deleted: ${site.code}`);
+      return { id: site.id, code: site.code, name: site.name, is_active: site.is_active };
+    } catch (error) {
+      Logger.error('Delete site error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Admin: Restore site
+   */
+  static async restoreSite(siteId) {
+    try {
+      const site = await Site.findByPk(siteId);
+      if (!site) throw new Error('Site not found');
+      if (site.is_active) throw new Error('Site is not deleted');
+
+      await site.update({ is_active: true });
+      Logger.info(`Site restored: ${site.code}`);
+      return { id: site.id, code: site.code, name: site.name, is_active: site.is_active };
+    } catch (error) {
+      Logger.error('Restore site error:', error);
       throw error;
     }
   }

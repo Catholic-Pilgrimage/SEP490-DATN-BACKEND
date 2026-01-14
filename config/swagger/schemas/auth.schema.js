@@ -177,7 +177,7 @@
  *           example: "pilgrim"
  *         status:
  *           type: string
- *           enum: [active, banned, pending]
+ *           enum: [active, banned]
  *           example: "active"
  *         language:
  *           type: string

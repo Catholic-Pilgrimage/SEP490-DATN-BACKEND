@@ -59,6 +59,17 @@
     "restore_success": "Khôi phục địa điểm thành công",
     "not_deleted": "Địa điểm chưa bị xóa"
   },
+  "manager_site": {
+    "create_success": "Tạo địa điểm thành công",
+    "update_success": "Cập nhật địa điểm thành công",
+    "get_success": "Lấy thông tin địa điểm thành công",
+    "only_manager": "Chỉ quản lý mới có thể thực hiện hành động này",
+    "already_has_site": "Bạn đã có địa điểm, không thể tạo thêm",
+    "name_required": "Tên địa điểm không được để trống",
+    "province_required": "Tỉnh/Thành không được để trống",
+    "site_exists": "Địa điểm đã tồn tại trong tỉnh/thành này",
+    "no_site": "Bạn chưa có địa điểm nào"
+  },
   "verification": {
     "create_success": "Gửi yêu cầu xác minh thành công",
     "get_success": "Lấy thông tin yêu cầu thành công",
@@ -71,8 +82,18 @@
     "not_pending": "Yêu cầu không ở trạng thái chờ xử lý",
     "rejection_reason_required": "Vui lòng nhập lý do từ chối"
   },
+  "local_guide": {
+    "create_success": "Tạo Local Guide thành công",
+    "list_success": "Lấy danh sách Local Guide thành công",
+    "block_success": "Khóa Local Guide thành công",
+    "unblock_success": "Mở khóa Local Guide thành công",
+    "not_found": "Không tìm thấy Local Guide",
+    "only_manager": "Chỉ quản lý mới có thể thực hiện hành động này",
+    "invalid_status": "Trạng thái không hợp lệ"
+  },
   "validation": {
     "failed": "Dữ liệu không hợp lệ",
+    "invalid_json": "Định dạng JSON không hợp lệ",
     "email_invalid": "Email không hợp lệ",
     "password_min_length": "Mật khẩu phải có ít nhất {{min}} ký tự",
     "password_strong": "Mật khẩu phải có ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt",

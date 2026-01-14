@@ -28,7 +28,6 @@ DO $$ BEGIN
     -- Sites
     CREATE TYPE site_region AS ENUM ('Bac', 'Trung', 'Nam');
     CREATE TYPE site_type AS ENUM ('church', 'shrine', 'monastery', 'center', 'other');
-    CREATE TYPE site_status AS ENUM ('pending', 'approved', 'rejected');
     CREATE TYPE media_type AS ENUM ('image', 'video', 'panorama');
     
     -- Nearby Places (NEW)
@@ -59,6 +58,9 @@ DO $$ BEGIN
     
     -- Verification (Manager Application)
     CREATE TYPE verification_status AS ENUM ('pending', 'approved', 'rejected');
+    
+    -- Site Content Status (for mass_schedules, events)
+    CREATE TYPE site_status AS ENUM ('pending', 'approved', 'rejected');
     
     -- Push Notifications
     CREATE TYPE push_token_status AS ENUM ('active', 'revoked', 'expired');
@@ -152,7 +154,6 @@ CREATE TABLE IF NOT EXISTS sites (
     opening_hours JSONB,
     contact_info JSONB,
     created_by UUID REFERENCES users(id) ON DELETE SET NULL,
-    status site_status DEFAULT 'pending',
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -163,7 +164,7 @@ CREATE INDEX IF NOT EXISTS idx_sites_name_trgm ON sites USING GIN (name gin_trgm
 CREATE INDEX IF NOT EXISTS idx_sites_search ON sites(name, province, district);
 CREATE INDEX IF NOT EXISTS idx_sites_coords ON sites(latitude, longitude);
 CREATE INDEX IF NOT EXISTS idx_sites_region_type ON sites(region, type);
-CREATE INDEX IF NOT EXISTS idx_sites_status ON sites(status);
+CREATE INDEX IF NOT EXISTS idx_sites_is_active ON sites(is_active);
 
 -- Trigger
 DROP TRIGGER IF EXISTS update_sites_updated_at ON sites;

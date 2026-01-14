@@ -138,11 +138,6 @@ class SiteValidator {
       .isLength({ max: 255 }).withMessage('Tên thánh bổn mạng không quá 255 ký tự')
       .trim(),
 
-    body('status')
-      .optional()
-      .isIn(['pending', 'approved', 'rejected'])
-      .withMessage('Trạng thái phải là pending, approved hoặc rejected'),
-
     body('opening_hours')
       .optional()
       .custom((value) => {

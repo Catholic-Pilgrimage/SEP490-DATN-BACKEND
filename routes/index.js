@@ -2,8 +2,9 @@ const express = require('express');
 const router = express.Router();
 const authRoutes = require('./auth.routes');
 const adminRoutes = require('./admin.routes');
-const siteRoutes = require('./site.routes');
+const { adminRouter: adminSiteRoutes, managerRouter: managerSiteRoutes } = require('./site.routes');
 const { pilgrimRouter: verificationRoutes, adminRouter: adminVerificationRoutes } = require('./verification.routes');
+const localGuideRoutes = require('./localGuide.routes');
 
 router.get('/', (req, res) => {
   res.json({
@@ -14,7 +15,9 @@ router.get('/', (req, res) => {
       docs: '/api-docs',
       auth: '/api/auth',
       admin: '/api/admin',
-      sites: '/api/admin/sites',
+      adminSites: '/api/admin/sites',
+      managerSites: '/api/manager/sites',
+      managerLocalGuides: '/api/manager/local-guides',
       verification: '/api/verification-requests',
       adminVerification: '/api/admin/verification-requests'
     }
@@ -27,8 +30,14 @@ router.use('/auth', authRoutes);
 // Admin routes
 router.use('/admin', adminRoutes);
 
-// Site routes (Admin only)
-router.use('/admin/sites', siteRoutes);
+// Admin Site routes
+router.use('/admin/sites', adminSiteRoutes);
+
+// Manager Site routes
+router.use('/manager/sites', managerSiteRoutes);
+
+// Manager Local Guide routes
+router.use('/manager/local-guides', localGuideRoutes);
 
 // Verification routes (Pilgrim only)
 router.use('/verification-requests', verificationRoutes);

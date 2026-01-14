@@ -1,42 +1,44 @@
 /**
  * @swagger
  * tags:
- *   name: Sites
- *   description: API quản lý địa điểm hành hương
+ *   - name: Admin Sites
+ *     description: API quản lý địa điểm (Admin)
+ *   - name: Manager Sites
+ *     description: API quản lý địa điểm (Manager)
  */
+
+// ============================================
+// MANAGER SITE ROUTES
+// ============================================
 
 /**
  * @swagger
- * /api/admin/sites:
+ * /api/manager/sites:
  *   post:
- *     summary: Tạo địa điểm mới (Admin only)
- *     tags: [Sites]
+ *     summary: Tạo địa điểm mới (Manager only - max 1 site)
+ *     description: Manager chỉ được tạo 1 site duy nhất, site sẽ được tự động phê duyệt.
+ *     tags: [Manager Sites]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
- *       required: true
  *       content:
  *         multipart/form-data:
  *           schema:
  *             type: object
- *             required:
- *               - name
- *               - region
- *               - type
  *             properties:
  *               name:
  *                 type: string
  *                 example: "Nhà thờ Đức Bà Sài Gòn"
- *                 description: "Tên địa điểm (2-255 ký tự)"
+ *                 description: Tên địa điểm
  *               description:
  *                 type: string
  *                 example: "Nhà thờ chính tòa của Tổng Giáo phận Sài Gòn"
  *               history:
  *                 type: string
- *                 example: "Được xây dựng từ năm 1863-1880..."
+ *                 example: "Được xây dựng từ năm 1863-1880 bởi người Pháp"
  *               address:
  *                 type: string
- *                 example: "01 Công xã Paris, Bến Nghé, Quận 1"
+ *                 example: "01 Công xã Paris, Bến Nghé"
  *               province:
  *                 type: string
  *                 example: "Hồ Chí Minh"
@@ -45,288 +47,61 @@
  *                 example: "Quận 1"
  *               latitude:
  *                 type: number
- *                 format: float
  *                 example: 10.779738
- *                 description: "Vĩ độ (-90 đến 90)"
  *               longitude:
  *                 type: number
- *                 format: float
  *                 example: 106.699092
- *                 description: "Kinh độ (-180 đến 180)"
  *               region:
  *                 type: string
- *                 enum:
- *                   - Bac
- *                   - Trung
- *                   - Nam
+ *                 enum: [Bac, Trung, Nam]
  *                 example: "Nam"
- *                 description: "Vùng miền"
  *               type:
  *                 type: string
- *                 enum:
- *                   - church
- *                   - shrine
- *                   - monastery
- *                   - center
- *                   - other
+ *                 enum: [church, shrine, monastery, center, other]
  *                 example: "church"
- *                 description: "Loại địa điểm"
  *               patron_saint:
  *                 type: string
  *                 example: "Đức Mẹ Vô Nhiễm Nguyên Tội"
- *                 description: "Thánh bổn mạng"
  *               cover_image:
  *                 type: string
  *                 format: binary
- *                 description: "Ảnh bìa (jpg, png, webp)"
  *               opening_hours:
  *                 type: string
- *                 example: '{"monday":"05:00-18:00","tuesday":"05:00-18:00","sunday":"05:00-20:00"}'
- *                 description: "Giờ mở cửa (JSON string)"
+ *                 example: '{"monday":"05:00-18:00","sunday":"05:00-20:00"}'
+ *                 description: JSON string
  *               contact_info:
  *                 type: string
- *                 example: '{"phone":"028-3822-0477","email":"contact@example.com","website":"https://example.com"}'
- *                 description: "Thông tin liên hệ (JSON string)"
+ *                 example: '{"phone":"028-3822-0477","email":"contact@example.com"}'
+ *                 description: JSON string
  *     responses:
  *       201:
  *         description: Tạo địa điểm thành công
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/SiteResponse'
  *       400:
- *         description: Dữ liệu không hợp lệ
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- *       401:
- *         description: Chưa đăng nhập
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         description: Thiếu thông tin bắt buộc
  *       403:
- *         description: Không có quyền admin
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- */
-
-/**
- * @swagger
- * /api/admin/sites:
+ *         description: Chỉ Manager mới có thể tạo site
+ *       409:
+ *         description: Manager đã có site hoặc site đã tồn tại
  *   get:
- *     summary: Lấy danh sách địa điểm (Admin only)
- *     tags: [Sites]
+ *     summary: Xem địa điểm của tôi (Manager only)
+ *     tags: [Manager Sites]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           default: 1
- *         description: Số trang
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 10
- *         description: Số lượng mỗi trang
- *       - in: query
- *         name: region
- *         schema:
- *           type: string
- *           enum: [Bac, Trung, Nam]
- *         description: Lọc theo vùng miền
- *       - in: query
- *         name: type
- *         schema:
- *           type: string
- *           enum: [church, shrine, monastery, center, other]
- *         description: Lọc theo loại địa điểm
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *           enum: [pending, approved, rejected]
- *         description: Lọc theo trạng thái
- *       - in: query
- *         name: is_active
- *         schema:
- *           type: boolean
- *         description: Lọc theo trạng thái hoạt động (true = đang hoạt động, false = đã xóa)
- *       - in: query
- *         name: search
- *         schema:
- *           type: string
- *         description: Tìm kiếm theo tên hoặc mã
  *     responses:
  *       200:
- *         description: Lấy danh sách thành công
- *       401:
- *         description: Chưa đăng nhập
- *       403:
- *         description: Không có quyền admin
- */
-
-/**
- * @swagger
- * /api/admin/sites/{id}:
- *   get:
- *     summary: Lấy chi tiết địa điểm (Admin only)
- *     tags: [Sites]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: ID của địa điểm
- *     responses:
- *       200:
- *         description: Lấy thông tin thành công
+ *         description: Thành công
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/SiteResponse'
  *       404:
- *         description: Không tìm thấy địa điểm
- *       401:
- *         description: Chưa đăng nhập
- *       403:
- *         description: Không có quyền admin
- */
-
-/**
- * @swagger
- * /api/admin/sites/{id}:
- *   delete:
- *     summary: Xóa địa điểm (Soft Delete - Admin only)
- *     tags: [Sites]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: ID của địa điểm
- *     responses:
- *       200:
- *         description: Xóa địa điểm thành công
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Xóa địa điểm thành công"
- *                 data:
- *                   type: object
- *                   properties:
- *                     id:
- *                       type: string
- *                       format: uuid
- *                     code:
- *                       type: string
- *                       example: "CHNAM001"
- *                     name:
- *                       type: string
- *                     is_active:
- *                       type: boolean
- *                       example: false
- *       404:
- *         description: Không tìm thấy địa điểm
- *       400:
- *         description: Địa điểm đã bị xóa
- *       401:
- *         description: Chưa đăng nhập
- *       403:
- *         description: Không có quyền admin
- */
-
-/**
- * @swagger
- * /api/admin/sites/{id}/restore:
- *   patch:
- *     summary: Khôi phục địa điểm đã xóa (Admin only)
- *     tags: [Sites]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: ID của địa điểm
- *     responses:
- *       200:
- *         description: Khôi phục địa điểm thành công
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Khôi phục địa điểm thành công"
- *                 data:
- *                   type: object
- *                   properties:
- *                     id:
- *                       type: string
- *                       format: uuid
- *                     code:
- *                       type: string
- *                       example: "CHNAM001"
- *                     name:
- *                       type: string
- *                     is_active:
- *                       type: boolean
- *                       example: true
- *       404:
- *         description: Không tìm thấy địa điểm
- *       400:
- *         description: Địa điểm chưa bị xóa
- *       401:
- *         description: Chưa đăng nhập
- *       403:
- *         description: Không có quyền admin
- */
-
-/**
- * @swagger
- * /api/admin/sites/{id}:
+ *         description: Manager chưa có địa điểm
  *   put:
- *     summary: Cập nhật địa điểm (Admin only)
- *     tags: [Sites]
+ *     summary: Cập nhật địa điểm của tôi (Manager only)
+ *     description: Manager có thể cập nhật thông tin site nhưng không thể thay đổi region, type
+ *     tags: [Manager Sites]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: ID của địa điểm
  *     requestBody:
  *       content:
  *         multipart/form-data:
@@ -335,55 +110,238 @@
  *             properties:
  *               name:
  *                 type: string
- *                 description: Tên địa điểm
+ *                 example: "Nhà thờ Đức Bà Sài Gòn"
  *               description:
  *                 type: string
+ *                 example: "Nhà thờ chính tòa của Tổng Giáo phận Sài Gòn"
  *               history:
  *                 type: string
+ *                 example: "Được xây dựng từ năm 1863-1880"
  *               address:
  *                 type: string
+ *                 example: "01 Công xã Paris, Bến Nghé"
  *               province:
  *                 type: string
+ *                 example: "Hồ Chí Minh"
  *               district:
  *                 type: string
+ *                 example: "Quận 1"
  *               latitude:
  *                 type: number
+ *                 example: 10.779738
  *               longitude:
  *                 type: number
- *               region:
- *                 type: string
- *                 enum: [Bac, Trung, Nam]
- *               type:
- *                 type: string
- *                 enum: [church, shrine, monastery, center, other]
+ *                 example: 106.699092
  *               patron_saint:
  *                 type: string
+ *                 example: "Đức Mẹ Vô Nhiễm Nguyên Tội"
  *               cover_image:
  *                 type: string
  *                 format: binary
- *                 description: Ảnh bìa mới
- *               status:
- *                 type: string
- *                 enum: [pending, approved, rejected]
  *               opening_hours:
  *                 type: string
- *                 description: JSON string
+ *                 example: '{"monday":"05:00-18:00","sunday":"05:00-20:00"}'
  *               contact_info:
  *                 type: string
- *                 description: JSON string
+ *                 example: '{"phone":"028-3822-0477"}'
  *     responses:
  *       200:
  *         description: Cập nhật thành công
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/SiteResponse'
  *       404:
- *         description: Không tìm thấy địa điểm
+ *         description: Manager chưa có địa điểm
  *       409:
  *         description: Địa điểm đã tồn tại
- *       401:
- *         description: Chưa đăng nhập
+ */
+
+// ============================================
+// ADMIN SITE ROUTES
+// ============================================
+
+/**
+ * @swagger
+ * /api/admin/sites:
+ *   get:
+ *     summary: Lấy danh sách địa điểm (Admin only)
+ *     tags: [Admin Sites]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *           example: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *           example: 10
+ *       - in: query
+ *         name: region
+ *         schema:
+ *           type: string
+ *           enum: [Bac, Trung, Nam]
+ *           example: "Nam"
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [church, shrine, monastery, center, other]
+ *           example: "church"
+ *       - in: query
+ *         name: is_active
+ *         schema:
+ *           type: boolean
+ *           example: true
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *           example: "Đức Bà"
+ *     responses:
+ *       200:
+ *         description: Thành công
  *       403:
  *         description: Không có quyền admin
+ */
+
+/**
+ * @swagger
+ * /api/admin/sites/{id}:
+ *   get:
+ *     summary: Chi tiết địa điểm (Admin only)
+ *     tags: [Admin Sites]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         example: "550e8400-e29b-41d4-a716-446655440000"
+ *     responses:
+ *       200:
+ *         description: Thành công
+ *       404:
+ *         description: Không tìm thấy
+ *   put:
+ *     summary: Cập nhật địa điểm (Admin only)
+ *     description: Admin có thể cập nhật tất cả thông tin của địa điểm
+ *     tags: [Admin Sites]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: "Nhà thờ Đức Bà Sài Gòn"
+ *               description:
+ *                 type: string
+ *                 example: "Nhà thờ chính tòa của Tổng Giáo phận Sài Gòn"
+ *               history:
+ *                 type: string
+ *                 example: "Được xây dựng từ năm 1863-1880"
+ *               address:
+ *                 type: string
+ *                 example: "01 Công xã Paris, Bến Nghé"
+ *               province:
+ *                 type: string
+ *                 example: "Hồ Chí Minh"
+ *               district:
+ *                 type: string
+ *                 example: "Quận 1"
+ *               latitude:
+ *                 type: number
+ *                 example: 10.779738
+ *               longitude:
+ *                 type: number
+ *                 example: 106.699092
+ *               region:
+ *                 type: string
+ *                 enum: [Bac, Trung, Nam]
+ *                 example: "Nam"
+ *               type:
+ *                 type: string
+ *                 enum: [church, shrine, monastery, center, other]
+ *                 example: "church"
+ *               patron_saint:
+ *                 type: string
+ *                 example: "Đức Mẹ Vô Nhiễm Nguyên Tội"
+ *               cover_image:
+ *                 type: string
+ *                 format: binary
+ *               is_active:
+ *                 type: boolean
+ *                 example: true
+ *               opening_hours:
+ *                 type: string
+ *                 example: '{"monday":"05:00-18:00"}'
+ *               contact_info:
+ *                 type: string
+ *                 example: '{"phone":"028-3822-0477"}'
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ *       404:
+ *         description: Không tìm thấy
+ *       409:
+ *         description: Địa điểm đã tồn tại
+ *   delete:
+ *     summary: Xóa địa điểm - Soft Delete (Admin only)
+ *     tags: [Admin Sites]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Xóa thành công
+ *       400:
+ *         description: Địa điểm đã bị xóa
+ *       404:
+ *         description: Không tìm thấy
+ */
+
+/**
+ * @swagger
+ * /api/admin/sites/{id}/restore:
+ *   patch:
+ *     summary: Khôi phục địa điểm đã xóa (Admin only)
+ *     tags: [Admin Sites]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Khôi phục thành công
+ *       400:
+ *         description: Địa điểm chưa bị xóa
+ *       404:
+ *         description: Không tìm thấy
  */

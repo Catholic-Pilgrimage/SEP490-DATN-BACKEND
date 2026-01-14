@@ -59,6 +59,17 @@
     "restore_success": "Site restored successfully",
     "not_deleted": "Site is not deleted"
   },
+  "manager_site": {
+    "create_success": "Site created successfully",
+    "update_success": "Site updated successfully",
+    "get_success": "Get site successfully",
+    "only_manager": "Only managers can perform this action",
+    "already_has_site": "You already have a site, cannot create another",
+    "name_required": "Site name is required",
+    "province_required": "Province is required",
+    "site_exists": "Site already exists in this province",
+    "no_site": "You don't have any site yet"
+  },
   "verification": {
     "create_success": "Verification request submitted successfully",
     "get_success": "Verification request retrieved successfully",
@@ -71,8 +82,18 @@
     "not_pending": "Request is not in pending status",
     "rejection_reason_required": "Rejection reason is required"
   },
+  "local_guide": {
+    "create_success": "Local Guide created successfully",
+    "list_success": "Local Guides retrieved successfully",
+    "block_success": "Local Guide blocked successfully",
+    "unblock_success": "Local Guide unblocked successfully",
+    "not_found": "Local Guide not found",
+    "only_manager": "Only managers can perform this action",
+    "invalid_status": "Invalid status"
+  },
   "validation": {
     "failed": "Validation failed",
+    "invalid_json": "Invalid JSON format",
     "email_invalid": "Invalid email",
     "password_min_length": "Password must be at least {{min}} characters",
     "password_strong": "Password must contain at least 1 uppercase, 1 lowercase, 1 number and 1 special character",

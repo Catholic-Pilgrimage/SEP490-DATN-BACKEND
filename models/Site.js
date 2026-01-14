@@ -90,13 +90,6 @@ const Site = sequelize.define('Site', {
             key: 'id'
         }
     },
-    status: {
-        type: DataTypes.STRING,
-        defaultValue: 'pending',
-        validate: {
-            isIn: [['pending', 'approved', 'rejected']]
-        }
-    },
     is_active: {
         type: DataTypes.BOOLEAN,
         defaultValue: true

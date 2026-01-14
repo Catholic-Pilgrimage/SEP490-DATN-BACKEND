@@ -5,13 +5,11 @@ const authMiddleware = require('../middlewares/auth.middleware');
 const i18nMiddleware = require('../middlewares/i18n.middleware');
 const { uploadDocument } = require('../config/cloudinary.config');
 
-// ============================================
-// PILGRIM ROUTES - /api/verification-requests
-// ============================================
+
 const pilgrimRouter = express.Router();
 pilgrimRouter.use(i18nMiddleware);
 
-// POST /api/verification-requests - Submit verification request
+// POST - Submit verification request
 pilgrimRouter.post(
     '/',
     authMiddleware,
@@ -21,7 +19,7 @@ pilgrimRouter.post(
     VerificationController.createRequest
 );
 
-// GET /api/verification-requests/me - Get my verification request
+// GET - Get my verification request
 pilgrimRouter.get(
     '/me',
     authMiddleware,
@@ -29,13 +27,11 @@ pilgrimRouter.get(
     VerificationController.getMyRequest
 );
 
-// ============================================
-// ADMIN ROUTES - /api/admin/verification-requests
-// ============================================
+
 const adminRouter = express.Router();
 adminRouter.use(i18nMiddleware);
 
-// GET /api/admin/verification-requests - List all
+// GET  - List all
 adminRouter.get(
     '/',
     authMiddleware,
@@ -43,7 +39,7 @@ adminRouter.get(
     VerificationController.getRequests
 );
 
-// GET /api/admin/verification-requests/:id - Get detail
+// GET  - Get detail
 adminRouter.get(
     '/:id',
     authMiddleware,
@@ -51,7 +47,7 @@ adminRouter.get(
     VerificationController.getRequestById
 );
 
-// PATCH /api/admin/verification-requests/:id - Update status (approve/reject)
+// PATCH - Update status (approve/reject)
 adminRouter.patch(
     '/:id',
     authMiddleware,
