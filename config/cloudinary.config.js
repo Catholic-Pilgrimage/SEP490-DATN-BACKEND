@@ -28,11 +28,31 @@ const documentStorage = new CloudinaryStorage({
     }
 });
 
+// Media storage (for site gallery: images, videos, panoramas)
+const mediaStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: async (req, file) => {
+        // Determine resource type based on file mimetype
+        const isVideo = file.mimetype.startsWith('video/');
+        return {
+            folder: 'catholic_pilgrimage/site_media',
+            allowed_formats: ['jpg', 'png', 'jpeg', 'webp', 'mp4', 'mov', 'avi'],
+            resource_type: isVideo ? 'video' : 'image',
+            transformation: isVideo ? [] : [{ width: 2000, height: 2000, crop: 'limit' }]
+        };
+    }
+});
+
 const upload = multer({ storage: imageStorage });
 const uploadDocument = multer({ storage: documentStorage });
+const uploadMedia = multer({
+    storage: mediaStorage,
+    limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit for videos
+});
 
 module.exports = {
     cloudinary,
     upload,
-    uploadDocument
+    uploadDocument,
+    uploadMedia
 };

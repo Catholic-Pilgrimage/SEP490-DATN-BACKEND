@@ -4,7 +4,9 @@ const authRoutes = require('./auth.routes');
 const adminRoutes = require('./admin.routes');
 const { adminRouter: adminSiteRoutes, managerRouter: managerSiteRoutes } = require('./site.routes');
 const { pilgrimRouter: verificationRoutes, adminRouter: adminVerificationRoutes } = require('./verification.routes');
+const managerLocalGuideRoutes = require('./managerLocalGuide.routes');
 const localGuideRoutes = require('./localGuide.routes');
+const managerContentRoutes = require('./managerContent.routes');
 
 router.get('/', (req, res) => {
   res.json({
@@ -18,6 +20,8 @@ router.get('/', (req, res) => {
       adminSites: '/api/admin/sites',
       managerSites: '/api/manager/sites',
       managerLocalGuides: '/api/manager/local-guides',
+      managerContent: '/api/manager/content',
+      localGuide: '/api/local-guide',
       verification: '/api/verification-requests',
       adminVerification: '/api/admin/verification-requests'
     }
@@ -37,7 +41,13 @@ router.use('/admin/sites', adminSiteRoutes);
 router.use('/manager/sites', managerSiteRoutes);
 
 // Manager Local Guide routes
-router.use('/manager/local-guides', localGuideRoutes);
+router.use('/manager/local-guides', managerLocalGuideRoutes);
+
+// Manager Content routes (Media, Schedule, Event approval)
+router.use('/manager/content', managerContentRoutes);
+
+// Local Guide self routes
+router.use('/local-guide', localGuideRoutes);
 
 // Verification routes (Pilgrim only)
 router.use('/verification-requests', verificationRoutes);
@@ -46,3 +56,4 @@ router.use('/verification-requests', verificationRoutes);
 router.use('/admin/verification-requests', adminVerificationRoutes);
 
 module.exports = router;
+

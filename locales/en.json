@@ -89,7 +89,22 @@
     "unblock_success": "Local Guide unblocked successfully",
     "not_found": "Local Guide not found",
     "only_manager": "Only managers can perform this action",
-    "invalid_status": "Invalid status"
+    "invalid_status": "Invalid status",
+    "profile_success": "Profile retrieved successfully",
+    "site_success": "Site retrieved successfully",
+    "only_local_guide": "Only local guides can access this",
+    "no_site": "Local Guide has no assigned site",
+    "upload_media_success": "Media uploaded successfully",
+    "get_media_success": "Media retrieved successfully",
+    "delete_media_success": "Media deleted successfully",
+    "update_media_success": "Media updated successfully",
+    "invalid_media_type": "Invalid media type",
+    "media_not_found": "Media not found",
+    "delete_approved_media_error": "Cannot delete approved media",
+    "update_approved_error": "Cannot update approved media",
+    "file_required": "Please select a file to upload",
+    "file_or_url_required": "Please select a file or enter YouTube URL",
+    "invalid_youtube_url": "Invalid YouTube URL"
   },
   "validation": {
     "failed": "Validation failed",
@@ -105,6 +120,21 @@
     "otp_invalid": "OTP must be 6 digits",
     "password_not_match": "Password confirmation does not match",
     "password_same_as_old": "New password must be different from current password"
+  },
+  "manager": {
+    "no_site": "Manager has no assigned site",
+    "get_media_success": "Media retrieved successfully",
+    "media_approved": "Media approved successfully",
+    "media_rejected": "Media rejected successfully",
+    "delete_media_success": "Media deleted successfully",
+    "invalid_status": "Invalid status",
+    "media_not_found": "Media not found",
+    "already_reviewed": "Content already reviewed",
+    "rejection_reason_required": "Rejection reason is required",
+    "media_restored": "Media restored successfully",
+    "media_deactivated": "Media deactivated successfully",
+    "invalid_is_active": "Invalid is_active value",
+    "only_approved_toggle": "Only approved media can be toggled"
   },
   "error": {
     "server_error": "Server error",

@@ -1,29 +1,17 @@
 const { body } = require('express-validator');
 
 class LocalGuideValidator {
-    // Validate create Local Guide
-    static createLocalGuide = [
-        body('email')
-            .notEmpty().withMessage('Email không được để trống')
-            .isEmail().withMessage('Email không hợp lệ')
-            .normalizeEmail(),
 
-        body('full_name')
-            .notEmpty().withMessage('Họ tên không được để trống')
-            .isLength({ min: 2, max: 100 }).withMessage('Họ tên phải từ 2-100 ký tự')
-            .trim(),
+    // Validate upload media (for multipart/form-data)
+    static uploadMedia = [
+        body('type')
+            .notEmpty().withMessage('Loại media không được để trống')
+            .isIn(['image', 'video', 'panorama']).withMessage('Loại media phải là image, video hoặc panorama'),
 
-        body('phone')
+        body('caption')
             .optional()
-            .matches(/^[0-9]{10,11}$/).withMessage('Số điện thoại không hợp lệ')
+            .isLength({ max: 255 }).withMessage('Mô tả tối đa 255 ký tự')
             .trim()
-    ];
-
-    // Validate update status (block/unblock)
-    static updateStatus = [
-        body('status')
-            .notEmpty().withMessage('Trạng thái không được để trống')
-            .isIn(['active', 'banned']).withMessage('Trạng thái phải là active hoặc banned')
     ];
 }
 

@@ -89,7 +89,22 @@
     "unblock_success": "Mở khóa Local Guide thành công",
     "not_found": "Không tìm thấy Local Guide",
     "only_manager": "Chỉ quản lý mới có thể thực hiện hành động này",
-    "invalid_status": "Trạng thái không hợp lệ"
+    "invalid_status": "Trạng thái không hợp lệ",
+    "profile_success": "Lấy thông tin profile thành công",
+    "site_success": "Lấy thông tin địa điểm thành công",
+    "only_local_guide": "Chỉ hướng dẫn viên địa phương mới có thể truy cập",
+    "no_site": "Hướng dẫn viên chưa được gán vào địa điểm nào",
+    "upload_media_success": "Tải lên media thành công",
+    "get_media_success": "Lấy danh sách media thành công",
+    "delete_media_success": "Xóa media thành công",
+    "update_media_success": "Cập nhật media thành công",
+    "invalid_media_type": "Loại media không hợp lệ",
+    "media_not_found": "Không tìm thấy media",
+    "delete_approved_media_error": "Không thể xóa media đã được duyệt",
+    "update_approved_error": "Không thể cập nhật media đã được duyệt",
+    "file_required": "Vui lòng chọn file để upload",
+    "file_or_url_required": "Vui lòng chọn file hoặc nhập link YouTube",
+    "invalid_youtube_url": "Link YouTube không hợp lệ"
   },
   "validation": {
     "failed": "Dữ liệu không hợp lệ",
@@ -105,6 +120,21 @@
     "otp_invalid": "Mã OTP phải có 6 số",
     "password_not_match": "Xác nhận mật khẩu không khớp",
     "password_same_as_old": "Mật khẩu mới phải khác mật khẩu hiện tại"
+  },
+  "manager": {
+    "no_site": "Manager chưa được gán site",
+    "get_media_success": "Lấy danh sách media thành công",
+    "media_approved": "Duyệt media thành công",
+    "media_rejected": "Từ chối media thành công",
+    "delete_media_success": "Xóa media thành công",
+    "invalid_status": "Trạng thái không hợp lệ",
+    "media_not_found": "Không tìm thấy media",
+    "already_reviewed": "Nội dung đã được duyệt hoặc từ chối trước đó",
+    "rejection_reason_required": "Vui lòng nhập lý do từ chối",
+    "media_restored": "Khôi phục media thành công",
+    "media_deactivated": "Ẩn media thành công",
+    "invalid_is_active": "Giá trị is_active không hợp lệ",
+    "only_approved_toggle": "Chỉ có thể ẩn/hiện media đã được duyệt"
   },
   "error": {
     "server_error": "Lỗi máy chủ",

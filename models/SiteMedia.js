@@ -13,30 +13,56 @@ const SiteMedia = sequelize.define('SiteMedia', {
         references: {
             model: 'sites',
             key: 'id'
-        },
-        onDelete: 'CASCADE'
+        }
+    },
+    code: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        unique: true
     },
     url: {
         type: DataTypes.TEXT,
         allowNull: false
     },
     type: {
-        type: DataTypes.ENUM('image', 'video', 'panorama'),
-        defaultValue: 'image'
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: {
+            isIn: [['image', 'video', 'panorama']]
+        }
     },
     caption: {
-        type: DataTypes.TEXT,
+        type: DataTypes.STRING(255),
         allowNull: true
     },
-    is_main: {
+    status: {
+        type: DataTypes.STRING, // 'pending', 'approved', 'rejected'
+        defaultValue: 'pending',
+        validate: {
+            isIn: [['pending', 'approved', 'rejected']]
+        }
+    },
+    rejection_reason: {
+        type: DataTypes.STRING(500),
+        allowNull: true
+    },
+    is_active: {
         type: DataTypes.BOOLEAN,
-        defaultValue: false
+        defaultValue: true
+    },
+    created_by: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'users',
+            key: 'id'
+        }
     }
 }, {
     tableName: 'site_media',
     timestamps: true,
     createdAt: 'created_at',
-    updatedAt: false
+    updatedAt: 'updated_at'
 });
 
 module.exports = SiteMedia;

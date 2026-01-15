@@ -329,14 +329,21 @@ CREATE INDEX IF NOT EXISTS idx_ai_contents_user ON ai_generated_contents(user_id
 CREATE TABLE IF NOT EXISTS site_media (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    code VARCHAR(15) UNIQUE NOT NULL,
     url TEXT NOT NULL,
     type media_type DEFAULT 'image',
-    caption TEXT,
+    caption VARCHAR(255),
+    status site_content_status DEFAULT 'pending',
+    rejection_reason VARCHAR(500),
+    is_active BOOLEAN DEFAULT TRUE,
     is_main BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_site_media_site ON site_media(site_id);
+CREATE INDEX IF NOT EXISTS idx_site_media_status ON site_media(status);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_site_media_main
 ON site_media(site_id)
 WHERE is_main = TRUE;

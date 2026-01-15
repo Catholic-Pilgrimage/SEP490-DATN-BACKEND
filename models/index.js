@@ -26,6 +26,10 @@ Site.hasMany(User, { foreignKey: 'site_id', as: 'siteStaff' }); // managers & gu
 Site.hasMany(SiteMedia, { foreignKey: 'site_id', as: 'media' });
 SiteMedia.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
 
+// SiteMedia - User (created_by)
+User.hasMany(SiteMedia, { foreignKey: 'created_by', as: 'createdMedia' });
+SiteMedia.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+
 // Site - MassSchedule
 Site.hasMany(MassSchedule, { foreignKey: 'site_id', as: 'massSchedules' });
 MassSchedule.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
