@@ -348,20 +348,24 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_site_media_main
 ON site_media(site_id)
 WHERE is_main = TRUE;
 
--- 5.2 Mass Schedules (UPDATED - added status)
+-- 5.2 Mass Schedules
 CREATE TABLE IF NOT EXISTS mass_schedules (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
-    day_of_week INT CHECK (day_of_week IS NULL OR (day_of_week BETWEEN 0 AND 6)),
+    code VARCHAR(15) UNIQUE NOT NULL,
+    days_of_week INT[] NOT NULL DEFAULT '{}',
     time TIME NOT NULL,
-    language VARCHAR(50) DEFAULT 'Tiếng Việt',
     note TEXT,
-    status site_status DEFAULT 'approved',
+    status site_content_status DEFAULT 'pending',
+    rejection_reason VARCHAR(500),
+    is_active BOOLEAN DEFAULT TRUE,
     created_by UUID REFERENCES users(id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_mass_schedules_site ON mass_schedules(site_id);
+CREATE INDEX IF NOT EXISTS idx_mass_schedules_status ON mass_schedules(status);
 
 -- 5.3 Events
 CREATE TABLE IF NOT EXISTS events (

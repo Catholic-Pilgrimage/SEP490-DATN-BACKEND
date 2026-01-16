@@ -30,5 +30,31 @@ router.patch(
     ManagerContentController.toggleMediaActive
 );
 
+// ===================== SCHEDULES =====================
+
+// GET - Get all schedules
+router.get(
+    '/schedules',
+    authMiddleware,
+    authMiddleware.authorize('manager'),
+    ManagerContentController.getSchedules
+);
+
+// PATCH - Approve/Reject schedule
+router.patch(
+    '/schedules/:id/status',
+    authMiddleware,
+    authMiddleware.authorize('manager'),
+    ManagerContentController.updateScheduleStatus
+);
+
+// PATCH - Toggle schedule is_active (soft delete/restore)
+router.patch(
+    '/schedules/:id/is-active',
+    authMiddleware,
+    authMiddleware.authorize('manager'),
+    ManagerContentController.toggleScheduleActive
+);
+
 
 module.exports = router;

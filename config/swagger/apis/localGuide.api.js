@@ -394,3 +394,334 @@
  *           type: string
  *           format: date-time
  */
+
+
+// ============================================
+// MASS SCHEDULE ROUTES
+// ============================================
+
+/**
+ * @swagger
+ * /api/local-guide/schedules:
+ *   post:
+ *     summary: Tạo lịch lễ (Local Guide only)
+ *     description: |
+ *       Local Guide tạo lịch lễ cho site được gán.
+ *       Lịch lễ sẽ ở trạng thái **pending** cho tới khi Manager duyệt.
+ *       
+ *       **Lưu ý**: Phải chọn ít nhất 1 ngày trong tuần.
+ *       - Hàng ngày: gửi `[0,1,2,3,4,5,6]`
+ *       - T2-T6: gửi `[1,2,3,4,5]`
+ *       - Chỉ CN: gửi `[0]`
+ *     tags: [Local Guide]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - days_of_week
+ *               - time
+ *             properties:
+ *               days_of_week:
+ *                 type: array
+ *                 items:
+ *                   type: integer
+ *                   minimum: 0
+ *                   maximum: 6
+ *                 minItems: 1
+ *                 description: |
+ *                   Mảng các ngày trong tuần (0-6):
+ *                   - `0`: Chủ nhật
+ *                   - `1`: Thứ 2
+ *                   - `2`: Thứ 3
+ *                   - `3`: Thứ 4
+ *                   - `4`: Thứ 5
+ *                   - `5`: Thứ 6
+ *                   - `6`: Thứ 7
+ *                   
+ *                   Ví dụ:
+ *                   - `[0,1,2,3,4,5,6]`: Hàng ngày
+ *                   - `[1,2,3,4,5]`: T2 đến T6
+ *                   - `[0]`: Chỉ Chủ nhật
+ *                 example: [1, 2, 3, 4, 5]
+ *               time:
+ *                 type: string
+ *                 format: time
+ *                 description: Giờ lễ (HH:mm)
+ *                 example: "17:30"
+ *               note:
+ *                 type: string
+ *                 description: Ghi chú (optional)
+ *                 example: "Lễ chiều ngày thường"
+ *     responses:
+ *       201:
+ *         description: Tạo thành công (trạng thái pending)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Tạo lịch lễ thành công"
+ *                 data:
+ *                   $ref: '#/components/schemas/MassSchedule'
+ *       400:
+ *         description: |
+ *           - Giờ lễ không được để trống
+ *           - Vui lòng chọn ít nhất 1 ngày trong tuần
+ *           - Ngày trong tuần không hợp lệ
+ *           - Local Guide chưa có site
+ *       401:
+ *         description: Chưa đăng nhập
+ *       403:
+ *         description: Không phải Local Guide
+ *
+ *   get:
+ *     summary: Danh sách lịch lễ của tôi (Local Guide only)
+ *     description: |
+ *       Local Guide xem danh sách lịch lễ **do mình tạo** với filter và pagination.
+ *       Chỉ hiển thị lịch lễ của user hiện tại, không thấy của Local Guide khác.
+ *     tags: [Local Guide]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Số trang
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Số lượng mỗi trang
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, approved, rejected]
+ *         description: Lọc theo trạng thái
+ *       - in: query
+ *         name: day_of_week
+ *         schema:
+ *           type: integer
+ *           minimum: 0
+ *           maximum: 6
+ *         description: Lọc lịch lễ có chứa ngày này (0=CN, 1=T2, ..., 6=T7)
+ *     responses:
+ *       200:
+ *         description: Thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Lấy danh sách lịch lễ thành công"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/MassSchedule'
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                           example: 1
+ *                         limit:
+ *                           type: integer
+ *                           example: 10
+ *                         totalItems:
+ *                           type: integer
+ *                           example: 5
+ *                         totalPages:
+ *                           type: integer
+ *                           example: 1
+ *       401:
+ *         description: Chưa đăng nhập
+ *       403:
+ *         description: Không phải Local Guide
+ */
+
+/**
+ * @swagger
+ * /api/local-guide/schedules/{id}:
+ *   put:
+ *     summary: Cập nhật lịch lễ (Local Guide only)
+ *     description: |
+ *       Local Guide cập nhật lịch lễ **do mình tạo**.
+ *       - Chỉ có thể cập nhật lịch lễ ở trạng thái `pending` hoặc `rejected`
+ *       - Nếu lịch lễ bị `rejected`, sau khi cập nhật sẽ tự động reset về `pending`
+ *       - Không thể cập nhật lịch lễ đã `approved`
+ *     tags: [Local Guide]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của lịch lễ cần cập nhật
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               days_of_week:
+ *                 type: array
+ *                 items:
+ *                   type: integer
+ *                   minimum: 0
+ *                   maximum: 6
+ *                 minItems: 1
+ *                 description: Mảng các ngày trong tuần (0-6)
+ *                 example: [0, 6]
+ *               time:
+ *                 type: string
+ *                 format: time
+ *                 description: Giờ lễ (HH:mm)
+ *               note:
+ *                 type: string
+ *                 description: Ghi chú
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Cập nhật lịch lễ thành công"
+ *                 data:
+ *                   $ref: '#/components/schemas/MassSchedule'
+ *       400:
+ *         description: |
+ *           - Không thể cập nhật lịch lễ đã được duyệt
+ *           - Ngày trong tuần không hợp lệ
+ *       401:
+ *         description: Chưa đăng nhập
+ *       403:
+ *         description: Không phải Local Guide
+ *       404:
+ *         description: Không tìm thấy lịch lễ (hoặc không phải của bạn)
+ *
+ *   delete:
+ *     summary: Xóa lịch lễ (Local Guide only)
+ *     description: |
+ *       Local Guide xóa lịch lễ **do mình tạo**.
+ *       - Chỉ có thể xóa lịch lễ ở trạng thái `pending` hoặc `rejected`
+ *       - Không thể xóa lịch lễ đã `approved`
+ *     tags: [Local Guide]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của lịch lễ cần xóa
+ *     responses:
+ *       200:
+ *         description: Xóa thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Xóa lịch lễ thành công"
+ *       400:
+ *         description: Không thể xóa lịch lễ đã được duyệt
+ *       401:
+ *         description: Chưa đăng nhập
+ *       403:
+ *         description: Không phải Local Guide
+ *       404:
+ *         description: Không tìm thấy lịch lễ (hoặc không phải của bạn)
+ */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     MassSchedule:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         site_id:
+ *           type: string
+ *           format: uuid
+ *         code:
+ *           type: string
+ *           example: "MS0115001"
+ *           description: Mã lịch lễ (auto-generated)
+ *         days_of_week:
+ *           type: array
+ *           items:
+ *             type: integer
+ *           description: |
+ *             Mảng các ngày trong tuần:
+ *             - `[0,1,2,3,4,5,6]`: Hàng ngày
+ *             - `[1,2,3,4,5]`: T2-T6
+ *             - `[0]`: Chỉ CN
+ *           example: [1, 2, 3, 4, 5]
+ *         time:
+ *           type: string
+ *           format: time
+ *           example: "17:30:00"
+ *         note:
+ *           type: string
+ *           example: "Lễ chiều ngày thường"
+ *         status:
+ *           type: string
+ *           enum: [pending, approved, rejected]
+ *           example: "pending"
+ *         rejection_reason:
+ *           type: string
+ *           nullable: true
+ *         is_active:
+ *           type: boolean
+ *           example: true
+ *         created_by:
+ *           type: string
+ *           format: uuid
+ *         created_at:
+ *           type: string
+ *           format: date-time
+ *         updated_at:
+ *           type: string
+ *           format: date-time
+ */

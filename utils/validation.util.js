@@ -1,3 +1,5 @@
+const { validationResult } = require('express-validator');
+
 /**
  * Format validation errors - chỉ lấy lỗi đầu tiên của mỗi field
  * @param {Array} errors - Array of validation errors from express-validator
@@ -17,4 +19,20 @@ const formatValidationErrors = (errors) => {
     }));
 };
 
-module.exports = { formatValidationErrors };
+/**
+ * Middleware to handle validation errors from express-validator
+ */
+const handleValidationErrors = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    const formattedErrors = formatValidationErrors(errors.array());
+    return res.status(400).json({
+      success: false,
+      message: req.__?.('validation.failed') || 'Validation failed',
+      errors: formattedErrors
+    });
+  }
+  next();
+};
+
+module.exports = { formatValidationErrors, handleValidationErrors };

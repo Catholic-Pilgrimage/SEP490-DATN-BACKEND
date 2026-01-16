@@ -16,30 +16,50 @@ const MassSchedule = sequelize.define('MassSchedule', {
         },
         onDelete: 'CASCADE'
     },
-    day_of_week: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
+    code: {
+        type: DataTypes.STRING(15),
+        allowNull: false,
+        unique: true
+    },
+    days_of_week: {
+        type: DataTypes.ARRAY(DataTypes.INTEGER),
+        allowNull: false,
+        defaultValue: [],
         validate: {
-            min: 0,
-            max: 6
+            isValidDays(value) {
+                if (!Array.isArray(value)) {
+                    throw new Error('days_of_week must be an array');
+                }
+                for (const day of value) {
+                    if (day < 0 || day > 6) {
+                        throw new Error('Each day must be between 0 and 6');
+                    }
+                }
+            }
         }
     },
     time: {
         type: DataTypes.TIME,
         allowNull: false
     },
-    language: {
-        type: DataTypes.STRING(50),
-        defaultValue: 'Tiếng Việt'
-    },
     note: {
         type: DataTypes.TEXT,
         allowNull: true
     },
-    // NEW: Added for Manager approval
     status: {
-        type: DataTypes.ENUM('pending', 'approved', 'rejected'),
-        defaultValue: 'approved'
+        type: DataTypes.STRING,
+        defaultValue: 'pending',
+        validate: {
+            isIn: [['pending', 'approved', 'rejected']]
+        }
+    },
+    rejection_reason: {
+        type: DataTypes.STRING(500),
+        allowNull: true
+    },
+    is_active: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true
     },
     created_by: {
         type: DataTypes.UUID,
@@ -54,7 +74,7 @@ const MassSchedule = sequelize.define('MassSchedule', {
     tableName: 'mass_schedules',
     timestamps: true,
     createdAt: 'created_at',
-    updatedAt: false
+    updatedAt: 'updated_at'
 });
 
 module.exports = MassSchedule;

@@ -104,7 +104,17 @@
     "update_approved_error": "Không thể cập nhật media đã được duyệt",
     "file_required": "Vui lòng chọn file để upload",
     "file_or_url_required": "Vui lòng chọn file hoặc nhập link YouTube",
-    "invalid_youtube_url": "Link YouTube không hợp lệ"
+    "invalid_youtube_url": "Link YouTube không hợp lệ",
+    "create_schedule_success": "Tạo lịch lễ thành công",
+    "get_schedules_success": "Lấy danh sách lịch lễ thành công",
+    "update_schedule_success": "Cập nhật lịch lễ thành công",
+    "delete_schedule_success": "Xóa lịch lễ thành công",
+    "schedule_not_found": "Không tìm thấy lịch lễ",
+    "update_approved_schedule_error": "Không thể cập nhật lịch lễ đã được duyệt",
+    "delete_approved_schedule_error": "Không thể xóa lịch lễ đã được duyệt",
+    "time_required": "Giờ lễ không được để trống",
+    "days_of_week_required": "Vui lòng chọn ít nhất 1 ngày trong tuần",
+    "invalid_days_of_week": "Ngày trong tuần không hợp lệ (phải là mảng các số từ 0-6)"
   },
   "validation": {
     "failed": "Dữ liệu không hợp lệ",
@@ -134,7 +144,14 @@
     "media_restored": "Khôi phục media thành công",
     "media_deactivated": "Ẩn media thành công",
     "invalid_is_active": "Giá trị is_active không hợp lệ",
-    "only_approved_toggle": "Chỉ có thể ẩn/hiện media đã được duyệt"
+    "only_approved_toggle": "Chỉ có thể ẩn/hiện media đã được duyệt",
+    "get_schedules_success": "Lấy danh sách lịch lễ thành công",
+    "schedule_approved": "Duyệt lịch lễ thành công",
+    "schedule_rejected": "Từ chối lịch lễ thành công",
+    "schedule_not_found": "Không tìm thấy lịch lễ",
+    "schedule_restored": "Khôi phục lịch lễ thành công",
+    "schedule_deactivated": "Ẩn lịch lễ thành công",
+    "only_approved_schedule_toggle": "Chỉ có thể ẩn/hiện lịch lễ đã được duyệt"
   },
   "error": {
     "server_error": "Lỗi máy chủ",

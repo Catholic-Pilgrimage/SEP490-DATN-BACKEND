@@ -104,7 +104,17 @@
     "update_approved_error": "Cannot update approved media",
     "file_required": "Please select a file to upload",
     "file_or_url_required": "Please select a file or enter YouTube URL",
-    "invalid_youtube_url": "Invalid YouTube URL"
+    "invalid_youtube_url": "Invalid YouTube URL",
+    "create_schedule_success": "Mass schedule created successfully",
+    "get_schedules_success": "Schedules retrieved successfully",
+    "update_schedule_success": "Schedule updated successfully",
+    "delete_schedule_success": "Schedule deleted successfully",
+    "schedule_not_found": "Schedule not found",
+    "update_approved_schedule_error": "Cannot update approved schedule",
+    "delete_approved_schedule_error": "Cannot delete approved schedule",
+    "time_required": "Time is required",
+    "days_of_week_required": "Please select at least 1 day of week",
+    "invalid_days_of_week": "Invalid days of week (must be array of numbers 0-6)"
   },
   "validation": {
     "failed": "Validation failed",
@@ -134,7 +144,14 @@
     "media_restored": "Media restored successfully",
     "media_deactivated": "Media deactivated successfully",
     "invalid_is_active": "Invalid is_active value",
-    "only_approved_toggle": "Only approved media can be toggled"
+    "only_approved_toggle": "Only approved media can be toggled",
+    "get_schedules_success": "Schedules retrieved successfully",
+    "schedule_approved": "Schedule approved successfully",
+    "schedule_rejected": "Schedule rejected successfully",
+    "schedule_not_found": "Schedule not found",
+    "schedule_restored": "Schedule restored successfully",
+    "schedule_deactivated": "Schedule deactivated successfully",
+    "only_approved_schedule_toggle": "Only approved schedule can be toggled"
   },
   "error": {
     "server_error": "Server error",
