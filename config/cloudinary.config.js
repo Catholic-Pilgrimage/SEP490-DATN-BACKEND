@@ -43,6 +43,36 @@ const mediaStorage = new CloudinaryStorage({
     }
 });
 
+// Journal image storage
+const journalImageStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'catholic_pilgrimage/journals/images',
+        allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+        transformation: [{ width: 2000, height: 2000, crop: 'limit' }]
+    }
+});
+
+// Journal audio storage
+const journalAudioStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'catholic_pilgrimage/journals/audio',
+        allowed_formats: ['mp3', 'wav', 'm4a', 'aac', 'ogg'],
+        resource_type: 'video' // Cloudinary uses 'video' for audio files
+    }
+});
+
+// Journal video storage
+const journalVideoStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'catholic_pilgrimage/journals/videos',
+        allowed_formats: ['mp4', 'mov', 'avi', 'webm'],
+        resource_type: 'video'
+    }
+});
+
 const upload = multer({ storage: imageStorage });
 const uploadDocument = multer({ storage: documentStorage });
 const uploadMedia = multer({
@@ -50,9 +80,28 @@ const uploadMedia = multer({
     limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit for videos
 });
 
+// Journal-specific uploads
+const uploadJournalImages = multer({
+    storage: journalImageStorage,
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB per image
+});
+
+const uploadJournalAudio = multer({
+    storage: journalAudioStorage,
+    limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit for audio
+});
+
+const uploadJournalVideo = multer({
+    storage: journalVideoStorage,
+    limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit for video
+});
+
 module.exports = {
     cloudinary,
     upload,
     uploadDocument,
-    uploadMedia
+    uploadMedia,
+    uploadJournalImages,
+    uploadJournalAudio,
+    uploadJournalVideo
 };

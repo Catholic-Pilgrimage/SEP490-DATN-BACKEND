@@ -7,6 +7,7 @@ const Site = require('./Site');
 const SiteMedia = require('./SiteMedia');
 const MassSchedule = require('./MassSchedule');
 const VerificationRequest = require('./VerificationRequest');
+const Journal = require('./Journal');
 
 
 
@@ -45,6 +46,14 @@ VerificationRequest.belongsTo(User, { foreignKey: 'user_id', as: 'applicant' });
 // VerificationRequest - User (reviewer)
 VerificationRequest.belongsTo(User, { foreignKey: 'reviewed_by', as: 'reviewer' });
 
+// Journal - User (author)
+User.hasMany(Journal, { foreignKey: 'user_id', as: 'journals' });
+Journal.belongsTo(User, { foreignKey: 'user_id', as: 'author' });
+
+// Journal - Site
+Site.hasMany(Journal, { foreignKey: 'site_id', as: 'journals' });
+Journal.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
+
 
 const db = {
   sequelize,
@@ -55,7 +64,8 @@ const db = {
   Site,
   SiteMedia,
   MassSchedule,
-  VerificationRequest
+  VerificationRequest,
+  Journal
 };
 
 module.exports = db;

@@ -136,6 +136,17 @@
     "invalid_is_active": "Giá trị is_active không hợp lệ",
     "only_approved_toggle": "Chỉ có thể ẩn/hiện media đã được duyệt"
   },
+  "journal": {
+    "create_success": "Tạo nhật ký thành công",
+    "update_success": "Cập nhật nhật ký thành công",
+    "delete_success": "Xóa nhật ký thành công",
+    "get_success": "Lấy thông tin nhật ký thành công",
+    "list_success": "Lấy danh sách nhật ký thành công",
+    "not_found": "Không tìm thấy nhật ký",
+    "forbidden": "Bạn không có quyền truy cập nhật ký này",
+    "max_images": "Tối đa 10 ảnh",
+    "title_content_required": "Tiêu đề và nội dung không được để trống"
+  },
   "error": {
     "server_error": "Lỗi máy chủ",
     "not_found": "Không tìm thấy",

@@ -136,6 +136,17 @@
     "invalid_is_active": "Invalid is_active value",
     "only_approved_toggle": "Only approved media can be toggled"
   },
+  "journal": {
+    "create_success": "Journal created successfully",
+    "update_success": "Journal updated successfully",
+    "delete_success": "Journal deleted successfully",
+    "get_success": "Journal retrieved successfully",
+    "list_success": "Journals retrieved successfully",
+    "not_found": "Journal not found",
+    "forbidden": "You don't have permission to access this journal",
+    "max_images": "Maximum 10 images allowed",
+    "title_content_required": "Title and content are required"
+  },
   "error": {
     "server_error": "Server error",
     "not_found": "Not found",
