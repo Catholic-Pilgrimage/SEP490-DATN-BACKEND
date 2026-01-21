@@ -24,6 +24,34 @@ router.get(
     ManagerLocalGuideController.getLocalGuides
 );
 
+// ===================== SHIFT SUBMISSIONS =====================
+
+// GET - Get site submissions
+router.get(
+    '/shift-submissions',
+    authMiddleware,
+    authMiddleware.authorize('manager'),
+    ManagerLocalGuideController.getSubmissions
+);
+
+// GET - Get submission detail
+router.get(
+    '/shift-submissions/:id',
+    authMiddleware,
+    authMiddleware.authorize('manager'),
+    ManagerLocalGuideController.getSubmissionDetail
+);
+
+// PATCH - Update Submission Status (approve/reject)
+router.patch(
+    '/shift-submissions/:id/status',
+    authMiddleware,
+    authMiddleware.authorize('manager'),
+    ManagerLocalGuideController.updateSubmissionStatus
+);
+
+// ===================== LOCAL GUIDE STATUS =====================
+
 // PATCH - Update Local Guide Status (block/unblock)
 router.patch(
     '/:id/status',

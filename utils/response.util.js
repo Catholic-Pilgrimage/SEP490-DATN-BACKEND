@@ -4,12 +4,12 @@ class ResponseUtil {
       success: true,
       message
     };
-    
+
     // Chỉ thêm data nếu không null/undefined
     if (data !== null && data !== undefined) {
       response.data = data;
     }
-    
+
     return res.status(statusCode).json(response);
   }
 
@@ -43,8 +43,8 @@ class ResponseUtil {
     return this.error(res, message, 400, errors);
   }
 
-  static conflict(res, message = 'Conflict') {
-    return this.error(res, message, 409);
+  static conflict(res, message = 'Conflict', errors = null) {
+    return this.error(res, message, 409, errors);
   }
 }
 

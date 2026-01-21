@@ -278,3 +278,212 @@
  */
 
 module.exports = {};
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     GuideShift:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         submission_id:
+ *           type: string
+ *           format: uuid
+ *         day_of_week:
+ *           type: integer
+ *           minimum: 0
+ *           maximum: 6
+ *           description: Ngày trong tuần (0=CN, 1=T2, ..., 6=T7)
+ *           example: 1
+ *         start_time:
+ *           type: string
+ *           format: time
+ *           example: "08:00:00"
+ *         end_time:
+ *           type: string
+ *           format: time
+ *           example: "17:00:00"
+ *         created_at:
+ *           type: string
+ *           format: date-time
+ *
+ *     GuideShiftSubmission:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         guide_id:
+ *           type: string
+ *           format: uuid
+ *         site_id:
+ *           type: string
+ *           format: uuid
+ *         code:
+ *           type: string
+ *           example: "SHF0121001"
+ *           description: Mã submission tự động (SHF[MMDD][SEQ])
+ *         week_start_date:
+ *           type: string
+ *           format: date
+ *           example: "2026-01-27"
+ *         submission_type:
+ *           type: string
+ *           enum: [new, update]
+ *           example: "new"
+ *         change_reason:
+ *           type: string
+ *           nullable: true
+ *           description: Lý do thay đổi (bắt buộc khi update)
+ *         previous_submission_id:
+ *           type: string
+ *           format: uuid
+ *           nullable: true
+ *         status:
+ *           type: string
+ *           enum: [pending, approved, rejected]
+ *           example: "pending"
+ *         total_shifts:
+ *           type: integer
+ *         rejection_reason:
+ *           type: string
+ *           nullable: true
+ *         approved_by:
+ *           type: string
+ *           format: uuid
+ *           nullable: true
+ *         approved_at:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *         is_active:
+ *           type: boolean
+ *         created_at:
+ *           type: string
+ *           format: date-time
+ *         shifts:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/GuideShift'
+ *
+ *     CreateSubmissionRequest:
+ *       type: object
+ *       required:
+ *         - week_start_date
+ *         - shifts
+ *       properties:
+ *         week_start_date:
+ *           type: string
+ *           format: date
+ *           description: Ngày đầu tuần (Thứ 2)
+ *           example: "2026-01-27"
+ *         previous_submission_id:
+ *           type: string
+ *           format: uuid
+ *           description: ID submission cũ (nếu là update)
+ *         change_reason:
+ *           type: string
+ *           description: Lý do thay đổi (bắt buộc nếu có previous_submission_id)
+ *         shifts:
+ *           type: array
+ *           minItems: 1
+ *           items:
+ *             type: object
+ *             required:
+ *               - day_of_week
+ *               - start_time
+ *               - end_time
+ *             properties:
+ *               day_of_week:
+ *                 type: integer
+ *                 minimum: 0
+ *                 maximum: 6
+ *                 example: 1
+ *               start_time:
+ *                 type: string
+ *                 format: time
+ *                 example: "08:00"
+ *               end_time:
+ *                 type: string
+ *                 format: time
+ *                 example: "17:00"
+ *
+ *     UpdateSubmissionRequest:
+ *       type: object
+ *       required:
+ *         - shifts
+ *       properties:
+ *         shifts:
+ *           type: array
+ *           minItems: 1
+ *           items:
+ *             type: object
+ *             required:
+ *               - day_of_week
+ *               - start_time
+ *               - end_time
+ *             properties:
+ *               day_of_week:
+ *                 type: integer
+ *                 minimum: 0
+ *                 maximum: 6
+ *               start_time:
+ *                 type: string
+ *                 format: time
+ *               end_time:
+ *                 type: string
+ *                 format: time
+ *
+ *     SubmissionStatusRequest:
+ *       type: object
+ *       required:
+ *         - status
+ *       properties:
+ *         status:
+ *           type: string
+ *           enum: [approved, rejected]
+ *         rejection_reason:
+ *           type: string
+ *           description: Lý do từ chối (bắt buộc nếu status=rejected)
+ *
+ *     SubmissionWithChanges:
+ *       allOf:
+ *         - $ref: '#/components/schemas/GuideShiftSubmission'
+ *         - type: object
+ *           properties:
+ *             changes:
+ *               type: array
+ *               nullable: true
+ *               description: Danh sách thay đổi so với lịch cũ (chỉ có khi type=update)
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   day_of_week:
+ *                     type: integer
+ *                   old:
+ *                     type: object
+ *                     nullable: true
+ *                     properties:
+ *                       start_time:
+ *                         type: string
+ *                       end_time:
+ *                         type: string
+ *                   new:
+ *                     type: object
+ *                     nullable: true
+ *                     properties:
+ *                       start_time:
+ *                         type: string
+ *                       end_time:
+ *                         type: string
+ *                   is_changed:
+ *                     type: boolean
+ *                   is_new:
+ *                     type: boolean
+ *                   is_removed:
+ *                     type: boolean
+ */
+

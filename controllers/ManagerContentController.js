@@ -203,3 +203,102 @@ exports.toggleScheduleActive = async (req, res) => {
         return ResponseUtil.error(res, req.__('error.server_error'));
     }
 };
+
+// ===================== EVENTS =====================
+
+/**
+ * Manager: Get Site Events
+ */
+exports.getEvents = async (req, res) => {
+    try {
+        const { page, limit, status } = req.query;
+        const result = await ManagerContentService.getEvents(req.user.id, {
+            page, limit, status
+        });
+        return ResponseUtil.success(res, result, req.__('manager.get_events_success'));
+    } catch (error) {
+        if (error.message === 'Unauthorized') {
+            return ResponseUtil.forbidden(res, req.__('auth.forbidden'));
+        }
+        if (error.message === 'Manager has no site') {
+            return ResponseUtil.badRequest(res, req.__('manager.no_site'));
+        }
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
+
+/**
+ * Manager: Update Event Status (Approve/Reject)
+ */
+exports.updateEventStatus = async (req, res) => {
+    try {
+        const { status, rejection_reason } = req.body;
+        const result = await ManagerContentService.updateEventStatus(
+            req.user.id,
+            req.params.id,
+            status,
+            rejection_reason
+        );
+
+        const message = status === 'approved'
+            ? req.__('manager.event_approved')
+            : req.__('manager.event_rejected');
+
+        return ResponseUtil.success(res, result, message);
+    } catch (error) {
+        if (error.message === 'Unauthorized') {
+            return ResponseUtil.forbidden(res, req.__('auth.forbidden'));
+        }
+        if (error.message === 'Manager has no site') {
+            return ResponseUtil.badRequest(res, req.__('manager.no_site'));
+        }
+        if (error.message === 'Invalid status') {
+            return ResponseUtil.badRequest(res, req.__('manager.invalid_status'));
+        }
+        if (error.message === 'Event not found') {
+            return ResponseUtil.notFound(res, req.__('manager.event_not_found'));
+        }
+        if (error.message === 'Already reviewed') {
+            return ResponseUtil.badRequest(res, req.__('manager.already_reviewed'));
+        }
+        if (error.message === 'Rejection reason required') {
+            return ResponseUtil.badRequest(res, req.__('manager.rejection_reason_required'));
+        }
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
+
+/**
+ * Manager: Toggle Event Active (Soft delete/Restore)
+ */
+exports.toggleEventActive = async (req, res) => {
+    try {
+        const { is_active } = req.body;
+
+        if (typeof is_active !== 'boolean') {
+            return ResponseUtil.badRequest(res, req.__('manager.invalid_is_active'));
+        }
+
+        const result = await ManagerContentService.toggleEventActive(req.user.id, req.params.id, is_active);
+
+        const message = is_active
+            ? req.__('manager.event_restored')
+            : req.__('manager.event_deactivated');
+
+        return ResponseUtil.success(res, result, message);
+    } catch (error) {
+        if (error.message === 'Unauthorized') {
+            return ResponseUtil.forbidden(res, req.__('auth.forbidden'));
+        }
+        if (error.message === 'Manager has no site') {
+            return ResponseUtil.badRequest(res, req.__('manager.no_site'));
+        }
+        if (error.message === 'Event not found') {
+            return ResponseUtil.notFound(res, req.__('manager.event_not_found'));
+        }
+        if (error.message === 'Only approved event can be toggled') {
+            return ResponseUtil.badRequest(res, req.__('manager.only_approved_event_toggle'));
+        }
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};

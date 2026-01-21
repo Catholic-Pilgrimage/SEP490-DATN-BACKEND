@@ -137,11 +137,11 @@ exports.updateMedia = async (req, res) => {
             updateData.type = type;
         }
 
-       
+
         if (req.file) {
             updateData.url = req.file.path;
         }
-       
+
         else if (url) {
             updateData.url = url;
         }
@@ -200,7 +200,7 @@ exports.createSchedule = async (req, res) => {
         if (error.message === 'Local Guide has no site') {
             return ResponseUtil.badRequest(res, req.__('local_guide.no_site'));
         }
-        if (error.message === 'days_of_week must be a non-empty array' || 
+        if (error.message === 'days_of_week must be a non-empty array' ||
             error.message === 'Each day must be between 0 and 6') {
             return ResponseUtil.badRequest(res, req.__('local_guide.invalid_days_of_week'));
         }
@@ -252,7 +252,7 @@ exports.updateSchedule = async (req, res) => {
         if (error.message === 'Cannot update approved schedule') {
             return ResponseUtil.badRequest(res, req.__('local_guide.update_approved_schedule_error'));
         }
-        if (error.message === 'days_of_week must be a non-empty array' || 
+        if (error.message === 'days_of_week must be a non-empty array' ||
             error.message === 'Each day must be between 0 and 6') {
             return ResponseUtil.badRequest(res, req.__('local_guide.invalid_days_of_week'));
         }
@@ -277,6 +277,227 @@ exports.deleteSchedule = async (req, res) => {
         }
         if (error.message === 'Cannot delete approved schedule') {
             return ResponseUtil.badRequest(res, req.__('local_guide.delete_approved_schedule_error'));
+        }
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
+
+// ===================== SHIFT SUBMISSIONS =====================
+
+/**
+ * Local Guide: Create Shift Submission
+ * POST /api/local-guide/shift-submissions
+ */
+exports.createSubmission = async (req, res) => {
+    try {
+        const result = await LocalGuideService.createSubmission(req.user.id, req.body);
+
+        if (result.errors && result.errors.length > 0) {
+            return ResponseUtil.success(res, result, req.__('local_guide.create_submission_partial'));
+        }
+
+        return ResponseUtil.created(res, result, req.__('local_guide.create_submission_success'));
+    } catch (error) {
+        if (error.message === 'Local Guide not assigned to any site') {
+            return ResponseUtil.badRequest(res, req.__('local_guide.no_site'));
+        }
+        if (error.message.includes('pending submission')) {
+            return ResponseUtil.badRequest(res, req.__('local_guide.pending_submission_exists'));
+        }
+        if (error.message.includes('Change reason is required')) {
+            return ResponseUtil.badRequest(res, req.__('local_guide.change_reason_required'));
+        }
+        if (error.message === 'No valid shifts provided') {
+            return ResponseUtil.badRequest(res, req.__('local_guide.no_valid_shifts'));
+        }
+        if (error.message.includes('already have an approved schedule')) {
+            return ResponseUtil.badRequest(res, req.__('local_guide.approved_submission_exists'));
+        }
+        if (error.message.includes('Shift conflicts detected') || error.message.includes('overlaps with another Local Guide')) {
+            // Parse conflict details from error message
+            let conflictDetails = null;
+            try {
+                const jsonMatch = error.message.match(/\[.*\]/);
+                if (jsonMatch) {
+                    conflictDetails = JSON.parse(jsonMatch[0]);
+                }
+            } catch (e) {
+                // If parsing fails, just use the raw message
+            }
+
+            return ResponseUtil.conflict(res, req.__('local_guide.shift_conflict'), conflictDetails);
+        }
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
+
+/**
+ * Local Guide: Get My Submissions
+ * GET /api/local-guide/shift-submissions
+ */
+exports.getSubmissions = async (req, res) => {
+    try {
+        const { status, week_start_date } = req.query;
+        const result = await LocalGuideService.getMySubmissions(req.user.id, {
+            status,
+            week_start_date
+        });
+        return ResponseUtil.success(res, result, req.__('local_guide.get_submissions_success'));
+    } catch (error) {
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
+
+/**
+ * Local Guide: Get Submission Detail
+ * GET /api/local-guide/shift-submissions/:id
+ */
+exports.getSubmissionDetail = async (req, res) => {
+    try {
+        const result = await LocalGuideService.getSubmissionDetail(req.user.id, req.params.id);
+        return ResponseUtil.success(res, result);
+    } catch (error) {
+        if (error.message === 'Submission not found') {
+            return ResponseUtil.notFound(res, req.__('local_guide.submission_not_found'));
+        }
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
+
+/**
+ * Local Guide: Update Submission (pending/rejected only)
+ * PUT /api/local-guide/shift-submissions/:id
+ */
+exports.updateSubmission = async (req, res) => {
+    try {
+        const result = await LocalGuideService.updateSubmission(req.user.id, req.params.id, req.body);
+        return ResponseUtil.success(res, result, req.__('local_guide.update_submission_success'));
+    } catch (error) {
+        if (error.message === 'Submission not found or already approved') {
+            return ResponseUtil.notFound(res, req.__('local_guide.submission_not_found_or_approved'));
+        }
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
+
+/**
+ * Local Guide: Delete Submission (pending only)
+ * DELETE /api/local-guide/shift-submissions/:id
+ */
+exports.deleteSubmission = async (req, res) => {
+    try {
+        const result = await LocalGuideService.deleteSubmission(req.user.id, req.params.id);
+        return ResponseUtil.success(res, result, req.__('local_guide.delete_submission_success'));
+    } catch (error) {
+        if (error.message === 'Submission not found or not pending') {
+            return ResponseUtil.notFound(res, req.__('local_guide.submission_not_found_or_not_pending'));
+        }
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
+
+
+/**
+ * Local Guide: Get Site Schedule (calendar view)
+ * GET /api/local-guide/site-schedule
+ */
+exports.getSiteSchedule = async (req, res) => {
+    try {
+        const { week_start_date } = req.query;
+
+        if (!week_start_date) {
+            return ResponseUtil.badRequest(res, req.__('local_guide.week_start_date_required'));
+        }
+
+        const result = await LocalGuideService.getSiteSchedule(req.user.id, week_start_date);
+        return ResponseUtil.success(res, result, req.__('local_guide.get_site_schedule_success'));
+    } catch (error) {
+        if (error.message === 'Local Guide not assigned to any site') {
+            return ResponseUtil.badRequest(res, req.__('local_guide.no_site'));
+        }
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
+
+
+// ========================
+// EVENT 
+// ========================
+
+/**
+ * Local Guide: Create Event
+ */
+exports.createEvent = async (req, res) => {
+    try {
+        const bannerUrl = req.file ? req.file.path : null;
+        const result = await LocalGuideService.createEvent(req.user.id, req.body, bannerUrl);
+        return ResponseUtil.created(res, result, req.__('local_guide.create_event_success'));
+    } catch (error) {
+        if (error.message === 'Unauthorized') {
+            return ResponseUtil.forbidden(res, req.__('auth.forbidden'));
+        }
+        if (error.message === 'Local Guide has no site') {
+            return ResponseUtil.badRequest(res, req.__('local_guide.no_site'));
+        }
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
+
+/**
+ * Local Guide: Get My Events
+ */
+exports.getEvents = async (req, res) => {
+    try {
+        const { page, limit, status } = req.query;
+        const result = await LocalGuideService.getEvents(req.user.id, { page, limit, status });
+        return ResponseUtil.success(res, result, req.__('local_guide.get_events_success'));
+    } catch (error) {
+        if (error.message === 'Unauthorized') {
+            return ResponseUtil.forbidden(res, req.__('auth.forbidden'));
+        }
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
+
+/**
+ * Local Guide: Update Event
+ */
+exports.updateEvent = async (req, res) => {
+    try {
+        const bannerUrl = req.file ? req.file.path : null;
+        const result = await LocalGuideService.updateEvent(req.user.id, req.params.id, req.body, bannerUrl);
+        return ResponseUtil.success(res, result, req.__('local_guide.update_event_success'));
+    } catch (error) {
+        if (error.message === 'Unauthorized') {
+            return ResponseUtil.forbidden(res, req.__('auth.forbidden'));
+        }
+        if (error.message === 'Event not found') {
+            return ResponseUtil.notFound(res, req.__('local_guide.event_not_found'));
+        }
+        if (error.message === 'Cannot update approved event') {
+            return ResponseUtil.badRequest(res, req.__('local_guide.update_approved_event_error'));
+        }
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
+
+/**
+ * Local Guide: Delete Event
+ * DELETE /api/local-guide/events/:id
+ */
+exports.deleteEvent = async (req, res) => {
+    try {
+        const result = await LocalGuideService.deleteEvent(req.user.id, req.params.id);
+        return ResponseUtil.success(res, result, req.__('local_guide.delete_event_success'));
+    } catch (error) {
+        if (error.message === 'Unauthorized') {
+            return ResponseUtil.forbidden(res, req.__('auth.forbidden'));
+        }
+        if (error.message === 'Event not found') {
+            return ResponseUtil.notFound(res, req.__('local_guide.event_not_found'));
+        }
+        if (error.message === 'Cannot delete approved event') {
+            return ResponseUtil.badRequest(res, req.__('local_guide.delete_approved_event_error'));
         }
         return ResponseUtil.error(res, req.__('error.server_error'));
     }

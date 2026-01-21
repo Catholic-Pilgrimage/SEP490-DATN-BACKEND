@@ -56,5 +56,31 @@ router.patch(
     ManagerContentController.toggleScheduleActive
 );
 
+// ===================== EVENTS =====================
+
+// GET - Get all events
+router.get(
+    '/events',
+    authMiddleware,
+    authMiddleware.authorize('manager'),
+    ManagerContentController.getEvents
+);
+
+// PATCH - Approve/Reject event
+router.patch(
+    '/events/:id/status',
+    authMiddleware,
+    authMiddleware.authorize('manager'),
+    ManagerContentController.updateEventStatus
+);
+
+// PATCH - Toggle event is_active (soft delete/restore)
+router.patch(
+    '/events/:id/is-active',
+    authMiddleware,
+    authMiddleware.authorize('manager'),
+    ManagerContentController.toggleEventActive
+);
+
 
 module.exports = router;

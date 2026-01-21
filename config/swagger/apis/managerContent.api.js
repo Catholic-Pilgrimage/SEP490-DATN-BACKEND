@@ -528,3 +528,285 @@
  *       404:
  *         description: Không tìm thấy lịch lễ
  */
+
+// ===================== EVENTS =====================
+
+/**
+ * @swagger
+ * /api/manager/content/events:
+ *   get:
+ *     summary: Danh sách sự kiện của site (Manager only)
+ *     description: |
+ *       Manager xem tất cả sự kiện của site được gán với filter và pagination.
+ *       Bao gồm thông tin người tạo (Local Guide).
+ *     tags: [Manager Content]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Số trang
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Số lượng mỗi trang
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, approved, rejected]
+ *         description: Lọc theo trạng thái
+ *     responses:
+ *       200:
+ *         description: Thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Lấy danh sách sự kiện thành công"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/EventWithCreator'
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                         limit:
+ *                           type: integer
+ *                         totalItems:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
+ *       401:
+ *         description: Chưa đăng nhập
+ *       403:
+ *         description: Không phải Manager
+ */
+
+/**
+ * @swagger
+ * /api/manager/content/events/{id}/status:
+ *   patch:
+ *     summary: Duyệt hoặc Từ chối sự kiện (Manager only)
+ *     description: |
+ *       Manager approve hoặc reject sự kiện của site.
+ *       - **approved**: Duyệt sự kiện
+ *       - **rejected**: Từ chối sự kiện (bắt buộc có lý do)
+ *       
+ *       Chỉ có thể duyệt/từ chối sự kiện đang ở trạng thái `pending`.
+ *     tags: [Manager Content]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của sự kiện
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [approved, rejected]
+ *                 description: Trạng thái mới
+ *                 example: "approved"
+ *               rejection_reason:
+ *                 type: string
+ *                 maxLength: 500
+ *                 description: Lý do từ chối (bắt buộc khi status=rejected)
+ *                 example: "Thông tin sự kiện chưa đầy đủ"
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Duyệt sự kiện thành công"
+ *                 data:
+ *                   $ref: '#/components/schemas/EventWithCreator'
+ *       400:
+ *         description: |
+ *           - Trạng thái không hợp lệ
+ *           - Sự kiện đã được duyệt/từ chối trước đó
+ *           - Thiếu lý do từ chối
+ *       401:
+ *         description: Chưa đăng nhập
+ *       403:
+ *         description: Không phải Manager
+ *       404:
+ *         description: Không tìm thấy sự kiện
+ */
+
+/**
+ * @swagger
+ * /api/manager/content/events/{id}/is-active:
+ *   patch:
+ *     summary: Ẩn/Hiện sự kiện (Soft delete/Restore)
+ *     description: |
+ *       Manager toggle trạng thái is_active của sự kiện:
+ *       - `is_active: false` → Ẩn sự kiện (soft delete)
+ *       - `is_active: true` → Khôi phục sự kiện
+ *       
+ *       Chỉ có thể ẩn/hiện sự kiện đã được **approved**.
+ *     tags: [Manager Content]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của sự kiện
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - is_active
+ *             properties:
+ *               is_active:
+ *                 type: boolean
+ *                 description: Trạng thái active (true = hiện, false = ẩn)
+ *                 example: false
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Ẩn sự kiện thành công"
+ *                 data:
+ *                   $ref: '#/components/schemas/EventWithCreator'
+ *       400:
+ *         description: |
+ *           - Giá trị is_active không hợp lệ
+ *           - Chỉ có thể ẩn/hiện sự kiện đã được duyệt
+ *       401:
+ *         description: Chưa đăng nhập
+ *       403:
+ *         description: Không phải Manager
+ *       404:
+ *         description: Không tìm thấy sự kiện
+ */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     EventWithCreator:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         site_id:
+ *           type: string
+ *           format: uuid
+ *         code:
+ *           type: string
+ *           example: "EVT0116001"
+ *         name:
+ *           type: string
+ *           example: "Lễ Giáng Sinh 2025"
+ *         description:
+ *           type: string
+ *           example: "Thánh lễ mừng Chúa Giáng Sinh"
+ *         start_date:
+ *           type: string
+ *           format: date
+ *           example: "2025-12-25"
+ *         end_date:
+ *           type: string
+ *           format: date
+ *           nullable: true
+ *           example: "2025-12-25"
+ *         start_time:
+ *           type: string
+ *           format: time
+ *           nullable: true
+ *           example: "20:00:00"
+ *         end_time:
+ *           type: string
+ *           format: time
+ *           nullable: true
+ *           example: "22:00:00"
+ *         location:
+ *           type: string
+ *           nullable: true
+ *           example: "Sân nhà thờ"
+ *         banner_url:
+ *           type: string
+ *           format: uri
+ *           nullable: true
+ *         status:
+ *           type: string
+ *           enum: [pending, approved, rejected]
+ *         rejection_reason:
+ *           type: string
+ *           nullable: true
+ *         is_active:
+ *           type: boolean
+ *         created_by:
+ *           type: string
+ *           format: uuid
+ *         created_at:
+ *           type: string
+ *           format: date-time
+ *         updated_at:
+ *           type: string
+ *           format: date-time
+ *         creator:
+ *           type: object
+ *           properties:
+ *             id:
+ *               type: string
+ *               format: uuid
+ *             full_name:
+ *               type: string
+ *             email:
+ *               type: string
+ *               format: email
+ */
