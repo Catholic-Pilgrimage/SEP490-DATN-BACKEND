@@ -101,4 +101,102 @@ router.delete(
     LocalGuideController.deleteSchedule
 );
 
+// ========================
+// EVENT ROUTES
+// ========================
+
+// POST - Create event
+router.post(
+    '/events',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    uploadMedia.single('banner'),
+    LocalGuideValidator.createEvent,
+    handleValidationErrors,
+    LocalGuideController.createEvent
+);
+
+// GET - Get MY events
+router.get(
+    '/events',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    LocalGuideController.getEvents
+);
+
+// PUT - Update event (own + pending/rejected)
+router.put(
+    '/events/:id',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    uploadMedia.single('banner'),
+    LocalGuideValidator.validateEventId,
+    LocalGuideValidator.updateEvent,
+    handleValidationErrors,
+    LocalGuideController.updateEvent
+);
+
+// DELETE - Delete event (own + pending/rejected)
+router.delete(
+    '/events/:id',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    LocalGuideValidator.validateEventId,
+    handleValidationErrors,
+    LocalGuideController.deleteEvent
+);
+
+// ========================
+// SHIFT SUBMISSION ROUTES
+// ========================
+
+// POST - Create shift submission
+router.post(
+    '/shift-submissions',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    LocalGuideController.createSubmission
+);
+
+// GET - Get my submissions
+router.get(
+    '/shift-submissions',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    LocalGuideController.getSubmissions
+);
+
+// GET - Get submission detail
+router.get(
+    '/shift-submissions/:id',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    LocalGuideController.getSubmissionDetail
+);
+
+// PUT - Update submission (pending/rejected only) - full replacement
+router.put(
+    '/shift-submissions/:id',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    LocalGuideController.updateSubmission
+);
+
+// DELETE - Delete submission (pending only)
+router.delete(
+    '/shift-submissions/:id',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    LocalGuideController.deleteSubmission
+);
+
+// GET - Get site schedule (calendar view)
+router.get(
+    '/site-schedule',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    LocalGuideController.getSiteSchedule
+);
+
+
 module.exports = router;

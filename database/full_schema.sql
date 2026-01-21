@@ -151,7 +151,7 @@ CREATE TABLE IF NOT EXISTS sites (
     type site_type NOT NULL,
     patron_saint VARCHAR(255),
     cover_image TEXT,
-    opening_hours JSONB,
+    opening_hours JSONB, -- { open: "06:00", close: "18:00" }
     contact_info JSONB,
     created_by UUID REFERENCES users(id) ON DELETE SET NULL,
     is_active BOOLEAN DEFAULT TRUE,
@@ -370,19 +370,28 @@ CREATE INDEX IF NOT EXISTS idx_mass_schedules_status ON mass_schedules(status);
 -- 5.3 Events
 CREATE TABLE IF NOT EXISTS events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    site_id UUID REFERENCES sites(id) ON DELETE CASCADE,
+    site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    code VARCHAR(15) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    start_time TIMESTAMP WITH TIME ZONE NOT NULL,
-    end_time TIMESTAMP WITH TIME ZONE,
+    start_date DATE NOT NULL,
+    end_date DATE,
+    start_time TIME,
+    end_time TIME,
+    location VARCHAR(255),
     banner_url TEXT,
+    status site_content_status DEFAULT 'pending',
+    rejection_reason VARCHAR(500),
+    is_active BOOLEAN DEFAULT TRUE,
     created_by UUID REFERENCES users(id) ON DELETE SET NULL,
-    status site_status DEFAULT 'pending',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT check_end_date CHECK (end_date IS NULL OR end_date >= start_date)
 );
 
 CREATE INDEX IF NOT EXISTS idx_events_site ON events(site_id);
 CREATE INDEX IF NOT EXISTS idx_events_status ON events(status);
+CREATE INDEX IF NOT EXISTS idx_events_start_date ON events(start_date);
 
 CREATE TABLE IF NOT EXISTS event_participants (
     event_id UUID REFERENCES events(id) ON DELETE CASCADE,
@@ -393,30 +402,64 @@ CREATE TABLE IF NOT EXISTS event_participants (
 );
 
 -- ============================================
--- 6. GUIDE SHIFTS (NEW)
+-- 6. GUIDE SHIFT SUBMISSIONS
 -- ============================================
-CREATE TABLE IF NOT EXISTS guide_shifts (
+CREATE TABLE IF NOT EXISTS guide_shift_submissions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     guide_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
-    day_of_week INT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
-    start_time TIME NOT NULL,
-    end_time TIME NOT NULL,
+    code VARCHAR(20) NOT NULL UNIQUE,
+    week_start_date DATE NOT NULL,
+    
+    -- Submission metadata
+    submission_type VARCHAR(20) DEFAULT 'new' CHECK (submission_type IN ('new', 'update')),
+    change_reason TEXT,
+    previous_submission_id UUID REFERENCES guide_shift_submissions(id),
+    
+    -- Approval status
+    status VARCHAR(15) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    total_shifts INT DEFAULT 0,
+    rejection_reason TEXT,
+    approved_by UUID REFERENCES users(id),
+    approved_at TIMESTAMP WITH TIME ZONE,
+    
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_guide_shifts_guide ON guide_shifts(guide_id);
-CREATE INDEX IF NOT EXISTS idx_guide_shifts_site ON guide_shifts(site_id);
-CREATE INDEX IF NOT EXISTS idx_guide_shifts_day ON guide_shifts(day_of_week, is_active);
+CREATE INDEX IF NOT EXISTS idx_submissions_guide ON guide_shift_submissions(guide_id);
+CREATE INDEX IF NOT EXISTS idx_submissions_site ON guide_shift_submissions(site_id);
+CREATE INDEX IF NOT EXISTS idx_submissions_status ON guide_shift_submissions(status);
+CREATE INDEX IF NOT EXISTS idx_submissions_week ON guide_shift_submissions(week_start_date);
+CREATE INDEX IF NOT EXISTS idx_submissions_code ON guide_shift_submissions(code);
+
+-- Constraint: Only 1 active approved submission per guide per week
+CREATE UNIQUE INDEX IF NOT EXISTS idx_active_approved_per_week 
+    ON guide_shift_submissions(guide_id, site_id, week_start_date) 
+    WHERE is_active = TRUE AND status = 'approved';
 
 -- Trigger
-DROP TRIGGER IF EXISTS update_guide_shifts_updated_at ON guide_shifts;
-CREATE TRIGGER update_guide_shifts_updated_at
-    BEFORE UPDATE ON guide_shifts
+DROP TRIGGER IF EXISTS update_guide_shift_submissions_updated_at ON guide_shift_submissions;
+CREATE TRIGGER update_guide_shift_submissions_updated_at
+    BEFORE UPDATE ON guide_shift_submissions
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================
+-- 6.1 GUIDE SHIFTS (Belongs to Submission)
+-- ============================================
+CREATE TABLE IF NOT EXISTS guide_shifts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    submission_id UUID NOT NULL REFERENCES guide_shift_submissions(id) ON DELETE CASCADE,
+    day_of_week INT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_guide_shifts_submission ON guide_shifts(submission_id);
+CREATE INDEX IF NOT EXISTS idx_guide_shifts_day ON guide_shifts(day_of_week);
 
 -- ============================================
 -- 7. PLANNER MODULE

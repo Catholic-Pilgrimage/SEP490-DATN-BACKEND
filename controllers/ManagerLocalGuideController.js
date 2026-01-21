@@ -36,7 +36,6 @@ exports.createLocalGuide = async (req, res) => {
 
 /**
  * Manager: Get all Local Guides
- * GET /api/manager/local-guides
  */
 exports.getLocalGuides = async (req, res) => {
     try {
@@ -91,6 +90,75 @@ exports.updateLocalGuideStatus = async (req, res) => {
         }
         if (error.message.includes('already')) {
             return ResponseUtil.badRequest(res, error.message);
+        }
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
+
+// ===================== SHIFT SUBMISSIONS =====================
+
+/**
+ * Manager: Get Site Submissions
+ */
+exports.getSubmissions = async (req, res) => {
+    try {
+        const { page, limit, guide_id, status, week_start_date } = req.query;
+        const result = await ManagerLocalGuideService.getSubmissions(req.user.id, {
+            page, limit, guide_id, status, week_start_date
+        });
+        return ResponseUtil.success(res, result, req.__('manager.get_submissions_success'));
+    } catch (error) {
+        if (error.message === 'Manager not found') {
+            return ResponseUtil.notFound(res, req.__('auth.user_not_found'));
+        }
+        if (error.message === 'Manager has no site') {
+            return ResponseUtil.badRequest(res, req.__('manager_site.no_site'));
+        }
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
+
+/**
+ * Manager: Get Submission Detail
+ */
+exports.getSubmissionDetail = async (req, res) => {
+    try {
+        const result = await ManagerLocalGuideService.getSubmissionDetail(req.user.id, req.params.id);
+        return ResponseUtil.success(res, result);
+    } catch (error) {
+        if (error.message === 'Manager not found') {
+            return ResponseUtil.notFound(res, req.__('auth.user_not_found'));
+        }
+        if (error.message === 'Submission not found') {
+            return ResponseUtil.notFound(res, req.__('manager.submission_not_found'));
+        }
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
+
+/**
+ * Manager: Update Submission Status (approve/reject)
+ */
+exports.updateSubmissionStatus = async (req, res) => {
+    try {
+        const result = await ManagerLocalGuideService.updateSubmissionStatus(
+            req.user.id,
+            req.params.id,
+            req.body
+        );
+        return ResponseUtil.success(res, result, req.__('manager.update_submission_status_success'));
+    } catch (error) {
+        if (error.message === 'Manager not found') {
+            return ResponseUtil.notFound(res, req.__('auth.user_not_found'));
+        }
+        if (error.message === 'Submission not found') {
+            return ResponseUtil.notFound(res, req.__('manager.submission_not_found'));
+        }
+        if (error.message.includes('already')) {
+            return ResponseUtil.badRequest(res, error.message);
+        }
+        if (error.message.includes('Rejection reason is required')) {
+            return ResponseUtil.badRequest(res, req.__('manager.rejection_reason_required'));
         }
         return ResponseUtil.error(res, req.__('error.server_error'));
     }
