@@ -8,6 +8,7 @@ const managerLocalGuideRoutes = require('./managerLocalGuide.routes');
 const localGuideRoutes = require('./localGuide.routes');
 const managerContentRoutes = require('./managerContent.routes');
 const journalRoutes = require('./journal.routes');
+const plannerRoutes = require('./planner.routes');
 
 router.get('/', (req, res) => {
   res.json({
@@ -25,7 +26,8 @@ router.get('/', (req, res) => {
       localGuide: '/api/local-guide',
       verification: '/api/verification-requests',
       adminVerification: '/api/admin/verification-requests',
-      journals: '/api/journals'
+      journals: '/api/journals',
+      planners: '/api/planners'
     }
   });
 });
@@ -59,6 +61,9 @@ router.use('/admin/verification-requests', adminVerificationRoutes);
 
 // Journal routes
 router.use('/journals', journalRoutes);
+
+// Planner routes
+router.use('/planners', plannerRoutes);
 
 module.exports = router;
 

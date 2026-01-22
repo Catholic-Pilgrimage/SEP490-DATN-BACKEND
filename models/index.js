@@ -8,6 +8,8 @@ const SiteMedia = require('./SiteMedia');
 const MassSchedule = require('./MassSchedule');
 const VerificationRequest = require('./VerificationRequest');
 const Journal = require('./Journal');
+const Planner = require('./Planner');
+const PlannerItem = require('./PlannerItem');
 
 
 
@@ -54,6 +56,18 @@ Journal.belongsTo(User, { foreignKey: 'user_id', as: 'author' });
 Site.hasMany(Journal, { foreignKey: 'site_id', as: 'journals' });
 Journal.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
 
+// Planner - User (owner)
+User.hasMany(Planner, { foreignKey: 'user_id', as: 'planners' });
+Planner.belongsTo(User, { foreignKey: 'user_id', as: 'owner' });
+
+// Planner - PlannerItem
+Planner.hasMany(PlannerItem, { foreignKey: 'planner_id', as: 'items' });
+PlannerItem.belongsTo(Planner, { foreignKey: 'planner_id', as: 'planner' });
+
+// PlannerItem - Site
+Site.hasMany(PlannerItem, { foreignKey: 'site_id', as: 'plannerItems' });
+PlannerItem.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
+
 
 const db = {
   sequelize,
@@ -65,7 +79,9 @@ const db = {
   SiteMedia,
   MassSchedule,
   VerificationRequest,
-  Journal
+  Journal,
+  Planner,
+  PlannerItem
 };
 
 module.exports = db;
