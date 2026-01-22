@@ -7,6 +7,7 @@ const { pilgrimRouter: verificationRoutes, adminRouter: adminVerificationRoutes 
 const managerLocalGuideRoutes = require('./managerLocalGuide.routes');
 const localGuideRoutes = require('./localGuide.routes');
 const managerContentRoutes = require('./managerContent.routes');
+const publicRoutes = require('./public.routes');
 
 router.get('/', (req, res) => {
   res.json({
@@ -54,6 +55,9 @@ router.use('/verification-requests', verificationRoutes);
 
 // Admin Verification routes (Admin only)
 router.use('/admin/verification-requests', adminVerificationRoutes);
+
+// Public routes (Sites, Events, etc.)
+router.use('/sites', publicRoutes);
 
 module.exports = router;
 

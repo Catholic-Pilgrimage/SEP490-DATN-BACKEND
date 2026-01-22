@@ -485,5 +485,67 @@ module.exports = {};
  *                     type: boolean
  *                   is_removed:
  *                     type: boolean
+ *
+ *     NearbyPlace:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         site_id:
+ *           type: string
+ *           format: uuid
+ *         code:
+ *           type: string
+ *           example: "NBP0122001"
+ *           description: Mã địa điểm lân cận tự động
+ *         proposed_by:
+ *           type: string
+ *           format: uuid
+ *         name:
+ *           type: string
+ *           example: "Nhà hàng Phở 24"
+ *         category:
+ *           type: string
+ *           enum: [food, lodging, medical]
+ *           example: "food"
+ *         address:
+ *           type: string
+ *           example: "123 Đường ABC, Quận 1"
+ *         latitude:
+ *           type: number
+ *           format: float
+ *           example: 10.779738
+ *         longitude:
+ *           type: number
+ *           format: float
+ *           example: 106.699092
+ *         distance_meters:
+ *           type: integer
+ *           example: 500
+ *           description: Khoảng cách từ site (mét)
+ *         phone:
+ *           type: string
+ *           example: "0901234567"
+ *         description:
+ *           type: string
+ *         status:
+ *           type: string
+ *           enum: [pending, approved, rejected]
+ *           example: "pending"
+ *         rejection_reason:
+ *           type: string
+ *           nullable: true
+ *         reviewed_by:
+ *           type: string
+ *           format: uuid
+ *           nullable: true
+ *         reviewed_at:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *         created_at:
+ *           type: string
+ *           format: date-time
  */
 

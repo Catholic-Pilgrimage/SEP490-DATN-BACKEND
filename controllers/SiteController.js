@@ -192,3 +192,67 @@ exports.restoreSite = async (req, res) => {
     return ResponseUtil.error(res, req.__('error.server_error'));
   }
 };
+
+// ===================== PUBLIC SITE =====================
+
+// Public: Get all sites (approved)
+exports.getPublicSites = async (req, res) => {
+  try {
+    const result = await SiteService.getPublicSites(req.query);
+    return ResponseUtil.success(res, result, req.__('site.get_list_success'));
+  } catch (error) {
+    return ResponseUtil.error(res, req.__('error.server_error'));
+  }
+};
+
+// Public: Get site by ID or code
+exports.getPublicSiteById = async (req, res) => {
+  try {
+    const result = await SiteService.getPublicSiteById(req.params.id);
+    return ResponseUtil.success(res, result, req.__('site.get_detail_success'));
+  } catch (error) {
+    if (error.message === 'Site not found') {
+      return ResponseUtil.notFound(res, req.__('site.not_found'));
+    }
+    return ResponseUtil.error(res, req.__('error.server_error'));
+  }
+};
+
+// Public: Get site media (gallery)
+exports.getPublicSiteMedia = async (req, res) => {
+  try {
+    const result = await SiteService.getPublicSiteMedia(req.params.siteId, req.query);
+    return ResponseUtil.success(res, result, req.__('site.get_media_success'));
+  } catch (error) {
+    if (error.message === 'Site not found') {
+      return ResponseUtil.notFound(res, req.__('site.not_found'));
+    }
+    return ResponseUtil.error(res, req.__('error.server_error'));
+  }
+};
+
+// Public: Get site mass schedules
+exports.getPublicSiteMassSchedules = async (req, res) => {
+  try {
+    const result = await SiteService.getPublicSiteMassSchedules(req.params.siteId, req.query);
+    return ResponseUtil.success(res, result, req.__('site.get_schedules_success'));
+  } catch (error) {
+    if (error.message === 'Site not found') {
+      return ResponseUtil.notFound(res, req.__('site.not_found'));
+    }
+    return ResponseUtil.error(res, req.__('error.server_error'));
+  }
+};
+
+// Public: Get site events
+exports.getPublicSiteEvents = async (req, res) => {
+  try {
+    const result = await SiteService.getPublicSiteEvents(req.params.siteId, req.query);
+    return ResponseUtil.success(res, result, req.__('site.get_events_success'));
+  } catch (error) {
+    if (error.message === 'Site not found') {
+      return ResponseUtil.notFound(res, req.__('site.not_found'));
+    }
+    return ResponseUtil.error(res, req.__('error.server_error'));
+  }
+};

@@ -57,7 +57,12 @@
     "cannot_delete_has_data": "Không thể xóa địa điểm đã có dữ liệu liên quan",
     "already_deleted": "Địa điểm đã bị xóa trước đó",
     "restore_success": "Khôi phục địa điểm thành công",
-    "not_deleted": "Địa điểm chưa bị xóa"
+    "not_deleted": "Địa điểm chưa bị xóa",
+    "get_list_success": "Lấy danh sách địa điểm thành công",
+    "get_detail_success": "Lấy chi tiết địa điểm thành công",
+    "get_media_success": "Lấy danh sách media thành công",
+    "get_schedules_success": "Lấy danh sách lịch lễ thành công",
+    "get_events_success": "Lấy danh sách sự kiện thành công"
   },
   "manager_site": {
     "create_success": "Tạo địa điểm thành công",
@@ -151,7 +156,14 @@
     "week_start_date_required": "Ngày đầu tuần không được để trống",
     "event_not_found": "Không tìm thấy sự kiện",
     "update_approved_event_error": "Không thể cập nhật sự kiện đã được duyệt",
-    "delete_approved_event_error": "Không thể xóa sự kiện đã được duyệt"
+    "delete_approved_event_error": "Không thể xóa sự kiện đã được duyệt",
+    "create_nearby_place_success": "Tạo địa điểm lân cận thành công",
+    "get_nearby_places_success": "Lấy danh sách địa điểm lân cận thành công",
+    "update_nearby_place_success": "Cập nhật địa điểm lân cận thành công",
+    "delete_nearby_place_success": "Xóa địa điểm lân cận thành công",
+    "nearby_place_not_found": "Không tìm thấy địa điểm lân cận",
+    "update_approved_nearby_place_error": "Không thể cập nhật địa điểm đã được duyệt",
+    "delete_approved_nearby_place_error": "Không thể xóa địa điểm đã được duyệt"
   },
   "validation": {
     "failed": "Dữ liệu không hợp lệ",

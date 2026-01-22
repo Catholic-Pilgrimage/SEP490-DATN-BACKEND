@@ -10,6 +10,7 @@ const Event = require('./Event');
 const GuideShiftSubmission = require('./GuideShiftSubmission');
 const GuideShift = require('./GuideShift');
 const VerificationRequest = require('./VerificationRequest');
+const NearbyPlace = require('./NearbyPlace');
 
 
 
@@ -76,6 +77,19 @@ GuideShiftSubmission.belongsTo(GuideShiftSubmission, { foreignKey: 'previous_sub
 GuideShiftSubmission.hasMany(GuideShift, { foreignKey: 'submission_id', as: 'shifts' });
 GuideShift.belongsTo(GuideShiftSubmission, { foreignKey: 'submission_id', as: 'submission' });
 
+// ===================== NEARBY PLACES =====================
+
+// NearbyPlace - Site
+Site.hasMany(NearbyPlace, { foreignKey: 'site_id', as: 'nearbyPlaces' });
+NearbyPlace.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
+
+// NearbyPlace - User (proposed_by)
+User.hasMany(NearbyPlace, { foreignKey: 'proposed_by', as: 'proposedPlaces' });
+NearbyPlace.belongsTo(User, { foreignKey: 'proposed_by', as: 'proposer' });
+
+// NearbyPlace - User (reviewed_by)
+NearbyPlace.belongsTo(User, { foreignKey: 'reviewed_by', as: 'reviewer' });
+
 
 const db = {
   sequelize,
@@ -89,7 +103,8 @@ const db = {
   Event,
   VerificationRequest,
   GuideShiftSubmission,
-  GuideShift
+  GuideShift,
+  NearbyPlace
 };
 
 module.exports = db;

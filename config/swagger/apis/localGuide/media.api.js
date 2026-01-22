@@ -1,0 +1,152 @@
+/**
+ * @swagger
+ * tags:
+ *   - name: Local Guide - Media
+ *     description: API quản lý media (hình ảnh, video, panorama)
+ */
+
+/**
+ * @swagger
+ * /api/local-guide/media:
+ *   post:
+ *     summary: Upload media cho site (Local Guide only)
+ *     description: |
+ *       Upload hình ảnh, video, hoặc panorama cho site.
+ *       - File upload: image, video, panorama (qua Cloudinary)
+ *       - URL: YouTube video link
+ *     tags: [Local Guide - Media]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - type
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [image, video, panorama]
+ *                 example: "image"
+ *               caption:
+ *                 type: string
+ *                 example: "Mặt tiền nhà thờ"
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: File upload (image/video/panorama)
+ *               url:
+ *                 type: string
+ *                 example: "https://youtube.com/watch?v=xxx"
+ *                 description: YouTube URL (chỉ cho video)
+ *     responses:
+ *       201:
+ *         description: Upload media thành công
+ *       400:
+ *         description: Loại media không hợp lệ hoặc thiếu file/URL
+ *       401:
+ *         description: Chưa đăng nhập
+ *       403:
+ *         description: Không phải Local Guide
+ *
+ *   get:
+ *     summary: Xem danh sách media của tôi (Local Guide only)
+ *     description: Lấy danh sách media do Local Guide upload
+ *     tags: [Local Guide - Media]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [image, video, panorama]
+ *         description: Lọc theo loại media
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, approved, rejected]
+ *         description: Lọc theo trạng thái
+ *     responses:
+ *       200:
+ *         description: Lấy danh sách thành công
+ *       401:
+ *         description: Chưa đăng nhập
+ *       403:
+ *         description: Không phải Local Guide
+ */
+
+/**
+ * @swagger
+ * /api/local-guide/media/{id}:
+ *   put:
+ *     summary: Cập nhật media (Local Guide only)
+ *     description: Chỉ cập nhật được media pending hoặc rejected
+ *     tags: [Local Guide - Media]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [image, video, panorama]
+ *               caption:
+ *                 type: string
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *               url:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ *       400:
+ *         description: Không thể cập nhật media đã được duyệt
+ *       404:
+ *         description: Không tìm thấy media
+ *
+ *   delete:
+ *     summary: Xóa media (Local Guide only)
+ *     description: Chỉ xóa được media pending hoặc rejected
+ *     tags: [Local Guide - Media]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Xóa thành công
+ *       400:
+ *         description: Không thể xóa media đã được duyệt
+ *       404:
+ *         description: Không tìm thấy media
+ */

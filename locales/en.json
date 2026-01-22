@@ -57,7 +57,12 @@
     "cannot_delete_has_data": "Cannot delete site with related data",
     "already_deleted": "Site has already been deleted",
     "restore_success": "Site restored successfully",
-    "not_deleted": "Site is not deleted"
+    "not_deleted": "Site is not deleted",
+    "get_list_success": "Get sites list successfully",
+    "get_detail_success": "Get site details successfully",
+    "get_media_success": "Get site media successfully",
+    "get_schedules_success": "Get mass schedules successfully",
+    "get_events_success": "Get events successfully"
   },
   "manager_site": {
     "create_success": "Site created successfully",
@@ -151,7 +156,15 @@
     "week_start_date_required": "Week start date is required",
     "event_not_found": "Event not found",
     "update_approved_event_error": "Cannot update approved event",
-    "delete_approved_event_error": "Cannot delete approved event"
+    "delete_approved_event_error": "Cannot delete approved event",
+    "create_nearby_place_success": "Nearby place created successfully",
+    "get_nearby_places_success": "Nearby places retrieved successfully",
+    "update_nearby_place_success": "Nearby place updated successfully",
+    "delete_nearby_place_success": "Nearby place deleted successfully",
+    "nearby_place_not_found": "Nearby place not found",
+    "update_approved_nearby_place_error": "Cannot update approved nearby place",
+    "delete_approved_nearby_place_error": "Cannot delete approved nearby place"
+  },    "delete_approved_nearby_place_error": "Cannot delete approved nearby place"
   },
   "validation": {
     "failed": "Validation failed",

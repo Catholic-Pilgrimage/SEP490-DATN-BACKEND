@@ -198,5 +198,41 @@ router.get(
     LocalGuideController.getSiteSchedule
 );
 
+// ===================== NEARBY PLACES =====================
+
+// POST - Create nearby place
+router.post(
+    '/nearby-places',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    LocalGuideValidator.createNearbyPlace,
+    LocalGuideController.createNearbyPlace
+);
+
+// GET - Get my nearby places
+router.get(
+    '/nearby-places',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    LocalGuideController.getNearbyPlaces
+);
+
+// PUT - Update nearby place
+router.put(
+    '/nearby-places/:id',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    LocalGuideValidator.updateNearbyPlace,
+    LocalGuideController.updateNearbyPlace
+);
+
+// DELETE - Delete nearby place
+router.delete(
+    '/nearby-places/:id',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    LocalGuideController.deleteNearbyPlace
+);
+
 
 module.exports = router;

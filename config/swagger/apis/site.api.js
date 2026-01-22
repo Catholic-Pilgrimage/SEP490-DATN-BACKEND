@@ -1,11 +1,412 @@
 /**
  * @swagger
  * tags:
+ *   - name: Public Sites
+ *     description: API công khai xem địa điểm (Guest & Pilgrim)
  *   - name: Admin Sites
  *     description: API quản lý địa điểm (Admin)
  *   - name: Manager Sites
  *     description: API quản lý địa điểm (Manager)
  */
+
+// ============================================
+// PUBLIC SITE ROUTES (Guest & Pilgrim)
+// ============================================
+
+/**
+ * @swagger
+ * /api/sites:
+ *   get:
+ *     summary: Xem danh sách địa điểm công khai (Public - không cần đăng nhập)
+ *     description: Lấy danh sách tất cả địa điểm đang hoạt động (is_active = true)
+ *     tags: [Public Sites]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *           example: 1
+ *         description: Số trang
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *           example: 10
+ *         description: Số lượng mỗi trang
+ *       - in: query
+ *         name: province
+ *         schema:
+ *           type: string
+ *           example: "Hồ Chí Minh"
+ *         description: Lọc theo tỉnh/thành phố
+ *       - in: query
+ *         name: region
+ *         schema:
+ *           type: string
+ *           enum: [Bac, Trung, Nam]
+ *           example: "Nam"
+ *         description: Lọc theo miền
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [church, shrine, monastery, center, other]
+ *           example: "church"
+ *         description: Lọc theo loại địa điểm
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *           example: "Đức Bà"
+ *         description: Tìm kiếm theo tên địa điểm
+ *     responses:
+ *       200:
+ *         description: Lấy danh sách thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         format: uuid
+ *                       code:
+ *                         type: string
+ *                         example: "CHNAM001"
+ *                       name:
+ *                         type: string
+ *                         example: "Nhà thờ Đức Bà Sài Gòn"
+ *                       description:
+ *                         type: string
+ *                       address:
+ *                         type: string
+ *                       province:
+ *                         type: string
+ *                       district:
+ *                         type: string
+ *                       region:
+ *                         type: string
+ *                         enum: [Bac, Trung, Nam]
+ *                       type:
+ *                         type: string
+ *                         enum: [church, shrine, monastery, center, other]
+ *                       patron_saint:
+ *                         type: string
+ *                       cover_image:
+ *                         type: string
+ *                       opening_hours:
+ *                         type: object
+ *                       latitude:
+ *                         type: number
+ *                       longitude:
+ *                         type: number
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     totalItems:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *       500:
+ *         description: Lỗi server
+ */
+
+/**
+ * @swagger
+ * /api/sites/{idOrCode}:
+ *   get:
+ *     summary: Xem chi tiết địa điểm (Public - không cần đăng nhập)
+ *     description: Lấy thông tin chi tiết địa điểm bằng ID hoặc code
+ *     tags: [Public Sites]
+ *     parameters:
+ *       - in: path
+ *         name: idOrCode
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: UUID hoặc code của địa điểm
+ *         examples:
+ *           uuid:
+ *             value: "550e8400-e29b-41d4-a716-446655440000"
+ *             summary: Tìm bằng UUID
+ *           code:
+ *             value: "CHNAM001"
+ *             summary: Tìm bằng code
+ *     responses:
+ *       200:
+ *         description: Lấy thông tin thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       format: uuid
+ *                     code:
+ *                       type: string
+ *                       example: "CHNAM001"
+ *                     name:
+ *                       type: string
+ *                       example: "Nhà thờ Đức Bà Sài Gòn"
+ *                     description:
+ *                       type: string
+ *                     history:
+ *                       type: string
+ *                     address:
+ *                       type: string
+ *                     province:
+ *                       type: string
+ *                     district:
+ *                       type: string
+ *                     region:
+ *                       type: string
+ *                       enum: [Bac, Trung, Nam]
+ *                     type:
+ *                       type: string
+ *                       enum: [church, shrine, monastery, center, other]
+ *                     patron_saint:
+ *                       type: string
+ *                     cover_image:
+ *                       type: string
+ *                     opening_hours:
+ *                       type: object
+ *                       example: {"open": "06:00", "close": "18:00"}
+ *                     contact_info:
+ *                       type: object
+ *                       example: {"phone": "028-3822-0477"}
+ *                     latitude:
+ *                       type: number
+ *                     longitude:
+ *                       type: number
+ *                     created_at:
+ *                       type: string
+ *                       format: date-time
+ *       404:
+ *         description: Không tìm thấy địa điểm
+ *       500:
+ *         description: Lỗi server
+ */
+
+/**
+ * @swagger
+ * /api/sites/{siteId}/media:
+ *   get:
+ *     summary: Xem gallery của địa điểm (Public - không cần đăng nhập)
+ *     description: Lấy danh sách hình ảnh/video đã được duyệt của địa điểm
+ *     tags: [Public Sites]
+ *     parameters:
+ *       - in: path
+ *         name: siteId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của địa điểm
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [image, video, panorama]
+ *         description: Lọc theo loại media
+ *     responses:
+ *       200:
+ *         description: Lấy danh sách thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         format: uuid
+ *                       code:
+ *                         type: string
+ *                       url:
+ *                         type: string
+ *                       type:
+ *                         type: string
+ *                         enum: [image, video, panorama]
+ *                       caption:
+ *                         type: string
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *       404:
+ *         description: Không tìm thấy địa điểm
+ */
+
+/**
+ * @swagger
+ * /api/sites/{siteId}/mass-schedules:
+ *   get:
+ *     summary: Xem lịch lễ của địa điểm (Public - không cần đăng nhập)
+ *     description: Lấy danh sách lịch lễ đã được duyệt của địa điểm
+ *     tags: [Public Sites]
+ *     parameters:
+ *       - in: path
+ *         name: siteId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của địa điểm
+ *       - in: query
+ *         name: day_of_week
+ *         schema:
+ *           type: integer
+ *           minimum: 0
+ *           maximum: 6
+ *         description: Lọc theo ngày trong tuần (0=CN, 1=T2, ..., 6=T7)
+ *     responses:
+ *       200:
+ *         description: Lấy danh sách thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         format: uuid
+ *                       code:
+ *                         type: string
+ *                       days_of_week:
+ *                         type: array
+ *                         items:
+ *                           type: integer
+ *                       time:
+ *                         type: string
+ *                         example: "06:00:00"
+ *                       note:
+ *                         type: string
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *       404:
+ *         description: Không tìm thấy địa điểm
+ */
+
+/**
+ * @swagger
+ * /api/sites/{siteId}/events:
+ *   get:
+ *     summary: Xem sự kiện của địa điểm (Public - không cần đăng nhập)
+ *     description: Lấy danh sách sự kiện đã được duyệt của địa điểm
+ *     tags: [Public Sites]
+ *     parameters:
+ *       - in: path
+ *         name: siteId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của địa điểm
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *       - in: query
+ *         name: upcoming
+ *         schema:
+ *           type: string
+ *           enum: ['true', 'false']
+ *         description: Chỉ lấy sự kiện sắp diễn ra (start_date >= hôm nay)
+ *     responses:
+ *       200:
+ *         description: Lấy danh sách thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         format: uuid
+ *                       code:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       description:
+ *                         type: string
+ *                       start_date:
+ *                         type: string
+ *                         format: date
+ *                       end_date:
+ *                         type: string
+ *                         format: date
+ *                       start_time:
+ *                         type: string
+ *                       end_time:
+ *                         type: string
+ *                       location:
+ *                         type: string
+ *                       banner_url:
+ *                         type: string
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *       404:
+ *         description: Không tìm thấy địa điểm
+ */
+
 
 // ============================================
 // MANAGER SITE ROUTES

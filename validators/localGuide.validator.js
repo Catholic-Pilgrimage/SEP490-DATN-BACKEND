@@ -190,7 +190,7 @@ class LocalGuideValidator {
             .withMessage('Giờ kết thúc phải đúng định dạng HH:MM')
             .custom((value, { req }) => {
                 const { start_date, end_date, start_time } = req.body;
-                // If same day (no end_date or end_date = start_date) and both times provided
+
                 const isSameDay = !end_date || end_date === start_date;
                 if (isSameDay && start_time && value && start_time >= value) {
                     throw new Error('Giờ kết thúc phải sau giờ bắt đầu');
@@ -266,6 +266,72 @@ class LocalGuideValidator {
         param('id')
             .isUUID()
             .withMessage('ID ca làm không hợp lệ')
+    ];
+
+    // ===================== NEARBY PLACE VALIDATORS =====================
+
+    static createNearbyPlace = [
+        body('name')
+            .notEmpty().withMessage('Tên địa điểm không được để trống')
+            .isLength({ min: 2, max: 255 }).withMessage('Tên địa điểm phải từ 2-255 ký tự')
+            .trim(),
+        body('category')
+            .notEmpty().withMessage('Danh mục không được để trống')
+            .isIn(['food', 'lodging', 'medical']).withMessage('Danh mục không hợp lệ'),
+        body('latitude')
+            .notEmpty().withMessage('Vĩ độ không được để trống')
+            .isFloat({ min: -90, max: 90 }).withMessage('Vĩ độ phải từ -90 đến 90'),
+        body('longitude')
+            .notEmpty().withMessage('Kinh độ không được để trống')
+            .isFloat({ min: -180, max: 180 }).withMessage('Kinh độ phải từ -180 đến 180'),
+        body('address')
+            .optional()
+            .isLength({ max: 500 }).withMessage('Địa chỉ tối đa 500 ký tự')
+            .trim(),
+        body('distance_meters')
+            .optional()
+            .isInt({ min: 0 }).withMessage('Khoảng cách phải là số nguyên dương'),
+        body('phone')
+            .optional()
+            .isLength({ max: 20 }).withMessage('Số điện thoại tối đa 20 ký tự')
+            .trim(),
+        body('description')
+            .optional()
+            .isLength({ max: 1000 }).withMessage('Mô tả tối đa 1000 ký tự')
+            .trim()
+    ];
+
+    static updateNearbyPlace = [
+        param('id')
+            .isUUID().withMessage('ID địa điểm không hợp lệ'),
+        body('name')
+            .optional()
+            .isLength({ min: 2, max: 255 }).withMessage('Tên địa điểm phải từ 2-255 ký tự')
+            .trim(),
+        body('category')
+            .optional()
+            .isIn(['food', 'lodging', 'medical']).withMessage('Danh mục không hợp lệ'),
+        body('latitude')
+            .optional()
+            .isFloat({ min: -90, max: 90 }).withMessage('Vĩ độ phải từ -90 đến 90'),
+        body('longitude')
+            .optional()
+            .isFloat({ min: -180, max: 180 }).withMessage('Kinh độ phải từ -180 đến 180'),
+        body('address')
+            .optional()
+            .isLength({ max: 500 }).withMessage('Địa chỉ tối đa 500 ký tự')
+            .trim(),
+        body('distance_meters')
+            .optional()
+            .isInt({ min: 0 }).withMessage('Khoảng cách phải là số nguyên dương'),
+        body('phone')
+            .optional()
+            .isLength({ max: 20 }).withMessage('Số điện thoại tối đa 20 ký tự')
+            .trim(),
+        body('description')
+            .optional()
+            .isLength({ max: 1000 }).withMessage('Mô tả tối đa 1000 ký tự')
+            .trim()
     ];
 
 }

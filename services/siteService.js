@@ -397,6 +397,249 @@ class SiteService {
       throw error;
     }
   }
+
+  // ===================== PUBLIC APIs =====================
+
+  /**
+   * Public: Get all active sites with pagination and filters
+   * For pilgrim and guest users
+   */
+  static async getPublicSites(filters = {}) {
+    try {
+      const page = parseInt(filters.page) || 1;
+      const limit = parseInt(filters.limit) || 10;
+      const offset = (page - 1) * limit;
+
+      const where = {
+        is_active: true
+      };
+
+      // Optional filters
+      if (filters.province) where.province = filters.province;
+      if (filters.region) where.region = filters.region;
+      if (filters.type) where.type = filters.type;
+      if (filters.search) {
+        where.name = { [Op.iLike]: `%${filters.search}%` };
+      }
+
+      const { count, rows } = await Site.findAndCountAll({
+        where,
+        attributes: ['id', 'code', 'name', 'description', 'address', 'province', 'district', 'region', 'type', 'patron_saint', 'cover_image', 'opening_hours', 'latitude', 'longitude'],
+        order: [['name', 'ASC']],
+        limit,
+        offset
+      });
+
+      return {
+        data: rows,
+        pagination: {
+          page,
+          limit,
+          totalItems: count,
+          totalPages: Math.ceil(count / limit)
+        }
+      };
+    } catch (error) {
+      Logger.error('Get public sites error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Public: Get site detail by ID or code
+   * For pilgrim and guest users
+   */
+  static async getPublicSiteById(siteIdOrCode) {
+    try {
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(siteIdOrCode);
+
+      const where = isUUID
+        ? { id: siteIdOrCode, is_active: true }
+        : { code: siteIdOrCode, is_active: true };
+
+      const site = await Site.findOne({
+        where,
+        attributes: ['id', 'code', 'name', 'description', 'history', 'address', 'province', 'district', 'region', 'type', 'patron_saint', 'cover_image', 'opening_hours', 'contact_info', 'latitude', 'longitude', 'created_at']
+      });
+
+      if (!site) {
+        throw new Error('Site not found');
+      }
+
+      return site;
+    } catch (error) {
+      Logger.error('Get public site by ID error:', error);
+      throw error;
+    }
+  }
+  /**
+   * Public: Get site media (approved only)
+   * For pilgrim and guest users to view site gallery
+   */
+  static async getPublicSiteMedia(siteId, filters = {}) {
+    try {
+      const page = parseInt(filters.page) || 1;
+      const limit = parseInt(filters.limit) || 20;
+      const offset = (page - 1) * limit;
+
+      // Check if site exists and is active
+      const site = await Site.findOne({
+        where: { id: siteId, is_active: true }
+      });
+
+      if (!site) {
+        throw new Error('Site not found');
+      }
+
+      const where = {
+        site_id: siteId,
+        status: 'approved',
+        is_active: true
+      };
+
+      // Filter by media type
+      if (filters.type && ['image', 'video', 'panorama'].includes(filters.type)) {
+        where.type = filters.type;
+      }
+
+      const { SiteMedia } = require('../models');
+      const { count, rows } = await SiteMedia.findAndCountAll({
+        where,
+        attributes: ['id', 'code', 'url', 'type', 'caption', 'created_at'],
+        order: [['created_at', 'DESC']],
+        limit,
+        offset
+      });
+
+      return {
+        site: {
+          id: site.id,
+          code: site.code,
+          name: site.name
+        },
+        data: rows,
+        pagination: {
+          page,
+          limit,
+          totalItems: count,
+          totalPages: Math.ceil(count / limit)
+        }
+      };
+    } catch (error) {
+      Logger.error('Get public site media error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Public: Get site mass schedules (approved only)
+   * For pilgrim and guest users to view mass schedules
+   */
+  static async getPublicSiteMassSchedules(siteId, filters = {}) {
+    try {
+      // Check if site exists and is active
+      const site = await Site.findOne({
+        where: { id: siteId, is_active: true }
+      });
+
+      if (!site) {
+        throw new Error('Site not found');
+      }
+
+      const where = {
+        site_id: siteId,
+        status: 'approved',
+        is_active: true
+      };
+
+      // Filter by day_of_week
+      if (filters.day_of_week !== undefined && filters.day_of_week !== null) {
+        const dayNum = parseInt(filters.day_of_week);
+        if (dayNum >= 0 && dayNum <= 6) {
+          where.days_of_week = { [Op.contains]: [dayNum] };
+        }
+      }
+
+      const { MassSchedule } = require('../models');
+      const schedules = await MassSchedule.findAll({
+        where,
+        attributes: ['id', 'code', 'days_of_week', 'time', 'note', 'created_at'],
+        order: [['time', 'ASC']]
+      });
+
+      return {
+        site: {
+          id: site.id,
+          code: site.code,
+          name: site.name
+        },
+        data: schedules
+      };
+    } catch (error) {
+      Logger.error('Get public site mass schedules error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Public: Get site events (approved only)
+   * For pilgrim and guest users to view events
+   */
+  static async getPublicSiteEvents(siteId, filters = {}) {
+    try {
+      const page = parseInt(filters.page) || 1;
+      const limit = parseInt(filters.limit) || 10;
+      const offset = (page - 1) * limit;
+
+      // Check if site exists and is active
+      const site = await Site.findOne({
+        where: { id: siteId, is_active: true }
+      });
+
+      if (!site) {
+        throw new Error('Site not found');
+      }
+
+      const where = {
+        site_id: siteId,
+        status: 'approved',
+        is_active: true
+      };
+
+      // Filter by date range (upcoming events)
+      if (filters.upcoming === 'true') {
+        const today = new Date().toISOString().split('T')[0];
+        where.start_date = { [Op.gte]: today };
+      }
+
+      const { Event } = require('../models');
+      const { count, rows } = await Event.findAndCountAll({
+        where,
+        attributes: ['id', 'code', 'name', 'description', 'start_date', 'end_date', 'start_time', 'end_time', 'location', 'banner_url', 'created_at'],
+        order: [['start_date', 'ASC'], ['start_time', 'ASC']],
+        limit,
+        offset
+      });
+
+      return {
+        site: {
+          id: site.id,
+          code: site.code,
+          name: site.name
+        },
+        data: rows,
+        pagination: {
+          page,
+          limit,
+          totalItems: count,
+          totalPages: Math.ceil(count / limit)
+        }
+      };
+    } catch (error) {
+      Logger.error('Get public site events error:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = SiteService;
