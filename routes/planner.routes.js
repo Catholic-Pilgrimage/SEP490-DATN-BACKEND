@@ -8,14 +8,14 @@ const authenticate = require('../middlewares/auth.middleware');
  * @swagger
  * tags:
  *   name: Planners
- *   description: Travel planner management endpoints
+ *   description: Quản lý kế hoạch du lịch
  */
 
 /**
  * @swagger
  * /api/planners:
  *   post:
- *     summary: Create a new planner
+ *     summary: Tạo kế hoạch mới
  *     tags: [Planners]
  *     security:
  *       - bearerAuth: []
@@ -27,15 +27,15 @@ const authenticate = require('../middlewares/auth.middleware');
  *             $ref: '#/components/schemas/CreatePlannerRequest'
  *     responses:
  *       201:
- *         description: Planner created successfully
+ *         description: Tạo kế hoạch thành công
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/PlannerResponse'
  *       400:
- *         description: Validation error
+ *         description: Lỗi xác thực
  *       401:
- *         description: Unauthorized
+ *         description: Chưa xác thực
  */
 router.post(
     '/',
@@ -48,7 +48,7 @@ router.post(
  * @swagger
  * /api/planners:
  *   get:
- *     summary: Get user's planners
+ *     summary: Lấy danh sách kế hoạch của người dùng
  *     tags: [Planners]
  *     security:
  *       - bearerAuth: []
@@ -59,7 +59,7 @@ router.post(
  *           type: integer
  *           minimum: 1
  *           default: 1
- *         description: Page number
+ *         description: Số trang
  *       - in: query
  *         name: limit
  *         schema:
@@ -67,16 +67,16 @@ router.post(
  *           minimum: 1
  *           maximum: 100
  *           default: 10
- *         description: Items per page
+ *         description: Số mục trên mỗi trang
  *     responses:
  *       200:
- *         description: Planners retrieved successfully
+ *         description: Lấy danh sách kế hoạch thành công
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/PlannerListResponse'
  *       401:
- *         description: Unauthorized
+ *         description: Chưa xác thực
  */
 router.get(
     '/',
@@ -89,7 +89,7 @@ router.get(
  * @swagger
  * /api/planners/{id}:
  *   get:
- *     summary: Get planner by ID
+ *     summary: Lấy kế hoạch theo ID
  *     tags: [Planners]
  *     security:
  *       - bearerAuth: []
@@ -100,10 +100,10 @@ router.get(
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Planner ID
+ *         description: ID kế hoạch
  *     responses:
  *       200:
- *         description: Planner retrieved successfully
+ *         description: Lấy kế hoạch thành công
  *         content:
  *           application/json:
  *             schema:
@@ -116,11 +116,11 @@ router.get(
  *                 data:
  *                   $ref: '#/components/schemas/PlannerWithItems'
  *       401:
- *         description: Unauthorized
+ *         description: Chưa xác thực
  *       403:
- *         description: Forbidden - not the owner
+ *         description: Không có quyền - không phải chủ sở hữu
  *       404:
- *         description: Planner not found
+ *         description: Không tìm thấy kế hoạch
  */
 router.get(
     '/:id',
@@ -133,7 +133,7 @@ router.get(
  * @swagger
  * /api/planners/{id}:
  *   patch:
- *     summary: Update planner
+ *     summary: Cập nhật kế hoạch
  *     tags: [Planners]
  *     security:
  *       - bearerAuth: []
@@ -144,7 +144,7 @@ router.get(
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Planner ID
+ *         description: ID kế hoạch
  *     requestBody:
  *       required: true
  *       content:
@@ -153,19 +153,19 @@ router.get(
  *             $ref: '#/components/schemas/UpdatePlannerRequest'
  *     responses:
  *       200:
- *         description: Planner updated successfully
+ *         description: Cập nhật kế hoạch thành công
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/PlannerResponse'
  *       400:
- *         description: Validation error
+ *         description: Lỗi xác thực
  *       401:
- *         description: Unauthorized
+ *         description: Chưa xác thực
  *       403:
- *         description: Forbidden - not the owner
+ *         description: Không có quyền - không phải chủ sở hữu
  *       404:
- *         description: Planner not found
+ *         description: Không tìm thấy kế hoạch
  */
 router.patch(
     '/:id',
@@ -178,7 +178,7 @@ router.patch(
  * @swagger
  * /api/planners/{id}:
  *   delete:
- *     summary: Delete planner
+ *     summary: Xóa kế hoạch
  *     tags: [Planners]
  *     security:
  *       - bearerAuth: []
@@ -189,16 +189,16 @@ router.patch(
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Planner ID
+ *         description: ID kế hoạch
  *     responses:
  *       200:
- *         description: Planner deleted successfully
+ *         description: Xóa kế hoạch thành công
  *       401:
- *         description: Unauthorized
+ *         description: Chưa xác thực
  *       403:
- *         description: Forbidden - not the owner
+ *         description: Không có quyền - không phải chủ sở hữu
  *       404:
- *         description: Planner not found
+ *         description: Không tìm thấy kế hoạch
  */
 router.delete(
     '/:id',
@@ -211,8 +211,8 @@ router.delete(
  * @swagger
  * /api/planners/{id}/items:
  *   post:
- *     summary: Add item to planner
- *     description: Add a site to a specific day in the planner. Distance validation applies for 2nd+ items in same day.
+ *     summary: Thêm điểm vào kế hoạch
+ *     description: Thêm một địa điểm vào một ngày cụ thể trong kế hoạch. Kiểm tra khoảng cách áp dụng cho điểm thứ 2 trở đi trong cùng ngày.
  *     tags: [Planners]
  *     security:
  *       - bearerAuth: []
@@ -223,7 +223,7 @@ router.delete(
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Planner ID
+ *         description: ID kế hoạch
  *     requestBody:
  *       required: true
  *       content:
@@ -232,19 +232,19 @@ router.delete(
  *             $ref: '#/components/schemas/AddPlannerItemRequest'
  *     responses:
  *       201:
- *         description: Item added successfully (may include distance warning)
+ *         description: Thêm điểm thành công (có thể bao gồm cảnh báo khoảng cách)
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/AddItemResponse'
  *       400:
- *         description: Validation error or distance too far (>500km)
+ *         description: Lỗi xác thực hoặc khoảng cách quá xa (>500km)
  *       401:
- *         description: Unauthorized
+ *         description: Chưa xác thực
  *       403:
- *         description: Forbidden - not the owner
+ *         description: Không có quyền - không phải chủ sở hữu
  *       404:
- *         description: Planner or site not found
+ *         description: Không tìm thấy kế hoạch hoặc địa điểm
  */
 router.post(
     '/:id/items',

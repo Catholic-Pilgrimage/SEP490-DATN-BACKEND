@@ -10,7 +10,19 @@ class PlannerValidator {
 
         body('start_date')
             .optional()
-            .isISO8601().withMessage('Ngày bắt đầu phải có định dạng YYYY-MM-DD'),
+            .isISO8601().withMessage('Ngày bắt đầu phải có định dạng YYYY-MM-DD')
+            .custom((value) => {
+                if (value) {
+                    const inputDate = new Date(value);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+
+                    if (inputDate < today) {
+                        throw new Error('Ngày bắt đầu không được là ngày trong quá khứ');
+                    }
+                }
+                return true;
+            }),
 
         body('number_of_days')
             .optional()
@@ -22,11 +34,11 @@ class PlannerValidator {
 
         body('transportation')
             .optional()
-            .isIn(['motorbike', 'car', 'bus', 'train', 'plane']).withMessage('Phương tiện phải là motorbike, car, bus, train hoặc plane'),
+            .isIn(['motorbike', 'car', 'bus', 'train', 'plane']).withMessage('Phương tiện phải là xe máy, xe hơi, xe buýt, tàu hỏa hoặc máy bay'),
 
         body('budget_level')
             .optional()
-            .isIn(['budget', 'standard', 'luxury']).withMessage('Mức ngân sách phải là budget, standard hoặc luxury')
+            .isIn(['budget', 'standard', 'luxury']).withMessage('Mức ngân sách phải là tiết kiệm, tiêu chuẩn hoặc sang trọng')
     ];
 
     // Validate update planner
@@ -38,7 +50,19 @@ class PlannerValidator {
 
         body('start_date')
             .optional()
-            .isISO8601().withMessage('Ngày bắt đầu phải có định dạng YYYY-MM-DD'),
+            .isISO8601().withMessage('Ngày bắt đầu phải có định dạng YYYY-MM-DD')
+            .custom((value) => {
+                if (value) {
+                    const inputDate = new Date(value);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+
+                    if (inputDate < today) {
+                        throw new Error('Ngày bắt đầu không được là ngày trong quá khứ');
+                    }
+                }
+                return true;
+            }),
 
         body('number_of_days')
             .optional()
