@@ -10,6 +10,9 @@ const Event = require('./Event');
 const GuideShiftSubmission = require('./GuideShiftSubmission');
 const GuideShift = require('./GuideShift');
 const VerificationRequest = require('./VerificationRequest');
+const Journal = require('./Journal');
+const Planner = require('./Planner');
+const PlannerItem = require('./PlannerItem');
 
 
 
@@ -56,26 +59,6 @@ VerificationRequest.belongsTo(User, { foreignKey: 'user_id', as: 'applicant' });
 // VerificationRequest - User (reviewer)
 VerificationRequest.belongsTo(User, { foreignKey: 'reviewed_by', as: 'reviewer' });
 
-// ===================== GUIDE SHIFT SUBMISSIONS =====================
-
-// GuideShiftSubmission - User (Guide)
-User.hasMany(GuideShiftSubmission, { foreignKey: 'guide_id', as: 'shiftSubmissions' });
-GuideShiftSubmission.belongsTo(User, { foreignKey: 'guide_id', as: 'guide' });
-
-// GuideShiftSubmission - Site
-Site.hasMany(GuideShiftSubmission, { foreignKey: 'site_id', as: 'shiftSubmissions' });
-GuideShiftSubmission.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
-
-// GuideShiftSubmission - User (approved_by)
-GuideShiftSubmission.belongsTo(User, { foreignKey: 'approved_by', as: 'approver' });
-
-// GuideShiftSubmission - Self reference (previous submission)
-GuideShiftSubmission.belongsTo(GuideShiftSubmission, { foreignKey: 'previous_submission_id', as: 'previousSubmission' });
-
-// GuideShiftSubmission - GuideShift
-GuideShiftSubmission.hasMany(GuideShift, { foreignKey: 'submission_id', as: 'shifts' });
-GuideShift.belongsTo(GuideShiftSubmission, { foreignKey: 'submission_id', as: 'submission' });
-
 
 const db = {
   sequelize,
@@ -86,10 +69,7 @@ const db = {
   Site,
   SiteMedia,
   MassSchedule,
-  Event,
-  VerificationRequest,
-  GuideShiftSubmission,
-  GuideShift
+  VerificationRequest
 };
 
 module.exports = db;
