@@ -8,7 +8,7 @@ const authenticate = require('../middlewares/auth.middleware');
  * @swagger
  * tags:
  *   name: Planners
- *   description: Quản lý kế hoạch du lịch
+ *   description: Lập kế hoạch hành hương
  */
 
 /**
@@ -257,7 +257,7 @@ router.post(
  * @swagger
  * /api/planners/{id}/items/reorder:
  *   patch:
- *     summary: Reorder items within a day
+ *     summary: Sắp xếp lại các địa điểm trong cùng một ngày
  *     tags: [Planners]
  *     security:
  *       - bearerAuth: []
@@ -314,8 +314,8 @@ router.patch(
  * @swagger
  * /api/planners/{id}/items/{itemId}:
  *   delete:
- *     summary: Delete item from planner
- *     description: Delete an item and automatically reorder remaining items in the same day
+ *     summary: Xóa một địa điểm khỏi kế hoạch
+ *     description: Xóa một địa điểm và tự động sắp xếp lại các địa điểm còn lại trong cùng ngày
  *     tags: [Planners]
  *     security:
  *       - bearerAuth: []
@@ -349,6 +349,111 @@ router.delete(
     authenticate,
     PlannerValidator.deleteItem,
     PlannerController.deletePlannerItem
+);
+
+// ============================================
+// SHARE TOKEN MANAGEMENT ROUTES (Owner only)
+// ============================================
+
+/**
+ * @swagger
+ * /api/planners/{id}/share-token:
+ *   post:
+ *     summary: Tạo hoặc cập nhật token chia sẻ
+ *     description: Tạo token chia sẻ mới hoặc cập nhật role của token hiện tại. Chỉ chủ sở hữu mới có quyền.
+ *     tags: [Planners]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID kế hoạch
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               role:
+ *                 type: string
+ *                 enum: [viewer, editor]
+ *                 default: viewer
+ *                 description: Quyền của người được chia sẻ
+ *     responses:
+ *       200:
+ *         description: Tạo/cập nhật token thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     token:
+ *                       type: string
+ *                       example: "abc123def456..."
+ *                     role:
+ *                       type: string
+ *                       example: "editor"
+ *                     link:
+ *                       type: string
+ *                       example: "myapp://planners/share/abc123def456..."
+ *       401:
+ *         description: Chưa xác thực
+ *       403:
+ *         description: Không có quyền - không phải chủ sở hữu
+ *       404:
+ *         description: Không tìm thấy kế hoạch
+ */
+router.post(
+    '/:id/share-token',
+    authenticate,
+    PlannerValidator.createShareToken,
+    PlannerController.createShareToken
+);
+
+/**
+ * @swagger
+ * /api/planners/{id}/share:
+ *   delete:
+ *     summary: Tắt chia sẻ
+ *     description: Vô hiệu hóa chia sẻ kế hoạch, xóa token và đặt lại về trạng thái riêng tư. Chỉ chủ sở hữu mới có quyền.
+ *     tags: [Planners]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID kế hoạch
+ *     responses:
+ *       200:
+ *         description: Tắt chia sẻ thành công
+ *       401:
+ *         description: Chưa xác thực
+ *       403:
+ *         description: Không có quyền - không phải chủ sở hữu
+ *       404:
+ *         description: Không tìm thấy kế hoạch
+ */
+router.delete(
+    '/:id/share',
+    authenticate,
+    PlannerValidator.validatePlannerId,
+    PlannerController.disableShare
 );
 
 module.exports = router;

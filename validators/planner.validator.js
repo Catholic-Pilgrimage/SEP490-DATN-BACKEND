@@ -149,6 +149,72 @@ class PlannerValidator {
         param('id')
             .isUUID().withMessage('Planner ID không hợp lệ')
     ];
+
+    // Validate create share token
+    static createShareToken = [
+        param('id')
+            .isUUID().withMessage('Planner ID không hợp lệ'),
+
+        body('role')
+            .optional()
+            .isIn(['viewer', 'editor']).withMessage('Role phải là viewer hoặc editor')
+    ];
+
+    // Validate share token param
+    static validateShareToken = [
+        param('token')
+            .notEmpty().withMessage('Token không được để trống')
+            .isString().withMessage('Token phải là chuỗi')
+    ];
+
+    // Validate add item by token
+    static addItemByToken = [
+        param('token')
+            .notEmpty().withMessage('Token không được để trống'),
+
+        body('site_id')
+            .notEmpty().withMessage('Site ID không được để trống')
+            .isUUID().withMessage('Site ID không hợp lệ'),
+
+        body('day_number')
+            .notEmpty().withMessage('Số ngày không được để trống')
+            .isInt({ min: 1 }).withMessage('Số ngày phải lớn hơn hoặc bằng 1'),
+
+        body('note')
+            .optional()
+            .isString().withMessage('Ghi chú phải là chuỗi')
+            .trim()
+    ];
+
+    // Validate reorder items by token
+    static reorderItemsByToken = [
+        param('token')
+            .notEmpty().withMessage('Token không được để trống'),
+
+        body('day_number')
+            .notEmpty().withMessage('Số ngày không được để trống')
+            .isInt({ min: 1 }).withMessage('Số ngày phải lớn hơn hoặc bằng 1'),
+
+        body('item_ids')
+            .notEmpty().withMessage('Danh sách item IDs không được để trống')
+            .isArray({ min: 1 }).withMessage('Danh sách item IDs phải là mảng và không rỗng')
+            .custom((value) => {
+                if (!value.every(id => typeof id === 'string')) {
+                    throw new Error('Tất cả item IDs phải là chuỗi UUID');
+                }
+                return true;
+            })
+    ];
+
+    // Validate update share role
+    static updateShareRole = [
+        param('id')
+            .isUUID().withMessage('Planner ID không hợp lệ'),
+
+        body('role')
+            .notEmpty().withMessage('Role không được để trống')
+            .isIn(['viewer', 'editor']).withMessage('Role phải là viewer hoặc editor')
+    ];
 }
 
 module.exports = PlannerValidator;

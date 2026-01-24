@@ -3,6 +3,7 @@ const { Op } = require('sequelize');
 const Logger = require('../utils/logger.util');
 const OSRMUtil = require('../utils/osrm.util');
 const sequelize = require('../config/database');
+const crypto = require('crypto');
 
 class PlannerService {
 
@@ -84,8 +85,9 @@ class PlannerService {
 
     /**
      * Get planner by ID with all items grouped by day
+     * userId is optional - if not provided, skips ownership check (for token access)
      */
-    static async getPlannerById(plannerId, userId) {
+    static async getPlannerById(plannerId, userId = null) {
         try {
             const planner = await Planner.findByPk(plannerId, {
                 include: [
@@ -105,8 +107,8 @@ class PlannerService {
                 throw new Error('Planner not found');
             }
 
-            // Check ownership
-            if (planner.user_id !== userId) {
+            // Check ownership only if userId is provided (owner access)
+            if (userId && planner.user_id !== userId) {
                 throw new Error('Forbidden');
             }
 
@@ -209,20 +211,21 @@ class PlannerService {
 
     /**
      * Add item to planner with distance validation
+     * userId is optional - if not provided, skips ownership check (for token access)
      */
-    static async addPlannerItem(plannerId, userId, itemData) {
+    static async addPlannerItem(plannerId, userId = null, itemData) {
         const transaction = await sequelize.transaction();
 
         try {
             const { site_id, day_number, note } = itemData;
 
-            // Check planner exists and user is owner
+            // Check planner exists and user is owner (if userId provided)
             const planner = await Planner.findByPk(plannerId);
             if (!planner) {
                 throw new Error('Planner not found');
             }
 
-            if (planner.user_id !== userId) {
+            if (userId && planner.user_id !== userId) {
                 throw new Error('Forbidden');
             }
 
@@ -323,18 +326,19 @@ class PlannerService {
 
     /**
      * Reorder planner items within a day
+     * userId is optional - if not provided, skips ownership check (for token access)
      */
-    static async reorderPlannerItems(plannerId, userId, dayNumber, itemIds) {
+    static async reorderPlannerItems(plannerId, userId = null, dayNumber, itemIds) {
         const transaction = await sequelize.transaction();
 
         try {
-            // Check planner exists and user is owner
+            // Check planner exists and user is owner (if userId provided)
             const planner = await Planner.findByPk(plannerId);
             if (!planner) {
                 throw new Error('Planner not found');
             }
 
-            if (planner.user_id !== userId) {
+            if (userId && planner.user_id !== userId) {
                 throw new Error('Forbidden');
             }
 
@@ -470,6 +474,7 @@ class PlannerService {
             status: planner.status,
             is_public: planner.is_public,
             share_token: planner.share_token,
+            share_role: planner.share_role,
             owner: planner.owner ? {
                 id: planner.owner.id,
                 full_name: planner.owner.full_name,
@@ -526,6 +531,81 @@ class PlannerService {
             } : null,
             created_at: item.created_at
         };
+    }
+
+    /**
+     * Create or update share token with role
+     */
+    static async createShareToken(plannerId, userId, role = 'viewer') {
+        try {
+            const planner = await Planner.findByPk(plannerId);
+
+            if (!planner) {
+                throw new Error('Planner not found');
+            }
+
+            // Check ownership
+            if (planner.user_id !== userId) {
+                throw new Error('Forbidden');
+            }
+
+            // Validate role
+            if (!['viewer', 'editor'].includes(role)) {
+                throw new Error('Invalid role');
+            }
+
+            // Generate token if not exists
+            if (!planner.share_token) {
+                planner.share_token = crypto.randomBytes(24).toString('hex');
+            }
+
+            planner.is_public = true;
+            planner.share_role = role;
+
+            await planner.save();
+
+            Logger.info(`Share token created/updated for planner ${plannerId} by user ${userId} with role ${role}`);
+
+            return {
+                token: planner.share_token,
+                role: planner.share_role,
+                link: `myapp://planners/share/${planner.share_token}`
+            };
+        } catch (error) {
+            Logger.error('Create share token error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Disable sharing
+     */
+    static async disableShare(plannerId, userId) {
+        try {
+            const planner = await Planner.findByPk(plannerId);
+
+            if (!planner) {
+                throw new Error('Planner not found');
+            }
+
+            // Check ownership
+            if (planner.user_id !== userId) {
+                throw new Error('Forbidden');
+            }
+
+            planner.is_public = false;
+            planner.share_token = null;
+            planner.share_role = null;
+
+            await planner.save();
+
+            Logger.info(`Sharing disabled for planner ${plannerId} by user ${userId}`);
+
+            return { message: 'Sharing disabled successfully' };
+        } catch (error) {
+            Logger.error('Disable share error:', error);
+            throw error;
+        }
     }
 }
 

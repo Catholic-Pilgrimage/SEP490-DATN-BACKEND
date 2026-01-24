@@ -66,6 +66,17 @@ const Planner = sequelize.define('Planner', {
         type: DataTypes.STRING(50),
         allowNull: true,
         unique: true
+    },
+    share_role: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+        defaultValue: null,
+        validate: {
+            isIn: {
+                args: [['viewer', 'editor', null]],
+                msg: 'share_role must be viewer, editor, or null'
+            }
+        }
     }
 }, {
     tableName: 'planners',

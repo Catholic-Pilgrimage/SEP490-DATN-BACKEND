@@ -179,6 +179,10 @@
  *           type: boolean
  *         share_token:
  *           type: string
+ *         share_role:
+ *           type: string
+ *           enum: [viewer, editor]
+ *           description: Quyền của người được chia sẻ qua token
  *         owner:
  *           type: object
  *           properties:

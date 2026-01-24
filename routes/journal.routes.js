@@ -45,7 +45,7 @@ const uploadJournal = multer({
  * @swagger
  * tags:
  *   name: Journals
- *   description: Journal management endpoints
+ *   description: Nhật ký tâm linh
  */
 
 /**
