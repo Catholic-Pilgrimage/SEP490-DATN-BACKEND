@@ -76,7 +76,8 @@ const Site = sequelize.define('Site', {
     },
     opening_hours: {
         type: DataTypes.JSONB,
-        allowNull: true
+        allowNull: true,
+        comment: 'Format: { "open": "06:00", "close": "18:00" }'
     },
     contact_info: {
         type: DataTypes.JSONB,

@@ -6,6 +6,9 @@ const PasswordReset = require('./PasswordReset');
 const Site = require('./Site');
 const SiteMedia = require('./SiteMedia');
 const MassSchedule = require('./MassSchedule');
+const Event = require('./Event');
+const GuideShiftSubmission = require('./GuideShiftSubmission');
+const GuideShift = require('./GuideShift');
 const VerificationRequest = require('./VerificationRequest');
 const Journal = require('./Journal');
 const Planner = require('./Planner');
@@ -41,32 +44,20 @@ MassSchedule.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
 User.hasMany(MassSchedule, { foreignKey: 'created_by', as: 'createdSchedules' });
 MassSchedule.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
 
+// Site - Event
+Site.hasMany(Event, { foreignKey: 'site_id', as: 'events' });
+Event.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
+
+// Event - User (created_by)
+User.hasMany(Event, { foreignKey: 'created_by', as: 'createdEvents' });
+Event.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+
 // VerificationRequest - User (applicant)
 User.hasMany(VerificationRequest, { foreignKey: 'user_id', as: 'verificationRequests' });
 VerificationRequest.belongsTo(User, { foreignKey: 'user_id', as: 'applicant' });
 
 // VerificationRequest - User (reviewer)
 VerificationRequest.belongsTo(User, { foreignKey: 'reviewed_by', as: 'reviewer' });
-
-// Journal - User (author)
-User.hasMany(Journal, { foreignKey: 'user_id', as: 'journals' });
-Journal.belongsTo(User, { foreignKey: 'user_id', as: 'author' });
-
-// Journal - Site
-Site.hasMany(Journal, { foreignKey: 'site_id', as: 'journals' });
-Journal.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
-
-// Planner - User (owner)
-User.hasMany(Planner, { foreignKey: 'user_id', as: 'planners' });
-Planner.belongsTo(User, { foreignKey: 'user_id', as: 'owner' });
-
-// Planner - PlannerItem
-Planner.hasMany(PlannerItem, { foreignKey: 'planner_id', as: 'items' });
-PlannerItem.belongsTo(Planner, { foreignKey: 'planner_id', as: 'planner' });
-
-// PlannerItem - Site
-Site.hasMany(PlannerItem, { foreignKey: 'site_id', as: 'plannerItems' });
-PlannerItem.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
 
 
 const db = {
@@ -78,10 +69,7 @@ const db = {
   Site,
   SiteMedia,
   MassSchedule,
-  VerificationRequest,
-  Journal,
-  Planner,
-  PlannerItem
+  VerificationRequest
 };
 
 module.exports = db;

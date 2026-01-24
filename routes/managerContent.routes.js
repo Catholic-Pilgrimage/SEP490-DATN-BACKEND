@@ -30,5 +30,57 @@ router.patch(
     ManagerContentController.toggleMediaActive
 );
 
+// ===================== SCHEDULES =====================
+
+// GET - Get all schedules
+router.get(
+    '/schedules',
+    authMiddleware,
+    authMiddleware.authorize('manager'),
+    ManagerContentController.getSchedules
+);
+
+// PATCH - Approve/Reject schedule
+router.patch(
+    '/schedules/:id/status',
+    authMiddleware,
+    authMiddleware.authorize('manager'),
+    ManagerContentController.updateScheduleStatus
+);
+
+// PATCH - Toggle schedule is_active (soft delete/restore)
+router.patch(
+    '/schedules/:id/is-active',
+    authMiddleware,
+    authMiddleware.authorize('manager'),
+    ManagerContentController.toggleScheduleActive
+);
+
+// ===================== EVENTS =====================
+
+// GET - Get all events
+router.get(
+    '/events',
+    authMiddleware,
+    authMiddleware.authorize('manager'),
+    ManagerContentController.getEvents
+);
+
+// PATCH - Approve/Reject event
+router.patch(
+    '/events/:id/status',
+    authMiddleware,
+    authMiddleware.authorize('manager'),
+    ManagerContentController.updateEventStatus
+);
+
+// PATCH - Toggle event is_active (soft delete/restore)
+router.patch(
+    '/events/:id/is-active',
+    authMiddleware,
+    authMiddleware.authorize('manager'),
+    ManagerContentController.toggleEventActive
+);
+
 
 module.exports = router;

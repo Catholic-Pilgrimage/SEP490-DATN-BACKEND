@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
-const MassSchedule = sequelize.define('MassSchedule', {
+const Event = sequelize.define('Event', {
     id: {
         type: DataTypes.UUID,
         defaultValue: DataTypes.UUIDV4,
@@ -21,28 +21,42 @@ const MassSchedule = sequelize.define('MassSchedule', {
         allowNull: false,
         unique: true
     },
-    days_of_week: {
-        type: DataTypes.ARRAY(DataTypes.INTEGER),
-        allowNull: false,
-        defaultValue: [],
+    name: {
+        type: DataTypes.STRING(255),
+        allowNull: false
+    },
+    description: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    start_date: {
+        type: DataTypes.DATEONLY,
+        allowNull: false
+    },
+    end_date: {
+        type: DataTypes.DATEONLY,
+        allowNull: true,
         validate: {
-            isValidDays(value) {
-                if (!Array.isArray(value)) {
-                    throw new Error('days_of_week must be an array');
-                }
-                for (const day of value) {
-                    if (day < 0 || day > 6) {
-                        throw new Error('Each day must be between 0 and 6');
-                    }
+            isAfterStartDate(value) {
+                if (value && this.start_date && value < this.start_date) {
+                    throw new Error('end_date must be greater than or equal to start_date');
                 }
             }
         }
     },
-    time: {
+    start_time: {
         type: DataTypes.TIME,
-        allowNull: false
+        allowNull: true
     },
-    note: {
+    end_time: {
+        type: DataTypes.TIME,
+        allowNull: true
+    },
+    location: {
+        type: DataTypes.STRING(255),
+        allowNull: true
+    },
+    banner_url: {
         type: DataTypes.TEXT,
         allowNull: true
     },
@@ -71,10 +85,10 @@ const MassSchedule = sequelize.define('MassSchedule', {
         onDelete: 'SET NULL'
     }
 }, {
-    tableName: 'mass_schedules',
+    tableName: 'events',
     timestamps: true,
     createdAt: 'created_at',
     updatedAt: 'updated_at'
 });
 
-module.exports = MassSchedule;
+module.exports = Event;
