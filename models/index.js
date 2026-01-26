@@ -59,6 +59,26 @@ VerificationRequest.belongsTo(User, { foreignKey: 'user_id', as: 'applicant' });
 // VerificationRequest - User (reviewer)
 VerificationRequest.belongsTo(User, { foreignKey: 'reviewed_by', as: 'reviewer' });
 
+// User - Journal
+User.hasMany(Journal, { foreignKey: 'user_id', as: 'journals' });
+Journal.belongsTo(User, { foreignKey: 'user_id', as: 'author' });
+
+// Journal - Site (optional association)
+Journal.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
+Site.hasMany(Journal, { foreignKey: 'site_id', as: 'journals' });
+
+// User - Planner
+User.hasMany(Planner, { foreignKey: 'user_id', as: 'planners' });
+Planner.belongsTo(User, { foreignKey: 'user_id', as: 'owner' });
+
+// Planner - PlannerItem
+Planner.hasMany(PlannerItem, { foreignKey: 'planner_id', as: 'items' });
+PlannerItem.belongsTo(Planner, { foreignKey: 'planner_id', as: 'planner' });
+
+// PlannerItem - Site
+PlannerItem.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
+Site.hasMany(PlannerItem, { foreignKey: 'site_id', as: 'plannerItems' });
+
 
 const db = {
   sequelize,
@@ -69,7 +89,13 @@ const db = {
   Site,
   SiteMedia,
   MassSchedule,
-  VerificationRequest
+  Event,
+  GuideShift,
+  GuideShiftSubmission,
+  VerificationRequest,
+  Journal,
+  Planner,
+  PlannerItem
 };
 
 module.exports = db;

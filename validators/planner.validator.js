@@ -24,9 +24,19 @@ class PlannerValidator {
                 return true;
             }),
 
-        body('number_of_days')
+        body('end_date')
             .optional()
-            .isInt({ min: 1 }).withMessage('Số ngày phải lớn hơn hoặc bằng 1'),
+            .isISO8601().withMessage('Ngày kết thúc phải có định dạng YYYY-MM-DD')
+            .custom((value, { req }) => {
+                if (value && req.body.start_date) {
+                    const startDate = new Date(req.body.start_date);
+                    const endDate = new Date(value);
+                    if (endDate < startDate) {
+                        throw new Error('Ngày kết thúc phải sau hoặc bằng ngày bắt đầu');
+                    }
+                }
+                return true;
+            }),
 
         body('number_of_people')
             .optional()
@@ -34,7 +44,7 @@ class PlannerValidator {
 
         body('transportation')
             .optional()
-            .isIn(['motorbike', 'car', 'bus', 'train', 'plane']).withMessage('Phương tiện phải là xe máy, xe hơi, xe buýt, tàu hỏa hoặc máy bay'),
+            .isIn(['motorbike', 'car', 'bus']).withMessage('Phương tiện phải là motorbike, car hoặc bus'),
 
         body('budget_level')
             .optional()
@@ -64,9 +74,9 @@ class PlannerValidator {
                 return true;
             }),
 
-        body('number_of_days')
+        body('end_date')
             .optional()
-            .isInt({ min: 1 }).withMessage('Số ngày phải lớn hơn hoặc bằng 1'),
+            .isISO8601().withMessage('Ngày kết thúc phải có định dạng YYYY-MM-DD'),
 
         body('number_of_people')
             .optional()
@@ -74,7 +84,7 @@ class PlannerValidator {
 
         body('transportation')
             .optional()
-            .isIn(['motorbike', 'car', 'bus', 'train', 'plane']).withMessage('Phương tiện phải là motorbike, car, bus, train hoặc plane'),
+            .isIn(['motorbike', 'car', 'bus']).withMessage('Phương tiện phải là motorbike, car hoặc bus'),
 
         body('budget_level')
             .optional()

@@ -7,52 +7,58 @@ const Logger = require('./logger.util');
 
 class OSRMUtil {
     /**
-     * Get route information from OSRM API
+     * Get route information from VietMap API
      * @param {Object} from - Starting coordinates {lat, lng}
      * @param {Object} to - Destination coordinates {lat, lng}
+     * @param {string} vehicle - Vehicle type: 'car' or 'bike' (default: 'bike')
      * @returns {Object|null} - {distance: meters, duration: seconds} or null if failed
      */
-    static async getRouteInfo(from, to) {
+    static async getRouteInfo(from, to, vehicle = 'bike') {
         try {
-            const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=false`;
+            const apiKey = process.env.VIETMAP_API_KEY;
+            const baseUrl = process.env.VIETMAP_ROUTE_URL || 'https://api.vietmap.vn/route';
 
-            Logger.info(`OSRM API call: ${url}`);
+            if (!apiKey) {
+                Logger.error('VIETMAP_API_KEY is not configured');
+                return null;
+            }
+
+            const url = `${baseUrl}?apikey=${apiKey}&start=${from.lng},${from.lat}&end=${to.lng},${to.lat}&vehicle=${vehicle}`;
+
+            Logger.info(`VietMap API call: ${baseUrl}?apikey=***&start=${from.lng},${from.lat}&end=${to.lng},${to.lat}&vehicle=${vehicle}`);
 
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
             const response = await fetch(url, {
-                signal: controller.signal,
-                headers: {
-                    'User-Agent': 'Catholic-Pilgrimage-App/1.0'
-                }
+                signal: controller.signal
             });
 
             clearTimeout(timeout);
 
             if (!response.ok) {
-                Logger.warn(`OSRM API returned status ${response.status}`);
+                Logger.warn(`VietMap API returned status ${response.status}`);
                 return null;
             }
 
             const data = await response.json();
 
-            if (!data.routes || data.routes.length === 0) {
-                Logger.warn('OSRM: No routes found');
+            if (!data.paths || data.paths.length === 0) {
+                Logger.warn('VietMap: No routes found');
                 return null;
             }
 
-            Logger.info(`OSRM: Distance ${data.routes[0].distance}m, Duration ${data.routes[0].duration}s`);
+            Logger.info(`VietMap: Distance ${data.paths[0].distance}m, Duration ${data.paths[0].time}s`);
 
             return {
-                distance: data.routes[0].distance, // in meters
-                duration: data.routes[0].duration  // in seconds
+                distance: data.paths[0].distance, // in meters
+                duration: data.paths[0].time      // in seconds (VietMap uses 'time' instead of 'duration')
             };
         } catch (error) {
             if (error.name === 'AbortError') {
-                Logger.error('OSRM API timeout');
+                Logger.error('VietMap API timeout');
             } else {
-                Logger.error('OSRM API error:', error.message);
+                Logger.error('VietMap API error:', error.message);
             }
             return null;
         }
@@ -120,15 +126,27 @@ class OSRMUtil {
      * Get distance between two sites with validation
      * @param {Object} fromSite - Site with latitude and longitude
      * @param {Object} toSite - Site with latitude and longitude
-     * @param {string} transportation - Transportation mode
+     * @param {string} transportation - Transportation mode (car, bike, etc.)
      * @returns {Object} - {distance, duration, validation}
      */
     static async getDistanceWithValidation(fromSite, toSite, transportation = null) {
         try {
-            // Try OSRM first
+            // Map transportation to VietMap vehicle type
+            let vehicle = 'bike'; // default
+            if (transportation) {
+                const lowerTransport = transportation.toLowerCase();
+                if (lowerTransport.includes('car') || lowerTransport.includes('ô tô') || lowerTransport.includes('xe hơi')) {
+                    vehicle = 'car';
+                } else if (lowerTransport.includes('bike') || lowerTransport.includes('xe máy') || lowerTransport.includes('motor')) {
+                    vehicle = 'bike';
+                }
+            }
+
+            // Try VietMap first
             const routeInfo = await this.getRouteInfo(
                 { lat: parseFloat(fromSite.latitude), lng: parseFloat(fromSite.longitude) },
-                { lat: parseFloat(toSite.latitude), lng: parseFloat(toSite.longitude) }
+                { lat: parseFloat(toSite.latitude), lng: parseFloat(toSite.longitude) },
+                vehicle
             );
 
             let distance, duration;

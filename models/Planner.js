@@ -23,12 +23,9 @@ const Planner = sequelize.define('Planner', {
         type: DataTypes.DATEONLY,
         allowNull: true
     },
-    number_of_days: {
-        type: DataTypes.INTEGER,
-        defaultValue: 1,
-        validate: {
-            min: 1
-        }
+    end_date: {
+        type: DataTypes.DATEONLY,
+        allowNull: true
     },
     number_of_people: {
         type: DataTypes.INTEGER,
@@ -41,7 +38,7 @@ const Planner = sequelize.define('Planner', {
         type: DataTypes.STRING(100),
         allowNull: true,
         validate: {
-            isIn: [['motorbike', 'car', 'bus', 'train', 'plane']]
+            isIn: [['motorbike', 'car', 'bus']]
         }
     },
     budget_level: {
@@ -57,10 +54,6 @@ const Planner = sequelize.define('Planner', {
         validate: {
             isIn: [['planning', 'ongoing', 'completed']]
         }
-    },
-    is_public: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: false
     },
     share_token: {
         type: DataTypes.STRING(50),

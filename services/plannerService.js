@@ -12,16 +12,20 @@ class PlannerService {
      */
     static async createPlanner(userId, plannerData) {
         try {
-            const { name, start_date, number_of_days = 1, number_of_people = 1, transportation, budget_level = 'standard' } = plannerData;
+            const { name, start_date, end_date, number_of_people = 1, transportation, budget_level = 'standard' } = plannerData;
 
             // Validate required fields
             if (!name || name.trim().length === 0) {
                 throw new Error('Name is required');
             }
 
-            // Validate number_of_days
-            if (number_of_days < 1) {
-                throw new Error('Number of days must be at least 1');
+            // Validate date range
+            if (start_date && end_date) {
+                const startDateObj = new Date(start_date);
+                const endDateObj = new Date(end_date);
+                if (endDateObj < startDateObj) {
+                    throw new Error('End date must be after or equal to start date');
+                }
             }
 
             // Validate number_of_people
@@ -34,12 +38,11 @@ class PlannerService {
                 user_id: userId,
                 name: name.trim(),
                 start_date: start_date || null,
-                number_of_days,
+                end_date: end_date || null,
                 number_of_people,
                 transportation: transportation || null,
                 budget_level,
-                status: 'planning',
-                is_public: false
+                status: 'planning'
             });
 
             Logger.info(`Planner created by user ${userId}: ${planner.id}`);
@@ -146,11 +149,20 @@ class PlannerService {
                 dataToUpdate.start_date = updateData.start_date;
             }
 
-            if (updateData.number_of_days !== undefined) {
-                if (updateData.number_of_days < 1) {
-                    throw new Error('Number of days must be at least 1');
+            if (updateData.end_date !== undefined) {
+                dataToUpdate.end_date = updateData.end_date;
+            }
+
+            // Validate date range if both dates are being updated
+            const finalStartDate = dataToUpdate.start_date !== undefined ? dataToUpdate.start_date : planner.start_date;
+            const finalEndDate = dataToUpdate.end_date !== undefined ? dataToUpdate.end_date : planner.end_date;
+
+            if (finalStartDate && finalEndDate) {
+                const startDateObj = new Date(finalStartDate);
+                const endDateObj = new Date(finalEndDate);
+                if (endDateObj < startDateObj) {
+                    throw new Error('End date must be after or equal to start date');
                 }
-                dataToUpdate.number_of_days = updateData.number_of_days;
             }
 
             if (updateData.number_of_people !== undefined) {
@@ -235,9 +247,17 @@ class PlannerService {
                 throw new Error('Site not found');
             }
 
-            // Validate day_number
-            if (day_number < 1 || day_number > planner.number_of_days) {
-                throw new Error('Invalid day number');
+            // Validate day_number (if planner has date range)
+            if (planner.start_date && planner.end_date) {
+                const startDate = new Date(planner.start_date);
+                const endDate = new Date(planner.end_date);
+                const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+
+                if (day_number < 1 || day_number > totalDays) {
+                    throw new Error(`Invalid day number. Must be between 1 and ${totalDays}`);
+                }
+            } else if (day_number < 1) {
+                throw new Error('Day number must be at least 1');
             }
 
             let warning = null;
@@ -342,9 +362,17 @@ class PlannerService {
                 throw new Error('Forbidden');
             }
 
-            // Validate day_number
-            if (dayNumber < 1 || dayNumber > planner.number_of_days) {
-                throw new Error('Invalid day number');
+            // Validate day_number (if planner has date range)
+            if (planner.start_date && planner.end_date) {
+                const startDate = new Date(planner.start_date);
+                const endDate = new Date(planner.end_date);
+                const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+
+                if (dayNumber < 1 || dayNumber > totalDays) {
+                    throw new Error(`Invalid day number. Must be between 1 and ${totalDays}`);
+                }
+            } else if (dayNumber < 1) {
+                throw new Error('Day number must be at least 1');
             }
 
             // Get all items for this day
@@ -462,17 +490,25 @@ class PlannerService {
      * Format planner response
      */
     static formatPlannerResponse(planner) {
+        // Calculate number_of_days from date range
+        let numberOfDays = null;
+        if (planner.start_date && planner.end_date) {
+            const startDate = new Date(planner.start_date);
+            const endDate = new Date(planner.end_date);
+            numberOfDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+        }
+
         return {
             id: planner.id,
             user_id: planner.user_id,
             name: planner.name,
             start_date: planner.start_date,
-            number_of_days: planner.number_of_days,
+            end_date: planner.end_date,
+            number_of_days: numberOfDays,
             number_of_people: planner.number_of_people,
             transportation: planner.transportation,
             budget_level: planner.budget_level,
             status: planner.status,
-            is_public: planner.is_public,
             share_token: planner.share_token,
             share_role: planner.share_role,
             owner: planner.owner ? {
@@ -559,7 +595,6 @@ class PlannerService {
                 planner.share_token = crypto.randomBytes(24).toString('hex');
             }
 
-            planner.is_public = true;
             planner.share_role = role;
 
             await planner.save();
@@ -593,7 +628,6 @@ class PlannerService {
                 throw new Error('Forbidden');
             }
 
-            planner.is_public = false;
             planner.share_token = null;
             planner.share_role = null;
 

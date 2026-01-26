@@ -16,12 +16,11 @@
  *           format: date
  *           example: "2026-02-01"
  *           description: "Ngày bắt đầu (YYYY-MM-DD)"
- *         number_of_days:
- *           type: integer
- *           minimum: 1
- *           default: 1
- *           example: 3
- *           description: "Số ngày (tối thiểu 1)"
+ *         end_date:
+ *           type: string
+ *           format: date
+ *           example: "2026-02-05"
+ *           description: "Ngày kết thúc (YYYY-MM-DD)"
  *         number_of_people:
  *           type: integer
  *           minimum: 1
@@ -30,7 +29,7 @@
  *           description: "Số người (tối thiểu 1)"
  *         transportation:
  *           type: string
- *           enum: [motorbike, car, bus, train, plane]
+ *           enum: [motorbike, car, bus]
  *           example: "car"
  *           description: "Phương tiện di chuyển"
  *         budget_level:
@@ -50,17 +49,17 @@
  *           type: string
  *           format: date
  *           example: "2026-02-01"
- *         number_of_days:
- *           type: integer
- *           minimum: 1
- *           example: 5
+ *         end_date:
+ *           type: string
+ *           format: date
+ *           example: "2026-02-10"
  *         number_of_people:
  *           type: integer
  *           minimum: 1
  *           example: 6
  *         transportation:
  *           type: string
- *           enum: [motorbike, car, bus, train, plane]
+ *           enum: [motorbike, car, bus]
  *           example: "bus"
  *         budget_level:
  *           type: string
@@ -165,8 +164,6 @@
  *         start_date:
  *           type: string
  *           format: date
- *         number_of_days:
- *           type: integer
  *         number_of_people:
  *           type: integer
  *         transportation:
@@ -175,8 +172,6 @@
  *           type: string
  *         status:
  *           type: string
- *         is_public:
- *           type: boolean
  *         share_token:
  *           type: string
  *         share_role:
