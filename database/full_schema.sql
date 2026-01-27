@@ -476,6 +476,7 @@ CREATE TABLE IF NOT EXISTS planners (
     status planner_status DEFAULT 'planning',
     is_public BOOLEAN DEFAULT FALSE,
     share_token VARCHAR(50) UNIQUE DEFAULT NULL,
+    share_role VARCHAR(20) DEFAULT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -577,16 +578,19 @@ CREATE TABLE IF NOT EXISTS journals (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     site_id UUID REFERENCES sites(id) ON DELETE SET NULL,
-    title TEXT,
-    content TEXT,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
     audio_url TEXT,
-    image_url TEXT,
+    image_url TEXT[],
+    video_url TEXT,
     privacy journal_privacy DEFAULT 'private',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_journals_user ON journals(user_id);
+CREATE INDEX IF NOT EXISTS idx_journals_site ON journals(site_id);
+CREATE INDEX IF NOT EXISTS idx_journals_privacy ON journals(privacy) WHERE privacy = 'public';
 
 -- Trigger
 DROP TRIGGER IF EXISTS update_journals_updated_at ON journals;

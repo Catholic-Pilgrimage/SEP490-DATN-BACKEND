@@ -11,6 +11,9 @@ const GuideShiftSubmission = require('./GuideShiftSubmission');
 const GuideShift = require('./GuideShift');
 const VerificationRequest = require('./VerificationRequest');
 const NearbyPlace = require('./NearbyPlace');
+const Journal = require('./Journal');
+const Planner = require('./Planner');
+const PlannerItem = require('./PlannerItem');
 
 
 
@@ -91,6 +94,7 @@ NearbyPlace.belongsTo(User, { foreignKey: 'proposed_by', as: 'proposer' });
 NearbyPlace.belongsTo(User, { foreignKey: 'reviewed_by', as: 'reviewer' });
 
 
+
 const db = {
   sequelize,
   User,
@@ -104,7 +108,10 @@ const db = {
   VerificationRequest,
   GuideShiftSubmission,
   GuideShift,
-  NearbyPlace
+  NearbyPlace,
+  Journal,
+  Planner,
+  PlannerItem
 };
 
 module.exports = db;
