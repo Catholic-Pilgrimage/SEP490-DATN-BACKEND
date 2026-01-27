@@ -78,6 +78,11 @@
  *         schema:
  *           type: string
  *           enum: [pending, approved, rejected]
+ *       - in: query
+ *         name: is_active
+ *         schema:
+ *           type: boolean
+ *         description: Lọc theo trạng thái active (true = đang hoạt động, false = đã xóa)
  *     responses:
  *       200:
  *         description: Lấy danh sách thành công
@@ -154,4 +159,39 @@
  *         description: Không thể xóa sự kiện đã được duyệt
  *       404:
  *         description: Không tìm thấy sự kiện
+ */
+
+/**
+ * @swagger
+ * /api/local-guide/events/{id}/restore:
+ *   patch:
+ *     summary: Khôi phục sự kiện đã xóa (Local Guide only)
+ *     description: |
+ *       Khôi phục sự kiện đã bị soft delete (is_active: false).
+ *       - Chỉ khôi phục được sự kiện pending hoặc rejected
+ *       - Không thể khôi phục sự kiện đã approved
+ *     tags: [Local Guide - Events]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của sự kiện cần khôi phục
+ *     responses:
+ *       200:
+ *         description: Khôi phục thành công
+ *       400:
+ *         description: |
+ *           - Không thể khôi phục sự kiện đã được duyệt
+ *           - Sự kiện đã được kích hoạt
+ *       404:
+ *         description: Không tìm thấy sự kiện
+ *       401:
+ *         description: Chưa đăng nhập
+ *       403:
+ *         description: Không phải Local Guide
  */

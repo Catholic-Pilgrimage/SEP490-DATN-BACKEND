@@ -17,7 +17,7 @@
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
@@ -105,6 +105,11 @@
  *           type: string
  *           enum: [food, lodging, medical]
  *         description: Lọc theo danh mục
+ *       - in: query
+ *         name: is_active
+ *         schema:
+ *           type: boolean
+ *         description: Lọc theo trạng thái active (true = đang hoạt động, false = đã xóa)
  *     responses:
  *       200:
  *         description: Lấy danh sách thành công
@@ -156,29 +161,37 @@
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
  *               name:
  *                 type: string
+ *                 example: "Nhà hàng Phở 24"
  *               category:
  *                 type: string
  *                 enum: [food, lodging, medical]
+ *                 example: "food"
  *               address:
  *                 type: string
+ *                 example: "123 Đường ABC, Quận 1"
  *               latitude:
  *                 type: number
  *                 format: float
+ *                 example: 10.779738
  *               longitude:
  *                 type: number
  *                 format: float
+ *                 example: 106.699092
  *               distance_meters:
  *                 type: integer
+ *                 example: 500
  *               phone:
  *                 type: string
+ *                 example: "0901234567"
  *               description:
  *                 type: string
+ *                 example: "Nhà hàng phở truyền thống"
  *     responses:
  *       200:
  *         description: Cập nhật thành công
@@ -216,6 +229,54 @@
  *         description: Không thể xóa địa điểm đã được duyệt
  *       404:
  *         description: Không tìm thấy địa điểm
+ */
+
+/**
+ * @swagger
+ * /api/local-guide/nearby-places/{id}/restore:
+ *   patch:
+ *     summary: Khôi phục địa điểm lân cận đã xóa (Local Guide only)
+ *     description: |
+ *       Khôi phục địa điểm lân cận đã bị soft delete (is_active: false).
+ *       - Chỉ khôi phục được địa điểm pending hoặc rejected
+ *       - Không thể khôi phục địa điểm đã approved
+ *     tags: [Local Guide - Nearby Places]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của địa điểm lân cận cần khôi phục
+ *     responses:
+ *       200:
+ *         description: Khôi phục thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Nearby place restored successfully"
+ *                 data:
+ *                   $ref: '#/components/schemas/NearbyPlace'
+ *       400:
+ *         description: |
+ *           - Không thể khôi phục địa điểm đã được duyệt
+ *           - Địa điểm đã được kích hoạt
+ *       404:
+ *         description: Không tìm thấy địa điểm lân cận
+ *       401:
+ *         description: Chưa đăng nhập
+ *       403:
+ *         description: Không phải Local Guide
  */
 
 module.exports = {};

@@ -1,4 +1,4 @@
-const { Site, User, VerificationRequest } = require('../models');
+const { Site, User, VerificationRequest, SiteMedia, MassSchedule, Event, NearbyPlace } = require('../models');
 const { Op } = require('sequelize');
 const Logger = require('../utils/logger.util');
 
@@ -637,6 +637,65 @@ class SiteService {
       };
     } catch (error) {
       Logger.error('Get public site events error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Public: Get nearby places of a site (approved only)
+   */
+  static async getPublicSiteNearbyPlaces(siteId, filters = {}) {
+    try {
+      const site = await Site.findOne({
+        where: {
+          id: siteId,
+          is_active: true
+        },
+        attributes: ['id', 'code', 'name']
+      });
+
+      if (!site) {
+        throw new Error('Site not found');
+      }
+
+      const page = parseInt(filters.page) || 1;
+      const limit = parseInt(filters.limit) || 20;
+      const offset = (page - 1) * limit;
+
+      const where = {
+        site_id: siteId,
+        status: 'approved',
+        is_active: true
+      };
+
+      if (filters.category && ['food', 'lodging', 'medical'].includes(filters.category)) {
+        where.category = filters.category;
+      }
+
+      const { count, rows } = await NearbyPlace.findAndCountAll({
+        where,
+        attributes: ['id', 'code', 'name', 'category', 'address', 'latitude', 'longitude', 'distance_meters', 'phone', 'description'],
+        order: [['distance_meters', 'ASC'], ['created_at', 'DESC']],
+        limit,
+        offset
+      });
+
+      return {
+        site: {
+          id: site.id,
+          code: site.code,
+          name: site.name
+        },
+        data: rows,
+        pagination: {
+          page,
+          limit,
+          totalItems: count,
+          totalPages: Math.ceil(count / limit)
+        }
+      };
+    } catch (error) {
+      Logger.error('Get public site nearby places error:', error);
       throw error;
     }
   }

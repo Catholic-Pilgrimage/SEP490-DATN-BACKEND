@@ -80,6 +80,11 @@
  *           type: string
  *           enum: [pending, approved, rejected]
  *         description: Lọc theo trạng thái
+ *       - in: query
+ *         name: is_active
+ *         schema:
+ *           type: boolean
+ *         description: Lọc theo trạng thái active (true = đang hoạt động, false = đã xóa)
  *     responses:
  *       200:
  *         description: Lấy danh sách thành công
@@ -149,4 +154,39 @@
  *         description: Không thể xóa media đã được duyệt
  *       404:
  *         description: Không tìm thấy media
+ */
+
+/**
+ * @swagger
+ * /api/local-guide/media/{id}/restore:
+ *   patch:
+ *     summary: Khôi phục media đã xóa (Local Guide only)
+ *     description: |
+ *       Khôi phục media đã bị soft delete (is_active: false).
+ *       - Chỉ khôi phục được media pending hoặc rejected
+ *       - Không thể khôi phục media đã approved
+ *     tags: [Local Guide - Media]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của media cần khôi phục
+ *     responses:
+ *       200:
+ *         description: Khôi phục thành công
+ *       400:
+ *         description: |
+ *           - Không thể khôi phục media đã được duyệt
+ *           - Media đã được kích hoạt
+ *       404:
+ *         description: Không tìm thấy media
+ *       401:
+ *         description: Chưa đăng nhập
+ *       403:
+ *         description: Không phải Local Guide
  */

@@ -746,3 +746,122 @@
  *       404:
  *         description: Không tìm thấy
  */
+
+/**
+ * @swagger
+ * /api/sites/{siteId}/nearby-places:
+ *   get:
+ *     summary: Lấy danh sách địa điểm lân cận của site (Public)
+ *     description: |
+ *       API công khai để xem địa điểm lân cận (ăn uống, lưu trú, y tế) gần site.
+ *       Chỉ hiển thị địa điểm đã được duyệt (approved).
+ *       Sắp xếp theo khoảng cách gần nhất.
+ *     tags: [Public Sites]
+ *     parameters:
+ *       - in: path
+ *         name: siteId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID hoặc code của site
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Số trang
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Số lượng mỗi trang
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *           enum: [food, lodging, medical]
+ *         description: Lọc theo danh mục
+ *     responses:
+ *       200:
+ *         description: Thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Lấy danh sách địa điểm lân cận thành công"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     site:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                           format: uuid
+ *                         code:
+ *                           type: string
+ *                           example: "CHNAM001"
+ *                         name:
+ *                           type: string
+ *                           example: "Nhà thờ Đức Bà Sài Gòn"
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                           code:
+ *                             type: string
+ *                             example: "NBP0122001"
+ *                           name:
+ *                             type: string
+ *                             example: "Nhà hàng Phở 24"
+ *                           category:
+ *                             type: string
+ *                             enum: [food, lodging, medical]
+ *                             example: "food"
+ *                           address:
+ *                             type: string
+ *                             example: "123 Đường ABC, Quận 1"
+ *                           latitude:
+ *                             type: number
+ *                             format: float
+ *                             example: 10.779738
+ *                           longitude:
+ *                             type: number
+ *                             format: float
+ *                             example: 106.699092
+ *                           distance_meters:
+ *                             type: integer
+ *                             example: 500
+ *                             description: Khoảng cách từ site (mét)
+ *                           phone:
+ *                             type: string
+ *                             example: "0901234567"
+ *                           description:
+ *                             type: string
+ *                             example: "Nhà hàng phở truyền thống"
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                         limit:
+ *                           type: integer
+ *                         totalItems:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
+ *       404:
+ *         description: Không tìm thấy site
+ */

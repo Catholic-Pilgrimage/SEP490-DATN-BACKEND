@@ -1,4 +1,4 @@
-const { User, Site, SiteMedia, MassSchedule, Event, GuideShift } = require('../models');
+const { User, Site, SiteMedia, MassSchedule, Event, GuideShift, NearbyPlace } = require('../models');
 const Logger = require('../utils/logger.util');
 const { Op } = require('sequelize');
 
@@ -33,6 +33,11 @@ class ManagerContentService {
 
             if (filters.status && ['pending', 'approved', 'rejected'].includes(filters.status)) {
                 where.status = filters.status;
+            }
+
+            // Filter by is_active (true/false/all)
+            if (filters.is_active !== undefined) {
+                where.is_active = filters.is_active === 'true' || filters.is_active === true;
             }
 
             const totalItems = await SiteMedia.count({ where });
@@ -187,6 +192,10 @@ class ManagerContentService {
                     where.days_of_week = { [Op.contains]: [dayNum] };
                 }
             }
+            // Filter by is_active (true/false/all)
+            if (filters.is_active !== undefined) {
+                where.is_active = filters.is_active === 'true' || filters.is_active === true;
+            }
 
             const totalItems = await MassSchedule.count({ where });
 
@@ -333,6 +342,10 @@ class ManagerContentService {
             if (filters.status && ['pending', 'approved', 'rejected'].includes(filters.status)) {
                 where.status = filters.status;
             }
+            // Filter by is_active (true/false/all)
+            if (filters.is_active !== undefined) {
+                where.is_active = filters.is_active === 'true' || filters.is_active === true;
+            }
 
             const totalItems = await Event.count({ where });
 
@@ -449,6 +462,152 @@ class ManagerContentService {
             return event;
         } catch (error) {
             Logger.error('Manager toggle event active error:', error);
+            throw error;
+        }
+    }
+
+    // ===================== NEARBY PLACES =====================
+
+    /**
+     * Manager: Get nearby places list (for approval)
+     */
+    static async getNearbyPlaces(userId, filters = {}) {
+        try {
+            const user = await User.findByPk(userId);
+            if (!user || user.role !== 'manager' || !user.site_id) {
+                throw new Error('Unauthorized');
+            }
+
+            const page = parseInt(filters.page) || 1;
+            const limit = parseInt(filters.limit) || 10;
+            const offset = (page - 1) * limit;
+
+            const where = { site_id: user.site_id };
+
+            if (filters.status && ['pending', 'approved', 'rejected'].includes(filters.status)) {
+                where.status = filters.status;
+            }
+            if (filters.category && ['food', 'lodging', 'medical'].includes(filters.category)) {
+                where.category = filters.category;
+            }
+            // Filter by is_active (true/false/all)
+            if (filters.is_active !== undefined) {
+                where.is_active = filters.is_active === 'true' || filters.is_active === true;
+            }
+
+            const { count, rows } = await NearbyPlace.findAndCountAll({
+                where,
+                include: [
+                    {
+                        model: User,
+                        as: 'proposer',
+                        attributes: ['id', 'full_name', 'email']
+                    }
+                ],
+                order: [['created_at', 'DESC']],
+                limit,
+                offset
+            });
+
+            return {
+                data: rows,
+                pagination: {
+                    page,
+                    limit,
+                    totalItems: count,
+                    totalPages: Math.ceil(count / limit)
+                }
+            };
+        } catch (error) {
+            Logger.error('Manager get nearby places error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Manager: Update nearby place status (approve/reject)
+     */
+    static async updateNearbyPlaceStatus(userId, placeId, status, rejectionReason = null) {
+        try {
+            const user = await User.findByPk(userId);
+            if (!user || user.role !== 'manager' || !user.site_id) {
+                throw new Error('Unauthorized');
+            }
+
+            if (!['approved', 'rejected'].includes(status)) {
+                throw new Error('Invalid status');
+            }
+
+            if (status === 'rejected' && !rejectionReason) {
+                throw new Error('Rejection reason is required');
+            }
+
+            const place = await NearbyPlace.findOne({
+                where: {
+                    id: placeId,
+                    site_id: user.site_id
+                }
+            });
+
+            if (!place) {
+                throw new Error('Nearby place not found');
+            }
+
+            if (place.status !== 'pending') {
+                throw new Error('Only pending nearby places can be reviewed');
+            }
+
+            await place.update({
+                status,
+                rejection_reason: status === 'rejected' ? rejectionReason : null,
+                reviewed_by: userId,
+                reviewed_at: new Date()
+            });
+
+            Logger.info(`Manager ${userId} ${status} nearby place ${place.code}`);
+
+            return place;
+        } catch (error) {
+            Logger.error('Manager update nearby place status error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Manager: Toggle nearby place active status (soft delete/restore)
+     */
+    static async toggleNearbyPlaceActive(userId, placeId, isActive) {
+        try {
+            const user = await User.findByPk(userId);
+
+            if (!user || user.role !== 'manager') {
+                throw new Error('Unauthorized');
+            }
+
+            if (!user.site_id) {
+                throw new Error('Manager has no site');
+            }
+
+            const place = await NearbyPlace.findOne({
+                where: { id: placeId, site_id: user.site_id }
+            });
+
+            if (!place) {
+                throw new Error('Nearby place not found');
+            }
+
+            if (place.status !== 'approved') {
+                throw new Error('Only approved nearby place can be toggled');
+            }
+
+            await place.update({ is_active: isActive });
+
+            const action = isActive ? 'restored' : 'deactivated';
+            Logger.info(`Manager ${userId} ${action} nearby place ${place.code}`);
+
+            return place;
+        } catch (error) {
+            Logger.error('Manager toggle nearby place active error:', error);
             throw error;
         }
     }

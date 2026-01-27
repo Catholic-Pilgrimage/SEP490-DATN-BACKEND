@@ -85,6 +85,10 @@ const NearbyPlace = sequelize.define('NearbyPlace', {
     reviewed_at: {
         type: DataTypes.DATE,
         allowNull: true
+    },
+    is_active: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true
     }
 }, {
     tableName: 'nearby_places',

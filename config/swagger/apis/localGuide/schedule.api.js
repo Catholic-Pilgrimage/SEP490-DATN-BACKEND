@@ -76,6 +76,11 @@
  *           minimum: 0
  *           maximum: 6
  *         description: Lọc theo ngày trong tuần
+ *       - in: query
+ *         name: is_active
+ *         schema:
+ *           type: boolean
+ *         description: Lọc theo trạng thái active (true = đang hoạt động, false = đã xóa)
  *     responses:
  *       200:
  *         description: Lấy danh sách thành công
@@ -141,4 +146,39 @@
  *         description: Không thể xóa lịch đã được duyệt
  *       404:
  *         description: Không tìm thấy lịch lễ
+ */
+
+/**
+ * @swagger
+ * /api/local-guide/schedules/{id}/restore:
+ *   patch:
+ *     summary: Khôi phục lịch lễ đã xóa (Local Guide only)
+ *     description: |
+ *       Khôi phục lịch lễ đã bị soft delete (is_active: false).
+ *       - Chỉ khôi phục được lịch pending hoặc rejected
+ *       - Không thể khôi phục lịch đã approved
+ *     tags: [Local Guide - Mass Schedules]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của lịch lễ cần khôi phục
+ *     responses:
+ *       200:
+ *         description: Khôi phục thành công
+ *       400:
+ *         description: |
+ *           - Không thể khôi phục lịch đã được duyệt
+ *           - Lịch lễ đã được kích hoạt
+ *       404:
+ *         description: Không tìm thấy lịch lễ
+ *       401:
+ *         description: Chưa đăng nhập
+ *       403:
+ *         description: Không phải Local Guide
  */

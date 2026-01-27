@@ -748,9 +748,12 @@ CREATE TABLE IF NOT EXISTS nearby_places (
     distance_meters INT,
     phone VARCHAR(20),
     description TEXT,
+    image_url TEXT,
     status nearby_place_status DEFAULT 'pending',
+    rejection_reason TEXT,
     reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
     reviewed_at TIMESTAMP WITH TIME ZONE,
+    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

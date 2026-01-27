@@ -256,3 +256,16 @@ exports.getPublicSiteEvents = async (req, res) => {
     return ResponseUtil.error(res, req.__('error.server_error'));
   }
 };
+
+// Public: Get site nearby places
+exports.getPublicSiteNearbyPlaces = async (req, res) => {
+  try {
+    const result = await SiteService.getPublicSiteNearbyPlaces(req.params.siteId, req.query);
+    return ResponseUtil.success(res, result, req.__('site.get_nearby_places_success'));
+  } catch (error) {
+    if (error.message === 'Site not found') {
+      return ResponseUtil.notFound(res, req.__('site.not_found'));
+    }
+    return ResponseUtil.error(res, req.__('error.server_error'));
+  }
+};

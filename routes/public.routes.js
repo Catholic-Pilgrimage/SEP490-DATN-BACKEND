@@ -20,4 +20,7 @@ router.get('/:siteId/mass-schedules', SiteController.getPublicSiteMassSchedules)
 // GET /api/sites/:siteId/events - Get site events
 router.get('/:siteId/events', SiteController.getPublicSiteEvents);
 
+// GET /api/sites/:siteId/nearby-places - Get site nearby places
+router.get('/:siteId/nearby-places', SiteController.getPublicSiteNearbyPlaces);
+
 module.exports = router;
