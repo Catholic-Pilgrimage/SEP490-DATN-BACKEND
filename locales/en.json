@@ -78,6 +78,7 @@
   },
   "verification": {
     "create_success": "Verification request submitted successfully",
+    "guest_create_success": "Verification request submitted successfully. We will review and respond via email",
     "get_success": "Verification request retrieved successfully",
     "list_success": "Verification requests retrieved successfully",
     "approve_success": "Verification request approved successfully",
@@ -85,6 +86,10 @@
     "not_found": "Verification request not found",
     "only_pilgrim": "Only pilgrims can submit verification requests",
     "already_pending": "You already have a pending verification request",
+    "guest_already_pending": "This email already has a pending verification request",
+    "email_already_registered": "Email already registered. Please login and submit verification request",
+    "email_name_required": "Email and name are required",
+    "site_info_required": "Site name and province are required",
     "not_pending": "Request is not in pending status",
     "rejection_reason_required": "Rejection reason is required"
   },

@@ -261,8 +261,13 @@ CREATE TRIGGER update_user_push_tokens_updated_at
 -- ============================================
 CREATE TABLE IF NOT EXISTS verification_requests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE, -- NULL for guest registration
     code VARCHAR(10) UNIQUE, -- Auto-generated: VR001, VR002...
+    
+    -- Guest applicant info (when user_id is NULL)
+    applicant_email VARCHAR(255),
+    applicant_name VARCHAR(255),
+    applicant_phone VARCHAR(20),
     
     -- Basic site info (for Admin to review)
     site_name VARCHAR(255) NOT NULL,

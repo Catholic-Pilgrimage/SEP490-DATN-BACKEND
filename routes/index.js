@@ -3,7 +3,7 @@ const router = express.Router();
 const authRoutes = require('./auth.routes');
 const adminRoutes = require('./admin.routes');
 const { adminRouter: adminSiteRoutes, managerRouter: managerSiteRoutes } = require('./site.routes');
-const { pilgrimRouter: verificationRoutes, adminRouter: adminVerificationRoutes } = require('./verification.routes');
+const { publicRouter: publicVerificationRoutes, pilgrimRouter: verificationRoutes, adminRouter: adminVerificationRoutes } = require('./verification.routes');
 const managerLocalGuideRoutes = require('./managerLocalGuide.routes');
 const localGuideRoutes = require('./localGuide.routes');
 const managerContentRoutes = require('./managerContent.routes');
@@ -35,6 +35,9 @@ router.get('/', (req, res) => {
 
 // Auth routes
 router.use('/auth', authRoutes);
+
+// Public Verification routes (Guest registration - no auth)
+router.use('/verification', publicVerificationRoutes);
 
 // Admin routes
 router.use('/admin', adminRoutes);

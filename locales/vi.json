@@ -109,6 +109,7 @@
   },
   "verification": {
     "create_success": "Gửi yêu cầu xác minh thành công",
+    "guest_create_success": "Gửi yêu cầu xác minh thành công. Chúng tôi sẽ xem xét và phản hồi qua email",
     "get_success": "Lấy thông tin yêu cầu thành công",
     "list_success": "Lấy danh sách yêu cầu thành công",
     "approve_success": "Phê duyệt yêu cầu thành công",
@@ -116,6 +117,10 @@
     "not_found": "Không tìm thấy yêu cầu xác minh",
     "only_pilgrim": "Chỉ người hành hương mới có thể gửi yêu cầu",
     "already_pending": "Bạn đã có yêu cầu đang chờ xử lý",
+    "guest_already_pending": "Email này đã có yêu cầu đang chờ xử lý",
+    "email_already_registered": "Email đã được đăng ký. Vui lòng đăng nhập và gửi yêu cầu xác minh",
+    "email_name_required": "Email và họ tên là bắt buộc",
+    "site_info_required": "Tên địa điểm và tỉnh/thành là bắt buộc",
     "not_pending": "Yêu cầu không ở trạng thái chờ xử lý",
     "rejection_reason_required": "Vui lòng nhập lý do từ chối"
   },

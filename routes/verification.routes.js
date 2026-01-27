@@ -5,7 +5,19 @@ const authMiddleware = require('../middlewares/auth.middleware');
 const i18nMiddleware = require('../middlewares/i18n.middleware');
 const { uploadDocument } = require('../config/cloudinary.config');
 
+// Public Router (Guest registration)
+const publicRouter = express.Router();
+publicRouter.use(i18nMiddleware);
 
+// POST - Guest submit verification request (no auth required)
+publicRouter.post(
+    '/guest-request',
+    uploadDocument.single('certificate'),
+    VerificationValidator.createGuestRequest,
+    VerificationController.createGuestRequest
+);
+
+// Pilgrim Router
 const pilgrimRouter = express.Router();
 pilgrimRouter.use(i18nMiddleware);
 
@@ -27,7 +39,7 @@ pilgrimRouter.get(
     VerificationController.getMyRequest
 );
 
-
+// Admin Router
 const adminRouter = express.Router();
 adminRouter.use(i18nMiddleware);
 
@@ -57,6 +69,7 @@ adminRouter.patch(
 );
 
 module.exports = {
+    publicRouter,
     pilgrimRouter,
     adminRouter
 };

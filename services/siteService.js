@@ -76,7 +76,7 @@ class SiteService {
 
 
   /**
-   * Manager: Create site (max 1 site per manager, auto-approved)
+   * Manager: Create site (only if no site exists - for recovery)
    */
   static async createManagerSite(managerId, siteData) {
     try {
@@ -87,13 +87,26 @@ class SiteService {
       if (manager.role !== 'manager') {
         throw new Error('Only managers can create sites');
       }
+      
+   
       if (manager.site_id) {
-        throw new Error('Manager already has a site');
+        const existingSite = await Site.findByPk(manager.site_id);
+        if (existingSite) {
+          throw new Error('Manager already has a site');
+        }
+        
+        Logger.info(`Manager ${managerId} site was deleted, allowing new site creation`);
       }
 
-      // Get approved verification request for prefill data
+
       const verificationRequest = await VerificationRequest.findOne({
-        where: { user_id: managerId, status: 'approved' }
+        where: { 
+          [Op.or]: [
+            { user_id: managerId },
+            { applicant_email: manager.email }
+          ],
+          status: 'approved'
+        }
       });
 
       const {
@@ -101,7 +114,6 @@ class SiteService {
         latitude, longitude, region, type, patron_saint,
         cover_image, opening_hours, contact_info
       } = siteData;
-
 
       const siteName = name || verificationRequest?.site_name;
       const siteProvince = province || verificationRequest?.site_province;
@@ -112,7 +124,7 @@ class SiteService {
       if (!siteName) throw new Error('Site name is required');
       if (!siteProvince) throw new Error('Province is required');
 
-
+    
       const existingSite = await Site.findOne({
         where: { name: siteName.trim(), province: siteProvince.trim() }
       });
@@ -139,10 +151,10 @@ class SiteService {
         opening_hours,
         contact_info,
         created_by: managerId,
-        is_active: true
+        is_active: false 
       });
 
-      // Link site to manager
+      
       await User.update({ site_id: site.id }, { where: { id: managerId } });
 
       Logger.info(`Site created by manager ${managerId}: ${site.code} - ${site.name}`);
