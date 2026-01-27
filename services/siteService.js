@@ -1,4 +1,4 @@
-const { Site, User, VerificationRequest } = require('../models');
+const { Site, User, VerificationRequest, UserFavorite } = require('../models');
 const { Op } = require('sequelize');
 const Logger = require('../utils/logger.util');
 
@@ -394,6 +394,62 @@ class SiteService {
       return { id: site.id, code: site.code, name: site.name, is_active: site.is_active };
     } catch (error) {
       Logger.error('Restore site error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * User: Add site to favorites
+   */
+  static async addFavorite(userId, siteId) {
+    try {
+      // Check if site exists and is active
+      const site = await Site.findByPk(siteId);
+      if (!site) throw new Error('Site not found');
+      if (!site.is_active) throw new Error('Site not active');
+
+      // Check if already favorited
+      const existingFavorite = await UserFavorite.findOne({
+        where: { user_id: userId, site_id: siteId }
+      });
+      if (existingFavorite) throw new Error('Already favorited');
+
+      // Create favorite
+      await UserFavorite.create({
+        user_id: userId,
+        site_id: siteId
+      });
+
+      Logger.info(`User ${userId} favorited site ${siteId}`);
+      return { site_id: siteId, site_name: site.name };
+    } catch (error) {
+      Logger.error('Add favorite error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * User: Remove site from favorites
+   */
+  static async removeFavorite(userId, siteId) {
+    try {
+      // Check if site exists
+      const site = await Site.findByPk(siteId);
+      if (!site) throw new Error('Site not found');
+
+      // Check if favorite exists
+      const favorite = await UserFavorite.findOne({
+        where: { user_id: userId, site_id: siteId }
+      });
+      if (!favorite) throw new Error('Not favorited');
+
+      // Delete favorite
+      await favorite.destroy();
+
+      Logger.info(`User ${userId} unfavorited site ${siteId}`);
+      return { site_id: siteId, site_name: site.name };
+    } catch (error) {
+      Logger.error('Remove favorite error:', error);
       throw error;
     }
   }

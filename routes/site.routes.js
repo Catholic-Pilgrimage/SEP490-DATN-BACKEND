@@ -85,4 +85,72 @@ managerRouter.put(
 );
 
 
-module.exports = { adminRouter, managerRouter };
+// Public Site Router - /api/sites (for all authenticated users)
+const publicRouter = express.Router();
+publicRouter.use(i18nMiddleware);
+
+/**
+ * @swagger
+ * /api/sites/{id}/favorite:
+ *   post:
+ *     summary: Thêm địa điểm vào danh sách yêu thích
+ *     tags: [Sites - Public]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của địa điểm
+ *     responses:
+ *       200:
+ *         description: Thêm vào yêu thích thành công
+ *       404:
+ *         description: Không tìm thấy địa điểm
+ *       409:
+ *         description: Địa điểm đã có trong danh sách yêu thích
+ */
+publicRouter.post(
+  '/:id/favorite',
+  authMiddleware,
+  SiteValidator.validateSiteId,
+  SiteController.addFavorite
+);
+
+/**
+ * @swagger
+ * /api/sites/{id}/favorite:
+ *   delete:
+ *     summary: Xóa địa điểm khỏi danh sách yêu thích
+ *     tags: [Sites - Public]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của địa điểm
+ *     responses:
+ *       200:
+ *         description: Xóa khỏi yêu thích thành công
+ *       404:
+ *         description: Không tìm thấy địa điểm
+ *       400:
+ *         description: Địa điểm không có trong danh sách yêu thích
+ */
+publicRouter.delete(
+  '/:id/favorite',
+  authMiddleware,
+  SiteValidator.validateSiteId,
+  SiteController.removeFavorite
+);
+
+
+module.exports = { adminRouter, managerRouter, publicRouter };
+

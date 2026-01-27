@@ -57,7 +57,12 @@
     "cannot_delete_has_data": "Không thể xóa địa điểm đã có dữ liệu liên quan",
     "already_deleted": "Địa điểm đã bị xóa trước đó",
     "restore_success": "Khôi phục địa điểm thành công",
-    "not_deleted": "Địa điểm chưa bị xóa"
+    "not_deleted": "Địa điểm chưa bị xóa",
+    "favorite_added": "Đã thêm địa điểm vào danh sách yêu thích",
+    "favorite_removed": "Đã xóa địa điểm khỏi danh sách yêu thích",
+    "already_favorited": "Địa điểm đã có trong danh sách yêu thích",
+    "not_favorited": "Địa điểm không có trong danh sách yêu thích",
+    "not_active": "Địa điểm không khả dụng"
   },
   "manager_site": {
     "create_success": "Tạo địa điểm thành công",

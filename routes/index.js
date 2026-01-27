@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const authRoutes = require('./auth.routes');
 const adminRoutes = require('./admin.routes');
-const { adminRouter: adminSiteRoutes, managerRouter: managerSiteRoutes } = require('./site.routes');
+const { adminRouter: adminSiteRoutes, managerRouter: managerSiteRoutes, publicRouter: publicSiteRoutes } = require('./site.routes');
 const { pilgrimRouter: verificationRoutes, adminRouter: adminVerificationRoutes } = require('./verification.routes');
 const managerLocalGuideRoutes = require('./managerLocalGuide.routes');
 const localGuideRoutes = require('./localGuide.routes');
@@ -43,6 +43,9 @@ router.use('/admin/sites', adminSiteRoutes);
 
 // Manager Site routes
 router.use('/manager/sites', managerSiteRoutes);
+
+// Public Site routes (for all authenticated users)
+router.use('/sites', publicSiteRoutes);
 
 // Manager Local Guide routes
 router.use('/manager/local-guides', managerLocalGuideRoutes);

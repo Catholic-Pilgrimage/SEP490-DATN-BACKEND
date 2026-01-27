@@ -57,7 +57,12 @@
     "cannot_delete_has_data": "Cannot delete site with related data",
     "already_deleted": "Site has already been deleted",
     "restore_success": "Site restored successfully",
-    "not_deleted": "Site is not deleted"
+    "not_deleted": "Site is not deleted",
+    "favorite_added": "Site added to favorites successfully",
+    "favorite_removed": "Site removed from favorites successfully",
+    "already_favorited": "Site is already in favorites",
+    "not_favorited": "Site is not in favorites",
+    "not_active": "Site is not available"
   },
   "manager_site": {
     "create_success": "Site created successfully",
