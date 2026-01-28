@@ -104,16 +104,16 @@ class AdminSiteService {
       const site = await Site.findByPk(siteId);
       if (!site) throw new Error('Site not found');
 
-      // Get creator info
+
       const creator = await User.findByPk(site.created_by);
 
-      // Get manager
+
       const manager = await User.findOne({
         where: { site_id: siteId, role: 'manager' },
         attributes: ['id', 'full_name', 'email', 'phone', 'avatar_url']
       });
 
-      // Get stats
+
       const stats = await this.getSiteStats(siteId);
 
       return {
@@ -132,12 +132,12 @@ class AdminSiteService {
    */
   static async getSiteStats(siteId) {
     try {
-      // Count local guides
+
       const localGuidesCount = await User.count({
         where: { site_id: siteId, role: 'local_guide' }
       });
 
-      // Media stats
+
       const mediaStats = await SiteMedia.findAll({
         where: { site_id: siteId },
         attributes: [
@@ -159,7 +159,7 @@ class AdminSiteService {
         media.total += parseInt(stat.count);
       });
 
-      // Schedules stats
+
       const schedulesStats = await MassSchedule.findAll({
         where: { site_id: siteId },
         attributes: [
@@ -181,7 +181,7 @@ class AdminSiteService {
         schedules.total += parseInt(stat.count);
       });
 
-      // Events stats
+
       const eventsStats = await Event.findAll({
         where: { site_id: siteId },
         attributes: [
@@ -203,7 +203,7 @@ class AdminSiteService {
         events.total += parseInt(stat.count);
       });
 
-      // Upcoming events
+
       const today = new Date().toISOString().split('T')[0];
       const upcomingCount = await Event.count({
         where: {
@@ -214,7 +214,7 @@ class AdminSiteService {
       });
       events.upcoming = upcomingCount;
 
-      // Nearby places stats
+
       const nearbyStats = await NearbyPlace.findAll({
         where: { site_id: siteId },
         attributes: [
@@ -236,7 +236,7 @@ class AdminSiteService {
         nearby_places.total += parseInt(stat.count);
       });
 
-      // Shifts stats
+
       const shiftsStats = await GuideShiftSubmission.findAll({
         where: { site_id: siteId },
         attributes: [
@@ -415,7 +415,7 @@ class AdminSiteService {
         where.status = filters.status;
       }
 
-      // GuideShift already imported at top
+
       const { count, rows } = await GuideShiftSubmission.findAndCountAll({
         where,
         include: [

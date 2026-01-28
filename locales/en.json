@@ -285,5 +285,16 @@
     "server_error": "Server error",
     "not_found": "Not found",
     "bad_request": "Bad request"
+  },
+  "notification": {
+    "get_list_success": "Get notifications successfully",
+    "mark_read_success": "Mark as read successfully",
+    "mark_all_read_success": "Mark all as read successfully",
+    "token_registered": "Push token registered successfully",
+    "token_revoked": "Push token revoked successfully",
+    "delete_success": "Delete notification successfully",
+    "not_found": "Notification not found",
+    "invalid_token": "Invalid push token",
+    "token_required": "Push token is required"
   }
 }

@@ -10,6 +10,7 @@ const managerContentRoutes = require('./managerContent.routes');
 const publicRoutes = require('./public.routes');
 const journalRoutes = require('./journal.routes');
 const plannerRoutes = require('./planner.routes');
+const notificationRoutes = require('./notification.routes');
 
 router.get('/', (req, res) => {
   res.json({
@@ -28,7 +29,8 @@ router.get('/', (req, res) => {
       verification: '/api/verification-requests',
       adminVerification: '/api/admin/verification-requests',
       journals: '/api/journals',
-      planners: '/api/planners'
+      planners: '/api/planners',
+      notifications: '/api/notifications'
     }
   });
 });
@@ -71,5 +73,8 @@ router.use('/journals', journalRoutes);
 
 // Planner routes
 router.use('/planners', plannerRoutes);
+
+// Notification routes
+router.use('/notifications', notificationRoutes);
 
 module.exports = router;

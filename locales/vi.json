@@ -271,5 +271,16 @@
     "server_error": "Lỗi máy chủ",
     "not_found": "Không tìm thấy",
     "bad_request": "Yêu cầu không hợp lệ"
+  },
+  "notification": {
+    "get_list_success": "Lấy danh sách thông báo thành công",
+    "mark_read_success": "Đánh dấu đã đọc thành công",
+    "mark_all_read_success": "Đánh dấu tất cả đã đọc thành công",
+    "token_registered": "Đăng ký token push thành công",
+    "token_revoked": "Thu hồi token push thành công",
+    "delete_success": "Xóa thông báo thành công",
+    "not_found": "Không tìm thấy thông báo",
+    "invalid_token": "Token push không hợp lệ",
+    "token_required": "Token push là bắt buộc"
   }
 }

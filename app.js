@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const http = require('http');
 const cors = require('cors');
 const morgan = require('morgan');
 const swaggerUi = require('swagger-ui-express');
@@ -9,8 +10,14 @@ const routes = require('./routes');
 const i18n = require('./config/i18n.config');
 const i18nMiddleware = require('./middlewares/i18n.middleware');
 const errorMiddleware = require('./middlewares/error.middleware');
+// WebSocket
+const { initSocket } = require('./websockets/socket');
 
 const app = express();
+const server = http.createServer(app);
+
+// Initialize Socket.io
+initSocket(server);
 
 app.use(i18n.init);
 app.use(i18nMiddleware);
@@ -20,11 +27,11 @@ app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
-    
-    const allowedOrigins = process.env.CORS_ORIGIN 
+
+    const allowedOrigins = process.env.CORS_ORIGIN
       ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
       : ['*'];
-    
+
     if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -32,7 +39,7 @@ app.use(cors({
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE','PATCH', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept-Language']
 }));
 app.use(morgan('dev'));
@@ -65,7 +72,7 @@ app.use('/api-docs', swaggerAuth, swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Server is running' });
+  res.json({ status: 'OK', message: 'Server is running', websocket: 'enabled' });
 });
 
 // API Routes
@@ -77,10 +84,11 @@ app.use(errorMiddleware);
 // Start server
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  console.log(`WebSocket enabled on port ${PORT}`);
   console.log(`Swagger docs available at http://localhost:${PORT}/api-docs`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 
-module.exports = app;
+module.exports = { app, server };

@@ -1,6 +1,7 @@
 const { User, SiteMedia } = require('../../models');
 const { Op } = require('sequelize');
 const Logger = require('../../utils/logger.util');
+const NotificationService = require('../notificationService');
 
 class LocalGuideMediaService {
     /**
@@ -83,6 +84,11 @@ class LocalGuideMediaService {
             });
 
             Logger.info(`Local Guide ${userId} uploaded media ${media.code} (${type}) for site ${user.site_id}`);
+
+            // Notify Manager
+            await NotificationService.notifySiteManager(user.site_id, 'media_submitted', {
+                guideName: user.full_name || user.email
+            });
 
             return media;
         } catch (error) {

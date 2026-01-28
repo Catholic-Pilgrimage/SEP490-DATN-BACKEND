@@ -1,6 +1,7 @@
 const { User, MassSchedule } = require('../../models');
 const { Op } = require('sequelize');
 const Logger = require('../../utils/logger.util');
+const NotificationService = require('../notificationService');
 
 class LocalGuideScheduleService {
     /**
@@ -73,6 +74,11 @@ class LocalGuideScheduleService {
 
             Logger.info(`Local Guide ${userId} created schedule ${schedule.code} for site ${user.site_id}`);
 
+            // Notify Manager
+            await NotificationService.notifySiteManager(user.site_id, 'schedule_submitted', {
+                guideName: user.full_name || user.email
+            });
+
             return schedule;
         } catch (error) {
             Logger.error('Create schedule error:', error);
@@ -112,7 +118,6 @@ class LocalGuideScheduleService {
                 }
             }
 
-            // Filter by is_active (true/false/all)
             if (filters.is_active !== undefined) {
                 where.is_active = filters.is_active === 'true' || filters.is_active === true;
             }

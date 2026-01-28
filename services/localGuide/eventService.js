@@ -1,6 +1,7 @@
 const { User, Event } = require('../../models');
 const { Op } = require('sequelize');
 const Logger = require('../../utils/logger.util');
+const NotificationService = require('../notificationService');
 
 class LocalGuideEventService {
     /**
@@ -67,6 +68,12 @@ class LocalGuideEventService {
             });
 
             Logger.info(`Local Guide ${userId} created event ${event.code} for site ${user.site_id}`);
+
+            // Notify Manager
+            await NotificationService.notifySiteManager(user.site_id, 'event_submitted', {
+                guideName: user.full_name || user.email,
+                eventName: name
+            });
 
             return event;
         } catch (error) {

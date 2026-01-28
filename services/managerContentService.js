@@ -1,6 +1,7 @@
 const { User, Site, SiteMedia, MassSchedule, Event, GuideShift, NearbyPlace } = require('../models');
 const Logger = require('../utils/logger.util');
 const { Op } = require('sequelize');
+const NotificationService = require('./notificationService');
 
 class ManagerContentService {
 
@@ -110,6 +111,16 @@ class ManagerContentService {
             }
 
             await media.update(updateData);
+
+            // Notify LocalGuide who created the media
+            if (media.created_by) {
+                const site = await Site.findByPk(user.site_id);
+                const notificationType = status === 'approved' ? 'media_approved' : 'media_rejected';
+                await NotificationService.createNotification(notificationType, media.created_by, {
+                    siteName: site?.name || '',
+                    reason: rejectionReason || ''
+                });
+            }
 
             Logger.info(`Manager ${userId} ${status} media ${media.code}`);
 
@@ -268,6 +279,16 @@ class ManagerContentService {
 
             await schedule.update(updateData);
 
+            // Notify LocalGuide who created the schedule
+            if (schedule.created_by) {
+                const site = await Site.findByPk(user.site_id);
+                const notificationType = status === 'approved' ? 'schedule_approved' : 'schedule_rejected';
+                await NotificationService.createNotification(notificationType, schedule.created_by, {
+                    siteName: site?.name || '',
+                    reason: rejectionReason || ''
+                });
+            }
+
             Logger.info(`Manager ${userId} ${status} schedule ${schedule.code}`);
 
             return schedule;
@@ -418,6 +439,15 @@ class ManagerContentService {
 
             await event.update(updateData);
 
+            // Notify LocalGuide who created the event
+            if (event.created_by) {
+                const notificationType = status === 'approved' ? 'event_approved' : 'event_rejected';
+                await NotificationService.createNotification(notificationType, event.created_by, {
+                    eventName: event.name || '',
+                    reason: rejectionReason || ''
+                });
+            }
+
             Logger.info(`Manager ${userId} ${status} event ${event.code}`);
 
             return event;
@@ -563,6 +593,17 @@ class ManagerContentService {
                 reviewed_by: userId,
                 reviewed_at: new Date()
             });
+
+            // Notify LocalGuide who proposed the nearby place
+            if (place.proposed_by) {
+                const site = await Site.findByPk(user.site_id);
+                const notificationType = status === 'approved' ? 'nearby_place_approved' : 'nearby_place_rejected';
+                await NotificationService.createNotification(notificationType, place.proposed_by, {
+                    placeName: place.name || '',
+                    siteName: site?.name || '',
+                    reason: rejectionReason || ''
+                });
+            }
 
             Logger.info(`Manager ${userId} ${status} nearby place ${place.code}`);
 

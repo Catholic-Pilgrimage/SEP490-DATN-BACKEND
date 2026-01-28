@@ -5,8 +5,6 @@ const Logger = require('../../utils/logger.util');
 class AdminUserService {
   /**
    * Lấy danh sách users với pagination, filter, search
-   * @param {Object} options - { page, limit, role, status, search }
-   * @returns {Object} - { users, pagination }
    */
   static async getUsers(options = {}) {
     try {
@@ -66,8 +64,6 @@ class AdminUserService {
 
   /**
    * Lấy chi tiết 1 user theo ID
-   * @param {string} userId - ID của user
-   * @returns {Object} - User info
    */
   static async getUserById(userId) {
     try {
@@ -89,9 +85,6 @@ class AdminUserService {
 
   /**
    * Cập nhật status của user (block/unblock)
-   * @param {string} userId - ID của user
-   * @param {string} status - 'active' hoặc 'banned'
-   * @returns {Object} - Updated user
    */
   static async updateUserStatus(userId, status) {
     try {
@@ -124,9 +117,6 @@ class AdminUserService {
 
   /**
    * Admin cập nhật thông tin user (bao gồm cả role)
-   * @param {string} userId - ID của user
-   * @param {Object} updateData - Dữ liệu cần cập nhật
-   * @returns {Object} - Updated user
    */
   static async updateUser(userId, updateData) {
     try {
@@ -153,7 +143,7 @@ class AdminUserService {
         throw new Error('Cannot change admin role');
       }
 
-      // Validate role-site_id relationship
+
       if (dataToUpdate.role) {
         if (['manager', 'local_guide'].includes(dataToUpdate.role)) {
           const finalSiteId = dataToUpdate.site_id !== undefined ? dataToUpdate.site_id : user.site_id;

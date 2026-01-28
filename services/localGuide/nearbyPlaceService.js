@@ -1,6 +1,7 @@
 const { User, NearbyPlace } = require('../../models');
 const { Op } = require('sequelize');
 const Logger = require('../../utils/logger.util');
+const NotificationService = require('../notificationService');
 
 class LocalGuideNearbyPlaceService {
     /**
@@ -66,6 +67,12 @@ class LocalGuideNearbyPlaceService {
 
             Logger.info(`Local Guide ${userId} created nearby place ${nearbyPlace.code}`);
 
+            // Notify Manager
+            await NotificationService.notifySiteManager(user.site_id, 'nearby_place_submitted', {
+                guideName: user.full_name || user.email,
+                placeName: name
+            });
+
             return nearbyPlace;
         } catch (error) {
             Logger.error('Create nearby place error:', error);
@@ -99,7 +106,7 @@ class LocalGuideNearbyPlaceService {
                 where.category = filters.category;
             }
 
-            // Filter by is_active (true/false/all)
+
             if (filters.is_active !== undefined) {
                 where.is_active = filters.is_active === 'true' || filters.is_active === true;
             }

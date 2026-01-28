@@ -1,6 +1,7 @@
 const { User, Site, GuideShift, GuideShiftSubmission } = require('../../models');
 const { Op } = require('sequelize');
 const Logger = require('../../utils/logger.util');
+const NotificationService = require('../notificationService');
 
 class LocalGuideShiftService {
     /**
@@ -232,6 +233,12 @@ class LocalGuideShiftService {
                 ...shift
             }))
         );
+
+        // Notify Manager
+        await NotificationService.notifySiteManager(user.site_id, 'shift_submitted', {
+            guideName: user.full_name || user.email,
+            weekStart: new Date(week_start_date).toLocaleDateString('vi-VN')
+        });
 
         return {
             submission,

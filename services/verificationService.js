@@ -2,6 +2,7 @@ const { VerificationRequest, User } = require('../models');
 const { Op } = require('sequelize');
 const Logger = require('../utils/logger.util');
 const EmailService = require('./emailService');
+const NotificationService = require('./notificationService');
 
 class VerificationService {
     /**
@@ -85,6 +86,11 @@ class VerificationService {
 
             Logger.info(`Guest verification request created: ${request.code} by ${normalizedEmail}`);
 
+            // Notify all admins
+            await NotificationService.notifyAllAdmins('verification_submitted', {
+                applicantName: data.applicant_name.trim()
+            });
+
             return {
                 id: request.id,
                 code: request.code,
@@ -144,6 +150,11 @@ class VerificationService {
             });
 
             Logger.info(`Verification request created: ${request.code} by user ${userId}`);
+
+            // Notify all admins
+            await NotificationService.notifyAllAdmins('verification_submitted', {
+                applicantName: user.full_name || user.email
+            });
 
             return {
                 id: request.id,
@@ -246,7 +257,7 @@ class VerificationService {
                     site_region: r.site_region,
                     status: r.status,
                     created_at: r.created_at,
-                   
+
                     applicant: r.user_id ? r.applicant : {
                         email: r.applicant_email,
                         full_name: r.applicant_name,
@@ -278,7 +289,7 @@ class VerificationService {
                         model: User,
                         as: 'applicant',
                         attributes: ['id', 'full_name', 'email', 'phone', 'avatar_url'],
-                        required: false 
+                        required: false
                     },
                     {
                         model: User,
@@ -307,7 +318,7 @@ class VerificationService {
                 verified_at: request.verified_at,
                 created_at: request.created_at,
                 updated_at: request.updated_at,
-            
+
                 applicant: request.user_id ? request.applicant : {
                     email: request.applicant_email,
                     full_name: request.applicant_name,
@@ -378,11 +389,11 @@ class VerificationService {
                 Logger.info(`Pilgrim upgraded to manager: ${user.email}`);
             }
 
-           
+
             const { Site } = require('../models');
             const SiteService = require('./siteService');
-            
-          
+
+
             const siteCode = await SiteService.generateSiteCode(
                 request.site_type || 'church',
                 request.site_region || 'Nam'
@@ -397,15 +408,15 @@ class VerificationService {
                 region: request.site_region || 'Nam',
                 description: request.introduction,
                 created_by: user.id,
-                is_active: false 
+                is_active: false
             });
 
-          
+
             await user.update({ site_id: site.id });
 
             Logger.info(`Site created: ${site.code} - ${site.name} (is_active: false) for manager ${user.email}`);
 
-          
+
             try {
                 if (generatedPassword) {
                     // Guest: Send welcome email with credentials + site info
@@ -432,7 +443,7 @@ class VerificationService {
                 Logger.error('Failed to send email:', emailError);
             }
 
-         
+
             await request.update({
                 status: 'approved',
                 reviewed_by: adminId,

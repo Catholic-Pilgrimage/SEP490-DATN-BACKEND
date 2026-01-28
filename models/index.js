@@ -14,6 +14,8 @@ const NearbyPlace = require('./NearbyPlace');
 const Journal = require('./Journal');
 const Planner = require('./Planner');
 const PlannerItem = require('./PlannerItem');
+const Notification = require('./Notification');
+const UserPushToken = require('./UserPushToken');
 
 
 
@@ -93,6 +95,15 @@ NearbyPlace.belongsTo(User, { foreignKey: 'proposed_by', as: 'proposer' });
 // NearbyPlace - User (reviewed_by)
 NearbyPlace.belongsTo(User, { foreignKey: 'reviewed_by', as: 'reviewer' });
 
+// ===================== NOTIFICATIONS =====================
+
+// Notification - User (receiver)
+User.hasMany(Notification, { foreignKey: 'receiver_id', as: 'notifications' });
+Notification.belongsTo(User, { foreignKey: 'receiver_id', as: 'receiver' });
+
+// UserPushToken - User
+User.hasMany(UserPushToken, { foreignKey: 'user_id', as: 'pushTokens' });
+UserPushToken.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 
 const db = {
@@ -111,7 +122,9 @@ const db = {
   NearbyPlace,
   Journal,
   Planner,
-  PlannerItem
+  PlannerItem,
+  Notification,
+  UserPushToken
 };
 
 module.exports = db;
