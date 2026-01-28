@@ -51,6 +51,54 @@ adminRouter.patch(
   SiteController.restoreSite
 );
 
+// GET /api/admin/sites/:siteId/local-guides - Get local guides of a site
+adminRouter.get(
+  '/:siteId/local-guides',
+  authMiddleware,
+  authMiddleware.authorize('admin'),
+  SiteController.getSiteGuides
+);
+
+// GET /api/admin/sites/:siteId/shifts - Get shift submissions of a site
+adminRouter.get(
+  '/:siteId/shifts',
+  authMiddleware,
+  authMiddleware.authorize('admin'),
+  SiteController.getSiteShifts
+);
+
+// GET /api/admin/sites/:siteId/media - Get media of a site
+adminRouter.get(
+  '/:siteId/media',
+  authMiddleware,
+  authMiddleware.authorize('admin'),
+  SiteController.getSiteMedia
+);
+
+// GET /api/admin/sites/:siteId/schedules - Get schedules of a site
+adminRouter.get(
+  '/:siteId/schedules',
+  authMiddleware,
+  authMiddleware.authorize('admin'),
+  SiteController.getSiteSchedules
+);
+
+// GET /api/admin/sites/:siteId/events - Get events of a site
+adminRouter.get(
+  '/:siteId/events',
+  authMiddleware,
+  authMiddleware.authorize('admin'),
+  SiteController.getSiteEvents
+);
+
+// GET /api/admin/sites/:siteId/nearby-places - Get nearby places of a site
+adminRouter.get(
+  '/:siteId/nearby-places',
+  authMiddleware,
+  authMiddleware.authorize('admin'),
+  SiteController.getSiteNearbyPlaces
+);
+
 
 // Manager Site Router - /api/manager/sites
 const managerRouter = express.Router();

@@ -1,4 +1,5 @@
 const SiteService = require('../services/siteService');
+const AdminSiteService = require('../services/admin/adminSiteService');
 const ResponseUtil = require('../utils/response.util');
 const { validationResult } = require('express-validator');
 const { formatValidationErrors } = require('../utils/validation.util');
@@ -117,7 +118,7 @@ exports.updateManagerSite = async (req, res) => {
 exports.getSites = async (req, res) => {
   try {
     const { page, limit, region, type, is_active, search } = req.query;
-    const result = await SiteService.getSites({ page, limit, region, type, is_active, search });
+    const result = await AdminSiteService.getSites({ page, limit, region, type, is_active, search });
     return ResponseUtil.success(res, result, req.__('site.list_success'));
   } catch (error) {
     return ResponseUtil.error(res, req.__('error.server_error'));
@@ -127,7 +128,7 @@ exports.getSites = async (req, res) => {
 // Admin: Get site by ID
 exports.getSiteById = async (req, res) => {
   try {
-    const result = await SiteService.getSiteById(req.params.id);
+    const result = await AdminSiteService.getSiteById(req.params.id);
     return ResponseUtil.success(res, result, req.__('site.get_success'));
   } catch (error) {
     if (error.message === 'Site not found') {
@@ -148,7 +149,7 @@ exports.updateSite = async (req, res) => {
     const parseError = parseJsonFields(req, res);
     if (parseError) return parseError;
 
-    const result = await SiteService.updateSite(req.params.id, req.body);
+    const result = await AdminSiteService.updateSite(req.params.id, req.body);
     return ResponseUtil.success(res, result, req.__('site.update_success'));
   } catch (error) {
     if (error.message === 'Site not found') {
@@ -164,7 +165,7 @@ exports.updateSite = async (req, res) => {
 // Admin: Soft delete site
 exports.deleteSite = async (req, res) => {
   try {
-    const result = await SiteService.deleteSite(req.params.id);
+    const result = await AdminSiteService.deleteSite(req.params.id);
     return ResponseUtil.success(res, result, req.__('site.delete_success'));
   } catch (error) {
     if (error.message === 'Site not found') {
@@ -180,7 +181,7 @@ exports.deleteSite = async (req, res) => {
 // Admin: Restore site
 exports.restoreSite = async (req, res) => {
   try {
-    const result = await SiteService.restoreSite(req.params.id);
+    const result = await AdminSiteService.restoreSite(req.params.id);
     return ResponseUtil.success(res, result, req.__('site.restore_success'));
   } catch (error) {
     if (error.message === 'Site not found') {
@@ -261,6 +262,93 @@ exports.getPublicSiteEvents = async (req, res) => {
 exports.getPublicSiteNearbyPlaces = async (req, res) => {
   try {
     const result = await SiteService.getPublicSiteNearbyPlaces(req.params.siteId, req.query);
+    return ResponseUtil.success(res, result, req.__('site.get_nearby_places_success'));
+  } catch (error) {
+    if (error.message === 'Site not found') {
+      return ResponseUtil.notFound(res, req.__('site.not_found'));
+    }
+    return ResponseUtil.error(res, req.__('error.server_error'));
+  }
+};
+
+
+// ===================== ADMIN SITE DETAIL ENDPOINTS =====================
+
+// Admin: Get local guides of a site
+exports.getSiteGuides = async (req, res) => {
+  try {
+    const { page, limit } = req.query;
+    const result = await AdminSiteService.getSiteGuides(req.params.siteId, { page, limit });
+    return ResponseUtil.success(res, result, req.__('site.get_guides_success'));
+  } catch (error) {
+    if (error.message === 'Site not found') {
+      return ResponseUtil.notFound(res, req.__('site.not_found'));
+    }
+    return ResponseUtil.error(res, req.__('error.server_error'));
+  }
+};
+
+// Admin: Get shift submissions of a site
+exports.getSiteShifts = async (req, res) => {
+  try {
+    const { page, limit, status } = req.query;
+    const result = await AdminSiteService.getSiteShifts(req.params.siteId, { page, limit, status });
+    return ResponseUtil.success(res, result, req.__('site.get_shifts_success'));
+  } catch (error) {
+    if (error.message === 'Site not found') {
+      return ResponseUtil.notFound(res, req.__('site.not_found'));
+    }
+    return ResponseUtil.error(res, req.__('error.server_error'));
+  }
+};
+
+// Admin: Get media of a site
+exports.getSiteMedia = async (req, res) => {
+  try {
+    const { page, limit, status, type } = req.query;
+    const result = await AdminSiteService.getSiteMedia(req.params.siteId, { page, limit, status, type });
+    return ResponseUtil.success(res, result, req.__('site.get_media_success'));
+  } catch (error) {
+    if (error.message === 'Site not found') {
+      return ResponseUtil.notFound(res, req.__('site.not_found'));
+    }
+    return ResponseUtil.error(res, req.__('error.server_error'));
+  }
+};
+
+// Admin: Get schedules of a site
+exports.getSiteSchedules = async (req, res) => {
+  try {
+    const { page, limit, status } = req.query;
+    const result = await AdminSiteService.getSiteSchedules(req.params.siteId, { page, limit, status });
+    return ResponseUtil.success(res, result, req.__('site.get_schedules_success'));
+  } catch (error) {
+    if (error.message === 'Site not found') {
+      return ResponseUtil.notFound(res, req.__('site.not_found'));
+    }
+    return ResponseUtil.error(res, req.__('error.server_error'));
+  }
+};
+
+// Admin: Get events of a site
+exports.getSiteEvents = async (req, res) => {
+  try {
+    const { page, limit, status } = req.query;
+    const result = await AdminSiteService.getSiteEvents(req.params.siteId, { page, limit, status });
+    return ResponseUtil.success(res, result, req.__('site.get_events_success'));
+  } catch (error) {
+    if (error.message === 'Site not found') {
+      return ResponseUtil.notFound(res, req.__('site.not_found'));
+    }
+    return ResponseUtil.error(res, req.__('error.server_error'));
+  }
+};
+
+// Admin: Get nearby places of a site
+exports.getSiteNearbyPlaces = async (req, res) => {
+  try {
+    const { page, limit, status, category } = req.query;
+    const result = await AdminSiteService.getSiteNearbyPlaces(req.params.siteId, { page, limit, status, category });
     return ResponseUtil.success(res, result, req.__('site.get_nearby_places_success'));
   } catch (error) {
     if (error.message === 'Site not found') {

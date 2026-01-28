@@ -63,7 +63,9 @@
     "get_media_success": "Get site media successfully",
     "get_schedules_success": "Get mass schedules successfully",
     "get_events_success": "Get events successfully",
-    "get_nearby_places_success": "Get nearby places successfully"
+    "get_nearby_places_success": "Get nearby places successfully",
+    "get_guides_success": "Get local guides successfully",
+    "get_shifts_success": "Get shift submissions successfully"
   },
   "manager_site": {
     "create_success": "Site created successfully",

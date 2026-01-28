@@ -63,7 +63,9 @@
     "get_media_success": "Lấy danh sách media thành công",
     "get_schedules_success": "Lấy danh sách lịch lễ thành công",
     "get_events_success": "Lấy danh sách sự kiện thành công",
-    "get_nearby_places_success": "Lấy danh sách địa điểm lân cận thành công"
+    "get_nearby_places_success": "Lấy danh sách địa điểm lân cận thành công",
+    "get_guides_success": "Lấy danh sách hướng dẫn viên thành công",
+    "get_shifts_success": "Lấy danh sách lịch trực thành công"
   },
   "manager_site": {
     "create_success": "Tạo địa điểm thành công",
