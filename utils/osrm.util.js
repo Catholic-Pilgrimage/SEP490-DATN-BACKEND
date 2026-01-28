@@ -7,25 +7,26 @@ const Logger = require('./logger.util');
 
 class OSRMUtil {
     /**
-     * Get route information from VietMap API
+     * Get distance and duration from VietMap Matrix API
      * @param {Object} from - Starting coordinates {lat, lng}
      * @param {Object} to - Destination coordinates {lat, lng}
-     * @param {string} vehicle - Vehicle type: 'car' or 'bike' (default: 'bike')
+     * @param {string} vehicle - Vehicle type: 'car', 'bike', 'motorcycle', or 'foot' (default: 'bike')
      * @returns {Object|null} - {distance: meters, duration: seconds} or null if failed
      */
     static async getRouteInfo(from, to, vehicle = 'bike') {
         try {
             const apiKey = process.env.VIETMAP_API_KEY;
-            const baseUrl = process.env.VIETMAP_ROUTE_URL || 'https://api.vietmap.vn/route';
+            const baseUrl = 'https://maps.vietmap.vn/api/matrix';
 
             if (!apiKey) {
                 Logger.error('VIETMAP_API_KEY is not configured');
                 return null;
             }
 
-            const url = `${baseUrl}?apikey=${apiKey}&start=${from.lng},${from.lat}&end=${to.lng},${to.lat}&vehicle=${vehicle}`;
+            // VietMap Matrix API format: point=lat,lng&point=lat,lng&sources=0&destinations=1&vehicle=car/bike/motorcycle/foot
+            const url = `${baseUrl}?apikey=${apiKey}&point=${from.lat},${from.lng}&point=${to.lat},${to.lng}&sources=0&destinations=1&vehicle=${vehicle}`;
 
-            Logger.info(`VietMap API call: ${baseUrl}?apikey=***&start=${from.lng},${from.lat}&end=${to.lng},${to.lat}&vehicle=${vehicle}`);
+            Logger.info(`VietMap Matrix API call: ${baseUrl}?apikey=***&point=${from.lat},${from.lng}&point=${to.lat},${to.lng}&sources=0&destinations=1&vehicle=${vehicle}`);
 
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
@@ -36,23 +37,43 @@ class OSRMUtil {
 
             clearTimeout(timeout);
 
+            // TESTING: Log response status
+            console.log('\n========== VIETMAP MATRIX API RESPONSE STATUS ==========');
+            console.log(`Status: ${response.status} ${response.statusText}`);
+            console.log('========================================================\n');
+
             if (!response.ok) {
+                // Try to read error response
+                try {
+                    const errorText = await response.text();
+                    console.log('Error response body:', errorText);
+                } catch (e) {
+                    console.log('Could not read error response');
+                }
                 Logger.warn(`VietMap API returned status ${response.status}`);
                 return null;
             }
 
             const data = await response.json();
 
-            if (!data.paths || data.paths.length === 0) {
-                Logger.warn('VietMap: No routes found');
+            // TESTING: Log full API response
+            console.log('\n========== VIETMAP MATRIX API RESPONSE ==========');
+            console.log('Full response:', JSON.stringify(data, null, 2));
+            console.log('=================================================\n');
+
+            if (!data.distances || !data.distances[0] || data.distances[0][0] == null) {
+                Logger.warn('VietMap: No distance returned');
                 return null;
             }
 
-            Logger.info(`VietMap: Distance ${data.paths[0].distance}m, Duration ${data.paths[0].time}s`);
+            const distance = data.distances[0][0]; // meters
+            const duration = data.durations?.[0]?.[0] || null; // seconds (may be null)
+
+            Logger.info(`VietMap: Distance ${distance}m, Duration ${duration}s`);
 
             return {
-                distance: data.paths[0].distance, // in meters
-                duration: data.paths[0].time      // in seconds (VietMap uses 'time' instead of 'duration')
+                distance: distance,   // in meters
+                duration: duration    // in seconds (or null)
             };
         } catch (error) {
             if (error.name === 'AbortError') {
@@ -64,28 +85,29 @@ class OSRMUtil {
         }
     }
 
-    /**
-     * Calculate distance using Haversine formula (fallback)
-     * @param {number} lat1 - Latitude of point 1
-     * @param {number} lng1 - Longitude of point 1
-     * @param {number} lat2 - Latitude of point 2
-     * @param {number} lng2 - Longitude of point 2
-     * @returns {number} - Distance in meters
-     */
-    static calculateHaversineDistance(lat1, lng1, lat2, lng2) {
-        const R = 6371000; // Earth's radius in meters
-        const φ1 = lat1 * Math.PI / 180;
-        const φ2 = lat2 * Math.PI / 180;
-        const Δφ = (lat2 - lat1) * Math.PI / 180;
-        const Δλ = (lng2 - lng1) * Math.PI / 180;
+    // TESTING: Haversine fallback disabled to test VietMap Matrix API
+    // /**
+    //  * Calculate distance using Haversine formula (fallback)
+    //  * @param {number} lat1 - Latitude of point 1
+    //  * @param {number} lng1 - Longitude of point 1
+    //  * @param {number} lat2 - Latitude of point 2
+    //  * @param {number} lng2 - Longitude of point 2
+    //  * @returns {number} - Distance in meters
+    //  */
+    // static calculateHaversineDistance(lat1, lng1, lat2, lng2) {
+    //     const R = 6371000; // Earth's radius in meters
+    //     const φ1 = lat1 * Math.PI / 180;
+    //     const φ2 = lat2 * Math.PI / 180;
+    //     const Δφ = (lat2 - lat1) * Math.PI / 180;
+    //     const Δλ = (lng2 - lng1) * Math.PI / 180;
 
-        const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-            Math.cos(φ1) * Math.cos(φ2) *
-            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    //     const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    //         Math.cos(φ1) * Math.cos(φ2) *
+    //         Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    //     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-        return R * c; // Distance in meters
-    }
+    //     return R * c; // Distance in meters
+    // }
 
     /**
      * Validate distance based on rules
@@ -154,16 +176,34 @@ class OSRMUtil {
             if (routeInfo) {
                 distance = routeInfo.distance;
                 duration = routeInfo.duration;
+
+                // TESTING: Log VietMap Matrix API results
+                console.log('\n========== ✅ VIETMAP MATRIX API SUCCESS ==========');
+                console.log(`📍 Điểm A: [${fromSite.latitude}, ${fromSite.longitude}]`);
+                console.log(`📍 Điểm B: [${toSite.latitude}, ${toSite.longitude}]`);
+                console.log(`🚗 Phương tiện: ${vehicle}`);
+                console.log(`📏 Khoảng cách: ${distance}m (${(distance / 1000).toFixed(2)}km)`);
+                console.log(`⏱️  Thời gian: ${duration ? `${duration}s (${(duration / 60).toFixed(1)} phút)` : 'N/A'}`);
+                console.log('===================================================\n');
             } else {
-                // Fallback to Haversine
-                distance = this.calculateHaversineDistance(
-                    parseFloat(fromSite.latitude),
-                    parseFloat(fromSite.longitude),
-                    parseFloat(toSite.latitude),
-                    parseFloat(toSite.longitude)
-                );
-                duration = null;
-                Logger.warn('Using Haversine fallback for distance calculation');
+                // TESTING: VietMap failed, no fallback
+                console.log('\n========== ❌ VIETMAP MATRIX API FAILED ==========');
+                console.log(`📍 Điểm A: [${fromSite.latitude}, ${fromSite.longitude}]`);
+                console.log(`📍 Điểm B: [${toSite.latitude}, ${toSite.longitude}]`);
+                console.log('⚠️  VietMap Matrix API không trả về kết quả');
+                console.log('❌ Haversine fallback đã bị tắt để test');
+                console.log('==================================================\n');
+                Logger.error('VietMap Matrix API failed and Haversine fallback is disabled for testing');
+                throw new Error('VietMap Matrix API không hoạt động và fallback đã bị tắt để test');
+                // // Fallback to Haversine
+                // distance = this.calculateHaversineDistance(
+                //     parseFloat(fromSite.latitude),
+                //     parseFloat(fromSite.longitude),
+                //     parseFloat(toSite.latitude),
+                //     parseFloat(toSite.longitude)
+                // );
+                // duration = null;
+                // Logger.warn('Using Haversine fallback for distance calculation');
             }
 
             const validation = this.validateDistance(distance, transportation);
