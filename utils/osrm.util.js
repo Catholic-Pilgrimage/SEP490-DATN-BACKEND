@@ -179,19 +179,19 @@ class OSRMUtil {
 
                 // TESTING: Log VietMap Matrix API results
                 console.log('\n========== ✅ VIETMAP MATRIX API SUCCESS ==========');
-                console.log(`📍 Điểm A: [${fromSite.latitude}, ${fromSite.longitude}]`);
-                console.log(`📍 Điểm B: [${toSite.latitude}, ${toSite.longitude}]`);
-                console.log(`🚗 Phương tiện: ${vehicle}`);
-                console.log(`📏 Khoảng cách: ${distance}m (${(distance / 1000).toFixed(2)}km)`);
-                console.log(`⏱️  Thời gian: ${duration ? `${duration}s (${(duration / 60).toFixed(1)} phút)` : 'N/A'}`);
+                console.log(`Điểm A: [${fromSite.latitude}, ${fromSite.longitude}]`);
+                console.log(`Điểm B: [${toSite.latitude}, ${toSite.longitude}]`);
+                console.log(`Phương tiện: ${vehicle}`);
+                console.log(`Khoảng cách: ${distance}m (${(distance / 1000).toFixed(2)}km)`);
+                console.log(`Thời gian: ${duration ? `${duration}s (${(duration / 60).toFixed(1)} phút)` : 'N/A'}`);
                 console.log('===================================================\n');
             } else {
                 // TESTING: VietMap failed, no fallback
-                console.log('\n========== ❌ VIETMAP MATRIX API FAILED ==========');
-                console.log(`📍 Điểm A: [${fromSite.latitude}, ${fromSite.longitude}]`);
-                console.log(`📍 Điểm B: [${toSite.latitude}, ${toSite.longitude}]`);
-                console.log('⚠️  VietMap Matrix API không trả về kết quả');
-                console.log('❌ Haversine fallback đã bị tắt để test');
+                console.log('\n==========VIETMAP MATRIX API FAILED ==========');
+                console.log(`Điểm A: [${fromSite.latitude}, ${fromSite.longitude}]`);
+                console.log(`Điểm B: [${toSite.latitude}, ${toSite.longitude}]`);
+                console.log('VietMap Matrix API không trả về kết quả');
+                console.log('Haversine fallback đã bị tắt để test');
                 console.log('==================================================\n');
                 Logger.error('VietMap Matrix API failed and Haversine fallback is disabled for testing');
                 throw new Error('VietMap Matrix API không hoạt động và fallback đã bị tắt để test');
