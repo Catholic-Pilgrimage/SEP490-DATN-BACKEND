@@ -1,6 +1,55 @@
 const { body } = require('express-validator');
 
 class VerificationValidator {
+    // Validate guest verification request (no auth)
+    static createGuestRequest = [
+        body('applicant_email')
+            .notEmpty().withMessage('Email không được để trống')
+            .isEmail().withMessage('Email không hợp lệ')
+            .normalizeEmail()
+            .trim(),
+
+        body('applicant_name')
+            .notEmpty().withMessage('Họ tên không được để trống')
+            .isLength({ min: 2, max: 255 }).withMessage('Họ tên phải từ 2-255 ký tự')
+            .trim(),
+
+        body('applicant_phone')
+            .optional()
+            .matches(/^[0-9]{10,11}$/).withMessage('Số điện thoại phải là 10-11 chữ số')
+            .trim(),
+
+        body('site_name')
+            .notEmpty().withMessage('Tên địa điểm không được để trống')
+            .isLength({ min: 2, max: 255 }).withMessage('Tên địa điểm phải từ 2-255 ký tự')
+            .trim(),
+
+        body('site_province')
+            .notEmpty().withMessage('Tỉnh/Thành không được để trống')
+            .isLength({ max: 100 }).withMessage('Tên tỉnh/thành không quá 100 ký tự')
+            .trim(),
+
+        body('site_address')
+            .optional()
+            .isString()
+            .trim(),
+
+        body('site_type')
+            .optional()
+            .isIn(['church', 'shrine', 'monastery', 'center', 'other'])
+            .withMessage('Loại địa điểm không hợp lệ'),
+
+        body('site_region')
+            .optional()
+            .isIn(['Bac', 'Trung', 'Nam'])
+            .withMessage('Vùng miền không hợp lệ'),
+
+        body('introduction')
+            .optional()
+            .isLength({ max: 2000 }).withMessage('Giới thiệu không quá 2000 ký tự')
+            .trim()
+    ];
+
     // Validate create verification request (Pilgrim)
     static createRequest = [
         body('site_name')

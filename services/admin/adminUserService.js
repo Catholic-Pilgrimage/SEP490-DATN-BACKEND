@@ -1,12 +1,10 @@
-const { User } = require('../models');
+const { User } = require('../../models');
 const { Op } = require('sequelize');
-const Logger = require('../utils/logger.util');
+const Logger = require('../../utils/logger.util');
 
-class AdminService {
+class AdminUserService {
   /**
    * Lấy danh sách users với pagination, filter, search
-   * @param {Object} options - { page, limit, role, status, search }
-   * @returns {Object} - { users, pagination }
    */
   static async getUsers(options = {}) {
     try {
@@ -21,16 +19,13 @@ class AdminService {
       const offset = (page - 1) * limit;
       const where = {};
 
-
       if (role && ['admin', 'pilgrim', 'local_guide', 'manager'].includes(role)) {
         where.role = role;
       }
 
-
       if (status && ['active', 'banned'].includes(status)) {
         where.status = status;
       }
-
 
       if (search) {
         where[Op.or] = [
@@ -39,7 +34,6 @@ class AdminService {
           { phone: { [Op.iLike]: `%${search}%` } }
         ];
       }
-
 
       const { count, rows } = await User.findAndCountAll({
         where,
@@ -70,8 +64,6 @@ class AdminService {
 
   /**
    * Lấy chi tiết 1 user theo ID
-   * @param {string} userId - ID của user
-   * @returns {Object} - User info
    */
   static async getUserById(userId) {
     try {
@@ -93,9 +85,6 @@ class AdminService {
 
   /**
    * Cập nhật status của user (block/unblock)
-   * @param {string} userId - ID của user
-   * @param {string} status - 'active' hoặc 'banned'
-   * @returns {Object} - Updated user
    */
   static async updateUserStatus(userId, status) {
     try {
@@ -104,7 +93,6 @@ class AdminService {
       if (!user) {
         return null;
       }
-
 
       if (user.role === 'admin') {
         throw new Error('Cannot change admin status');
@@ -129,9 +117,6 @@ class AdminService {
 
   /**
    * Admin cập nhật thông tin user (bao gồm cả role)
-   * @param {string} userId - ID của user
-   * @param {Object} updateData - Dữ liệu cần cập nhật
-   * @returns {Object} - Updated user
    */
   static async updateUser(userId, updateData) {
     try {
@@ -140,7 +125,6 @@ class AdminService {
       if (!user) {
         return null;
       }
-
 
       const allowedFields = ['full_name', 'phone', 'date_of_birth', 'role', 'site_id'];
       const dataToUpdate = {};
@@ -151,32 +135,27 @@ class AdminService {
         }
       });
 
-
       if (dataToUpdate.role && !['pilgrim', 'local_guide', 'manager'].includes(dataToUpdate.role)) {
         throw new Error('Invalid role');
       }
-
 
       if (dataToUpdate.role && user.role === 'admin') {
         throw new Error('Cannot change admin role');
       }
 
-      // NEW: Validate role-site_id relationship
+
       if (dataToUpdate.role) {
-        // manager/local_guide MUST have site_id
         if (['manager', 'local_guide'].includes(dataToUpdate.role)) {
           const finalSiteId = dataToUpdate.site_id !== undefined ? dataToUpdate.site_id : user.site_id;
           if (!finalSiteId) {
             throw new Error('Manager and Local Guide must be assigned to a site');
           }
         }
-        // pilgrim MUST NOT have site_id
         if (dataToUpdate.role === 'pilgrim') {
           dataToUpdate.site_id = null;
         }
       }
 
-      // If changing site_id, validate role
       if (dataToUpdate.site_id !== undefined) {
         const finalRole = dataToUpdate.role || user.role;
         if (finalRole === 'pilgrim' && dataToUpdate.site_id !== null) {
@@ -209,4 +188,4 @@ class AdminService {
   }
 }
 
-module.exports = AdminService;
+module.exports = AdminUserService;

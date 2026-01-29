@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const Logger = require('../utils/logger.util');
 const EmailService = require('./emailService');
+const NotificationService = require('./notificationService');
 
 class ManagerLocalGuideService {
 
@@ -412,7 +413,7 @@ class ManagerLocalGuideService {
             } else if (status === 'approved') {
                 updateData.rejection_reason = null;
 
-           
+
                 if (submission.previous_submission_id) {
                     await GuideShiftSubmission.update(
                         { is_active: false },
@@ -422,6 +423,14 @@ class ManagerLocalGuideService {
             }
 
             await submission.update(updateData);
+
+            // Send notification to LocalGuide
+            const notificationType = status === 'approved' ? 'shift_assigned' : 'shift_rejected';
+            const weekStart = submission.week_start_date;
+            await NotificationService.createNotification(notificationType, submission.guide_id, {
+                weekStart: weekStart ? new Date(weekStart).toLocaleDateString('vi-VN') : '',
+                reason: rejection_reason || ''
+            });
 
             Logger.info(`Submission ${submissionId} status changed to ${status} by Manager ${managerId}`);
 

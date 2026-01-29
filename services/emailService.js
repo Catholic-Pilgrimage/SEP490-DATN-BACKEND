@@ -115,6 +115,88 @@ class EmailService {
   }
 
   /**
+   * Send verification approved email (for Pilgrim with site info)
+   */
+  static async sendVerificationApprovedWithSite(email, userName, requestCode, siteName, siteCode) {
+    try {
+      Logger.info(`Sending verification approved email with site info to: ${email}`);
+      const currentYear = new Date().getFullYear();
+
+      const htmlContent = `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Arial, sans-serif;">
+  <div style="font-family: 'Segoe UI', Tahoma, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #fff;">
+    ${this.getEmailHeader()}
+    
+    <div style="padding: 30px; background: #fff;">
+      <h2 style="color: #4a0e4e; font-weight: normal;">Chúc mừng ${userName}!</h2>
+      
+      <p style="color: #333; line-height: 1.8; font-size: 16px;">
+        Yêu cầu xác minh <strong style="color: #7b1fa2;">${requestCode}</strong> của bạn đã được phê duyệt.
+        Bạn đã trở thành <strong>Quản lý địa điểm (Manager)</strong>.
+      </p>
+      
+      <div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 25px; border-radius: 8px; margin: 25px 0; border: 2px solid #4caf50;">
+        <h3 style="margin: 0 0 15px 0; color: #2e7d32; text-align: center;">&#9962; Địa điểm của bạn</h3>
+        <div style="text-align: center;">
+          <p style="margin: 5px 0; color: #333; font-size: 18px; font-weight: bold;">${siteName}</p>
+          <p style="margin: 5px 0; color: #666;">Mã: <strong style="color: #7b1fa2;">${siteCode}</strong></p>
+          <p style="margin: 10px 0; padding: 10px; background: #fff3cd; border-radius: 5px; color: #856404; font-size: 14px;">
+            ⚠️ Địa điểm đang ở chế độ <strong>Draft</strong> (chưa public)
+          </p>
+        </div>
+      </div>
+      
+      <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2196f3;">
+        <h4 style="margin: 0 0 15px 0; color: #1976d2;">Các bước tiếp theo:</h4>
+        <ol style="margin: 0; padding-left: 20px; color: #555;">
+          <li>Đăng nhập vào ứng dụng</li>
+          <li>Hoàn thiện thông tin địa điểm (mô tả, lịch sử, hình ảnh)</li>
+          <li>Thêm lịch lễ và sự kiện</li>
+          <li><strong>Publish địa điểm</strong> để người hành hương có thể thấy</li>
+          <li>Mời Hướng dẫn viên (Local Guide) hỗ trợ</li>
+        </ol>
+      </div>
+      
+      <div style="text-align: center; margin-top: 30px; padding: 20px; background: #f8f6f0; border-radius: 8px;">
+        <p style="color: #7b1fa2; font-style: italic; margin: 0;">
+          "Xin Chúa chúc lành và gìn giữ bạn"
+        </p>
+        <p style="color: #999; font-size: 12px; margin: 10px 0 0 0;">- Ds 6:24</p>
+      </div>
+    </div>
+    
+    ${this.getEmailFooter(currentYear)}
+  </div>
+</body>
+</html>`;
+
+      const { data, error } = await resend.emails.send({
+        from: emailConfig.from,
+        to: email,
+        subject: 'Chúc mừng! Yêu cầu xác minh đã được phê duyệt - Catholic Pilgrimage',
+        html: htmlContent
+      });
+
+      if (error) {
+        Logger.error('Send verification approved email error:', error);
+        throw new Error(`Failed to send email: ${error.message}`);
+      }
+
+      Logger.info(`Verification approved email sent to: ${email}`);
+      return data;
+    } catch (error) {
+      Logger.error('Email service error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Send verification approved email
    */
   static async sendVerificationApproved(email, userName, requestCode) {
@@ -246,6 +328,209 @@ class EmailService {
       }
 
       Logger.info(`Verification rejected email sent to: ${email}`);
+      return data;
+    } catch (error) {
+      Logger.error('Email service error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send Manager welcome email with credentials (for guest registration - no site yet)
+   */
+  static async sendManagerWelcomeNoSite(email, fullName, requestCode, password) {
+    try {
+      Logger.info(`Sending manager welcome email to: ${email}`);
+      const currentYear = new Date().getFullYear();
+
+      const htmlContent = `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Arial, sans-serif;">
+  <div style="font-family: 'Segoe UI', Tahoma, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #fff;">
+    ${this.getEmailHeader()}
+    
+    <div style="padding: 30px; background: #fff;">
+      <h2 style="color: #4a0e4e; font-weight: normal;">Chúc mừng ${fullName}!</h2>
+      
+      <p style="color: #333; line-height: 1.8; font-size: 16px;">
+        Yêu cầu xác minh <strong style="color: #7b1fa2;">${requestCode}</strong> của bạn đã được phê duyệt.
+      </p>
+      
+      <div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 25px; border-radius: 8px; margin: 25px 0; border: 2px solid #4caf50; text-align: center;">
+        <div style="font-size: 48px; margin-bottom: 10px;">🎉</div>
+        <h3 style="margin: 0; color: #2e7d32;">Bạn đã trở thành Manager!</h3>
+      </div>
+      
+      <p style="color: #333; line-height: 1.8; font-size: 16px;">
+        Tài khoản <strong>Quản lý địa điểm (Manager)</strong> đã được tạo cho bạn. Dưới đây là thông tin đăng nhập:
+      </p>
+      
+      <div style="background: #f8f6f0; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 10px 0; color: #666; width: 120px;">Email:</td>
+            <td style="padding: 10px 0; color: #333; font-weight: bold;">${email}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 0; color: #666;">Mật khẩu:</td>
+            <td style="padding: 10px 0; color: #4a0e4e; font-weight: bold; font-size: 18px; letter-spacing: 2px;">${password}</td>
+          </tr>
+        </table>
+      </div>
+      
+      <p style="color: #c0392b; font-weight: bold;">
+        &#9888; Vui lòng đổi mật khẩu ngay sau khi đăng nhập lần đầu!
+      </p>
+      
+      <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2196f3;">
+        <h4 style="margin: 0 0 15px 0; color: #1976d2;">Các bước tiếp theo:</h4>
+        <ol style="margin: 0; padding-left: 20px; color: #555;">
+          <li>Đăng nhập vào ứng dụng</li>
+          <li>Đổi mật khẩu trong phần Cài đặt</li>
+          <li><strong>Tạo địa điểm của bạn</strong> (Site)</li>
+          <li>Hoàn thiện thông tin địa điểm</li>
+          <li>Thêm hình ảnh, lịch lễ và sự kiện</li>
+          <li>Mời Hướng dẫn viên (Local Guide) hỗ trợ</li>
+        </ol>
+      </div>
+      
+      <div style="text-align: center; margin-top: 30px; padding: 20px; background: #f8f6f0; border-radius: 8px;">
+        <p style="color: #7b1fa2; font-style: italic; margin: 0;">
+          "Xin Chúa chúc lành và gìn giữ bạn"
+        </p>
+        <p style="color: #999; font-size: 12px; margin: 10px 0 0 0;">- Ds 6:24</p>
+      </div>
+    </div>
+    
+    ${this.getEmailFooter(currentYear)}
+  </div>
+</body>
+</html>`;
+
+      const { data, error } = await resend.emails.send({
+        from: emailConfig.from,
+        to: email,
+        subject: 'Chúc mừng! Tài khoản Manager đã được tạo - Catholic Pilgrimage',
+        html: htmlContent
+      });
+
+      if (error) {
+        Logger.error('Send manager welcome email error:', error);
+        throw new Error(`Failed to send email: ${error.message}`);
+      }
+
+      Logger.info(`Manager welcome email sent to: ${email}`);
+      return data;
+    } catch (error) {
+      Logger.error('Email service error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send Manager welcome email with credentials (for guest registration)
+   */
+  static async sendManagerWelcome(email, fullName, requestCode, password, siteName, siteCode, siteAddress = null) {
+    try {
+      Logger.info(`Sending manager welcome email to: ${email}`);
+      const currentYear = new Date().getFullYear();
+
+      const addressHtml = siteAddress ? `<p style="margin: 5px 0; color: #666; font-size: 14px;">📍 ${siteAddress}</p>` : '';
+
+      const htmlContent = `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Arial, sans-serif;">
+  <div style="font-family: 'Segoe UI', Tahoma, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #fff;">
+    ${this.getEmailHeader()}
+    
+    <div style="padding: 30px; background: #fff;">
+      <h2 style="color: #4a0e4e; font-weight: normal;">Chúc mừng ${fullName}!</h2>
+      
+      <p style="color: #333; line-height: 1.8; font-size: 16px;">
+        Yêu cầu xác minh <strong style="color: #7b1fa2;">${requestCode}</strong> của bạn đã được phê duyệt.
+      </p>
+      
+      <div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 25px; border-radius: 8px; margin: 25px 0; border: 2px solid #4caf50;">
+        <h3 style="margin: 0 0 15px 0; color: #2e7d32; text-align: center;">&#9962; Địa điểm của bạn</h3>
+        <div style="text-align: center;">
+          <p style="margin: 5px 0; color: #333; font-size: 18px; font-weight: bold;">${siteName}</p>
+          <p style="margin: 5px 0; color: #666;">Mã: <strong style="color: #7b1fa2;">${siteCode}</strong></p>
+          ${addressHtml}
+          <p style="margin: 10px 0; padding: 10px; background: #fff3cd; border-radius: 5px; color: #856404; font-size: 14px;">
+            ⚠️ Địa điểm đang ở chế độ <strong>Draft</strong> (chưa public)
+          </p>
+        </div>
+      </div>
+      
+      <p style="color: #333; line-height: 1.8; font-size: 16px;">
+        Tài khoản <strong>Quản lý địa điểm (Manager)</strong> đã được tạo cho bạn. Dưới đây là thông tin đăng nhập:
+      </p>
+      
+      <div style="background: #f8f6f0; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 10px 0; color: #666; width: 120px;">Email:</td>
+            <td style="padding: 10px 0; color: #333; font-weight: bold;">${email}</td>
+          </tr>
+          <tr>
+            <td style="padding: 10px 0; color: #666;">Mật khẩu:</td>
+            <td style="padding: 10px 0; color: #4a0e4e; font-weight: bold; font-size: 18px; letter-spacing: 2px;">${password}</td>
+          </tr>
+        </table>
+      </div>
+      
+      <p style="color: #c0392b; font-weight: bold;">
+        &#9888; Vui lòng đổi mật khẩu ngay sau khi đăng nhập lần đầu!
+      </p>
+      
+      <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2196f3;">
+        <h4 style="margin: 0 0 15px 0; color: #1976d2;">Các bước tiếp theo:</h4>
+        <ol style="margin: 0; padding-left: 20px; color: #555;">
+          <li>Đăng nhập vào ứng dụng</li>
+          <li>Đổi mật khẩu trong phần Cài đặt</li>
+          <li>Hoàn thiện thông tin địa điểm (mô tả, lịch sử, hình ảnh)</li>
+          <li>Thêm lịch lễ và sự kiện</li>
+          <li><strong>Publish địa điểm</strong> để người hành hương có thể thấy</li>
+          <li>Mời Hướng dẫn viên (Local Guide) hỗ trợ</li>
+        </ol>
+      </div>
+      
+      <div style="text-align: center; margin-top: 30px; padding: 20px; background: #f8f6f0; border-radius: 8px;">
+        <p style="color: #7b1fa2; font-style: italic; margin: 0;">
+          "Xin Chúa chúc lành và gìn giữ bạn"
+        </p>
+        <p style="color: #999; font-size: 12px; margin: 10px 0 0 0;">- Ds 6:24</p>
+      </div>
+    </div>
+    
+    ${this.getEmailFooter(currentYear)}
+  </div>
+</body>
+</html>`;
+
+      const { data, error } = await resend.emails.send({
+        from: emailConfig.from,
+        to: email,
+        subject: 'Chúc mừng! Tài khoản Manager đã được tạo - Catholic Pilgrimage',
+        html: htmlContent
+      });
+
+      if (error) {
+        Logger.error('Send manager welcome email error:', error);
+        throw new Error(`Failed to send email: ${error.message}`);
+      }
+
+      Logger.info(`Manager welcome email sent to: ${email}`);
       return data;
     } catch (error) {
       Logger.error('Email service error:', error);

@@ -2,6 +2,7 @@ const { VerificationRequest, User } = require('../models');
 const { Op } = require('sequelize');
 const Logger = require('../utils/logger.util');
 const EmailService = require('./emailService');
+const NotificationService = require('./notificationService');
 
 class VerificationService {
     /**
@@ -13,7 +14,7 @@ class VerificationService {
         const day = String(now.getDate()).padStart(2, '0');
         const prefix = `VR${month}${day}`;
 
-    
+
         const lastRequest = await VerificationRequest.findOne({
             where: {
                 code: { [Op.like]: `${prefix}%` }
@@ -23,7 +24,7 @@ class VerificationService {
 
         let sequence = 1;
         if (lastRequest && lastRequest.code) {
-           
+
             const lastSequence = parseInt(lastRequest.code.replace(prefix, ''));
             sequence = lastSequence + 1;
         }
@@ -32,11 +33,86 @@ class VerificationService {
     }
 
     /**
+     * Guest: Submit verification request (no account needed)
+     */
+    static async createGuestRequest(data) {
+        try {
+            // Validate required fields
+            if (!data.applicant_email || !data.applicant_name) {
+                throw new Error('Email and name are required');
+            }
+            if (!data.site_name || !data.site_province) {
+                throw new Error('Site name and province are required');
+            }
+
+            const normalizedEmail = data.applicant_email.toLowerCase().trim();
+
+            // Check if email already exists in users table
+            const existingUser = await User.findOne({ where: { email: normalizedEmail } });
+            if (existingUser) {
+                throw new Error('Email already registered. Please login and submit verification request.');
+            }
+
+            // Check if guest already has a pending request with this email
+            const existingRequest = await VerificationRequest.findOne({
+                where: {
+                    applicant_email: normalizedEmail,
+                    status: 'pending'
+                }
+            });
+            if (existingRequest) {
+                throw new Error('You already have a pending verification request with this email');
+            }
+
+            // Generate code
+            const code = await this.generateCode();
+
+            // Create request (user_id = NULL for guest)
+            const request = await VerificationRequest.create({
+                user_id: null,
+                code,
+                applicant_email: normalizedEmail,
+                applicant_name: data.applicant_name.trim(),
+                applicant_phone: data.applicant_phone?.trim(),
+                site_name: data.site_name,
+                site_address: data.site_address,
+                site_province: data.site_province,
+                site_type: data.site_type,
+                site_region: data.site_region,
+                certificate_url: data.certificate_url,
+                introduction: data.introduction,
+                status: 'pending'
+            });
+
+            Logger.info(`Guest verification request created: ${request.code} by ${normalizedEmail}`);
+
+            // Notify all admins
+            await NotificationService.notifyAllAdmins('verification_submitted', {
+                applicantName: data.applicant_name.trim()
+            });
+
+            return {
+                id: request.id,
+                code: request.code,
+                applicant_email: request.applicant_email,
+                applicant_name: request.applicant_name,
+                site_name: request.site_name,
+                site_province: request.site_province,
+                status: request.status,
+                created_at: request.created_at
+            };
+        } catch (error) {
+            Logger.error('Create guest verification request error:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Pilgrim: Submit verification request
      */
     static async createRequest(userId, data) {
         try {
-           
+
             const user = await User.findByPk(userId);
             if (!user) {
                 throw new Error('User not found');
@@ -45,7 +121,7 @@ class VerificationService {
                 throw new Error('Only pilgrims can submit verification requests');
             }
 
-         
+
             const existingRequest = await VerificationRequest.findOne({
                 where: {
                     user_id: userId,
@@ -56,10 +132,10 @@ class VerificationService {
                 throw new Error('You already have a pending verification request');
             }
 
-         
+
             const code = await this.generateCode();
 
-          
+
             const request = await VerificationRequest.create({
                 user_id: userId,
                 code,
@@ -74,6 +150,11 @@ class VerificationService {
             });
 
             Logger.info(`Verification request created: ${request.code} by user ${userId}`);
+
+            // Notify all admins
+            await NotificationService.notifyAllAdmins('verification_submitted', {
+                applicantName: user.full_name || user.email
+            });
 
             return {
                 id: request.id,
@@ -144,7 +225,9 @@ class VerificationService {
             if (search) {
                 where[Op.or] = [
                     { code: { [Op.iLike]: `%${search}%` } },
-                    { site_name: { [Op.iLike]: `%${search}%` } }
+                    { site_name: { [Op.iLike]: `%${search}%` } },
+                    { applicant_email: { [Op.iLike]: `%${search}%` } },
+                    { applicant_name: { [Op.iLike]: `%${search}%` } }
                 ];
             }
 
@@ -155,7 +238,8 @@ class VerificationService {
                 include: [{
                     model: User,
                     as: 'applicant',
-                    attributes: ['id', 'full_name', 'email', 'avatar_url']
+                    attributes: ['id', 'full_name', 'email', 'avatar_url'],
+                    required: false
                 }],
                 limit: parseInt(limit),
                 offset,
@@ -167,12 +251,19 @@ class VerificationService {
                     id: r.id,
                     code: r.code,
                     site_name: r.site_name,
+                    site_address: r.site_address,
                     site_province: r.site_province,
                     site_type: r.site_type,
                     site_region: r.site_region,
                     status: r.status,
                     created_at: r.created_at,
-                    applicant: r.applicant
+
+                    applicant: r.user_id ? r.applicant : {
+                        email: r.applicant_email,
+                        full_name: r.applicant_name,
+                        phone: r.applicant_phone,
+                        is_guest: true
+                    }
                 })),
                 pagination: {
                     page: parseInt(page),
@@ -197,7 +288,8 @@ class VerificationService {
                     {
                         model: User,
                         as: 'applicant',
-                        attributes: ['id', 'full_name', 'email', 'phone', 'avatar_url']
+                        attributes: ['id', 'full_name', 'email', 'phone', 'avatar_url'],
+                        required: false
                     },
                     {
                         model: User,
@@ -226,7 +318,13 @@ class VerificationService {
                 verified_at: request.verified_at,
                 created_at: request.created_at,
                 updated_at: request.updated_at,
-                applicant: request.applicant,
+
+                applicant: request.user_id ? request.applicant : {
+                    email: request.applicant_email,
+                    full_name: request.applicant_name,
+                    phone: request.applicant_phone,
+                    is_guest: true
+                },
                 reviewer: request.reviewer
             };
         } catch (error) {
@@ -236,7 +334,7 @@ class VerificationService {
     }
 
     /**
-     * Admin: Approve verification request → User becomes Manager
+     * Admin: Approve verification request → Create Manager account (no site creation)
      */
     static async approveRequest(requestId, adminId) {
         try {
@@ -250,36 +348,107 @@ class VerificationService {
                 throw new Error('Request is not pending');
             }
 
-            // Update request status
+            let user;
+            let generatedPassword = null;
+
+            // Case 1: Guest registration
+            if (!request.user_id) {
+                const bcrypt = require('bcryptjs');
+
+                // Generate random password (8 characters)
+                generatedPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8).toUpperCase();
+                const password_hash = await bcrypt.hash(generatedPassword, 10);
+
+                // Create manager account
+                user = await User.create({
+                    email: request.applicant_email,
+                    password_hash,
+                    full_name: request.applicant_name,
+                    phone: request.applicant_phone,
+                    role: 'manager',
+                    status: 'active',
+                    language: 'vi',
+                    verified_at: new Date()
+                });
+
+                Logger.info(`Manager account created for guest: ${user.email}`);
+            }
+            // Case 2: Existing pilgrim user
+            else {
+                user = await User.findByPk(request.user_id);
+                if (!user) {
+                    throw new Error('User not found');
+                }
+
+                // Upgrade pilgrim to manager
+                await user.update({
+                    role: 'manager',
+                    verified_at: new Date()
+                });
+
+                Logger.info(`Pilgrim upgraded to manager: ${user.email}`);
+            }
+
+
+            const { Site } = require('../models');
+            const SiteService = require('./siteService');
+
+
+            const siteCode = await SiteService.generateSiteCode(
+                request.site_type || 'church',
+                request.site_region || 'Nam'
+            );
+
+            const site = await Site.create({
+                code: siteCode,
+                name: request.site_name,
+                address: request.site_address,
+                province: request.site_province,
+                type: request.site_type || 'church',
+                region: request.site_region || 'Nam',
+                description: request.introduction,
+                created_by: user.id,
+                is_active: false
+            });
+
+
+            await user.update({ site_id: site.id });
+
+            Logger.info(`Site created: ${site.code} - ${site.name} (is_active: false) for manager ${user.email}`);
+
+
+            try {
+                if (generatedPassword) {
+                    // Guest: Send welcome email with credentials + site info
+                    await EmailService.sendManagerWelcome(
+                        user.email,
+                        user.full_name,
+                        request.code,
+                        generatedPassword,
+                        site.name,
+                        site.code,
+                        site.address
+                    );
+                } else {
+                    // Pilgrim: Send approval email with site info
+                    await EmailService.sendVerificationApprovedWithSite(
+                        user.email,
+                        user.full_name,
+                        request.code,
+                        site.name,
+                        site.code
+                    );
+                }
+            } catch (emailError) {
+                Logger.error('Failed to send email:', emailError);
+            }
+
+
             await request.update({
                 status: 'approved',
                 reviewed_by: adminId,
                 verified_at: new Date()
             });
-
-           
-            const user = await User.findByPk(request.user_id);
-
-           
-            await User.update(
-                {
-                    role: 'manager',
-                    verified_at: new Date()
-                },
-                { where: { id: request.user_id } }
-            );
-
-           
-            try {
-                await EmailService.sendVerificationApproved(
-                    user.email,
-                    user.full_name,
-                    request.code
-                );
-            } catch (emailError) {
-                Logger.error('Failed to send approval email:', emailError);
-               
-            }
 
             Logger.info(`Verification request ${request.code} approved by admin ${adminId}`);
 
@@ -287,7 +456,18 @@ class VerificationService {
                 id: request.id,
                 code: request.code,
                 status: request.status,
-                verified_at: request.verified_at
+                verified_at: request.verified_at,
+                user: {
+                    id: user.id,
+                    email: user.email,
+                    full_name: user.full_name,
+                    role: user.role
+                },
+                site: {
+                    id: site.id,
+                    name: site.name,
+                    is_active: site.is_active
+                }
             };
         } catch (error) {
             Logger.error('Approve verification request error:', error);
@@ -320,18 +500,30 @@ class VerificationService {
                 rejection_reason: rejectionReason
             });
 
-            
+
+            // Send rejection email
             try {
-                const user = await User.findByPk(request.user_id);
+                let email, fullName;
+
+                if (request.user_id) {
+                    // Existing user (Pilgrim request)
+                    const user = await User.findByPk(request.user_id);
+                    email = user.email;
+                    fullName = user.full_name;
+                } else {
+                    // Guest request
+                    email = request.applicant_email;
+                    fullName = request.applicant_name;
+                }
+
                 await EmailService.sendVerificationRejected(
-                    user.email,
-                    user.full_name,
+                    email,
+                    fullName,
                     request.code,
                     rejectionReason
                 );
             } catch (emailError) {
                 Logger.error('Failed to send rejection email:', emailError);
-               
             }
 
             Logger.info(`Verification request ${request.code} rejected by admin ${adminId}`);

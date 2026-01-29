@@ -9,16 +9,29 @@ const VerificationRequest = sequelize.define('VerificationRequest', {
     },
     user_id: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true, // Allow NULL for guest registration
         references: {
             model: 'users',
             key: 'id'
         }
     },
+    // Guest applicant info (when user_id is NULL)
+    applicant_email: {
+        type: DataTypes.STRING(255),
+        allowNull: true
+    },
+    applicant_name: {
+        type: DataTypes.STRING(255),
+        allowNull: true
+    },
+    applicant_phone: {
+        type: DataTypes.STRING(20),
+        allowNull: true
+    },
     code: {
         type: DataTypes.STRING(10),
         unique: true,
-        allowNull: true 
+        allowNull: true
     },
 
     site_name: {

@@ -4,6 +4,41 @@ const { validationResult } = require('express-validator');
 const { formatValidationErrors } = require('../utils/validation.util');
 
 /**
+ * Guest: Submit verification request (no account needed)
+ */
+exports.createGuestRequest = async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            const formattedErrors = formatValidationErrors(errors.array());
+            return ResponseUtil.badRequest(res, req.__('validation.failed'), formattedErrors);
+        }
+
+        if (req.file) {
+            req.body.certificate_url = req.file.path;
+        }
+
+        const result = await VerificationService.createGuestRequest(req.body);
+
+        return ResponseUtil.created(res, result, req.__('verification.guest_create_success'));
+    } catch (error) {
+        if (error.message === 'Email and name are required') {
+            return ResponseUtil.badRequest(res, req.__('verification.email_name_required'));
+        }
+        if (error.message === 'Site name and province are required') {
+            return ResponseUtil.badRequest(res, req.__('verification.site_info_required'));
+        }
+        if (error.message === 'Email already registered. Please login and submit verification request.') {
+            return ResponseUtil.conflict(res, req.__('verification.email_already_registered'));
+        }
+        if (error.message === 'You already have a pending verification request with this email') {
+            return ResponseUtil.conflict(res, req.__('verification.guest_already_pending'));
+        }
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
+
+/**
  * Pilgrim: Submit verification request
  */
 

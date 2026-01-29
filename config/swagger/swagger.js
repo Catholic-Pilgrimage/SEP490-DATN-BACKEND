@@ -39,6 +39,7 @@ const options = {
   },
   apis: [
     './config/swagger/apis/*.js',
+    './config/swagger/apis/localGuide/*.js',
     './config/swagger/schemas/*.js',
     './routes/*.js'
   ]

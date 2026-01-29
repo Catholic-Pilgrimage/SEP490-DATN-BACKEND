@@ -10,11 +10,15 @@ const Event = require('./Event');
 const GuideShiftSubmission = require('./GuideShiftSubmission');
 const GuideShift = require('./GuideShift');
 const VerificationRequest = require('./VerificationRequest');
+const NearbyPlace = require('./NearbyPlace');
 const Journal = require('./Journal');
 const Planner = require('./Planner');
 const PlannerItem = require('./PlannerItem');
 const UserFavorite = require('./UserFavorite');
 const UserCheckin = require('./UserCheckin');
+const Notification = require('./Notification');
+const UserPushToken = require('./UserPushToken');
+const SOSRequest = require('./SOSRequest');
 
 
 
@@ -61,6 +65,7 @@ VerificationRequest.belongsTo(User, { foreignKey: 'user_id', as: 'applicant' });
 // VerificationRequest - User (reviewer)
 VerificationRequest.belongsTo(User, { foreignKey: 'reviewed_by', as: 'reviewer' });
 
+
 // User - Journal
 User.hasMany(Journal, { foreignKey: 'user_id', as: 'journals' });
 Journal.belongsTo(User, { foreignKey: 'user_id', as: 'author' });
@@ -103,6 +108,62 @@ UserCheckin.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 PlannerItem.hasMany(UserCheckin, { foreignKey: 'planner_item_id', as: 'checkins' });
 UserCheckin.belongsTo(PlannerItem, { foreignKey: 'planner_item_id', as: 'plannerItem' });
 
+// ===================== GUIDE SHIFT SUBMISSIONS =====================
+
+// GuideShiftSubmission - User (Guide)
+User.hasMany(GuideShiftSubmission, { foreignKey: 'guide_id', as: 'shiftSubmissions' });
+GuideShiftSubmission.belongsTo(User, { foreignKey: 'guide_id', as: 'guide' });
+
+// GuideShiftSubmission - Site
+Site.hasMany(GuideShiftSubmission, { foreignKey: 'site_id', as: 'shiftSubmissions' });
+GuideShiftSubmission.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
+
+// GuideShiftSubmission - User (approved_by)
+GuideShiftSubmission.belongsTo(User, { foreignKey: 'approved_by', as: 'approver' });
+
+// GuideShiftSubmission - Self reference (previous submission)
+GuideShiftSubmission.belongsTo(GuideShiftSubmission, { foreignKey: 'previous_submission_id', as: 'previousSubmission' });
+
+// GuideShiftSubmission - GuideShift
+GuideShiftSubmission.hasMany(GuideShift, { foreignKey: 'submission_id', as: 'shifts' });
+GuideShift.belongsTo(GuideShiftSubmission, { foreignKey: 'submission_id', as: 'submission' });
+
+// ===================== NEARBY PLACES =====================
+
+// NearbyPlace - Site
+Site.hasMany(NearbyPlace, { foreignKey: 'site_id', as: 'nearbyPlaces' });
+NearbyPlace.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
+
+// NearbyPlace - User (proposed_by)
+User.hasMany(NearbyPlace, { foreignKey: 'proposed_by', as: 'proposedPlaces' });
+NearbyPlace.belongsTo(User, { foreignKey: 'proposed_by', as: 'proposer' });
+
+// NearbyPlace - User (reviewed_by)
+NearbyPlace.belongsTo(User, { foreignKey: 'reviewed_by', as: 'reviewer' });
+
+// ===================== NOTIFICATIONS =====================
+
+// Notification - User (receiver)
+User.hasMany(Notification, { foreignKey: 'receiver_id', as: 'notifications' });
+Notification.belongsTo(User, { foreignKey: 'receiver_id', as: 'receiver' });
+
+// UserPushToken - User
+User.hasMany(UserPushToken, { foreignKey: 'user_id', as: 'pushTokens' });
+UserPushToken.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+// ===================== SOS REQUESTS =====================
+
+// SOSRequest - User (pilgrim who sent)
+User.hasMany(SOSRequest, { foreignKey: 'user_id', as: 'sosRequests' });
+SOSRequest.belongsTo(User, { foreignKey: 'user_id', as: 'pilgrim' });
+
+// SOSRequest - Site
+Site.hasMany(SOSRequest, { foreignKey: 'site_id', as: 'sosRequests' });
+SOSRequest.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
+
+// SOSRequest - User (assigned LocalGuide)
+SOSRequest.belongsTo(User, { foreignKey: 'assigned_to', as: 'assignedGuide' });
+
 
 const db = {
   sequelize,
@@ -121,7 +182,17 @@ const db = {
   Planner,
   PlannerItem,
   UserFavorite,
-  UserCheckin
+  UserCheckin,
+  VerificationRequest,
+  GuideShiftSubmission,
+  GuideShift,
+  NearbyPlace,
+  Journal,
+  Planner,
+  PlannerItem,
+  Notification,
+  UserPushToken,
+  SOSRequest
 };
 
 module.exports = db;

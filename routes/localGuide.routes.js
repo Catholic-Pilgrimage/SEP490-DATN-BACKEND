@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const LocalGuideController = require('../controllers/LocalGuideController');
+const LocalGuideController = require('../controllers/localGuide');
 const authMiddleware = require('../middlewares/auth.middleware');
 const i18nMiddleware = require('../middlewares/i18n.middleware');
 const { uploadMedia } = require('../config/cloudinary.config');
@@ -44,6 +44,16 @@ router.delete(
     LocalGuideValidator.validateMediaId,
     handleValidationErrors,
     LocalGuideController.deleteMedia
+);
+
+// PATCH - Restore media
+router.patch(
+    '/media/:id/restore',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    LocalGuideValidator.validateMediaId,
+    handleValidationErrors,
+    LocalGuideController.restoreMedia
 );
 
 // PUT  - Update media (pending only)
@@ -101,6 +111,16 @@ router.delete(
     LocalGuideController.deleteSchedule
 );
 
+// PATCH - Restore schedule
+router.patch(
+    '/schedules/:id/restore',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    LocalGuideValidator.validateScheduleId,
+    handleValidationErrors,
+    LocalGuideController.restoreSchedule
+);
+
 // ========================
 // EVENT ROUTES
 // ========================
@@ -144,6 +164,16 @@ router.delete(
     LocalGuideValidator.validateEventId,
     handleValidationErrors,
     LocalGuideController.deleteEvent
+);
+
+// PATCH - Restore event
+router.patch(
+    '/events/:id/restore',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    LocalGuideValidator.validateEventId,
+    handleValidationErrors,
+    LocalGuideController.restoreEvent
 );
 
 // ========================
@@ -196,6 +226,54 @@ router.get(
     authMiddleware,
     authMiddleware.authorize('local_guide'),
     LocalGuideController.getSiteSchedule
+);
+
+// ===================== NEARBY PLACES =====================
+
+// POST - Create nearby place
+router.post(
+    '/nearby-places',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    uploadMedia.none(),
+    LocalGuideValidator.createNearbyPlace,
+    handleValidationErrors,
+    LocalGuideController.createNearbyPlace
+);
+
+// GET - Get my nearby places
+router.get(
+    '/nearby-places',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    LocalGuideController.getNearbyPlaces
+);
+
+// PUT - Update nearby place
+router.put(
+    '/nearby-places/:id',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    uploadMedia.none(),
+    LocalGuideValidator.updateNearbyPlace,
+    handleValidationErrors,
+    LocalGuideController.updateNearbyPlace
+);
+
+// DELETE - Delete nearby place
+router.delete(
+    '/nearby-places/:id',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    LocalGuideController.deleteNearbyPlace
+);
+
+// PATCH - Restore nearby place
+router.patch(
+    '/nearby-places/:id/restore',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    LocalGuideController.restoreNearbyPlace
 );
 
 

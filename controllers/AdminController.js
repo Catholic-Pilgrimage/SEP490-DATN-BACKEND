@@ -1,4 +1,4 @@
-const AdminService = require('../services/adminService');
+const AdminUserService = require('../services/admin/adminUserService');
 const ResponseUtil = require('../utils/response.util');
 const { validationResult } = require('express-validator');
 const { formatValidationErrors } = require('../utils/validation.util');
@@ -14,7 +14,7 @@ exports.getUsers = async (req, res) => {
 
     const { page, limit, role, status, search } = req.query;
     
-    const result = await AdminService.getUsers({
+    const result = await AdminUserService.getUsers({
       page,
       limit,
       role,
@@ -38,7 +38,7 @@ exports.getUserById = async (req, res) => {
     }
 
     const { id } = req.params;
-    const result = await AdminService.getUserById(id);
+    const result = await AdminUserService.getUserById(id);
     
     if (!result) {
       return ResponseUtil.notFound(res, req.__('admin.user_not_found'));
@@ -62,7 +62,7 @@ exports.updateUserStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    const result = await AdminService.updateUserStatus(id, status);
+    const result = await AdminUserService.updateUserStatus(id, status);
     
     if (!result) {
       return ResponseUtil.notFound(res, req.__('admin.user_not_found'));
@@ -91,7 +91,7 @@ exports.updateUser = async (req, res) => {
     }
 
     const { id } = req.params;
-    const result = await AdminService.updateUser(id, req.body);
+    const result = await AdminUserService.updateUser(id, req.body);
     
     if (!result) {
       return ResponseUtil.notFound(res, req.__('admin.user_not_found'));

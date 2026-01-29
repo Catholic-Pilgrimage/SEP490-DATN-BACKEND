@@ -3,13 +3,16 @@ const router = express.Router();
 const authRoutes = require('./auth.routes');
 const adminRoutes = require('./admin.routes');
 const { adminRouter: adminSiteRoutes, managerRouter: managerSiteRoutes, publicRouter: publicSiteRoutes } = require('./site.routes');
-const { pilgrimRouter: verificationRoutes, adminRouter: adminVerificationRoutes } = require('./verification.routes');
+const { publicRouter: publicVerificationRoutes, pilgrimRouter: verificationRoutes, adminRouter: adminVerificationRoutes } = require('./verification.routes');
 const managerLocalGuideRoutes = require('./managerLocalGuide.routes');
 const localGuideRoutes = require('./localGuide.routes');
 const managerContentRoutes = require('./managerContent.routes');
+const publicRoutes = require('./public.routes');
 const journalRoutes = require('./journal.routes');
 const plannerRoutes = require('./planner.routes');
 const checkinRoutes = require('./checkin.routes');
+const notificationRoutes = require('./notification.routes');
+const sosRoutes = require('./sos.routes');
 
 router.get('/', (req, res) => {
   res.json({
@@ -29,13 +32,18 @@ router.get('/', (req, res) => {
       adminVerification: '/api/admin/verification-requests',
       journals: '/api/journals',
       planners: '/api/planners',
-      checkins: '/api/planner-items/:id/checkin'
+      checkins: '/api/planner-items/:id/checkin',
+      notifications: '/api/notifications',
+      sos: '/api/sos'
     }
   });
 });
 
 // Auth routes
 router.use('/auth', authRoutes);
+
+// Public Verification routes (Guest registration - no auth)
+router.use('/verification', publicVerificationRoutes);
 
 // Admin routes
 router.use('/admin', adminRoutes);
@@ -64,6 +72,9 @@ router.use('/verification-requests', verificationRoutes);
 // Admin Verification routes (Admin only)
 router.use('/admin/verification-requests', adminVerificationRoutes);
 
+// Public routes (Sites, Events, etc.)
+router.use('/sites', publicRoutes);
+
 // Journal routes
 router.use('/journals', journalRoutes);
 
@@ -75,3 +86,10 @@ router.use('/planner-items', checkinRoutes);
 
 module.exports = router;
 
+// Notification routes
+router.use('/notifications', notificationRoutes);
+
+// SOS routes
+router.use('/sos', sosRoutes);
+
+module.exports = router;

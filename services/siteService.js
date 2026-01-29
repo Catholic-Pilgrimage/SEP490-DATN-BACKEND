@@ -1,6 +1,7 @@
-const { Site, User, VerificationRequest, UserFavorite } = require('../models');
+const { Site, User, VerificationRequest, SiteMedia, MassSchedule, Event, NearbyPlace, UserFavorite} = require('../models');
 const { Op } = require('sequelize');
 const Logger = require('../utils/logger.util');
+const appConfig = require('../config/app.config');
 
 // Site code constants
 const TYPE_CODES = {
@@ -76,7 +77,7 @@ class SiteService {
 
 
   /**
-   * Manager: Create site (max 1 site per manager, auto-approved)
+   * Manager: Create site (only if no site exists - for recovery)
    */
   static async createManagerSite(managerId, siteData) {
     try {
@@ -87,13 +88,26 @@ class SiteService {
       if (manager.role !== 'manager') {
         throw new Error('Only managers can create sites');
       }
+
+
       if (manager.site_id) {
-        throw new Error('Manager already has a site');
+        const existingSite = await Site.findByPk(manager.site_id);
+        if (existingSite) {
+          throw new Error('Manager already has a site');
+        }
+
+        Logger.info(`Manager ${managerId} site was deleted, allowing new site creation`);
       }
 
-      // Get approved verification request for prefill data
+
       const verificationRequest = await VerificationRequest.findOne({
-        where: { user_id: managerId, status: 'approved' }
+        where: {
+          [Op.or]: [
+            { user_id: managerId },
+            { applicant_email: manager.email }
+          ],
+          status: 'approved'
+        }
       });
 
       const {
@@ -101,7 +115,6 @@ class SiteService {
         latitude, longitude, region, type, patron_saint,
         cover_image, opening_hours, contact_info
       } = siteData;
-
 
       const siteName = name || verificationRequest?.site_name;
       const siteProvince = province || verificationRequest?.site_province;
@@ -139,10 +152,10 @@ class SiteService {
         opening_hours,
         contact_info,
         created_by: managerId,
-        is_active: true
+        is_active: false
       });
 
-      // Link site to manager
+
       await User.update({ site_id: site.id }, { where: { id: managerId } });
 
       Logger.info(`Site created by manager ${managerId}: ${site.code} - ${site.name}`);
@@ -231,169 +244,304 @@ class SiteService {
     }
   }
 
-
+  // ===================== PUBLIC APIs =====================
 
   /**
-   * Admin: Get all sites with filters
+   * Public: Get all active sites with pagination and filters
+   * For pilgrim and guest users
    */
-  static async getSites(options = {}) {
+  static async getPublicSites(filters = {}) {
     try {
-      const { page = 1, limit = 10, region, type, is_active, search } = options;
-      const where = {};
-
-      if (is_active !== undefined) {
-        where.is_active = is_active === 'true' || is_active === true;
-      }
-      if (region && ['Bac', 'Trung', 'Nam'].includes(region)) {
-        where.region = region;
-      }
-      if (type && ['church', 'shrine', 'monastery', 'center', 'other'].includes(type)) {
-        where.type = type;
-      }
-      if (search) {
-        where[Op.or] = [
-          { name: { [Op.iLike]: `%${search}%` } },
-          { code: { [Op.iLike]: `%${search}%` } }
-        ];
-      }
-
+      const page = parseInt(filters.page) || 1;
+      const limit = parseInt(filters.limit) || 10;
       const offset = (page - 1) * limit;
-      const { rows: sites, count: total } = await Site.findAndCountAll({
+
+      const where = {
+        is_active: true
+      };
+
+      // Optional filters
+      if (filters.province) where.province = filters.province;
+      if (filters.region) where.region = filters.region;
+      if (filters.type) where.type = filters.type;
+      if (filters.search) {
+        where.name = { [Op.iLike]: `%${filters.search}%` };
+      }
+
+      const { count, rows } = await Site.findAndCountAll({
         where,
-        limit: parseInt(limit),
-        offset,
-        order: [['created_at', 'DESC']]
+        attributes: ['id', 'code', 'name', 'description', 'address', 'province', 'district', 'region', 'type', 'patron_saint', 'cover_image', 'opening_hours', 'latitude', 'longitude'],
+        order: [['name', 'ASC']],
+        limit,
+        offset
       });
 
       return {
-        sites: sites.map(site => ({
-          id: site.id,
-          code: site.code,
-          name: site.name,
-          description: site.description,
-          address: site.address,
-          province: site.province,
-          district: site.district,
-          region: site.region,
-          type: site.type,
-          patron_saint: site.patron_saint,
-          cover_image: site.cover_image,
-          is_active: site.is_active,
-          created_at: site.created_at
-        })),
+        data: rows,
         pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          totalPages: Math.ceil(total / limit)
+          page,
+          limit,
+          totalItems: count,
+          totalPages: Math.ceil(count / limit)
         }
       };
     } catch (error) {
-      Logger.error('Get sites error:', error);
+      Logger.error('Get public sites error:', error);
       throw error;
     }
   }
 
   /**
-   * Admin: Get site by ID
+   * Public: Get site detail by ID or code
+   * For pilgrim and guest users
    */
-  static async getSiteById(siteId) {
+  static async getPublicSiteById(siteIdOrCode) {
     try {
-      const site = await Site.findByPk(siteId);
-      if (!site) throw new Error('Site not found');
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(siteIdOrCode);
 
-      // Get creator info
-      const creator = await User.findByPk(site.created_by);
-      return this.formatSiteResponse(site, creator);
+      const where = isUUID
+        ? { id: siteIdOrCode, is_active: true }
+        : { code: siteIdOrCode, is_active: true };
+
+      const site = await Site.findOne({
+        where,
+        attributes: ['id', 'code', 'name', 'description', 'history', 'address', 'province', 'district', 'region', 'type', 'patron_saint', 'cover_image', 'opening_hours', 'contact_info', 'latitude', 'longitude', 'created_at']
+      });
+
+      if (!site) {
+        throw new Error('Site not found');
+      }
+
+      return site;
     } catch (error) {
-      Logger.error('Get site by ID error:', error);
+      Logger.error('Get public site by ID error:', error);
+      throw error;
+    }
+  }
+  /**
+   * Public: Get site media (approved only)
+   * For pilgrim and guest users to view site gallery
+   */
+  static async getPublicSiteMedia(siteId, filters = {}) {
+    try {
+      const page = parseInt(filters.page) || 1;
+      const limit = parseInt(filters.limit) || 20;
+      const offset = (page - 1) * limit;
+
+      // Check if site exists and is active
+      const site = await Site.findOne({
+        where: { id: siteId, is_active: true }
+      });
+
+      if (!site) {
+        throw new Error('Site not found');
+      }
+
+      const where = {
+        site_id: siteId,
+        status: 'approved',
+        is_active: true
+      };
+
+      // Filter by media type
+      if (filters.type && ['image', 'video', 'panorama'].includes(filters.type)) {
+        where.type = filters.type;
+      }
+
+      const { SiteMedia } = require('../models');
+      const { count, rows } = await SiteMedia.findAndCountAll({
+        where,
+        attributes: ['id', 'code', 'url', 'type', 'caption', 'created_at'],
+        order: [['created_at', 'DESC']],
+        limit,
+        offset
+      });
+
+      return {
+        site: {
+          id: site.id,
+          code: site.code,
+          name: site.name
+        },
+        data: rows,
+        pagination: {
+          page,
+          limit,
+          totalItems: count,
+          totalPages: Math.ceil(count / limit)
+        }
+      };
+    } catch (error) {
+      Logger.error('Get public site media error:', error);
       throw error;
     }
   }
 
   /**
-   * Admin: Update site (can change status)
+   * Public: Get site mass schedules (approved only)
+   * For pilgrim and guest users to view mass schedules
    */
-  static async updateSite(siteId, updateData) {
+  static async getPublicSiteMassSchedules(siteId, filters = {}) {
     try {
-      const site = await Site.findByPk(siteId);
-      if (!site) throw new Error('Site not found');
+      // Check if site exists and is active
+      const site = await Site.findOne({
+        where: { id: siteId, is_active: true }
+      });
 
-      const allowedFields = [
-        'name', 'description', 'history', 'address', 'province', 'district',
-        'latitude', 'longitude', 'region', 'type', 'patron_saint',
-        'cover_image', 'opening_hours', 'contact_info'
-      ];
+      if (!site) {
+        throw new Error('Site not found');
+      }
 
-      const dataToUpdate = {};
-      for (const field of allowedFields) {
-        if (updateData[field] !== undefined) {
-          if (typeof updateData[field] === 'string' &&
-            ['name', 'address', 'province', 'district', 'patron_saint'].includes(field)) {
-            dataToUpdate[field] = updateData[field].trim();
-          } else {
-            dataToUpdate[field] = updateData[field];
-          }
+      const where = {
+        site_id: siteId,
+        status: 'approved',
+        is_active: true
+      };
+
+      // Filter by day_of_week
+      if (filters.day_of_week !== undefined && filters.day_of_week !== null) {
+        const dayNum = parseInt(filters.day_of_week);
+        if (dayNum >= 0 && dayNum <= 6) {
+          where.days_of_week = { [Op.contains]: [dayNum] };
         }
       }
 
-      if (dataToUpdate.name || dataToUpdate.province) {
-        const checkName = dataToUpdate.name || site.name;
-        const checkProvince = dataToUpdate.province || site.province;
-        const existingSite = await Site.findOne({
-          where: {
-            name: checkName,
-            province: checkProvince,
-            id: { [Op.ne]: siteId }
-          }
-        });
-        if (existingSite) throw new Error('Site already exists');
+      const { MassSchedule } = require('../models');
+      const schedules = await MassSchedule.findAll({
+        where,
+        attributes: ['id', 'code', 'days_of_week', 'time', 'note', 'created_at'],
+        order: [['time', 'ASC']]
+      });
+
+      return {
+        site: {
+          id: site.id,
+          code: site.code,
+          name: site.name
+        },
+        data: schedules
+      };
+    } catch (error) {
+      Logger.error('Get public site mass schedules error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Public: Get site events (approved only)
+   * For pilgrim and guest users to view events
+   */
+  static async getPublicSiteEvents(siteId, filters = {}) {
+    try {
+      const page = parseInt(filters.page) || 1;
+      const limit = parseInt(filters.limit) || 10;
+      const offset = (page - 1) * limit;
+
+      // Check if site exists and is active
+      const site = await Site.findOne({
+        where: { id: siteId, is_active: true }
+      });
+
+      if (!site) {
+        throw new Error('Site not found');
       }
 
-      await site.update(dataToUpdate);
-      Logger.info(`Site updated by admin: ${site.code}`);
+      const where = {
+        site_id: siteId,
+        status: 'approved',
+        is_active: true
+      };
 
-      // Get creator info
-      const creator = await User.findByPk(site.created_by);
-      return this.formatSiteResponse(site, creator);
+      // Filter by date range (upcoming events)
+      if (filters.upcoming === 'true') {
+        const today = new Date(new Date().toLocaleString('en-US', { timeZone: appConfig.timezone })).toISOString().split('T')[0];
+        where.start_date = { [Op.gte]: today };
+      }
+
+      const { Event } = require('../models');
+      const { count, rows } = await Event.findAndCountAll({
+        where,
+        attributes: ['id', 'code', 'name', 'description', 'start_date', 'end_date', 'start_time', 'end_time', 'location', 'banner_url', 'created_at'],
+        order: [['start_date', 'ASC'], ['start_time', 'ASC']],
+        limit,
+        offset
+      });
+
+      return {
+        site: {
+          id: site.id,
+          code: site.code,
+          name: site.name
+        },
+        data: rows,
+        pagination: {
+          page,
+          limit,
+          totalItems: count,
+          totalPages: Math.ceil(count / limit)
+        }
+      };
     } catch (error) {
-      Logger.error('Update site error:', error);
+      Logger.error('Get public site events error:', error);
       throw error;
     }
   }
 
   /**
-   * Admin: Soft delete site
+   * Public: Get nearby places of a site (approved only)
    */
-  static async deleteSite(siteId) {
+  static async getPublicSiteNearbyPlaces(siteId, filters = {}) {
     try {
-      const site = await Site.findByPk(siteId);
-      if (!site) throw new Error('Site not found');
-      if (!site.is_active) throw new Error('Site already deleted');
+      const site = await Site.findOne({
+        where: {
+          id: siteId,
+          is_active: true
+        },
+        attributes: ['id', 'code', 'name']
+      });
 
-      await site.update({ is_active: false });
-      Logger.info(`Site soft deleted: ${site.code}`);
-      return { id: site.id, code: site.code, name: site.name, is_active: site.is_active };
+      if (!site) {
+        throw new Error('Site not found');
+      }
+
+      const page = parseInt(filters.page) || 1;
+      const limit = parseInt(filters.limit) || 20;
+      const offset = (page - 1) * limit;
+
+      const where = {
+        site_id: siteId,
+        status: 'approved',
+        is_active: true
+      };
+
+      if (filters.category && ['food', 'lodging', 'medical'].includes(filters.category)) {
+        where.category = filters.category;
+      }
+
+      const { count, rows } = await NearbyPlace.findAndCountAll({
+        where,
+        attributes: ['id', 'code', 'name', 'category', 'address', 'latitude', 'longitude', 'distance_meters', 'phone', 'description'],
+        order: [['distance_meters', 'ASC'], ['created_at', 'DESC']],
+        limit,
+        offset
+      });
+
+      return {
+        site: {
+          id: site.id,
+          code: site.code,
+          name: site.name
+        },
+        data: rows,
+        pagination: {
+          page,
+          limit,
+          totalItems: count,
+          totalPages: Math.ceil(count / limit)
+        }
+      };
     } catch (error) {
-      Logger.error('Delete site error:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Admin: Restore site
-   */
-  static async restoreSite(siteId) {
-    try {
-      const site = await Site.findByPk(siteId);
-      if (!site) throw new Error('Site not found');
-      if (site.is_active) throw new Error('Site is not deleted');
-
-      await site.update({ is_active: true });
-      Logger.info(`Site restored: ${site.code}`);
-      return { id: site.id, code: site.code, name: site.name, is_active: site.is_active };
-    } catch (error) {
-      Logger.error('Restore site error:', error);
+      Logger.error('Get public site nearby places error:', error);
       throw error;
     }
   }

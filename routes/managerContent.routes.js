@@ -82,5 +82,31 @@ router.patch(
     ManagerContentController.toggleEventActive
 );
 
+// ===================== NEARBY PLACES =====================
+
+// GET - Get all nearby places
+router.get(
+    '/nearby-places',
+    authMiddleware,
+    authMiddleware.authorize('manager'),
+    ManagerContentController.getNearbyPlaces
+);
+
+// PATCH - Approve/Reject nearby place
+router.patch(
+    '/nearby-places/:id/status',
+    authMiddleware,
+    authMiddleware.authorize('manager'),
+    ManagerContentController.updateNearbyPlaceStatus
+);
+
+// PATCH - Toggle nearby place is_active (soft delete/restore)
+router.patch(
+    '/nearby-places/:id/is-active',
+    authMiddleware,
+    authMiddleware.authorize('manager'),
+    ManagerContentController.toggleNearbyPlaceActive
+);
+
 
 module.exports = router;

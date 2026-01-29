@@ -261,8 +261,13 @@ CREATE TRIGGER update_user_push_tokens_updated_at
 -- ============================================
 CREATE TABLE IF NOT EXISTS verification_requests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE, -- NULL for guest registration
     code VARCHAR(10) UNIQUE, -- Auto-generated: VR001, VR002...
+    
+    -- Guest applicant info (when user_id is NULL)
+    applicant_email VARCHAR(255),
+    applicant_name VARCHAR(255),
+    applicant_phone VARCHAR(20),
     
     -- Basic site info (for Admin to review)
     site_name VARCHAR(255) NOT NULL,
@@ -714,20 +719,39 @@ CREATE TRIGGER update_reports_updated_at
 -- ============================================
 CREATE TABLE IF NOT EXISTS sos_requests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code VARCHAR(15) UNIQUE, -- Auto-generated: SOS0129001
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    site_id UUID REFERENCES sites(id),
+    site_id UUID REFERENCES sites(id) ON DELETE SET NULL,
     latitude DECIMAL(9,6),
     longitude DECIMAL(9,6),
     message TEXT,
     contact_phone VARCHAR(20),
     status sos_status DEFAULT 'pending',
-    notes TEXT,
+    
+    -- Assignment
+    assigned_to UUID REFERENCES users(id) ON DELETE SET NULL, -- LocalGuide who accepted
+    assigned_at TIMESTAMP WITH TIME ZONE,
+    
+    -- Resolution
+    notes TEXT, -- Resolution notes
     resolved_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX IF NOT EXISTS idx_sos_code ON sos_requests(code);
 CREATE INDEX IF NOT EXISTS idx_sos_status ON sos_requests(status);
 CREATE INDEX IF NOT EXISTS idx_sos_site ON sos_requests(site_id);
+CREATE INDEX IF NOT EXISTS idx_sos_user ON sos_requests(user_id);
+CREATE INDEX IF NOT EXISTS idx_sos_assigned ON sos_requests(assigned_to) WHERE assigned_to IS NOT NULL;
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_sos_requests_updated_at ON sos_requests;
+CREATE TRIGGER update_sos_requests_updated_at
+    BEFORE UPDATE ON sos_requests
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
 -- 13. NOTIFICATIONS (NEW)
@@ -752,6 +776,7 @@ CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(receiver_id
 CREATE TABLE IF NOT EXISTS nearby_places (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    code VARCHAR(15) UNIQUE NOT NULL,
     proposed_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     category nearby_place_category NOT NULL,
@@ -761,9 +786,12 @@ CREATE TABLE IF NOT EXISTS nearby_places (
     distance_meters INT,
     phone VARCHAR(20),
     description TEXT,
+    image_url TEXT,
     status nearby_place_status DEFAULT 'pending',
+    rejection_reason TEXT,
     reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
     reviewed_at TIMESTAMP WITH TIME ZONE,
+    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
