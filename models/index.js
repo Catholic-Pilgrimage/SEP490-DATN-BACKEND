@@ -14,6 +14,7 @@ const Journal = require('./Journal');
 const Planner = require('./Planner');
 const PlannerItem = require('./PlannerItem');
 const UserFavorite = require('./UserFavorite');
+const UserCheckin = require('./UserCheckin');
 
 
 
@@ -94,6 +95,14 @@ Site.belongsToMany(User, {
   as: 'favoritedBy'
 });
 
+// User - UserCheckin
+User.hasMany(UserCheckin, { foreignKey: 'user_id', as: 'checkins' });
+UserCheckin.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+// PlannerItem - UserCheckin
+PlannerItem.hasMany(UserCheckin, { foreignKey: 'planner_item_id', as: 'checkins' });
+UserCheckin.belongsTo(PlannerItem, { foreignKey: 'planner_item_id', as: 'plannerItem' });
+
 
 const db = {
   sequelize,
@@ -111,7 +120,8 @@ const db = {
   Journal,
   Planner,
   PlannerItem,
-  UserFavorite
+  UserFavorite,
+  UserCheckin
 };
 
 module.exports = db;

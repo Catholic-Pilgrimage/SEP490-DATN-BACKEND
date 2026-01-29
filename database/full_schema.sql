@@ -538,19 +538,29 @@ CREATE TABLE IF NOT EXISTS user_favorites (
     PRIMARY KEY (user_id, site_id)
 );
 
--- 8.2 Check-ins (UPDATED - added GPS)
+-- 8.2 Check-ins (UPDATED - planner-item-based with GPS validation)
 CREATE TABLE IF NOT EXISTS user_checkins (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    site_id UUID REFERENCES sites(id) ON DELETE CASCADE,
+    
+    user_id UUID NOT NULL
+        REFERENCES users(id) ON DELETE CASCADE,
+    
+    planner_item_id UUID NOT NULL
+        REFERENCES planner_items(id) ON DELETE CASCADE,
+    
     latitude DECIMAL(9,6),
     longitude DECIMAL(9,6),
+    
+    distance_meters INT,
+    is_valid BOOLEAN DEFAULT false,
+    
     checkin_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    note TEXT
+    note TEXT,
+    
+    UNIQUE (user_id, planner_item_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_checkins_user ON user_checkins(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_checkins_site ON user_checkins(site_id);
 
 -- ============================================
 -- 9. PRAYER NOTES (NEW - Prayer Offering)

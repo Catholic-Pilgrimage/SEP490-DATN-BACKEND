@@ -9,6 +9,7 @@ const localGuideRoutes = require('./localGuide.routes');
 const managerContentRoutes = require('./managerContent.routes');
 const journalRoutes = require('./journal.routes');
 const plannerRoutes = require('./planner.routes');
+const checkinRoutes = require('./checkin.routes');
 
 router.get('/', (req, res) => {
   res.json({
@@ -27,7 +28,8 @@ router.get('/', (req, res) => {
       verification: '/api/verification-requests',
       adminVerification: '/api/admin/verification-requests',
       journals: '/api/journals',
-      planners: '/api/planners'
+      planners: '/api/planners',
+      checkins: '/api/planner-items/:id/checkin'
     }
   });
 });
@@ -67,6 +69,9 @@ router.use('/journals', journalRoutes);
 
 // Planner routes
 router.use('/planners', plannerRoutes);
+
+// Check-in routes
+router.use('/planner-items', checkinRoutes);
 
 module.exports = router;
 
