@@ -205,9 +205,6 @@
     "approved_submission_exists": "Bạn đã có lịch được duyệt cho tuần này. Để cập nhật, vui lòng gửi previous_submission_id và change_reason.",
     "get_site_schedule_success": "Lấy lịch site thành công",
     "week_start_date_required": "Ngày đầu tuần không được để trống",
-    "event_not_found": "Không tìm thấy sự kiện",
-    "update_approved_event_error": "Không thể cập nhật sự kiện đã được duyệt",
-    "delete_approved_event_error": "Không thể xóa sự kiện đã được duyệt",
     "get_nearby_places_success": "Lấy danh sách địa điểm lân cận thành công",
     "update_nearby_place_success": "Cập nhật địa điểm lân cận thành công",
     "delete_nearby_place_success": "Xóa địa điểm lân cận thành công",
@@ -282,5 +279,32 @@
     "not_found": "Không tìm thấy thông báo",
     "invalid_token": "Token push không hợp lệ",
     "token_required": "Token push là bắt buộc"
+  },
+  "sos": {
+    "create_success": "Gửi yêu cầu SOS thành công. Hỗ trợ đang đến!",
+    "get_success": "Lấy thông tin SOS thành công",
+    "list_success": "Lấy danh sách SOS thành công",
+    "cancel_success": "Hủy yêu cầu SOS thành công",
+    "assign_success": "Nhận xử lý SOS thành công. Hãy hỗ trợ người hành hương!",
+    "resolve_success": "Giải quyết SOS thành công",
+    "stats_success": "Lấy thống kê SOS thành công",
+    "not_found": "Không tìm thấy yêu cầu SOS",
+    "already_pending": "Bạn đã có yêu cầu SOS đang chờ xử lý. Vui lòng đợi hoặc hủy trước.",
+    "already_accepted": "Yêu cầu SOS đã được hướng dẫn viên khác nhận",
+    "already_resolved": "Yêu cầu SOS đã được giải quyết",
+    "not_pending": "Yêu cầu SOS không ở trạng thái chờ xử lý",
+    "cannot_cancel": "Chỉ có thể hủy yêu cầu SOS đang chờ xử lý",
+    "was_cancelled": "Yêu cầu SOS đã bị hủy",
+    "only_assigned_can_resolve": "Chỉ hướng dẫn viên đã nhận mới có thể giải quyết SOS này",
+    "unauthorized": "Không có quyền thực hiện thao tác này",
+    "no_guides_on_duty": "Không có hướng dẫn viên đang trực. Đã thông báo cho quản lý.",
+    "notification": {
+      "sos_created_title": "Có yêu cầu SOS mới",
+      "sos_created_body": "{{pilgrimName}} cần hỗ trợ tại {{siteName}}",
+      "sos_assigned_title": "SOS đang được hỗ trợ",
+      "sos_assigned_body": "{{guideName}} đang đến hỗ trợ bạn. SĐT: {{guidePhone}}",
+      "sos_resolved_title": "SOS đã giải quyết",
+      "sos_resolved_body": "Yêu cầu SOS {{sosCode}} đã được giải quyết"
+    }
   }
 }

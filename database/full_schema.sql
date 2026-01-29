@@ -709,20 +709,39 @@ CREATE TRIGGER update_reports_updated_at
 -- ============================================
 CREATE TABLE IF NOT EXISTS sos_requests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code VARCHAR(15) UNIQUE, -- Auto-generated: SOS0129001
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    site_id UUID REFERENCES sites(id),
+    site_id UUID REFERENCES sites(id) ON DELETE SET NULL,
     latitude DECIMAL(9,6),
     longitude DECIMAL(9,6),
     message TEXT,
     contact_phone VARCHAR(20),
     status sos_status DEFAULT 'pending',
-    notes TEXT,
+    
+    -- Assignment
+    assigned_to UUID REFERENCES users(id) ON DELETE SET NULL, -- LocalGuide who accepted
+    assigned_at TIMESTAMP WITH TIME ZONE,
+    
+    -- Resolution
+    notes TEXT, -- Resolution notes
     resolved_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX IF NOT EXISTS idx_sos_code ON sos_requests(code);
 CREATE INDEX IF NOT EXISTS idx_sos_status ON sos_requests(status);
 CREATE INDEX IF NOT EXISTS idx_sos_site ON sos_requests(site_id);
+CREATE INDEX IF NOT EXISTS idx_sos_user ON sos_requests(user_id);
+CREATE INDEX IF NOT EXISTS idx_sos_assigned ON sos_requests(assigned_to) WHERE assigned_to IS NOT NULL;
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_sos_requests_updated_at ON sos_requests;
+CREATE TRIGGER update_sos_requests_updated_at
+    BEFORE UPDATE ON sos_requests
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
 -- 13. NOTIFICATIONS (NEW)

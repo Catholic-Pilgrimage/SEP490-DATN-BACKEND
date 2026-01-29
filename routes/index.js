@@ -11,6 +11,7 @@ const publicRoutes = require('./public.routes');
 const journalRoutes = require('./journal.routes');
 const plannerRoutes = require('./planner.routes');
 const notificationRoutes = require('./notification.routes');
+const sosRoutes = require('./sos.routes');
 
 router.get('/', (req, res) => {
   res.json({
@@ -30,7 +31,8 @@ router.get('/', (req, res) => {
       adminVerification: '/api/admin/verification-requests',
       journals: '/api/journals',
       planners: '/api/planners',
-      notifications: '/api/notifications'
+      notifications: '/api/notifications',
+      sos: '/api/sos'
     }
   });
 });
@@ -76,5 +78,8 @@ router.use('/planners', plannerRoutes);
 
 // Notification routes
 router.use('/notifications', notificationRoutes);
+
+// SOS routes
+router.use('/sos', sosRoutes);
 
 module.exports = router;

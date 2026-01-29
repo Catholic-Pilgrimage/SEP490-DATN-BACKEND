@@ -16,6 +16,7 @@ const Planner = require('./Planner');
 const PlannerItem = require('./PlannerItem');
 const Notification = require('./Notification');
 const UserPushToken = require('./UserPushToken');
+const SOSRequest = require('./SOSRequest');
 
 
 
@@ -105,6 +106,19 @@ Notification.belongsTo(User, { foreignKey: 'receiver_id', as: 'receiver' });
 User.hasMany(UserPushToken, { foreignKey: 'user_id', as: 'pushTokens' });
 UserPushToken.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
+// ===================== SOS REQUESTS =====================
+
+// SOSRequest - User (pilgrim who sent)
+User.hasMany(SOSRequest, { foreignKey: 'user_id', as: 'sosRequests' });
+SOSRequest.belongsTo(User, { foreignKey: 'user_id', as: 'pilgrim' });
+
+// SOSRequest - Site
+Site.hasMany(SOSRequest, { foreignKey: 'site_id', as: 'sosRequests' });
+SOSRequest.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
+
+// SOSRequest - User (assigned LocalGuide)
+SOSRequest.belongsTo(User, { foreignKey: 'assigned_to', as: 'assignedGuide' });
+
 
 const db = {
   sequelize,
@@ -124,7 +138,8 @@ const db = {
   Planner,
   PlannerItem,
   Notification,
-  UserPushToken
+  UserPushToken,
+  SOSRequest
 };
 
 module.exports = db;

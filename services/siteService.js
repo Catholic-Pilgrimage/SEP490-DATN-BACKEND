@@ -1,6 +1,7 @@
 const { Site, User, VerificationRequest, SiteMedia, MassSchedule, Event, NearbyPlace } = require('../models');
 const { Op } = require('sequelize');
 const Logger = require('../utils/logger.util');
+const appConfig = require('../config/app.config');
 
 // Site code constants
 const TYPE_CODES = {
@@ -87,20 +88,20 @@ class SiteService {
       if (manager.role !== 'manager') {
         throw new Error('Only managers can create sites');
       }
-      
-   
+
+
       if (manager.site_id) {
         const existingSite = await Site.findByPk(manager.site_id);
         if (existingSite) {
           throw new Error('Manager already has a site');
         }
-        
+
         Logger.info(`Manager ${managerId} site was deleted, allowing new site creation`);
       }
 
 
       const verificationRequest = await VerificationRequest.findOne({
-        where: { 
+        where: {
           [Op.or]: [
             { user_id: managerId },
             { applicant_email: manager.email }
@@ -124,7 +125,7 @@ class SiteService {
       if (!siteName) throw new Error('Site name is required');
       if (!siteProvince) throw new Error('Province is required');
 
-    
+
       const existingSite = await Site.findOne({
         where: { name: siteName.trim(), province: siteProvince.trim() }
       });
@@ -151,10 +152,10 @@ class SiteService {
         opening_hours,
         contact_info,
         created_by: managerId,
-        is_active: false 
+        is_active: false
       });
 
-      
+
       await User.update({ site_id: site.id }, { where: { id: managerId } });
 
       Logger.info(`Site created by manager ${managerId}: ${site.code} - ${site.name}`);
@@ -453,7 +454,7 @@ class SiteService {
 
       // Filter by date range (upcoming events)
       if (filters.upcoming === 'true') {
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date(new Date().toLocaleString('en-US', { timeZone: appConfig.timezone })).toISOString().split('T')[0];
         where.start_date = { [Op.gte]: today };
       }
 

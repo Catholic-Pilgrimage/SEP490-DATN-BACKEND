@@ -25,7 +25,7 @@ function initSocket(httpServer) {
                 return next(new Error('Authentication required'));
             }
 
-       
+
             const cleanToken = token.replace('Bearer ', '');
 
             const decoded = jwt.verify(cleanToken, process.env.JWT_SECRET);
@@ -56,6 +56,70 @@ function initSocket(httpServer) {
         // Optional: Handle custom events
         socket.on('ping', () => {
             socket.emit('pong', { timestamp: new Date() });
+        });
+
+        // ===================== SOS TRACKING =====================
+
+        /**
+         * Join SOS tracking room
+         * Used by both Pilgrim and Guide when viewing SOS detail
+         */
+        socket.on('join_sos_tracking', ({ sosId }) => {
+            if (!sosId) return;
+            const room = `sos_track_${sosId}`;
+            socket.join(room);
+            Logger.info(`User ${socket.userId} joined SOS tracking room: ${room}`);
+        });
+
+        /**
+         * Leave SOS tracking room
+         * Used when leaving SOS detail screen or SOS is resolved
+         */
+        socket.on('leave_sos_tracking', ({ sosId }) => {
+            if (!sosId) return;
+            const room = `sos_track_${sosId}`;
+            socket.leave(room);
+            Logger.info(`User ${socket.userId} left SOS tracking room: ${room}`);
+        });
+
+        /**
+         * Guide sends location update
+         * Server broadcasts to all others in the SOS room (Pilgrim)
+         */
+        socket.on('update_guide_location', ({ sosId, latitude, longitude }) => {
+            if (!sosId || !latitude || !longitude) return;
+
+            const room = `sos_track_${sosId}`;
+
+            // Broadcast to others in room (not sender)
+            socket.to(room).emit('guide_location_update', {
+                sosId,
+                guideId: socket.userId,
+                latitude,
+                longitude,
+                timestamp: new Date()
+            });
+
+            Logger.info(`Guide ${socket.userId} location update for SOS ${sosId}: ${latitude}, ${longitude}`);
+        });
+
+        /**
+         * Pilgrim sends location update (optional - if Guide needs to see Pilgrim position)
+         */
+        socket.on('update_pilgrim_location', ({ sosId, latitude, longitude }) => {
+            if (!sosId || !latitude || !longitude) return;
+
+            const room = `sos_track_${sosId}`;
+
+            socket.to(room).emit('pilgrim_location_update', {
+                sosId,
+                pilgrimId: socket.userId,
+                latitude,
+                longitude,
+                timestamp: new Date()
+            });
+
+            Logger.info(`Pilgrim ${socket.userId} location update for SOS ${sosId}: ${latitude}, ${longitude}`);
         });
     });
 

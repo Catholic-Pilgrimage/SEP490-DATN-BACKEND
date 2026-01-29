@@ -174,9 +174,6 @@
     "approved_submission_exists": "You already have an approved schedule for this week. To update, please provide previous_submission_id and change_reason.",
     "get_site_schedule_success": "Site schedule retrieved successfully",
     "week_start_date_required": "Week start date is required",
-    "event_not_found": "Event not found",
-    "update_approved_event_error": "Cannot update approved event",
-    "delete_approved_event_error": "Cannot delete approved event",
     "create_nearby_place_success": "Nearby place created successfully",
     "get_nearby_places_success": "Nearby places retrieved successfully",
     "update_nearby_place_success": "Nearby place updated successfully",
@@ -296,5 +293,32 @@
     "not_found": "Notification not found",
     "invalid_token": "Invalid push token",
     "token_required": "Push token is required"
+  },
+  "sos": {
+    "create_success": "SOS request sent successfully. Help is on the way!",
+    "get_success": "SOS request retrieved successfully",
+    "list_success": "SOS requests retrieved successfully",
+    "cancel_success": "SOS request cancelled successfully",
+    "assign_success": "SOS request accepted. Please help the pilgrim!",
+    "resolve_success": "SOS request resolved successfully",
+    "stats_success": "SOS statistics retrieved successfully",
+    "not_found": "SOS request not found",
+    "already_pending": "You already have a pending SOS request. Please wait or cancel it first.",
+    "already_accepted": "SOS request already accepted by another guide",
+    "already_resolved": "SOS request already resolved",
+    "not_pending": "SOS request is no longer pending",
+    "cannot_cancel": "Can only cancel pending SOS requests",
+    "was_cancelled": "SOS request was cancelled",
+    "only_assigned_can_resolve": "Only the assigned guide can resolve this SOS",
+    "unauthorized": "Unauthorized",
+    "no_guides_on_duty": "No guides on duty. Manager has been notified.",
+    "notification": {
+      "sos_created_title": "New SOS request",
+      "sos_created_body": "{{pilgrimName}} needs help at {{siteName}}",
+      "sos_assigned_title": "SOS is being handled",
+      "sos_assigned_body": "{{guideName}} is coming to help you. Phone: {{guidePhone}}",
+      "sos_resolved_title": "SOS resolved",
+      "sos_resolved_body": "SOS request {{sosCode}} has been resolved"
+    }
   }
 }
