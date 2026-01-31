@@ -249,6 +249,7 @@
   "planner": {
     "create_success": "Tạo kế hoạch thành công",
     "update_success": "Cập nhật kế hoạch thành công",
+    "status_update_success": "Cập nhật trạng thái kế hoạch thành công",
     "delete_success": "Xóa kế hoạch thành công",
     "get_success": "Lấy thông tin kế hoạch thành công",
     "list_success": "Lấy danh sách kế hoạch thành công",
@@ -257,6 +258,7 @@
     "name_required": "Tên kế hoạch là bắt buộc",
     "invalid_days": "Số ngày phải lớn hơn hoặc bằng 1",
     "invalid_people": "Số người phải lớn hơn hoặc bằng 1",
+    "invalid_status": "Trạng thái không hợp lệ",
     "item_add_success": "Thêm điểm thành công",
     "item_add_success_with_warning": "Thêm điểm thành công (có cảnh báo)",
     "item_delete_success": "Xóa điểm thành công",
@@ -267,7 +269,10 @@
     "distance_warning": "Quãng đường khá xa cho 1 ngày (250-500km)",
     "invalid_day_number": "Số ngày không hợp lệ",
     "invalid_item_id": "ID điểm không hợp lệ",
-    "site_not_found": "Không tìm thấy địa điểm"
+    "site_not_found": "Không tìm thấy địa điểm",
+    "share_token_created": "Tạo link chia sẻ thành công",
+    "share_disabled": "Tắt chia sẻ thành công",
+    "invalid_role": "Quyền không hợp lệ"
   },
   "error": {
     "server_error": "Lỗi máy chủ",

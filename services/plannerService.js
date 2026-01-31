@@ -196,6 +196,38 @@ class PlannerService {
     }
 
     /**
+     * Update planner status only
+     */
+    static async updatePlannerStatus(plannerId, userId, status) {
+        try {
+            const planner = await Planner.findByPk(plannerId);
+
+            if (!planner) {
+                throw new Error('Planner not found');
+            }
+
+            // Check ownership
+            if (planner.user_id !== userId) {
+                throw new Error('Forbidden');
+            }
+
+            // Validate status
+            if (!['planning', 'ongoing', 'completed'].includes(status)) {
+                throw new Error('Invalid status');
+            }
+
+            // Update only status
+            await planner.update({ status });
+
+            Logger.info(`Planner status updated by user ${userId}: ${plannerId} -> ${status}`);
+            return this.formatPlannerResponse(planner);
+        } catch (error) {
+            Logger.error('Update planner status error:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Delete planner
      */
     static async deletePlanner(plannerId, userId) {

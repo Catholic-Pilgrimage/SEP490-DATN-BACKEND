@@ -225,6 +225,16 @@ class PlannerValidator {
             .notEmpty().withMessage('Role không được để trống')
             .isIn(['viewer', 'editor']).withMessage('Role phải là viewer hoặc editor')
     ];
+
+    // Validate update planner status only
+    static updatePlannerStatus = [
+        param('id')
+            .isUUID().withMessage('Planner ID không hợp lệ'),
+
+        body('status')
+            .notEmpty().withMessage('Trạng thái không được để trống')
+            .isIn(['planning', 'ongoing', 'completed']).withMessage('Trạng thái phải là planning, ongoing hoặc completed')
+    ];
 }
 
 module.exports = PlannerValidator;
