@@ -622,6 +622,148 @@ class EmailService {
       throw error;
     }
   }
+
+  /**
+   * Send notification to old manager about being replaced
+   */
+  static async sendManagerReplacedNotification(email, fullName, siteName, newManagerName) {
+    try {
+      const currentYear = new Date().getFullYear();
+
+      const htmlContent = `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>Thông báo thay đổi quản lý</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Arial, sans-serif;">
+  <div style="font-family: 'Segoe UI', Tahoma, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #fff;">
+    ${this.getEmailHeader()}
+    
+    <div style="padding: 30px; background: #fff;">
+      <h2 style="color: #4a0e4e; font-weight: normal;">Thông báo thay đổi quản lý</h2>
+      
+      <p style="color: #333; line-height: 1.8; font-size: 16px;">
+        Kính gửi <strong>${fullName}</strong>,
+      </p>
+      
+      <p style="color: #333; line-height: 1.8; font-size: 16px;">
+        Chúng tôi xin thông báo rằng bạn không còn là Manager của <strong>${siteName}</strong>.
+      </p>
+      
+      <div style="background: #f8f6f0; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <p style="color: #666; margin: 0 0 10px 0;"><strong>Manager mới:</strong> ${newManagerName}</p>
+        <p style="color: #666; margin: 0;"><strong>Cơ sở:</strong> ${siteName}</p>
+      </div>
+      
+      <p style="color: #333; line-height: 1.8; font-size: 16px;">
+        Bạn vẫn có thể sử dụng ứng dụng Catholic Pilgrimage với vai trò Pilgrim (Khách hành hương).
+      </p>
+      
+      <p style="color: #333; line-height: 1.8; font-size: 16px;">
+        Cảm ơn bạn đã đóng góp trong vai trò Manager. Chúc bạn mọi điều tốt đẹp!
+      </p>
+      
+      <div style="text-align: center; margin-top: 30px; padding: 20px; background: #f8f6f0; border-radius: 8px;">
+        <p style="color: #7b1fa2; font-style: italic; margin: 0;">
+          "Chúa là đá tảng và là thành luỹ chở che tôi"
+        </p>
+        <p style="color: #999; font-size: 12px; margin: 10px 0 0 0;">- Tv 18:2</p>
+      </div>
+    </div>
+    
+    ${this.getEmailFooter(currentYear)}
+  </div>
+</body>
+</html>`;
+
+      const result = await resend.emails.send({
+        from: emailConfig.from,
+        to: email,
+        subject: `[Catholic Pilgrimage] Thông báo thay đổi quản lý - ${siteName}`,
+        html: htmlContent
+      });
+
+      Logger.info(`Manager replaced notification sent to ${email}`);
+      return result;
+    } catch (error) {
+      Logger.error('Send manager replaced notification error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send notification to new manager about transition approval
+   */
+  static async sendTransitionApproved(email, fullName, siteName) {
+    try {
+      const currentYear = new Date().getFullYear();
+
+      const htmlContent = `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>Chúc mừng! Bạn đã được phê duyệt</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Arial, sans-serif;">
+  <div style="font-family: 'Segoe UI', Tahoma, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #fff;">
+    ${this.getEmailHeader()}
+    
+    <div style="padding: 30px; background: #fff;">
+      <h2 style="color: #4a0e4e; font-weight: normal;">🎉 Chúc mừng! Bạn đã được phê duyệt</h2>
+      
+      <p style="color: #333; line-height: 1.8; font-size: 16px;">
+        Kính gửi <strong>${fullName}</strong>,
+      </p>
+      
+      <p style="color: #333; line-height: 1.8; font-size: 16px;">
+        Yêu cầu của bạn đã được phê duyệt! Bạn hiện là <strong>Manager</strong> của:
+      </p>
+      
+      <div style="background: linear-gradient(135deg, #fef9e7 0%, #fcf3cf 100%); padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px solid #d4af37;">
+        <h3 style="color: #4a0e4e; margin: 0;">⛪ ${siteName}</h3>
+      </div>
+      
+      <p style="color: #333; line-height: 1.8; font-size: 16px;">
+        <strong>Những việc cần làm:</strong>
+      </p>
+      <ul style="color: #333; line-height: 2;">
+        <li>Xem qua danh sách Local Guide được thừa kế</li>
+        <li>Kiểm tra và duyệt các nội dung đang chờ xử lý</li>
+        <li>Cập nhật thông tin cơ sở nếu cần</li>
+      </ul>
+      
+      <div style="text-align: center; margin-top: 30px; padding: 20px; background: #f8f6f0; border-radius: 8px;">
+        <p style="color: #7b1fa2; font-style: italic; margin: 0;">
+          "Hãy đi khắp tứ phương thiên hạ, loan báo Tin Mừng cho mọi loài thụ tạo"
+        </p>
+        <p style="color: #999; font-size: 12px; margin: 10px 0 0 0;">- Mc 16:15</p>
+      </div>
+    </div>
+    
+    ${this.getEmailFooter(currentYear)}
+  </div>
+</body>
+</html>`;
+
+      const result = await resend.emails.send({
+        from: emailConfig.from,
+        to: email,
+        subject: `[Catholic Pilgrimage] Chúc mừng! Bạn đã được phê duyệt làm Manager - ${siteName}`,
+        html: htmlContent
+      });
+
+      Logger.info(`Transition approved email sent to ${email}`);
+      return result;
+    } catch (error) {
+      Logger.error('Send transition approved email error:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = EmailService;

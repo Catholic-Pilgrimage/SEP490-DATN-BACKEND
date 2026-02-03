@@ -65,7 +65,8 @@
     "get_events_success": "Lấy danh sách sự kiện thành công",
     "get_nearby_places_success": "Lấy danh sách địa điểm lân cận thành công",
     "get_guides_success": "Lấy danh sách hướng dẫn viên thành công",
-    "get_shifts_success": "Lấy danh sách lịch trực thành công"
+    "get_shifts_success": "Lấy danh sách lịch trực thành công",
+    "available_sites_success": "Lấy danh sách địa điểm có thể xin quản lý thành công"
   },
   "manager_site": {
     "create_success": "Tạo địa điểm thành công",
@@ -124,7 +125,13 @@
     "email_name_required": "Email và họ tên là bắt buộc",
     "site_info_required": "Tên địa điểm và tỉnh/thành là bắt buộc",
     "not_pending": "Yêu cầu không ở trạng thái chờ xử lý",
-    "rejection_reason_required": "Vui lòng nhập lý do từ chối"
+    "rejection_reason_required": "Vui lòng nhập lý do từ chối",
+    "transition_create_success": "Gửi yêu cầu thay thế quản lý thành công",
+    "existing_site_required": "Vui lòng chọn địa điểm muốn xin quản lý",
+    "site_no_manager": "Địa điểm này chưa có quản lý. Hãy sử dụng form đăng ký thông thường",
+    "guest_info_required": "Email và họ tên là bắt buộc",
+    "site_transition_pending": "Địa điểm này đã có yêu cầu thay thế đang chờ xử lý",
+    "transition_reason_required": "Vui lòng nhập lý do xin thay thế quản lý"
   },
   "local_guide": {
     "create_success": "Tạo Local Guide thành công",
@@ -213,7 +220,8 @@
     "update_approved_nearby_place_error": "Không thể cập nhật địa điểm đã được duyệt",
     "delete_approved_nearby_place_error": "Không thể xóa địa điểm đã được duyệt",
     "restore_approved_nearby_place_error": "Không thể khôi phục địa điểm đã được duyệt",
-    "nearby_place_already_active": "Địa điểm lân cận đã được kích hoạt"
+    "nearby_place_already_active": "Địa điểm lân cận đã được kích hoạt",
+    "remove_success": "Xóa Local Guide thành công"
   },
   "validation": {
     "failed": "Dữ liệu không hợp lệ",

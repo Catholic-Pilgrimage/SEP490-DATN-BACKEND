@@ -5,6 +5,9 @@ const i18nMiddleware = require('../middlewares/i18n.middleware');
 
 router.use(i18nMiddleware);
 
+// GET /api/sites/available - Get sites available for manager transition
+router.get('/available', SiteController.getAvailableSites);
+
 // GET /api/sites - Get all approved sites
 router.get('/', SiteController.getPublicSites);
 

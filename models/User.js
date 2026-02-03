@@ -67,6 +67,23 @@ const User = sequelize.define('User', {
         },
         onDelete: 'SET NULL'
     },
+
+    // === Local Guide Inheritance Tracking ===
+    inherited_from: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'users',
+            key: 'id'
+        },
+        comment: 'Previous manager who created/managed this Local Guide'
+    },
+    inherited_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        comment: 'When this Local Guide was inherited by current manager'
+    },
+
     verified_at: {
         type: DataTypes.DATE,
         allowNull: true

@@ -350,3 +350,60 @@
  *         description: Không tìm thấy submission
  */
 
+/**
+ * @swagger
+ * /api/manager/local-guides/{id}:
+ *   delete:
+ *     summary: Xóa Local Guide (Manager only)
+ *     description: |
+ *       Xóa vĩnh viễn Local Guide khỏi site. Bao gồm:
+ *       - Chuyển status về banned
+ *       - Reject tất cả nội dung đang pending (media, schedule, event, nearby place)
+ *       - Deactivate tất cả shift submissions trong tương lai
+ *       - Gửi thông báo cho Local Guide
+ *     tags: [Manager Local Guides]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của Local Guide cần xóa
+ *     responses:
+ *       200:
+ *         description: Xóa thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Xóa Local Guide thành công
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       format: uuid
+ *                     email:
+ *                       type: string
+ *                     full_name:
+ *                       type: string
+ *                     status:
+ *                       type: string
+ *                       example: banned
+ *       400:
+ *         description: Manager chưa có site
+ *       403:
+ *         description: Không có quyền Manager
+ *       404:
+ *         description: Không tìm thấy Local Guide hoặc Local Guide không thuộc site
+ */
+

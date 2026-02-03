@@ -61,4 +61,13 @@ router.patch(
     ManagerLocalGuideController.updateLocalGuideStatus
 );
 
+// DELETE - Remove Local Guide (ban + reject pending + deactivate shifts)
+router.delete(
+    '/:id',
+    authMiddleware,
+    authMiddleware.authorize('manager'),
+    ManagerLocalGuideController.removeLocalGuide
+);
+
 module.exports = router;
+

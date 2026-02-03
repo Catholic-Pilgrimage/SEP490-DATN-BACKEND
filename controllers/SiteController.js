@@ -357,3 +357,19 @@ exports.getSiteNearbyPlaces = async (req, res) => {
     return ResponseUtil.error(res, req.__('error.server_error'));
   }
 };
+
+// ===================== MANAGER TRANSITION =====================
+
+// Public: Get sites available for manager transition
+exports.getAvailableSites = async (req, res) => {
+  try {
+    const { page, limit, province, region, search } = req.query;
+    const result = await SiteService.getAvailableSites({
+      page, limit, province, region, search
+    });
+    return ResponseUtil.success(res, result, req.__('site.available_sites_success'));
+  } catch (error) {
+    return ResponseUtil.error(res, req.__('error.server_error'));
+  }
+};
+

@@ -545,6 +545,129 @@ class SiteService {
       throw error;
     }
   }
+
+  // ===================== MANAGER TRANSITION =====================
+
+  /**
+   * Public: Get sites available for manager transition
+   * Criteria:
+   * - Site is active
+   * - Site has a current manager
+   * - No pending transition request for this site
+   */
+  static async getAvailableSites(filters = {}) {
+    try {
+      const page = parseInt(filters.page) || 1;
+      const limit = parseInt(filters.limit) || 10;
+      const offset = (page - 1) * limit;
+
+      // Get sites with active managers (using 'siteStaff' association)
+      const sitesWithManagers = await Site.findAll({
+        where: { is_active: true },
+        attributes: ['id'],
+        include: [{
+          model: User,
+          as: 'siteStaff', 
+          where: {
+            role: 'manager',
+            status: 'active'
+          },
+          required: true,
+          attributes: ['id']
+        }]
+      });
+
+      const siteIdsWithManagers = sitesWithManagers.map(s => s.id);
+
+      if (siteIdsWithManagers.length === 0) {
+        return {
+          data: [],
+          pagination: { page, limit, totalItems: 0, totalPages: 0 }
+        };
+      }
+
+      // Exclude sites that already have pending transition requests
+      const pendingTransitions = await VerificationRequest.findAll({
+        where: {
+          existing_site_id: { [Op.ne]: null },
+          status: 'pending'
+        },
+        attributes: ['existing_site_id']
+      });
+
+      const excludeSiteIds = pendingTransitions.map(r => r.existing_site_id);
+      const availableSiteIds = siteIdsWithManagers.filter(id => !excludeSiteIds.includes(id));
+
+      if (availableSiteIds.length === 0) {
+        return {
+          data: [],
+          pagination: { page, limit, totalItems: 0, totalPages: 0 }
+        };
+      }
+
+      // Build where clause
+      const where = {
+        id: { [Op.in]: availableSiteIds },
+        is_active: true
+      };
+
+      // Optional filters
+      if (filters.province) where.province = filters.province;
+      if (filters.region) where.region = filters.region;
+      if (filters.search) {
+        where.name = { [Op.iLike]: `%${filters.search}%` };
+      }
+
+      // Fetch available sites with manager info
+      const { count, rows } = await Site.findAndCountAll({
+        where,
+        attributes: ['id', 'code', 'name', 'address', 'province', 'region', 'type', 'cover_image'],
+        include: [{
+          model: User,
+          as: 'siteStaff', // Correct alias
+          where: { role: 'manager', status: 'active' },
+          required: true,
+          attributes: ['id', 'full_name', 'email']
+        }],
+        order: [['name', 'ASC']],
+        limit,
+        offset
+      });
+
+      // Format response (siteStaff is array, get first manager)
+      const data = rows.map(site => {
+        const manager = site.siteStaff && site.siteStaff.find(u => u.role === 'manager');
+        return {
+          id: site.id,
+          code: site.code,
+          name: site.name,
+          address: site.address,
+          province: site.province,
+          region: site.region,
+          type: site.type,
+          cover_image: site.cover_image,
+          current_manager: manager ? {
+            id: manager.id,
+            full_name: manager.full_name
+          } : null
+        };
+      });
+
+      return {
+        data,
+        pagination: {
+          page,
+          limit,
+          totalItems: count,
+          totalPages: Math.ceil(count / limit)
+        }
+      };
+    } catch (error) {
+      Logger.error('Get available sites for transition error:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = SiteService;
+

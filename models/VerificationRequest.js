@@ -36,7 +36,7 @@ const VerificationRequest = sequelize.define('VerificationRequest', {
 
     site_name: {
         type: DataTypes.STRING(255),
-        allowNull: false
+        allowNull: true // Allow NULL for transition requests (existing site)
     },
     site_address: {
         type: DataTypes.TEXT,
@@ -44,7 +44,7 @@ const VerificationRequest = sequelize.define('VerificationRequest', {
     },
     site_province: {
         type: DataTypes.STRING(100),
-        allowNull: false
+        allowNull: true // Allow NULL for transition requests (existing site)
     },
     site_type: {
         type: DataTypes.STRING,
@@ -91,6 +91,32 @@ const VerificationRequest = sequelize.define('VerificationRequest', {
         type: DataTypes.TEXT,
         allowNull: true
     },
+
+    // === Manager Transition Fields ===
+    existing_site_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'sites',
+            key: 'id'
+        },
+        comment: 'If set, requesting to manage existing site (transition flow)'
+    },
+    transition_reason: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: 'Reason for requesting to replace current manager'
+    },
+    old_manager_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'users',
+            key: 'id'
+        },
+        comment: 'Tracks the previous manager who was replaced'
+    },
+
     verified_at: {
         type: DataTypes.DATE,
         allowNull: true

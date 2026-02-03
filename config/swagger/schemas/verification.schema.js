@@ -82,4 +82,75 @@
  *               type: string
  *             avatar_url:
  *               type: string
+ *
+ *     TransitionRequestInput:
+ *       type: object
+ *       required:
+ *         - existing_site_id
+ *         - transition_reason
+ *       properties:
+ *         existing_site_id:
+ *           type: string
+ *           format: uuid
+ *           description: ID của Site muốn xin quản lý
+ *         transition_reason:
+ *           type: string
+ *           description: Lý do xin thay thế Manager hiện tại
+ *           example: "Manager hiện tại không còn hoạt động..."
+ *         applicant_email:
+ *           type: string
+ *           format: email
+ *           description: Email (bắt buộc cho guest)
+ *         applicant_name:
+ *           type: string
+ *           description: Họ tên (bắt buộc cho guest)
+ *         applicant_phone:
+ *           type: string
+ *           description: Số điện thoại
+ *         certificate:
+ *           type: string
+ *           format: binary
+ *           description: Giấy tờ chứng minh
+ *         introduction:
+ *           type: string
+ *           description: Giới thiệu bản thân
+ *
+ *     TransitionRequestResponse:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         code:
+ *           type: string
+ *           example: "VR01285"
+ *         existing_site_id:
+ *           type: string
+ *           format: uuid
+ *         transition_reason:
+ *           type: string
+ *         site:
+ *           type: object
+ *           properties:
+ *             id:
+ *               type: string
+ *             name:
+ *               type: string
+ *             province:
+ *               type: string
+ *         old_manager:
+ *           type: object
+ *           properties:
+ *             id:
+ *               type: string
+ *             full_name:
+ *               type: string
+ *             email:
+ *               type: string
+ *         status:
+ *           type: string
+ *           enum: [pending, approved, rejected]
+ *         created_at:
+ *           type: string
+ *           format: date-time
  */
