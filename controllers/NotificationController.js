@@ -97,12 +97,26 @@ exports.deleteNotification = async (req, res) => {
     try {
         const { id } = req.params;
         const result = await NotificationService.deleteNotification(id, req.user.id);
-        if (!result.deleted) {
-            return ResponseUtil.notFound(res, req.__('notification.not_found'));
-        }
         return ResponseUtil.success(res, result, req.__('notification.delete_success'));
     } catch (error) {
+        if (error.message === 'Notification not found') {
+            return ResponseUtil.notFound(res, req.__('notification.not_found'));
+        }
         return ResponseUtil.error(res, req.__('error.server_error'));
     }
 };
 
+/**
+ * Delete all notifications
+ */
+exports.deleteAllNotifications = async (req, res) => {
+    try {
+        console.log('[DEBUG] Delete all notifications for user:', req.user.id);
+        const result = await NotificationService.deleteAllNotifications(req.user.id);
+        console.log('[DEBUG] Delete result:', result);
+        return ResponseUtil.success(res, result, req.__('notification.delete_all_success'));
+    } catch (error) {
+        console.error('[ERROR] Delete all notifications error:', error);
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};

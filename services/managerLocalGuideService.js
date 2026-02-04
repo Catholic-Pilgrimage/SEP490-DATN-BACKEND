@@ -161,10 +161,17 @@ class ManagerLocalGuideService {
 
     /**
      * Manager: Update Local Guide Status (block/unblock)
+     * When banning: also rejects pending content, deactivates future shifts, clears site assignment
      */
     static async updateLocalGuideStatus(managerId, localGuideId, status) {
+        const sequelize = require('../config/database');
+        const transaction = await sequelize.transaction();
+
         try {
-            const manager = await User.findByPk(managerId);
+            const manager = await User.findByPk(managerId, {
+                include: [{ model: Site, as: 'assignedSite' }],
+                transaction
+            });
 
             if (!manager) {
                 throw new Error('Manager not found');
@@ -183,7 +190,8 @@ class ManagerLocalGuideService {
                     id: localGuideId,
                     site_id: manager.site_id,
                     role: 'local_guide'
-                }
+                },
+                transaction
             });
 
             if (!localGuide) {
@@ -194,9 +202,92 @@ class ManagerLocalGuideService {
                 throw new Error(`Local Guide is already ${status}`);
             }
 
-            await localGuide.update({ status });
+
+            const updateData = { status };
+
+
+            if (status === 'banned') {
+
+
+                // Reject all pending content
+                const { Event, SiteMedia, MassSchedule, NearbyPlace } = require('../models');
+
+                // Event, SiteMedia, MassSchedule use 'created_by'
+                const contentModelsWithCreatedBy = [Event, SiteMedia, MassSchedule];
+                for (const Model of contentModelsWithCreatedBy) {
+                    await Model.update(
+                        {
+                            status: 'rejected',
+                            rejection_reason: 'Local Guide đã bị xóa khỏi hệ thống'
+                        },
+                        {
+                            where: {
+                                created_by: localGuideId,
+                                status: 'pending'
+                            },
+                            transaction
+                        }
+                    );
+                }
+
+                // NearbyPlace now uses 'created_by' (same as other models)
+                await NearbyPlace.update(
+                    {
+                        status: 'rejected',
+                        rejection_reason: 'Local Guide đã bị xóa khỏi hệ thống'
+                    },
+                    {
+                        where: {
+                            created_by: localGuideId,
+                            status: 'pending'
+                        },
+                        transaction
+                    }
+                );
+
+                Logger.info(`Pending content rejected for Local Guide ${localGuide.email}`);
+
+                // Deactivate future shifts
+                const today = new Date().toISOString().split('T')[0];
+
+                await GuideShiftSubmission.update(
+                    {
+                        is_active: false,
+                        status: 'rejected',
+                        rejection_reason: 'Local Guide đã bị xóa khỏi hệ thống'
+                    },
+                    {
+                        where: {
+                            guide_id: localGuideId,
+                            week_start_date: { [Op.gte]: today },
+                            is_active: true
+                        },
+                        transaction
+                    }
+                );
+
+                Logger.info(`Future shifts deactivated for Local Guide ${localGuide.email}`);
+            }
+
+            await localGuide.update(updateData, { transaction });
+
+
+            await transaction.commit();
 
             Logger.info(`Local Guide ${localGuide.email} status changed to ${status} by Manager ${managerId}`);
+
+            // Send notification (after commit) - only when banning
+            if (status === 'banned') {
+                try {
+                    await NotificationService.createNotification(
+                        'local_guide_removed',
+                        localGuide.id,
+                        { siteName: manager.assignedSite?.name || 'Site' }
+                    );
+                } catch (notifyError) {
+                    Logger.error('Failed to send removal notification:', notifyError);
+                }
+            }
 
             return {
                 id: localGuide.id,
@@ -205,6 +296,7 @@ class ManagerLocalGuideService {
                 status: localGuide.status
             };
         } catch (error) {
+            await transaction.rollback();
             Logger.error('Update Local Guide Status error:', error);
             throw error;
         }
@@ -437,125 +529,6 @@ class ManagerLocalGuideService {
             return submission;
         } catch (error) {
             Logger.error('Update submission status error:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Manager: Remove Local Guide (Ban account, reject pending content, deactivate shifts)
-     */
-    static async removeLocalGuide(managerId, localGuideId) {
-        const sequelize = require('../config/database');
-        const transaction = await sequelize.transaction();
-
-        try {
-            const manager = await User.findByPk(managerId, { transaction });
-
-            if (!manager) {
-                throw new Error('Manager not found');
-            }
-
-            if (manager.role !== 'manager') {
-                throw new Error('Only managers can remove local guides');
-            }
-
-            if (!manager.site_id) {
-                throw new Error('Manager has no site');
-            }
-
-            const localGuide = await User.findOne({
-                where: {
-                    id: localGuideId,
-                    site_id: manager.site_id,
-                    role: 'local_guide'
-                },
-                transaction
-            });
-
-            if (!localGuide) {
-                throw new Error('Local Guide not found in your site');
-            }
-
-            // 1. Ban the Local Guide account
-            await localGuide.update({
-                status: 'banned',
-                site_id: null,
-                inherited_from: null,
-                inherited_at: null
-            }, { transaction });
-
-            Logger.info(`Local Guide ${localGuide.email} banned by Manager ${managerId}`);
-
-            // 2. Reject all pending content
-            const { Event, SiteMedia, MassSchedule, NearbyPlace } = require('../models');
-            const contentModels = [Event, SiteMedia, MassSchedule, NearbyPlace];
-
-            for (const Model of contentModels) {
-                await Model.update(
-                    {
-                        status: 'rejected',
-                        rejection_reason: 'Local Guide đã bị xóa khỏi hệ thống'
-                    },
-                    {
-                        where: {
-                            created_by: localGuideId,
-                            status: 'pending'
-                        },
-                        transaction
-                    }
-                );
-            }
-
-            Logger.info(`Pending content rejected for Local Guide ${localGuide.email}`);
-
-            // 3. Deactivate future shifts
-            const today = new Date().toISOString().split('T')[0];
-
-            await GuideShiftSubmission.update(
-                {
-                    is_active: false,
-                    status: 'rejected',
-                    rejection_reason: 'Local Guide đã bị xóa khỏi hệ thống'
-                },
-                {
-                    where: {
-                        guide_id: localGuideId,
-                        week_start_date: { [Op.gte]: today },
-                        is_active: true
-                    },
-                    transaction
-                }
-            );
-
-            Logger.info(`Future shifts deactivated for Local Guide ${localGuide.email}`);
-
-            // Commit transaction
-            await transaction.commit();
-
-            // 4. Send notification (after commit)
-            try {
-                await NotificationService.createNotification(
-                    localGuide.id,
-                    'local_guide_removed',
-                    { siteName: manager.assignedSite?.name || 'Site' }
-                );
-            } catch (notifyError) {
-                Logger.error('Failed to send removal notification:', notifyError);
-            }
-
-            return {
-                success: true,
-                message: `Local Guide ${localGuide.full_name} has been removed`,
-                localGuide: {
-                    id: localGuide.id,
-                    email: localGuide.email,
-                    full_name: localGuide.full_name,
-                    status: 'banned'
-                }
-            };
-        } catch (error) {
-            await transaction.rollback();
-            Logger.error('Remove Local Guide error:', error);
             throw error;
         }
     }

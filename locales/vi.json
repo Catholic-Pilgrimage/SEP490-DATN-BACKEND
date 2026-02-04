@@ -284,6 +284,7 @@
     "token_registered": "Đăng ký token push thành công",
     "token_revoked": "Thu hồi token push thành công",
     "delete_success": "Xóa thông báo thành công",
+    "delete_all_success": "Đã xóa tất cả thông báo thành công",
     "not_found": "Không tìm thấy thông báo",
     "invalid_token": "Token push không hợp lệ",
     "token_required": "Token push là bắt buộc"

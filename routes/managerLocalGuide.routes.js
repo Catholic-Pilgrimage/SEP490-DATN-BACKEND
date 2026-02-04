@@ -53,6 +53,7 @@ router.patch(
 // ===================== LOCAL GUIDE STATUS =====================
 
 // PATCH - Update Local Guide Status (block/unblock)
+// When setting status to 'banned', also rejects pending content, deactivates future shifts
 router.patch(
     '/:id/status',
     authMiddleware,
@@ -61,13 +62,4 @@ router.patch(
     ManagerLocalGuideController.updateLocalGuideStatus
 );
 
-// DELETE - Remove Local Guide (ban + reject pending + deactivate shifts)
-router.delete(
-    '/:id',
-    authMiddleware,
-    authMiddleware.authorize('manager'),
-    ManagerLocalGuideController.removeLocalGuide
-);
-
 module.exports = router;
-

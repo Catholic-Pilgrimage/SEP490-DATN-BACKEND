@@ -29,7 +29,7 @@ function initSocket(httpServer) {
             const cleanToken = token.replace('Bearer ', '');
 
             const decoded = jwt.verify(cleanToken, process.env.JWT_SECRET);
-            socket.userId = decoded.id;
+            socket.userId = decoded.userId; // Fix: use userId instead of id
             socket.userRole = decoded.role;
 
             next();
@@ -147,7 +147,7 @@ function emitNotification(userId, notification) {
     }
 
     const userRoom = `user_${userId}`;
-    io.to(userRoom).emit('new_notification', {
+    io.to(userRoom).emit('notification', {
         id: notification.id,
         type: notification.type,
         title: notification.title,

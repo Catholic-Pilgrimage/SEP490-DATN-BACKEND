@@ -530,7 +530,7 @@ class ManagerContentService {
                 include: [
                     {
                         model: User,
-                        as: 'proposer',
+                        as: 'creator',
                         attributes: ['id', 'full_name', 'email']
                     }
                 ],
@@ -594,11 +594,11 @@ class ManagerContentService {
                 reviewed_at: new Date()
             });
 
-            // Notify LocalGuide who proposed the nearby place
-            if (place.proposed_by) {
+            // Notify LocalGuide who created the nearby place
+            if (place.created_by) {
                 const site = await Site.findByPk(user.site_id);
                 const notificationType = status === 'approved' ? 'nearby_place_approved' : 'nearby_place_rejected';
-                await NotificationService.createNotification(notificationType, place.proposed_by, {
+                await NotificationService.createNotification(notificationType, place.created_by, {
                     placeName: place.name || '',
                     siteName: site?.name || '',
                     reason: rejectionReason || ''

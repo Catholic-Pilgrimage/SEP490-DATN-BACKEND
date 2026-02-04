@@ -163,31 +163,3 @@ exports.updateSubmissionStatus = async (req, res) => {
         return ResponseUtil.error(res, req.__('error.server_error'));
     }
 };
-
-/**
- * Manager: Remove Local Guide (Ban + reject pending + deactivate shifts)
- */
-exports.removeLocalGuide = async (req, res) => {
-    try {
-        const result = await ManagerLocalGuideService.removeLocalGuide(
-            req.user.id,
-            req.params.id
-        );
-        return ResponseUtil.success(res, result, req.__('local_guide.remove_success'));
-    } catch (error) {
-        if (error.message === 'Manager not found') {
-            return ResponseUtil.notFound(res, req.__('auth.user_not_found'));
-        }
-        if (error.message === 'Only managers can remove local guides') {
-            return ResponseUtil.forbidden(res, req.__('local_guide.only_manager'));
-        }
-        if (error.message === 'Manager has no site') {
-            return ResponseUtil.badRequest(res, req.__('manager_site.no_site'));
-        }
-        if (error.message === 'Local Guide not found in your site') {
-            return ResponseUtil.notFound(res, req.__('local_guide.not_found'));
-        }
-        return ResponseUtil.error(res, req.__('error.server_error'));
-    }
-};
-

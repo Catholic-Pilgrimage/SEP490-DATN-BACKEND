@@ -20,7 +20,7 @@ const NearbyPlace = sequelize.define('NearbyPlace', {
         allowNull: false,
         unique: true
     },
-    proposed_by: {
+    created_by: {
         type: DataTypes.UUID,
         allowNull: false,
         references: {
@@ -97,7 +97,7 @@ const NearbyPlace = sequelize.define('NearbyPlace', {
     updatedAt: false,
     indexes: [
         { fields: ['site_id'] },
-        { fields: ['proposed_by'] },
+        { fields: ['created_by'] },
         { fields: ['category'] },
         { fields: ['status'] }
     ]

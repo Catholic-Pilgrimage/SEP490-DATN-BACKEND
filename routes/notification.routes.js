@@ -24,6 +24,13 @@ router.patch(
     NotificationController.markAllAsRead
 );
 
+// DELETE /api/notifications - Delete all notifications
+router.delete(
+    '/',
+    authMiddleware,
+    NotificationController.deleteAllNotifications
+);
+
 // PATCH /api/notifications/:id/read - Mark single as read
 router.patch(
     '/:id/read',

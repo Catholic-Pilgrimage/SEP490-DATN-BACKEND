@@ -1694,7 +1694,7 @@
  *                             type: string
  *                           is_active:
  *                             type: boolean
- *                           proposer:
+ *                           creator:
  *                             type: object
  *                             properties:
  *                               id:

@@ -889,7 +889,7 @@
  *                     data:
  *                       type: array
  *                       items:
- *                         $ref: '#/components/schemas/NearbyPlaceWithProposer'
+ *                         $ref: '#/components/schemas/NearbyPlaceWithCreator'
  *                     pagination:
  *                       type: object
  *                       properties:
@@ -963,7 +963,7 @@
  *                   type: string
  *                   example: "Duyệt địa điểm lân cận thành công"
  *                 data:
- *                   $ref: '#/components/schemas/NearbyPlaceWithProposer'
+ *                   $ref: '#/components/schemas/NearbyPlaceWithCreator'
  *       400:
  *         description: |
  *           - Trạng thái không hợp lệ
@@ -1027,7 +1027,7 @@
  *                   type: string
  *                   example: "Ẩn địa điểm lân cận thành công"
  *                 data:
- *                   $ref: '#/components/schemas/NearbyPlaceWithProposer'
+ *                   $ref: '#/components/schemas/NearbyPlaceWithCreator'
  *       400:
  *         description: |
  *           - Giá trị is_active không hợp lệ
@@ -1044,7 +1044,7 @@
  * @swagger
  * components:
  *   schemas:
- *     NearbyPlaceWithProposer:
+ *     NearbyPlaceWithCreator:
  *       type: object
  *       properties:
  *         id:
@@ -1056,7 +1056,7 @@
  *         code:
  *           type: string
  *           example: "NBP0122001"
- *         proposed_by:
+ *         created_by:
  *           type: string
  *           format: uuid
  *         name:
@@ -1105,7 +1105,7 @@
  *         created_at:
  *           type: string
  *           format: date-time
- *         proposer:
+ *         creator:
  *           type: object
  *           properties:
  *             id:

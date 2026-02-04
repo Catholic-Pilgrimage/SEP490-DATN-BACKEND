@@ -298,6 +298,7 @@
     "token_registered": "Push token registered successfully",
     "token_revoked": "Push token revoked successfully",
     "delete_success": "Delete notification successfully",
+    "delete_all_success": "All notifications deleted successfully",
     "not_found": "Notification not found",
     "invalid_token": "Invalid push token",
     "token_required": "Push token is required"

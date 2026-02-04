@@ -499,7 +499,7 @@ module.exports = {};
  *           type: string
  *           example: "NBP0122001"
  *           description: Mã địa điểm lân cận tự động
- *         proposed_by:
+ *         created_by:
  *           type: string
  *           format: uuid
  *         name:

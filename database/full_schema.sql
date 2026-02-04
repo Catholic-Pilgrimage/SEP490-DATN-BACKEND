@@ -777,7 +777,7 @@ CREATE TABLE IF NOT EXISTS nearby_places (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
     code VARCHAR(15) UNIQUE NOT NULL,
-    proposed_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     category nearby_place_category NOT NULL,
     address TEXT,
