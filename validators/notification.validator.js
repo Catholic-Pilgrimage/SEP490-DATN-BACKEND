@@ -19,3 +19,26 @@ exports.registerToken = [
         .isString()
         .withMessage('Device ID must be a string')
 ];
+
+exports.testNotification = [
+    body('type')
+        .notEmpty()
+        .withMessage('Notification type is required'),
+
+    body('user_id')
+        .optional()
+        .isUUID()
+        .withMessage('User ID must be a valid UUID'),
+
+    body('data')
+        .optional()
+        .isObject()
+        .withMessage('Data must be an object')
+];
+
+exports.testAllNotifications = [
+    body('user_id')
+        .optional()
+        .isUUID()
+        .withMessage('User ID must be a valid UUID')
+];

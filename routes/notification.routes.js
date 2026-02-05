@@ -31,6 +31,21 @@ router.delete(
     NotificationController.deleteAllNotifications
 );
 
+// POST /api/notifications/token - Register push token (BEFORE /:id)
+router.post(
+    '/token',
+    authMiddleware,
+    NotificationValidator.registerToken,
+    NotificationController.registerPushToken
+);
+
+// DELETE /api/notifications/token - Revoke push token (BEFORE /:id)
+router.delete(
+    '/token',
+    authMiddleware,
+    NotificationController.revokePushToken
+);
+
 // PATCH /api/notifications/:id/read - Mark single as read
 router.patch(
     '/:id/read',
@@ -45,19 +60,20 @@ router.delete(
     NotificationController.deleteNotification
 );
 
-// POST /api/notifications/token - Register push token
+// POST /api/notifications/test - Send test notification (DEV ONLY)
 router.post(
-    '/token',
+    '/test',
     authMiddleware,
-    NotificationValidator.registerToken,
-    NotificationController.registerPushToken
+    NotificationValidator.testNotification,
+    NotificationController.sendTestNotification
 );
 
-// DELETE /api/notifications/token - Revoke push token
-router.delete(
-    '/token',
+// POST /api/notifications/test/all - Send all notification types (DEV ONLY)
+router.post(
+    '/test/all',
     authMiddleware,
-    NotificationController.revokePushToken
+    NotificationValidator.testAllNotifications,
+    NotificationController.sendAllTestNotifications
 );
 
 module.exports = router;

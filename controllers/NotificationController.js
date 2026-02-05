@@ -120,3 +120,44 @@ exports.deleteAllNotifications = async (req, res) => {
         return ResponseUtil.error(res, req.__('error.server_error'));
     }
 };
+
+/**
+ * TEST ONLY: Send test notification
+ */
+exports.sendTestNotification = async (req, res) => {
+    try {
+        const { type, data, user_id } = req.body;
+        
+        if (!type) {
+            return ResponseUtil.badRequest(res, 'Notification type is required');
+        }
+
+        // Allow specifying user_id for testing, otherwise use authenticated user
+        const targetUserId = user_id || req.user.id;
+
+        const result = await NotificationService.sendTestNotification(targetUserId, type, data);
+        return ResponseUtil.success(res, result, `Test notification sent to user ${targetUserId}`);
+    } catch (error) {
+        if (error.message.includes('Unknown notification type')) {
+            return ResponseUtil.badRequest(res, error.message);
+        }
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
+
+/**
+ * TEST ONLY: Send all notification types
+ */
+exports.sendAllTestNotifications = async (req, res) => {
+    try {
+        const { user_id } = req.body;
+        
+        // Allow specifying user_id for testing, otherwise use authenticated user
+        const targetUserId = user_id || req.user.id;
+
+        const result = await NotificationService.sendAllTestNotifications(targetUserId);
+        return ResponseUtil.success(res, result, `Sent ${result.total} test notifications to user ${targetUserId}`);
+    } catch (error) {
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
