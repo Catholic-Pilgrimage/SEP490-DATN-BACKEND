@@ -85,8 +85,6 @@ router.use('/planners', plannerRoutes);
 // Check-in routes
 router.use('/planner-items', checkinRoutes);
 
-module.exports = router;
-
 // Notification routes
 router.use('/notifications', notificationRoutes);
 

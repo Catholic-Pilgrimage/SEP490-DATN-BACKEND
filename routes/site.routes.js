@@ -201,6 +201,3 @@ publicRouter.delete(
 
 
 module.exports = { adminRouter, managerRouter, publicRouter };
-module.exports = { adminRouter, managerRouter };
-
-

@@ -1,4 +1,4 @@
-const { Site, User, VerificationRequest, SiteMedia, MassSchedule, Event, NearbyPlace, UserFavorite} = require('../models');
+const { Site, User, VerificationRequest, SiteMedia, MassSchedule, Event, NearbyPlace, UserFavorite } = require('../models');
 const { Op } = require('sequelize');
 const Logger = require('../utils/logger.util');
 const appConfig = require('../config/app.config');
@@ -599,6 +599,9 @@ class SiteService {
       return { site_id: siteId, site_name: site.name };
     } catch (error) {
       Logger.error('Remove favorite error:', error);
+      throw error;
+    }
+  }
 
   // ===================== MANAGER TRANSITION =====================
 
@@ -621,7 +624,7 @@ class SiteService {
         attributes: ['id'],
         include: [{
           model: User,
-          as: 'siteStaff', 
+          as: 'siteStaff',
           where: {
             role: 'manager',
             status: 'active'
