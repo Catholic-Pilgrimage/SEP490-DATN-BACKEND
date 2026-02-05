@@ -41,13 +41,6 @@ const Planner = sequelize.define('Planner', {
             isIn: [['motorbike', 'car', 'bus']]
         }
     },
-    budget_level: {
-        type: DataTypes.STRING,
-        defaultValue: 'standard',
-        validate: {
-            isIn: [['budget', 'standard', 'luxury']]
-        }
-    },
     status: {
         type: DataTypes.STRING,
         defaultValue: 'planning',

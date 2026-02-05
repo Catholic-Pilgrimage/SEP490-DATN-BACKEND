@@ -40,6 +40,20 @@ const PlannerItem = sequelize.define('PlannerItem', {
     note: {
         type: DataTypes.TEXT,
         allowNull: true
+    },
+    // Enhanced planning features
+    nearby_amenity_ids: {
+        type: DataTypes.ARRAY(DataTypes.UUID),
+        allowNull: true,
+        defaultValue: []
+    },
+    estimated_time: {
+        type: DataTypes.TIME,
+        allowNull: true
+    },
+    rest_duration: {
+        type: DataTypes.STRING, // PostgreSQL INTERVAL stored as string (e.g., '1 hour', '30 minutes')
+        allowNull: true
     }
 }, {
     tableName: 'planner_items',

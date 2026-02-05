@@ -37,7 +37,7 @@ DO $$ BEGIN
     -- Planner
     CREATE TYPE planner_status AS ENUM ('planning', 'ongoing', 'completed');
     CREATE TYPE planner_role AS ENUM ('viewer', 'editor');
-    CREATE TYPE budget_level AS ENUM ('budget', 'standard', 'luxury');
+
     
     -- Journal & Community
     CREATE TYPE journal_privacy AS ENUM ('private', 'public');
@@ -477,7 +477,7 @@ CREATE TABLE IF NOT EXISTS planners (
     number_of_days INT DEFAULT 1,
     number_of_people INT DEFAULT 1,
     transportation VARCHAR(100),
-    budget_level budget_level DEFAULT 'standard',
+
     status planner_status DEFAULT 'planning',
     is_public BOOLEAN DEFAULT FALSE,
     share_token VARCHAR(50) UNIQUE DEFAULT NULL,
@@ -516,6 +516,12 @@ CREATE TABLE IF NOT EXISTS planner_items (
     day_number INT DEFAULT 1,
     order_index INT DEFAULT 1,
     note TEXT,
+    
+    -- NEW: Enhanced planning features
+    nearby_amenity_ids UUID[], -- Array of nearby_place IDs (optional)
+    estimated_time TIME, -- Giờ dự kiến đến địa điểm
+    rest_duration INTERVAL, -- Thời gian nghỉ ngơi (e.g., '1 hour', '30 minutes')
+    
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

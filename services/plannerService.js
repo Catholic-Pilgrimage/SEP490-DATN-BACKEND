@@ -4,6 +4,7 @@ const Logger = require('../utils/logger.util');
 const OSRMUtil = require('../utils/osrm.util');
 const sequelize = require('../config/database');
 const crypto = require('crypto');
+const { calculateEstimatedTime, parseDurationToMinutes, isWithinOpeningHours } = require('../utils/timeCalculation.util');
 
 class PlannerService {
 
@@ -12,7 +13,7 @@ class PlannerService {
      */
     static async createPlanner(userId, plannerData) {
         try {
-            const { name, start_date, end_date, number_of_people = 1, transportation, budget_level = 'standard' } = plannerData;
+            const { name, start_date, end_date, number_of_people = 1, transportation } = plannerData;
 
             // Validate required fields
             if (!name || name.trim().length === 0) {
@@ -41,7 +42,6 @@ class PlannerService {
                 end_date: end_date || null,
                 number_of_people,
                 transportation: transportation || null,
-                budget_level,
                 status: 'planning'
             });
 
@@ -176,9 +176,6 @@ class PlannerService {
                 dataToUpdate.transportation = updateData.transportation;
             }
 
-            if (updateData.budget_level !== undefined) {
-                dataToUpdate.budget_level = updateData.budget_level;
-            }
 
             if (updateData.status !== undefined) {
                 dataToUpdate.status = updateData.status;
@@ -261,7 +258,7 @@ class PlannerService {
         const transaction = await sequelize.transaction();
 
         try {
-            const { site_id, day_number, note } = itemData;
+            const { site_id, day_number, note, nearby_amenity_ids, estimated_time, rest_duration } = itemData;
 
             // Check planner exists and user is owner (if userId provided)
             const planner = await Planner.findByPk(plannerId);
@@ -292,7 +289,7 @@ class PlannerService {
                 throw new Error('Day number must be at least 1');
             }
 
-            let warning = null;
+            let travelTimeMinutes = 0;
 
             // Get previous site in same day (if exists)
             const previousItem = await PlannerItem.findOne({
@@ -307,27 +304,104 @@ class PlannerService {
                 transaction
             });
 
-            // If there's a previous site, validate distance
+            // Validation: Cannot add the same site consecutively
+            if (previousItem && previousItem.site_id === site_id) {
+                throw new Error('Cannot add the same site consecutively. Please add a different site or move to the next day.');
+            }
+
+            // If there's a previous site, get travel time from Vietmap
             if (previousItem && previousItem.site) {
                 const prevSite = previousItem.site;
 
                 // Check if both sites have coordinates
-                // Check if both sites have coordinates
                 if (prevSite.latitude && prevSite.longitude && site.latitude && site.longitude) {
-                    const distanceResult = await OSRMUtil.getDistanceWithValidation(
-                        prevSite,
-                        site,
-                        planner.transportation
+                    // Map transportation to VietMap vehicle type
+                    let vehicle = 'bike'; // default
+                    if (planner.transportation) {
+                        const lowerTransport = planner.transportation.toLowerCase();
+                        if (lowerTransport.includes('car') || lowerTransport === 'car') {
+                            vehicle = 'car';
+                        } else if (lowerTransport.includes('bus')) {
+                            vehicle = 'car'; // bus uses car routing
+                        } else if (lowerTransport.includes('motorbike')) {
+                            vehicle = 'bike';
+                        }
+                    }
+
+                    // Get route info from Vietmap (only for travel time)
+                    const routeInfo = await OSRMUtil.getRouteInfo(
+                        { lat: parseFloat(prevSite.latitude), lng: parseFloat(prevSite.longitude) },
+                        { lat: parseFloat(site.latitude), lng: parseFloat(site.longitude) },
+                        vehicle
                     );
 
-                    if (!distanceResult.validation.allowed) {
-                        await transaction.rollback();
-                        throw new Error(distanceResult.validation.error);
+                    if (routeInfo && routeInfo.duration) {
+                        travelTimeMinutes = Math.ceil(routeInfo.duration / 60); // Convert seconds to minutes
+                        Logger.info(`Travel time from previous site: ${travelTimeMinutes} minutes`);
+
+                        // Validation 1: Travel time should not exceed 24 hours
+                        if (travelTimeMinutes > 1440) { // 1440 minutes = 24 hours
+                            throw new Error(`Travel time between sites is too long (${Math.floor(travelTimeMinutes / 60)} hours). Maximum allowed is 24 hours.`);
+                        }
+                    }
+                }
+            }
+
+            // Auto-calculate estimated_time based on previous item
+            // User can only set estimated_time for the FIRST item in a day
+            let finalEstimatedTime;
+            if (previousItem && previousItem.estimated_time) {
+                // If there's a previous item, always auto-calculate (ignore user input)
+                finalEstimatedTime = calculateEstimatedTime(previousItem, travelTimeMinutes, '09:00');
+                Logger.info(`Auto-calculated estimated_time: ${finalEstimatedTime} (from ${previousItem.estimated_time} + ${parseDurationToMinutes(previousItem.rest_duration)}min rest + ${travelTimeMinutes}min travel)`);
+
+                // Validation 2: Total time in a day should not exceed 24 hours
+                // Get the first item of the day to calculate total duration
+                const firstItem = await PlannerItem.findOne({
+                    where: {
+                        planner_id: plannerId,
+                        day_number: day_number
+                    },
+                    order: [['order_index', 'ASC']],
+                    transaction
+                });
+
+                if (firstItem && firstItem.estimated_time) {
+                    // Calculate time difference from first item to current item
+                    const [firstHours, firstMins] = firstItem.estimated_time.split(':').map(Number);
+                    const [currentHours, currentMins] = finalEstimatedTime.split(':').map(Number);
+
+                    const firstTotalMinutes = firstHours * 60 + firstMins;
+                    const currentTotalMinutes = currentHours * 60 + currentMins;
+
+                    let totalDayMinutes = currentTotalMinutes - firstTotalMinutes;
+
+                    // Handle case where time wraps to next day (e.g., 23:00 to 01:00)
+                    if (totalDayMinutes < 0) {
+                        totalDayMinutes += 1440; // Add 24 hours
                     }
 
-                    if (distanceResult.validation.warning) {
-                        warning = distanceResult.validation.warning;
+                    if (totalDayMinutes > 1440) { // 1440 minutes = 24 hours
+                        throw new Error(`Total time for day ${day_number} exceeds 24 hours (${Math.floor(totalDayMinutes / 60)} hours). Please split into multiple days.`);
                     }
+                }
+            } else {
+                // First item in the day: use user input or default
+                finalEstimatedTime = estimated_time || '09:00';
+                Logger.info(`Using ${estimated_time ? 'user-provided' : 'default'} estimated_time: ${finalEstimatedTime}`);
+            }
+
+            // Validation 3: Check if estimated_time falls within site's opening hours
+            if (site.opening_hours && planner.start_date) {
+                // Calculate the actual date for this day_number
+                const startDate = new Date(planner.start_date);
+                const actualDate = new Date(startDate);
+                actualDate.setDate(startDate.getDate() + (day_number - 1));
+
+                const openingCheck = isWithinOpeningHours(finalEstimatedTime, site.opening_hours, actualDate);
+                if (!openingCheck.isOpen) {
+                    Logger.warn(`Opening hours validation failed: ${openingCheck.message}`);
+                    throw new Error(openingCheck.message);
                 }
             }
 
@@ -348,7 +422,10 @@ class PlannerService {
                 site_id: site_id,
                 day_number: day_number,
                 order_index: nextOrderIndex,
-                note: note || null
+                note: note || null,
+                nearby_amenity_ids: nearby_amenity_ids || [],
+                estimated_time: finalEstimatedTime,
+                rest_duration: rest_duration || null
             }, { transaction });
 
             await transaction.commit();
@@ -362,10 +439,7 @@ class PlannerService {
 
             Logger.info(`Item added to planner ${plannerId} by user ${userId}`);
 
-            return {
-                item: this.formatPlannerItemResponse(result),
-                warning: warning
-            };
+            return this.formatPlannerItemResponse(result);
         } catch (error) {
             // Only rollback if transaction is still active
             if (transaction && !transaction.finished) {
@@ -437,7 +511,79 @@ class PlannerService {
 
             await transaction.commit();
 
-            // Fetch updated items
+            // Recalculate estimated times for all items after reorder
+            Logger.info('Recalculating estimated times after reorder...');
+
+            // Fetch all items with site details in new order
+            const itemsWithSites = await PlannerItem.findAll({
+                where: {
+                    planner_id: plannerId,
+                    day_number: dayNumber
+                },
+                include: [
+                    { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image', 'opening_hours'] }
+                ],
+                order: [['order_index', 'ASC']]
+            });
+
+            // Recalculate times for each item (except first)
+            for (let i = 1; i < itemsWithSites.length; i++) {
+                const currentItem = itemsWithSites[i];
+                const previousItem = itemsWithSites[i - 1];
+
+                let travelTimeMinutes = 0;
+
+                // Get travel time from VietMap
+                if (previousItem.site && currentItem.site &&
+                    previousItem.site.latitude && previousItem.site.longitude &&
+                    currentItem.site.latitude && currentItem.site.longitude) {
+
+                    // Map transportation to VietMap vehicle type
+                    let vehicle = 'bike';
+                    if (planner.transportation) {
+                        const lowerTransport = planner.transportation.toLowerCase();
+                        if (lowerTransport.includes('car') || lowerTransport === 'car') {
+                            vehicle = 'car';
+                        } else if (lowerTransport.includes('bus')) {
+                            vehicle = 'car';
+                        } else if (lowerTransport.includes('motorbike')) {
+                            vehicle = 'bike';
+                        }
+                    }
+
+                    const routeInfo = await OSRMUtil.getRouteInfo(
+                        { lat: parseFloat(previousItem.site.latitude), lng: parseFloat(previousItem.site.longitude) },
+                        { lat: parseFloat(currentItem.site.latitude), lng: parseFloat(currentItem.site.longitude) },
+                        vehicle
+                    );
+
+                    if (routeInfo && routeInfo.duration) {
+                        travelTimeMinutes = Math.ceil(routeInfo.duration / 60);
+                    }
+                }
+
+                // Calculate new estimated time
+                const newEstimatedTime = calculateEstimatedTime(previousItem, travelTimeMinutes, '09:00');
+
+                // Validate opening hours
+                if (currentItem.site.opening_hours && planner.start_date) {
+                    const startDate = new Date(planner.start_date);
+                    const actualDate = new Date(startDate);
+                    actualDate.setDate(startDate.getDate() + (dayNumber - 1));
+
+                    const openingCheck = isWithinOpeningHours(newEstimatedTime, currentItem.site.opening_hours, actualDate);
+                    if (!openingCheck.isOpen) {
+                        Logger.warn(`Opening hours validation failed after reorder: ${openingCheck.message}`);
+                        throw new Error(openingCheck.message);
+                    }
+                }
+
+                // Update estimated time
+                await currentItem.update({ estimated_time: newEstimatedTime });
+                Logger.info(`Updated item ${currentItem.id} estimated_time to ${newEstimatedTime}`);
+            }
+
+            // Fetch final updated items
             const updatedItems = await PlannerItem.findAll({
                 where: {
                     planner_id: plannerId,
@@ -449,7 +595,7 @@ class PlannerService {
                 order: [['order_index', 'ASC']]
             });
 
-            Logger.info(`Items reordered in planner ${plannerId} day ${dayNumber} by user ${userId}`);
+            Logger.info(`Items reordered and times recalculated in planner ${plannerId} day ${dayNumber} by user ${userId}`);
 
             return {
                 items: updatedItems.map(i => this.formatPlannerItemResponse(i))
@@ -539,7 +685,7 @@ class PlannerService {
             number_of_days: numberOfDays,
             number_of_people: planner.number_of_people,
             transportation: planner.transportation,
-            budget_level: planner.budget_level,
+
             status: planner.status,
             share_token: planner.share_token,
             share_role: planner.share_role,
@@ -581,6 +727,15 @@ class PlannerService {
      * Format planner item response
      */
     static formatPlannerItemResponse(item) {
+        const { addMinutesToTime, parseDurationToMinutes } = require('../utils/timeCalculation.util');
+
+        // Calculate estimated departure time
+        let estimatedDepartureTime = null;
+        if (item.estimated_time && item.rest_duration) {
+            const restMinutes = parseDurationToMinutes(item.rest_duration);
+            estimatedDepartureTime = addMinutesToTime(item.estimated_time, restMinutes);
+        }
+
         return {
             id: item.id,
             planner_id: item.planner_id,
@@ -588,6 +743,10 @@ class PlannerService {
             day_number: item.day_number,
             order_index: item.order_index,
             note: item.note,
+            nearby_amenity_ids: item.nearby_amenity_ids || [],
+            estimated_time: item.estimated_time,
+            rest_duration: item.rest_duration,
+            estimated_departure_time: estimatedDepartureTime,
             site: item.site ? {
                 id: item.site.id,
                 name: item.site.name,

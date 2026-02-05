@@ -272,7 +272,12 @@
     "site_not_found": "Không tìm thấy địa điểm",
     "share_token_created": "Tạo link chia sẻ thành công",
     "share_disabled": "Tắt chia sẻ thành công",
-    "invalid_role": "Quyền không hợp lệ"
+    "invalid_role": "Quyền không hợp lệ",
+    "travel_time_too_long": "Thời gian di chuyển giữa 2 địa điểm quá dài ({{hours}} giờ). Tối đa 24 giờ.",
+    "total_time_exceeds_24h": "Tổng thời gian trong ngày {{day}} vượt quá 24 giờ ({{hours}} giờ). Vui lòng chia thành nhiều ngày.",
+    "consecutive_site_not_allowed": "Không thể thêm cùng một địa điểm 2 lần liên tiếp. Vui lòng chọn địa điểm khác hoặc chuyển sang ngày tiếp theo.",
+    "site_closed": "Địa điểm đóng cửa vào thời gian này",
+    "site_closed_on_day": "Địa điểm đóng cửa vào ngày này"
   },
   "error": {
     "server_error": "Lỗi máy chủ",

@@ -32,12 +32,6 @@
  *           enum: [motorbike, car, bus]
  *           example: "car"
  *           description: "Phương tiện di chuyển"
- *         budget_level:
- *           type: string
- *           enum: [budget, standard, luxury]
- *           default: "standard"
- *           example: "standard"
- *           description: "Mức ngân sách"
  *
  *     UpdatePlannerRequest:
  *       type: object
@@ -61,10 +55,6 @@
  *           type: string
  *           enum: [motorbike, car, bus]
  *           example: "bus"
- *         budget_level:
- *           type: string
- *           enum: [budget, standard, luxury]
- *           example: "luxury"
  *         status:
  *           type: string
  *           enum: [planning, ongoing, completed]
@@ -90,6 +80,23 @@
  *           type: string
  *           example: "Tham quan vào buổi sáng"
  *           description: "Ghi chú cho điểm này"
+ *         nearby_amenity_ids:
+ *           type: array
+ *           items:
+ *             type: string
+ *             format: uuid
+ *           example: ["amenity-uuid-1", "amenity-uuid-2"]
+ *           description: "Danh sách ID các địa điểm tiện ích gần đó (nhà hàng, khách sạn, y tế)"
+ *         estimated_time:
+ *           type: string
+ *           pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$'
+ *           example: "09:00"
+ *           description: "Giờ dự kiến đến địa điểm (HH:MM). Nếu không cung cấp, hệ thống sẽ tự động tính dựa trên điểm trước đó"
+ *         rest_duration:
+ *           type: string
+ *           pattern: '^\d+\s+(hour|hours|minute|minutes|min|mins)$'
+ *           example: "2 hours"
+ *           description: "Thời gian nghỉ ngơi/tham quan tại địa điểm (ví dụ: '1 hour', '30 minutes', '2 hours')"
  *
  *     ReorderItemsRequest:
  *       type: object
@@ -128,6 +135,24 @@
  *           type: integer
  *         note:
  *           type: string
+ *         nearby_amenity_ids:
+ *           type: array
+ *           items:
+ *             type: string
+ *             format: uuid
+ *           description: "Danh sách ID các địa điểm tiện ích gần đó"
+ *         estimated_time:
+ *           type: string
+ *           example: "09:00"
+ *           description: "Giờ dự kiến đến địa điểm (HH:MM)"
+ *         rest_duration:
+ *           type: string
+ *           example: "2 hours"
+ *           description: "Thời gian nghỉ ngơi/tham quan tại địa điểm"
+ *         estimated_departure_time:
+ *           type: string
+ *           example: "11:00"
+ *           description: "Giờ dự kiến rời khỏi địa điểm (tự động tính = estimated_time + rest_duration)"
  *         site:
  *           type: object
  *           properties:
@@ -168,8 +193,7 @@
  *           type: integer
  *         transportation:
  *           type: string
- *         budget_level:
- *           type: string
+
  *         status:
  *           type: string
  *         share_token:
@@ -262,14 +286,7 @@
  *           type: string
  *           example: "Thêm điểm thành công"
  *         data:
- *           type: object
- *           properties:
- *             item:
- *               $ref: '#/components/schemas/PlannerItem'
- *             warning:
- *               type: string
- *               example: "Quãng đường khá xa cho 1 ngày (350.5km)"
- *               description: "Cảnh báo nếu khoảng cách 250-500km"
+ *           $ref: '#/components/schemas/PlannerItem'
  */
 
 module.exports = {};
