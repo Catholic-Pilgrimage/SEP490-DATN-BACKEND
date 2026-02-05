@@ -34,6 +34,15 @@ class JournalController {
             if (error.message === 'Maximum 10 images allowed') {
                 return ResponseUtil.badRequest(res, req.__('journal.max_images'));
             }
+            if (error.message.includes('Planner item ID is required')) {
+                return ResponseUtil.badRequest(res, req.__('journal.planner_item_required'));
+            }
+            if (error.message.includes('You must check-in at this location')) {
+                return ResponseUtil.badRequest(res, req.__('journal.checkin_required'));
+            }
+            if (error.message.includes('This planner item is not associated with a site')) {
+                return ResponseUtil.badRequest(res, req.__('journal.site_not_associated'));
+            }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }

@@ -166,6 +166,12 @@ class SiteValidator {
         return true;
       })
   ];
+
+  // Validate site ID parameter
+  static validateSiteId = [
+    require('express-validator').param('id')
+      .isUUID().withMessage('ID địa điểm không hợp lệ')
+  ];
 }
 
 module.exports = SiteValidator;

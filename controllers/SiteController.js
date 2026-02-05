@@ -194,6 +194,43 @@ exports.restoreSite = async (req, res) => {
   }
 };
 
+// ===================== USER FAVORITES =====================
+
+// User: Add site to favorites
+exports.addFavorite = async (req, res) => {
+  try {
+    const result = await SiteService.addFavorite(req.user.id, req.params.id);
+    return ResponseUtil.success(res, result, req.__('site.favorite_added'));
+  } catch (error) {
+    if (error.message === 'Site not found') {
+      return ResponseUtil.notFound(res, req.__('site.not_found'));
+    }
+    if (error.message === 'Site not active') {
+      return ResponseUtil.badRequest(res, req.__('site.not_active'));
+    }
+    if (error.message === 'Already favorited') {
+      return ResponseUtil.conflict(res, req.__('site.already_favorited'));
+    }
+    return ResponseUtil.error(res, req.__('error.server_error'));
+  }
+};
+
+// User: Remove site from favorites
+exports.removeFavorite = async (req, res) => {
+  try {
+    const result = await SiteService.removeFavorite(req.user.id, req.params.id);
+    return ResponseUtil.success(res, result, req.__('site.favorite_removed'));
+  } catch (error) {
+    if (error.message === 'Site not found') {
+      return ResponseUtil.notFound(res, req.__('site.not_found'));
+    }
+    if (error.message === 'Not favorited') {
+      return ResponseUtil.badRequest(res, req.__('site.not_favorited'));
+    }
+    return ResponseUtil.error(res, req.__('error.server_error'));
+  }
+};
+
 // ===================== PUBLIC SITE =====================
 
 // Public: Get all sites (approved)

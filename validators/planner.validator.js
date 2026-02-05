@@ -24,9 +24,19 @@ class PlannerValidator {
                 return true;
             }),
 
-        body('number_of_days')
+        body('end_date')
             .optional()
-            .isInt({ min: 1 }).withMessage('Số ngày phải lớn hơn hoặc bằng 1'),
+            .isISO8601().withMessage('Ngày kết thúc phải có định dạng YYYY-MM-DD')
+            .custom((value, { req }) => {
+                if (value && req.body.start_date) {
+                    const startDate = new Date(req.body.start_date);
+                    const endDate = new Date(value);
+                    if (endDate < startDate) {
+                        throw new Error('Ngày kết thúc phải sau hoặc bằng ngày bắt đầu');
+                    }
+                }
+                return true;
+            }),
 
         body('number_of_people')
             .optional()
@@ -34,11 +44,7 @@ class PlannerValidator {
 
         body('transportation')
             .optional()
-            .isIn(['motorbike', 'car', 'bus', 'train', 'plane']).withMessage('Phương tiện phải là xe máy, xe hơi, xe buýt, tàu hỏa hoặc máy bay'),
-
-        body('budget_level')
-            .optional()
-            .isIn(['budget', 'standard', 'luxury']).withMessage('Mức ngân sách phải là tiết kiệm, tiêu chuẩn hoặc sang trọng')
+            .isIn(['motorbike', 'car', 'bus']).withMessage('Phương tiện phải là motorbike, car hoặc bus')
     ];
 
     // Validate update planner
@@ -64,9 +70,9 @@ class PlannerValidator {
                 return true;
             }),
 
-        body('number_of_days')
+        body('end_date')
             .optional()
-            .isInt({ min: 1 }).withMessage('Số ngày phải lớn hơn hoặc bằng 1'),
+            .isISO8601().withMessage('Ngày kết thúc phải có định dạng YYYY-MM-DD'),
 
         body('number_of_people')
             .optional()
@@ -74,11 +80,7 @@ class PlannerValidator {
 
         body('transportation')
             .optional()
-            .isIn(['motorbike', 'car', 'bus', 'train', 'plane']).withMessage('Phương tiện phải là motorbike, car, bus, train hoặc plane'),
-
-        body('budget_level')
-            .optional()
-            .isIn(['budget', 'standard', 'luxury']).withMessage('Mức ngân sách phải là budget, standard hoặc luxury'),
+            .isIn(['motorbike', 'car', 'bus']).withMessage('Phương tiện phải là motorbike, car hoặc bus'),
 
         body('status')
             .optional()
@@ -101,6 +103,26 @@ class PlannerValidator {
         body('note')
             .optional()
             .isString().withMessage('Ghi chú phải là chuỗi')
+            .trim(),
+
+        body('nearby_amenity_ids')
+            .optional()
+            .isArray().withMessage('Danh sách tiện ích phải là mảng')
+            .custom((value) => {
+                if (value && !value.every(id => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))) {
+                    throw new Error('Tất cả nearby amenity IDs phải là UUID hợp lệ');
+                }
+                return true;
+            }),
+
+        body('estimated_time')
+            .optional()
+            .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).withMessage('Giờ dự kiến phải có định dạng HH:MM (ví dụ: 09:00, 14:30)'),
+
+        body('rest_duration')
+            .optional()
+            .isString().withMessage('Thời gian nghỉ phải là chuỗi')
+            .matches(/^\d+\s+(hour|hours|minute|minutes|min|mins)$/i).withMessage('Thời gian nghỉ phải có định dạng như: "1 hour", "30 minutes", "2 hours"')
             .trim()
     ];
 
@@ -183,6 +205,26 @@ class PlannerValidator {
         body('note')
             .optional()
             .isString().withMessage('Ghi chú phải là chuỗi')
+            .trim(),
+
+        body('nearby_amenity_ids')
+            .optional()
+            .isArray().withMessage('Danh sách tiện ích phải là mảng')
+            .custom((value) => {
+                if (value && !value.every(id => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))) {
+                    throw new Error('Tất cả nearby amenity IDs phải là UUID hợp lệ');
+                }
+                return true;
+            }),
+
+        body('estimated_time')
+            .optional()
+            .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).withMessage('Giờ dự kiến phải có định dạng HH:MM (ví dụ: 09:00, 14:30)'),
+
+        body('rest_duration')
+            .optional()
+            .isString().withMessage('Thời gian nghỉ phải là chuỗi')
+            .matches(/^\d+\s+(hour|hours|minute|minutes|min|mins)$/i).withMessage('Thời gian nghỉ phải có định dạng như: "1 hour", "30 minutes", "2 hours"')
             .trim()
     ];
 
@@ -214,6 +256,16 @@ class PlannerValidator {
         body('role')
             .notEmpty().withMessage('Role không được để trống')
             .isIn(['viewer', 'editor']).withMessage('Role phải là viewer hoặc editor')
+    ];
+
+    // Validate update planner status only
+    static updatePlannerStatus = [
+        param('id')
+            .isUUID().withMessage('Planner ID không hợp lệ'),
+
+        body('status')
+            .notEmpty().withMessage('Trạng thái không được để trống')
+            .isIn(['planning', 'ongoing', 'completed']).withMessage('Trạng thái phải là planning, ongoing hoặc completed')
     ];
 }
 

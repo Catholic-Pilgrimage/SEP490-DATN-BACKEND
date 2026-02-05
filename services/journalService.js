@@ -6,29 +6,55 @@ class JournalService {
 
     /**
      * Create a new journal
+     * User must check-in at a planner_item before creating journal
      */
     static async createJournal(userId, journalData, imageFiles = [], audioFile = null, videoFile = null) {
         try {
-            const { title, content, site_id, privacy = 'private' } = journalData;
+            const { title, content, planner_item_id, privacy = 'private' } = journalData;
 
             // Validate required fields
             if (!title || !content) {
                 throw new Error('Title and content are required');
             }
 
+            // Validate planner_item_id is required
+            if (!planner_item_id) {
+                throw new Error('Planner item ID is required. You must check-in at a location before creating a journal.');
+            }
+
+            // Check if user has checked in at this planner_item
+            const { UserCheckin, PlannerItem } = require('../models');
+            const checkin = await UserCheckin.findOne({
+                where: {
+                    user_id: userId,
+                    planner_item_id: planner_item_id
+                },
+                include: [{
+                    model: PlannerItem,
+                    as: 'plannerItem',
+                    attributes: ['id', 'site_id'],
+                    include: [{
+                        model: Site,
+                        as: 'site',
+                        attributes: ['id', 'name', 'code']
+                    }]
+                }]
+            });
+
+            if (!checkin) {
+                throw new Error('You must check-in at this location before creating a journal.');
+            }
+
+            // Auto-populate site_id from planner_item
+            const finalSiteId = checkin.plannerItem.site_id;
+
+            if (!finalSiteId) {
+                throw new Error('This planner item is not associated with a site.');
+            }
+
             // Validate image limit (max 10)
             if (imageFiles && imageFiles.length > 10) {
                 throw new Error('Maximum 10 images allowed');
-            }
-
-            // Handle finalSiteId pattern: validate site exists or set to null
-            let finalSiteId = null;
-            if (site_id) {
-                const site = await Site.findByPk(site_id);
-                if (site) {
-                    finalSiteId = site_id;
-                }
-                // If site doesn't exist, finalSiteId remains null (no error thrown)
             }
 
             // Debug: Log file objects
@@ -67,7 +93,7 @@ class JournalService {
                 ]
             });
 
-            Logger.info(`Journal created by user ${userId}: ${journal.id}`);
+            Logger.info(`Journal created by user ${userId} at site ${finalSiteId}: ${journal.id}`);
             return this.formatJournalResponse(result);
         } catch (error) {
             Logger.error('Create journal error:', error);
@@ -238,15 +264,7 @@ class JournalService {
                 dataToUpdate.privacy = updateData.privacy;
             }
 
-            // Handle site_id with finalSiteId pattern
-            if (updateData.site_id !== undefined) {
-                if (updateData.site_id) {
-                    const site = await Site.findByPk(updateData.site_id);
-                    dataToUpdate.site_id = site ? updateData.site_id : null;
-                } else {
-                    dataToUpdate.site_id = null;
-                }
-            }
+            // Note: site_id cannot be changed after creation
 
             // Handle image URLs (append new images to existing)
             if (imageFiles && imageFiles.length > 0) {

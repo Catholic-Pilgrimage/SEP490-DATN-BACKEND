@@ -7,7 +7,7 @@ const authenticate = require('../middlewares/auth.middleware');
 /**
  * @swagger
  * tags:
- *   name: Planners
+ *   name: Planners - Pilgrim
  *   description: Lập kế hoạch hành hương
  */
 
@@ -16,7 +16,7 @@ const authenticate = require('../middlewares/auth.middleware');
  * /api/planners:
  *   post:
  *     summary: Tạo kế hoạch mới
- *     tags: [Planners]
+ *     tags: [Planners - Pilgrim]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -49,7 +49,7 @@ router.post(
  * /api/planners:
  *   get:
  *     summary: Lấy danh sách kế hoạch của người dùng
- *     tags: [Planners]
+ *     tags: [Planners - Pilgrim]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -90,7 +90,7 @@ router.get(
  * /api/planners/{id}:
  *   get:
  *     summary: Lấy kế hoạch theo ID
- *     tags: [Planners]
+ *     tags: [Planners - Pilgrim]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -132,9 +132,10 @@ router.get(
 /**
  * @swagger
  * /api/planners/{id}:
- *   patch:
- *     summary: Cập nhật kế hoạch
- *     tags: [Planners]
+ *   put:
+ *     summary: Cập nhật kế hoạch (full update)
+ *     description: Cập nhật nhiều trường của kế hoạch như tên, ngày, số người, phương tiện, ngân sách
+ *     tags: [Planners - Pilgrim]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -167,7 +168,7 @@ router.get(
  *       404:
  *         description: Không tìm thấy kế hoạch
  */
-router.patch(
+router.put(
     '/:id',
     authenticate,
     PlannerValidator.updatePlanner,
@@ -176,10 +177,64 @@ router.patch(
 
 /**
  * @swagger
+ * /api/planners/{id}/status:
+ *   patch:
+ *     summary: Cập nhật trạng thái kế hoạch
+ *     description: Cập nhật chỉ trạng thái của kế hoạch (planning, ongoing, completed)
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID kế hoạch
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [planning, ongoing, completed]
+ *                 description: Trạng thái mới của kế hoạch
+ *                 example: ongoing
+ *     responses:
+ *       200:
+ *         description: Cập nhật trạng thái thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PlannerResponse'
+ *       400:
+ *         description: Lỗi xác thực
+ *       401:
+ *         description: Chưa xác thực
+ *       403:
+ *         description: Không có quyền - không phải chủ sở hữu
+ *       404:
+ *         description: Không tìm thấy kế hoạch
+ */
+router.patch(
+    '/:id/status',
+    authenticate,
+    PlannerValidator.updatePlannerStatus,
+    PlannerController.updatePlannerStatus
+);
+
+/**
+ * @swagger
  * /api/planners/{id}:
  *   delete:
  *     summary: Xóa kế hoạch
- *     tags: [Planners]
+ *     tags: [Planners - Pilgrim]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -213,7 +268,7 @@ router.delete(
  *   post:
  *     summary: Thêm điểm vào kế hoạch
  *     description: Thêm một địa điểm vào một ngày cụ thể trong kế hoạch. Kiểm tra khoảng cách áp dụng cho điểm thứ 2 trở đi trong cùng ngày.
- *     tags: [Planners]
+ *     tags: [Planners - Pilgrim]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -258,7 +313,7 @@ router.post(
  * /api/planners/{id}/items/reorder:
  *   patch:
  *     summary: Sắp xếp lại các địa điểm trong cùng một ngày
- *     tags: [Planners]
+ *     tags: [Planners - Pilgrim]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -316,7 +371,7 @@ router.patch(
  *   delete:
  *     summary: Xóa một địa điểm khỏi kế hoạch
  *     description: Xóa một địa điểm và tự động sắp xếp lại các địa điểm còn lại trong cùng ngày
- *     tags: [Planners]
+ *     tags: [Planners - Pilgrim]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -361,7 +416,7 @@ router.delete(
  *   post:
  *     summary: Tạo hoặc cập nhật token chia sẻ
  *     description: Tạo token chia sẻ mới hoặc cập nhật role của token hiện tại. Chỉ chủ sở hữu mới có quyền.
- *     tags: [Planners]
+ *     tags: [Planners - Pilgrim]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -428,7 +483,7 @@ router.post(
  *   delete:
  *     summary: Tắt chia sẻ
  *     description: Vô hiệu hóa chia sẻ kế hoạch, xóa token và đặt lại về trạng thái riêng tư. Chỉ chủ sở hữu mới có quyền.
- *     tags: [Planners]
+ *     tags: [Planners - Pilgrim]
  *     security:
  *       - bearerAuth: []
  *     parameters:

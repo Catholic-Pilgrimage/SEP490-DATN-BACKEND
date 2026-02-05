@@ -12,9 +12,9 @@ class JournalValidator {
             .notEmpty().withMessage('Nội dung không được để trống')
             .trim(),
 
-        body('site_id')
-            .optional()
-            .isString().withMessage('Site ID phải là chuỗi'),
+        body('planner_item_id')
+            .notEmpty().withMessage('Planner item ID là bắt buộc')
+            .isUUID().withMessage('Planner item ID không hợp lệ'),
 
         body('privacy')
             .optional()
