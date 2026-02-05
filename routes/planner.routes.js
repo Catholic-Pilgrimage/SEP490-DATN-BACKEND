@@ -132,8 +132,9 @@ router.get(
 /**
  * @swagger
  * /api/planners/{id}:
- *   patch:
- *     summary: Cập nhật kế hoạch
+ *   put:
+ *     summary: Cập nhật kế hoạch (full update)
+ *     description: Cập nhật nhiều trường của kế hoạch như tên, ngày, số người, phương tiện, ngân sách
  *     tags: [Planners]
  *     security:
  *       - bearerAuth: []
@@ -167,11 +168,65 @@ router.get(
  *       404:
  *         description: Không tìm thấy kế hoạch
  */
-router.patch(
+router.put(
     '/:id',
     authenticate,
     PlannerValidator.updatePlanner,
     PlannerController.updatePlanner
+);
+
+/**
+ * @swagger
+ * /api/planners/{id}/status:
+ *   patch:
+ *     summary: Cập nhật trạng thái kế hoạch
+ *     description: Cập nhật chỉ trạng thái của kế hoạch (planning, ongoing, completed)
+ *     tags: [Planners]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID kế hoạch
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [planning, ongoing, completed]
+ *                 description: Trạng thái mới của kế hoạch
+ *                 example: ongoing
+ *     responses:
+ *       200:
+ *         description: Cập nhật trạng thái thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PlannerResponse'
+ *       400:
+ *         description: Lỗi xác thực
+ *       401:
+ *         description: Chưa xác thực
+ *       403:
+ *         description: Không có quyền - không phải chủ sở hữu
+ *       404:
+ *         description: Không tìm thấy kế hoạch
+ */
+router.patch(
+    '/:id/status',
+    authenticate,
+    PlannerValidator.updatePlannerStatus,
+    PlannerController.updatePlannerStatus
 );
 
 /**

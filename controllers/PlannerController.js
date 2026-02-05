@@ -71,7 +71,7 @@ class PlannerController {
     }
 
     /**
-     * PATCH /planners/:id - Update planner
+     * PUT /planners/:id - Update planner (full update)
      */
     static async updatePlanner(req, res) {
         try {
@@ -94,6 +94,32 @@ class PlannerController {
             }
             if (error.message === 'Number of people must be at least 1') {
                 return ResponseUtil.badRequest(res, req.__('planner.invalid_people'));
+            }
+            return ResponseUtil.error(res, req.__('error.server_error'));
+        }
+    }
+
+    /**
+     * PATCH /planners/:id/status - Update planner status only
+     */
+    static async updatePlannerStatus(req, res) {
+        try {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
+            }
+
+            const result = await PlannerService.updatePlannerStatus(req.params.id, req.user.id, req.body.status);
+            return ResponseUtil.success(res, result, req.__('planner.status_update_success'));
+        } catch (error) {
+            if (error.message === 'Planner not found') {
+                return ResponseUtil.notFound(res, req.__('planner.not_found'));
+            }
+            if (error.message === 'Forbidden') {
+                return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
+            }
+            if (error.message === 'Invalid status') {
+                return ResponseUtil.badRequest(res, req.__('planner.invalid_status'));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }

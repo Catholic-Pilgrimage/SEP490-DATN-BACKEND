@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const authRoutes = require('./auth.routes');
 const adminRoutes = require('./admin.routes');
-const { adminRouter: adminSiteRoutes, managerRouter: managerSiteRoutes } = require('./site.routes');
+const { adminRouter: adminSiteRoutes, managerRouter: managerSiteRoutes, publicRouter: publicSiteRoutes } = require('./site.routes');
 const { publicRouter: publicVerificationRoutes, pilgrimRouter: verificationRoutes, adminRouter: adminVerificationRoutes } = require('./verification.routes');
 const managerLocalGuideRoutes = require('./managerLocalGuide.routes');
 const localGuideRoutes = require('./localGuide.routes');
@@ -10,6 +10,7 @@ const managerContentRoutes = require('./managerContent.routes');
 const publicRoutes = require('./public.routes');
 const journalRoutes = require('./journal.routes');
 const plannerRoutes = require('./planner.routes');
+const checkinRoutes = require('./checkin.routes');
 const notificationRoutes = require('./notification.routes');
 const sosRoutes = require('./sos.routes');
 
@@ -32,6 +33,7 @@ router.get('/', (req, res) => {
       sitesAvailable: '/api/sites/available',
       journals: '/api/journals',
       planners: '/api/planners',
+      checkins: '/api/planner-items/:id/checkin',
       notifications: '/api/notifications',
       sos: '/api/sos'
     }
@@ -52,6 +54,9 @@ router.use('/admin/sites', adminSiteRoutes);
 
 // Manager Site routes
 router.use('/manager/sites', managerSiteRoutes);
+
+// Public Site routes (for all authenticated users)
+router.use('/sites', publicSiteRoutes);
 
 // Manager Local Guide routes
 router.use('/manager/local-guides', managerLocalGuideRoutes);
@@ -76,6 +81,9 @@ router.use('/journals', journalRoutes);
 
 // Planner routes
 router.use('/planners', plannerRoutes);
+
+// Check-in routes
+router.use('/planner-items', checkinRoutes);
 
 // Notification routes
 router.use('/notifications', notificationRoutes);

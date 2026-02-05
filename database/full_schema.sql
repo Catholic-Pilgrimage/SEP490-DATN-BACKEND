@@ -38,7 +38,7 @@ DO $$ BEGIN
     -- Planner
     CREATE TYPE planner_status AS ENUM ('planning', 'ongoing', 'completed');
     CREATE TYPE planner_role AS ENUM ('viewer', 'editor');
-    CREATE TYPE budget_level AS ENUM ('budget', 'standard', 'luxury');
+
     
     -- Journal & Community
     CREATE TYPE journal_privacy AS ENUM ('private', 'public');
@@ -487,7 +487,7 @@ CREATE TABLE IF NOT EXISTS planners (
     number_of_days INT DEFAULT 1,
     number_of_people INT DEFAULT 1,
     transportation VARCHAR(100),
-    budget_level budget_level DEFAULT 'standard',
+
     status planner_status DEFAULT 'planning',
     is_public BOOLEAN DEFAULT FALSE,
     share_token VARCHAR(50) UNIQUE DEFAULT NULL,
@@ -526,6 +526,12 @@ CREATE TABLE IF NOT EXISTS planner_items (
     day_number INT DEFAULT 1,
     order_index INT DEFAULT 1,
     note TEXT,
+    
+    -- NEW: Enhanced planning features
+    nearby_amenity_ids UUID[], -- Array of nearby_place IDs (optional)
+    estimated_time TIME, -- Giờ dự kiến đến địa điểm
+    rest_duration INTERVAL, -- Thời gian nghỉ ngơi (e.g., '1 hour', '30 minutes')
+    
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -553,19 +559,29 @@ CREATE TABLE IF NOT EXISTS user_favorites (
     PRIMARY KEY (user_id, site_id)
 );
 
--- 8.2 Check-ins (UPDATED - added GPS)
+-- 8.2 Check-ins (UPDATED - planner-item-based with GPS validation)
 CREATE TABLE IF NOT EXISTS user_checkins (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    site_id UUID REFERENCES sites(id) ON DELETE CASCADE,
+    
+    user_id UUID NOT NULL
+        REFERENCES users(id) ON DELETE CASCADE,
+    
+    planner_item_id UUID NOT NULL
+        REFERENCES planner_items(id) ON DELETE CASCADE,
+    
     latitude DECIMAL(9,6),
     longitude DECIMAL(9,6),
+    
+    distance_meters INT,
+    is_valid BOOLEAN DEFAULT false,
+    
     checkin_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    note TEXT
+    note TEXT,
+    
+    UNIQUE (user_id, planner_item_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_checkins_user ON user_checkins(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_checkins_site ON user_checkins(site_id);
 
 -- ============================================
 -- 9. PRAYER NOTES (NEW - Prayer Offering)
