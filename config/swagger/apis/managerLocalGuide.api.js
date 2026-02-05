@@ -135,7 +135,13 @@
  * /api/manager/local-guides/{id}/status:
  *   patch:
  *     summary: Cập nhật trạng thái Local Guide (Manager only)
- *     description: Block hoặc Unblock Local Guide (chuyển status giữa active và banned)
+ *     description: |
+ *       Block hoặc Unblock Local Guide (chuyển status giữa active và banned).
+ *       **Khi set status = banned:**
+ *       - Clear site assignment (site_id = null)
+ *       - Reject tất cả pending content (media, event, schedule, nearby place)
+ *       - Deactivate tất cả shift submissions trong tương lai
+ *       - Gửi thông báo cho Local Guide
  *     tags: [Manager Local Guides]
  *     security:
  *       - bearerAuth: []
@@ -349,4 +355,3 @@
  *       404:
  *         description: Không tìm thấy submission
  */
-

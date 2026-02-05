@@ -18,6 +18,10 @@ const NOTIFICATION_TEMPLATES = {
         title: 'Tài khoản bị tạm khóa',
         message: 'Tài khoản hướng dẫn viên của bạn đã bị tạm khóa'
     },
+    local_guide_removed: {
+        title: 'Tài khoản bị xóa',
+        message: 'Bạn đã bị xóa khỏi đội ngũ hướng dẫn viên tại {{siteName}}'
+    },
 
     // Shift notifications
     shift_assigned: {
@@ -346,6 +350,44 @@ class NotificationService {
             return { updated: updatedCount };
         } catch (error) {
             Logger.error('Mark all as read error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Delete single notification
+     */
+    static async deleteNotification(notificationId, userId) {
+        try {
+            const notification = await Notification.findOne({
+                where: { id: notificationId, receiver_id: userId }
+            });
+
+            if (!notification) {
+                throw new Error('Notification not found');
+            }
+
+            await notification.destroy();
+            Logger.info(`Notification ${notificationId} deleted by user ${userId}`);
+            return { message: 'Notification deleted successfully' };
+        } catch (error) {
+            Logger.error('Delete notification error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Delete all notifications for a user
+     */
+    static async deleteAllNotifications(userId) {
+        try {
+            const deletedCount = await Notification.destroy({
+                where: { receiver_id: userId }
+            });
+            Logger.info(`Deleted ${deletedCount} notifications for user ${userId}`);
+            return { deleted: deletedCount };
+        } catch (error) {
+            Logger.error('Delete all notifications error:', error);
             throw error;
         }
     }

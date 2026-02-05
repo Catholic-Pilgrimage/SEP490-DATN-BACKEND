@@ -30,6 +30,7 @@ router.get('/', (req, res) => {
       localGuide: '/api/local-guide',
       verification: '/api/verification-requests',
       adminVerification: '/api/admin/verification-requests',
+      sitesAvailable: '/api/sites/available',
       journals: '/api/journals',
       planners: '/api/planners',
       checkins: '/api/planner-items/:id/checkin',
@@ -72,7 +73,7 @@ router.use('/verification-requests', verificationRoutes);
 // Admin Verification routes (Admin only)
 router.use('/admin/verification-requests', adminVerificationRoutes);
 
-// Public routes (Sites, Events, etc.)
+// Public routes (Sites, Events, etc.) - includes /available endpoint
 router.use('/sites', publicRoutes);
 
 // Journal routes

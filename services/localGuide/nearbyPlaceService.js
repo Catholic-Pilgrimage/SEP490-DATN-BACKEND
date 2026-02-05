@@ -53,7 +53,7 @@ class LocalGuideNearbyPlaceService {
             const nearbyPlace = await NearbyPlace.create({
                 site_id: user.site_id,
                 code,
-                proposed_by: userId,
+                created_by: userId,
                 name,
                 category,
                 address: address || null,
@@ -96,7 +96,7 @@ class LocalGuideNearbyPlaceService {
 
             const where = {
                 site_id: user.site_id,
-                proposed_by: userId
+                created_by: userId
             };
 
             if (filters.status && ['pending', 'approved', 'rejected'].includes(filters.status)) {
@@ -147,7 +147,7 @@ class LocalGuideNearbyPlaceService {
                 where: {
                     id: placeId,
                     site_id: user.site_id,
-                    proposed_by: userId
+                    created_by: userId
                 }
             });
 
@@ -201,7 +201,7 @@ class LocalGuideNearbyPlaceService {
                 where: {
                     id: placeId,
                     site_id: user.site_id,
-                    proposed_by: userId
+                    created_by: userId
                 }
             });
 
@@ -239,7 +239,7 @@ class LocalGuideNearbyPlaceService {
                 where: {
                     id: placeId,
                     site_id: user.site_id,
-                    proposed_by: userId
+                    created_by: userId
                 }
             });
 

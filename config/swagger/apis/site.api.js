@@ -15,6 +15,102 @@
 
 /**
  * @swagger
+ * /api/sites/available:
+ *   get:
+ *     summary: Danh sách địa điểm có thể xin quản lý (Manager Transition)
+ *     description: |
+ *       Lấy danh sách các địa điểm đang có Manager nhưng chưa có yêu cầu transition pending.
+ *       Dùng cho flow xin thay thế Manager hiện tại.
+ *     tags: [Public Sites]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Số trang
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Số lượng mỗi trang
+ *       - in: query
+ *         name: province
+ *         schema:
+ *           type: string
+ *         description: Lọc theo tỉnh/thành phố
+ *       - in: query
+ *         name: region
+ *         schema:
+ *           type: string
+ *           enum: [Bac, Trung, Nam]
+ *         description: Lọc theo miền
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Tìm theo tên địa điểm
+ *     responses:
+ *       200:
+ *         description: Thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                           code:
+ *                             type: string
+ *                             example: "CHNAM001"
+ *                           name:
+ *                             type: string
+ *                             example: "Nhà thờ Đức Bà"
+ *                           province:
+ *                             type: string
+ *                           region:
+ *                             type: string
+ *                           type:
+ *                             type: string
+ *                           cover_image:
+ *                             type: string
+ *                           manager:
+ *                             type: object
+ *                             properties:
+ *                               id:
+ *                                 type: string
+ *                               full_name:
+ *                                 type: string
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                         limit:
+ *                           type: integer
+ *                         totalItems:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
+ */
+
+/**
+ * @swagger
  * /api/sites:
  *   get:
  *     summary: Xem danh sách địa điểm công khai (Public - không cần đăng nhập)
@@ -1598,7 +1694,7 @@
  *                             type: string
  *                           is_active:
  *                             type: boolean
- *                           proposer:
+ *                           creator:
  *                             type: object
  *                             properties:
  *                               id:

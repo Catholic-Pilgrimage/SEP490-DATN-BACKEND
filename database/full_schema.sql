@@ -29,6 +29,7 @@ DO $$ BEGIN
     CREATE TYPE site_region AS ENUM ('Bac', 'Trung', 'Nam');
     CREATE TYPE site_type AS ENUM ('church', 'shrine', 'monastery', 'center', 'other');
     CREATE TYPE media_type AS ENUM ('image', 'video', 'panorama');
+    CREATE TYPE site_content_status AS ENUM ('pending', 'approved', 'rejected');
     
     -- Nearby Places (NEW)
     CREATE TYPE nearby_place_category AS ENUM ('food', 'lodging', 'medical');
@@ -117,6 +118,10 @@ CREATE TABLE IF NOT EXISTS users (
     -- NEW: Simplified Manager/Guide management
     site_id UUID, -- Will add FK after sites table created
     verified_at TIMESTAMP WITH TIME ZONE, -- For managers
+    
+    -- Manager Transition: Local Guide inheritance tracking
+    inherited_from UUID, -- Previous manager who created/managed this Local Guide
+    inherited_at TIMESTAMP WITH TIME ZONE, -- When this Local Guide was inherited
     
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -270,11 +275,16 @@ CREATE TABLE IF NOT EXISTS verification_requests (
     applicant_phone VARCHAR(20),
     
     -- Basic site info (for Admin to review)
-    site_name VARCHAR(255) NOT NULL,
+    site_name VARCHAR(255), -- Made nullable for transition requests
     site_address TEXT,
-    site_province VARCHAR(100) NOT NULL,
+    site_province VARCHAR(100), -- Made nullable for transition requests
     site_type site_type,
     site_region site_region,
+    
+    -- Manager Transition: For requesting to manage existing site
+    existing_site_id UUID REFERENCES sites(id) ON DELETE SET NULL, -- If set, requesting to manage existing site
+    transition_reason TEXT, -- Reason for requesting to replace current manager
+    old_manager_id UUID REFERENCES users(id) ON DELETE SET NULL, -- Tracks the previous manager who was replaced
     
     -- Proof documents
     certificate_url TEXT,
@@ -783,7 +793,7 @@ CREATE TABLE IF NOT EXISTS nearby_places (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
     code VARCHAR(15) UNIQUE NOT NULL,
-    proposed_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     category nearby_place_category NOT NULL,
     address TEXT,

@@ -17,6 +17,13 @@ publicRouter.post(
     VerificationController.createGuestRequest
 );
 
+// POST - Submit transition request (guest or pilgrim)
+publicRouter.post(
+    '/transition',
+    uploadDocument.single('certificate'),
+    VerificationController.createTransitionRequest
+);
+
 // Pilgrim Router
 const pilgrimRouter = express.Router();
 pilgrimRouter.use(i18nMiddleware);
@@ -29,6 +36,15 @@ pilgrimRouter.post(
     uploadDocument.single('certificate'),
     VerificationValidator.createRequest,
     VerificationController.createRequest
+);
+
+// POST - Submit transition request (authenticated pilgrim)
+pilgrimRouter.post(
+    '/transition',
+    authMiddleware,
+    authMiddleware.authorize('pilgrim'),
+    uploadDocument.single('certificate'),
+    VerificationController.createTransitionRequest
 );
 
 // GET - Get my verification request
@@ -73,3 +89,4 @@ module.exports = {
     pilgrimRouter,
     adminRouter
 };
+

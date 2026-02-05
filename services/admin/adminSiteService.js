@@ -630,7 +630,7 @@ class AdminSiteService {
         where,
         include: [{
           model: User,
-          as: 'proposer',
+          as: 'creator',
           attributes: ['id', 'full_name', 'email']
         }],
         order: [['distance_meters', 'ASC']],

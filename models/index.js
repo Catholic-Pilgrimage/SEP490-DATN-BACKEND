@@ -134,9 +134,9 @@ GuideShift.belongsTo(GuideShiftSubmission, { foreignKey: 'submission_id', as: 's
 Site.hasMany(NearbyPlace, { foreignKey: 'site_id', as: 'nearbyPlaces' });
 NearbyPlace.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
 
-// NearbyPlace - User (proposed_by)
-User.hasMany(NearbyPlace, { foreignKey: 'proposed_by', as: 'proposedPlaces' });
-NearbyPlace.belongsTo(User, { foreignKey: 'proposed_by', as: 'proposer' });
+// NearbyPlace - User (created_by)
+User.hasMany(NearbyPlace, { foreignKey: 'created_by', as: 'createdPlaces' });
+NearbyPlace.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
 
 // NearbyPlace - User (reviewed_by)
 NearbyPlace.belongsTo(User, { foreignKey: 'reviewed_by', as: 'reviewer' });

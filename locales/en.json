@@ -70,7 +70,8 @@
     "get_events_success": "Get events successfully",
     "get_nearby_places_success": "Get nearby places successfully",
     "get_guides_success": "Get local guides successfully",
-    "get_shifts_success": "Get shift submissions successfully"
+    "get_shifts_success": "Get shift submissions successfully",
+    "available_sites_success": "Get available sites for transition successfully"
   },
   "manager_site": {
     "create_success": "Site created successfully",
@@ -98,7 +99,13 @@
     "email_name_required": "Email and name are required",
     "site_info_required": "Site name and province are required",
     "not_pending": "Request is not in pending status",
-    "rejection_reason_required": "Rejection reason is required"
+    "rejection_reason_required": "Rejection reason is required",
+    "transition_create_success": "Transition request submitted successfully",
+    "existing_site_required": "Please select a site to request management",
+    "site_no_manager": "This site has no manager. Please use the regular registration form",
+    "guest_info_required": "Email and name are required",
+    "site_transition_pending": "This site already has a pending transition request",
+    "transition_reason_required": "Please provide a reason for requesting to replace the manager"
   },
   "local_guide": {
     "create_success": "Local Guide created successfully",
@@ -188,7 +195,8 @@
     "update_approved_nearby_place_error": "Cannot update approved nearby place",
     "delete_approved_nearby_place_error": "Cannot delete approved nearby place",
     "restore_approved_nearby_place_error": "Cannot restore approved nearby place",
-    "nearby_place_already_active": "Nearby place is already active"
+    "nearby_place_already_active": "Nearby place is already active",
+    "remove_success": "Local Guide removed successfully"
   },
   "manager": {
     "no_site": "Manager has no assigned site",
@@ -295,6 +303,7 @@
     "token_registered": "Push token registered successfully",
     "token_revoked": "Push token revoked successfully",
     "delete_success": "Delete notification successfully",
+    "delete_all_success": "All notifications deleted successfully",
     "not_found": "Notification not found",
     "invalid_token": "Invalid push token",
     "token_required": "Push token is required"

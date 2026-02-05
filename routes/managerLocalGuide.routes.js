@@ -53,6 +53,7 @@ router.patch(
 // ===================== LOCAL GUIDE STATUS =====================
 
 // PATCH - Update Local Guide Status (block/unblock)
+// When setting status to 'banned', also rejects pending content, deactivates future shifts
 router.patch(
     '/:id/status',
     authMiddleware,

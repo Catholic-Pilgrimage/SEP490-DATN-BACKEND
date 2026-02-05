@@ -232,7 +232,7 @@
  *                 data:
  *                   type: object
  *                   properties:
- *                     updated_count:
+ *                     updated:
  *                       type: integer
  *                       example: 5
  *       401:
@@ -241,9 +241,42 @@
 
 /**
  * @swagger
+ * /api/notifications:
+ *   delete:
+ *     summary: Xóa tất cả thông báo
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Xóa tất cả thông báo thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Đã xóa tất cả thông báo thành công"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     deleted:
+ *                       type: integer
+ *                       example: 15
+ *                       description: Số lượng thông báo đã xóa
+ *       401:
+ *         description: Chưa xác thực
+ */
+
+/**
+ * @swagger
  * /api/notifications/{id}:
  *   delete:
- *     summary: Xóa thông báo
+ *     summary: Xóa một thông báo
  *     tags: [Notifications]
  *     security:
  *       - bearerAuth: []

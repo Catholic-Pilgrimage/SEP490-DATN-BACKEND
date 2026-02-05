@@ -278,3 +278,136 @@
  *       404:
  *         description: Không tìm thấy yêu cầu
  */
+
+/**
+ * @swagger
+ * /api/verification/transition:
+ *   post:
+ *     summary: Gửi yêu cầu thay thế Manager (Guest - Manager Transition)
+ *     description: |
+ *       Cho phép người chưa có tài khoản hoặc Pilgrim gửi yêu cầu thay thế Manager của một địa điểm có sẵn.
+ *       Khi Admin approve:
+ *       - Manager cũ bị demote về Pilgrim
+ *       - Local Guides được đánh dấu "inherited"
+ *       - Người xin trở thành Manager mới của site
+ *     tags: [Verification]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - existing_site_id
+ *               - transition_reason
+ *             properties:
+ *               applicant_email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email người đăng ký (bắt buộc nếu là guest)
+ *                 example: newmanager@example.com
+ *               applicant_name:
+ *                 type: string
+ *                 description: Họ tên người đăng ký (bắt buộc nếu là guest)
+ *                 example: Nguyễn Văn B
+ *               applicant_phone:
+ *                 type: string
+ *                 description: Số điện thoại
+ *                 example: "0901234567"
+ *               existing_site_id:
+ *                 type: string
+ *                 format: uuid
+ *                 description: ID của Site muốn xin quản lý
+ *               transition_reason:
+ *                 type: string
+ *                 description: Lý do xin thay thế Manager hiện tại
+ *                 example: "Manager hiện tại không còn hoạt động..."
+ *               certificate:
+ *                 type: string
+ *                 format: binary
+ *                 description: Giấy tờ chứng minh (PDF, JPG, PNG)
+ *               introduction:
+ *                 type: string
+ *                 description: Giới thiệu về bản thân
+ *     responses:
+ *       201:
+ *         description: Gửi yêu cầu thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Gửi yêu cầu thay thế quản lý thành công
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       format: uuid
+ *                     code:
+ *                       type: string
+ *                       example: VR01285
+ *                     existing_site_id:
+ *                       type: string
+ *                       format: uuid
+ *                     transition_reason:
+ *                       type: string
+ *                     status:
+ *                       type: string
+ *                       example: pending
+ *       400:
+ *         description: Dữ liệu không hợp lệ hoặc site không có manager
+ *       409:
+ *         description: Đã có yêu cầu pending hoặc site đã có yêu cầu transition pending
+ */
+
+/**
+ * @swagger
+ * /api/verification-requests/transition:
+ *   post:
+ *     summary: Gửi yêu cầu thay thế Manager (Pilgrim only - Manager Transition)
+ *     description: |
+ *       Cho phép Pilgrim gửi yêu cầu thay thế Manager của một địa điểm có sẵn.
+ *       Thông tin người dùng sẽ lấy từ token đăng nhập.
+ *     tags: [Verification]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - existing_site_id
+ *               - transition_reason
+ *             properties:
+ *               existing_site_id:
+ *                 type: string
+ *                 format: uuid
+ *                 description: ID của Site muốn xin quản lý
+ *               transition_reason:
+ *                 type: string
+ *                 description: Lý do xin thay thế Manager hiện tại
+ *               certificate:
+ *                 type: string
+ *                 format: binary
+ *                 description: Giấy tờ chứng minh (PDF, JPG, PNG)
+ *               introduction:
+ *                 type: string
+ *                 description: Giới thiệu về bản thân
+ *     responses:
+ *       201:
+ *         description: Gửi yêu cầu thành công
+ *       400:
+ *         description: Dữ liệu không hợp lệ
+ *       403:
+ *         description: Chỉ Pilgrim mới được gửi yêu cầu
+ *       409:
+ *         description: Đã có yêu cầu pending
+ */

@@ -23,6 +23,7 @@ const Notification = sequelize.define('Notification', {
             isIn: [[
                 'local_guide_created',
                 'local_guide_disabled',
+                'local_guide_removed',
                 'shift_assigned',
                 'shift_rejected',
                 'site_update_submitted',
