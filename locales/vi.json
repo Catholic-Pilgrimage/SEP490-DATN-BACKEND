@@ -251,6 +251,9 @@
     "list_success": "Lấy danh sách nhật ký thành công",
     "not_found": "Không tìm thấy nhật ký",
     "forbidden": "Bạn không có quyền truy cập nhật ký này",
+    "planner_item_required": "Planner item ID là bắt buộc. Bạn phải check-in tại địa điểm trước khi viết nhật ký.",
+    "checkin_required": "Bạn phải check-in tại địa điểm này trước khi viết nhật ký.",
+    "site_not_associated": "Planner item này không liên kết với địa điểm nào.",
     "max_images": "Tối đa 10 ảnh",
     "title_content_required": "Tiêu đề và nội dung không được để trống"
   },

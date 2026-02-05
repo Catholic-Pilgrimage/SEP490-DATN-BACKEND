@@ -11,6 +11,7 @@ const publicRoutes = require('./public.routes');
 const journalRoutes = require('./journal.routes');
 const plannerRoutes = require('./planner.routes');
 const checkinRoutes = require('./checkin.routes');
+const checkinHistoryRoutes = require('./checkin-history.routes');
 const notificationRoutes = require('./notification.routes');
 const sosRoutes = require('./sos.routes');
 
@@ -34,6 +35,7 @@ router.get('/', (req, res) => {
       journals: '/api/journals',
       planners: '/api/planners',
       checkins: '/api/planner-items/:id/checkin',
+      checkinHistory: '/api/checkins/me',
       notifications: '/api/notifications',
       sos: '/api/sos'
     }
@@ -84,6 +86,9 @@ router.use('/planners', plannerRoutes);
 
 // Check-in routes
 router.use('/planner-items', checkinRoutes);
+
+// Check-in history routes
+router.use('/checkins', checkinHistoryRoutes);
 
 // Notification routes
 router.use('/notifications', notificationRoutes);

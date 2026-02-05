@@ -7,7 +7,7 @@ const authMiddleware = require('../middlewares/auth.middleware');
 /**
  * @swagger
  * tags:
- *   name: Check-ins
+ *   name: Check-ins - Pilgrim
  *   description: Check-in tại các điểm trong kế hoạch
  */
 
@@ -20,14 +20,15 @@ const authMiddleware = require('../middlewares/auth.middleware');
  *       Cho phép người dùng check-in tại một điểm trong kế hoạch của họ.
  *       
  *       **Quy tắc GPS:**
- *       - Hệ thống tính khoảng cách giữa vị trí hiện tại và địa điểm
- *       - Check-in hợp lệ nếu khoảng cách ≤ 100m
+ *       - Hệ thống tính khoảng cách đi bộ thực tế (theo đường đi) bằng VietMap API
+ *       - Check-in hợp lệ nếu khoảng cách đi bộ ≤ 100m
  *       - Mỗi điểm chỉ được check-in 1 lần
  *       
  *       **Lưu ý:**
  *       - Không cần gửi user_id (lấy từ JWT)
  *       - Không cần gửi site_id (backend tự suy ra từ planner item)
- *     tags: [Check-ins]
+ *       - Khoảng cách được tính theo đường đi bộ, không phải đường chim bay
+ *     tags: [Check-ins - Pilgrim]
  *     security:
  *       - bearerAuth: []
  *     parameters:

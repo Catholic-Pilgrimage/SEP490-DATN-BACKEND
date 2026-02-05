@@ -45,9 +45,29 @@ class CheckinController {
             if (err.message === 'Site coordinates not available') {
                 return ResponseUtil.badRequest(res, err.message);
             }
+            if (err.message.includes('Không thể tính khoảng cách')) {
+                return ResponseUtil.error(res, err.message, 503);
+            }
+            if (err.message.includes('Bạn cách địa điểm')) {
+                return ResponseUtil.badRequest(res, err.message);
+            }
 
             // Generic error
             return ResponseUtil.error(res, err.message || 'Check-in failed', 500);
+        }
+    }
+
+    /**
+     * Get user's check-in history
+     * GET /checkins/me
+     */
+    static async getUserCheckins(req, res) {
+        try {
+            const userId = req.user.id;
+            const result = await CheckinService.getUserCheckins(userId);
+            return ResponseUtil.success(res, result, 'Lấy danh sách check-in thành công');
+        } catch (err) {
+            return ResponseUtil.error(res, err.message || 'Lấy danh sách check-in thất bại', 500);
         }
     }
 }
