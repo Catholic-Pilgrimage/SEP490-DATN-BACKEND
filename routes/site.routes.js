@@ -142,7 +142,7 @@ publicRouter.use(i18nMiddleware);
  * /api/sites/{id}/favorite:
  *   post:
  *     summary: Thêm địa điểm vào danh sách yêu thích
- *     tags: [Favorites]
+ *     tags: [Favorites - Pilgrim]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -173,7 +173,7 @@ publicRouter.post(
  * /api/sites/{id}/favorite:
  *   delete:
  *     summary: Xóa địa điểm khỏi danh sách yêu thích
- *     tags: [Favorites]
+ *     tags: [Favorites - Pilgrim]
  *     security:
  *       - bearerAuth: []
  *     parameters:

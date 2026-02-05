@@ -7,6 +7,7 @@
  *       required:
  *         - title
  *         - content
+ *         - planner_item_id
  *       properties:
  *         title:
  *           type: string
@@ -14,9 +15,10 @@
  *         content:
  *           type: string
  *           example: "Hôm nay tôi đã có một chuyến hành hương ý nghĩa"
- *         site_id:
+ *         planner_item_id:
  *           type: string
  *           format: uuid
+ *           description: "ID của planner item đã check-in (bắt buộc)"
  *           example: "550e8400-e29b-41d4-a716-446655440000"
  *         privacy:
  *           type: string
@@ -47,9 +49,6 @@
  *         content:
  *           type: string
  *           example: "<p>Nội dung đã được cập nhật...</p>"
- *         site_id:
- *           type: string
- *           format: uuid
  *         privacy:
  *           type: string
  *           enum: [private, public]
