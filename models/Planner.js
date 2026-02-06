@@ -48,6 +48,14 @@ const Planner = sequelize.define('Planner', {
             isIn: [['planning', 'ongoing', 'completed']]
         }
     },
+    started_at: {
+        type: DataTypes.DATE,
+        allowNull: true
+    },
+    completed_at: {
+        type: DataTypes.DATE,
+        allowNull: true
+    },
     share_token: {
         type: DataTypes.STRING(50),
         allowNull: true,

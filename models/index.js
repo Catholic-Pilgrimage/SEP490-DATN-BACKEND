@@ -14,6 +14,8 @@ const NearbyPlace = require('./NearbyPlace');
 const Journal = require('./Journal');
 const Planner = require('./Planner');
 const PlannerItem = require('./PlannerItem');
+const PlannerInvite = require('./PlannerInvite');
+const PlannerMember = require('./PlannerMember');
 const UserFavorite = require('./UserFavorite');
 const UserCheckin = require('./UserCheckin');
 const Notification = require('./Notification');
@@ -89,6 +91,28 @@ Planner.belongsTo(User, { foreignKey: 'user_id', as: 'owner' });
 // Planner - PlannerItem
 Planner.hasMany(PlannerItem, { foreignKey: 'planner_id', as: 'items' });
 PlannerItem.belongsTo(Planner, { foreignKey: 'planner_id', as: 'planner' });
+
+// Planner - PlannerInvite
+Planner.hasMany(PlannerInvite, { foreignKey: 'planner_id', as: 'invites' });
+PlannerInvite.belongsTo(Planner, { foreignKey: 'planner_id', as: 'planner' });
+
+// User - PlannerInvite
+User.hasMany(PlannerInvite, { foreignKey: 'inviter_id', as: 'sentPlannerInvites' });
+PlannerInvite.belongsTo(User, { foreignKey: 'inviter_id', as: 'inviter' });
+
+// Planner - User (Members) - Many-to-Many through PlannerMember
+Planner.belongsToMany(User, {
+  through: PlannerMember,
+  foreignKey: 'planner_id',
+  otherKey: 'user_id',
+  as: 'members'
+});
+User.belongsToMany(Planner, {
+  through: PlannerMember,
+  foreignKey: 'user_id',
+  otherKey: 'planner_id',
+  as: 'joinedPlanners'
+});
 
 // PlannerItem - Site
 PlannerItem.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
@@ -197,7 +221,7 @@ Group.hasMany(GroupInvite, { foreignKey: 'group_id', as: 'invites' });
 GroupInvite.belongsTo(Group, { foreignKey: 'group_id', as: 'group' });
 
 // GroupInvite - User (inviter)
-User.hasMany(GroupInvite, { foreignKey: 'inviter_id', as: 'sentInvites' });
+User.hasMany(GroupInvite, { foreignKey: 'inviter_id', as: 'sentGroupInvites' });
 GroupInvite.belongsTo(User, { foreignKey: 'inviter_id', as: 'inviter' });
 
 // GroupJoinRequest - Group
@@ -265,6 +289,8 @@ const db = {
   Journal,
   Planner,
   PlannerItem,
+  PlannerInvite,
+  PlannerMember,
   UserFavorite,
   UserCheckin,
   NearbyPlace,

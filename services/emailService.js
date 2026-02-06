@@ -853,6 +853,88 @@ class EmailService {
       throw error;
     }
   }
+
+  /**
+   * Send planner invitation email
+   */
+  static async sendPlannerInvitation(email, inviterName, plannerName, token, role) {
+    try {
+      Logger.info(`Sending planner invitation to: ${email}`);
+      const currentYear = new Date().getFullYear();
+
+      const inviteUrl = `${process.env.FRONTEND_URL || 'https://catholicpilgrimage.app'}/planners/invite/${token}`;
+      const roleText = role === 'editor' ? 'Biên tập viên' : 'Người xem';
+
+      const htmlContent = `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>Lời mời tham gia kế hoạch hành hương</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Arial, sans-serif;">
+  <div style="font-family: 'Segoe UI', Tahoma, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #fff;">
+    ${this.getEmailHeader()}
+    
+    <div style="padding: 30px; background: #fff;">
+      <h2 style="color: #4a0e4e; font-weight: normal;">Lời mời tham gia kế hoạch hành hương</h2>
+      
+      <p style="color: #333; line-height: 1.8; font-size: 16px;">
+        <strong>${inviterName}</strong> đã mời bạn tham gia kế hoạch hành hương:
+      </p>
+      
+      <div style="background: linear-gradient(135deg, #e8eaf6 0%, #c5cae9 100%); padding: 25px; border-radius: 8px; margin: 25px 0; text-align: center; border: 2px solid #3f51b5;">
+        <h3 style="color: #283593; margin: 0; font-size: 22px;">📋 ${plannerName}</h3>
+        <p style="color: #5c6bc0; margin: 10px 0 0 0; font-size: 14px;">Vai trò: <strong>${roleText}</strong></p>
+      </div>
+      
+      <p style="color: #333; line-height: 1.8; font-size: 16px;">
+        Hãy cùng nhau lập kế hoạch hành hương, khám phá các nhà thờ và thánh địa Công giáo.
+      </p>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${inviteUrl}" style="display: inline-block; background: linear-gradient(135deg, #3f51b5 0%, #303f9f 100%); color: #fff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          Xem lời mời
+        </a>
+      </div>
+      
+      <p style="color: #999; font-size: 14px; text-align: center; margin-top: 20px;">
+        Lời mời này sẽ hết hạn sau 7 ngày.
+      </p>
+      
+      <div style="text-align: center; margin-top: 30px; padding: 20px; background: #f8f6f0; border-radius: 8px;">
+        <p style="color: #7b1fa2; font-style: italic; margin: 0;">
+          "Hãy lên đường, Thầy sai anh em đi"
+        </p>
+        <p style="color: #999; font-size: 12px; margin: 10px 0 0 0;">- Lc 10:3</p>
+      </div>
+    </div>
+    
+    ${this.getEmailFooter(currentYear)}
+  </div>
+</body>
+</html>`;
+
+      const { data, error } = await resend.emails.send({
+        from: emailConfig.from,
+        to: email,
+        subject: `Lời mời tham gia kế hoạch "${plannerName}" - Catholic Pilgrimage`,
+        html: htmlContent
+      });
+
+      if (error) {
+        Logger.error('Send planner invitation email error:', error);
+        throw new Error(`Failed to send email: ${error.message}`);
+      }
+
+      Logger.info(`Planner invitation email sent to: ${email}`);
+      return data;
+    } catch (error) {
+      Logger.error('Email service error:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = EmailService;

@@ -133,7 +133,7 @@ router.get(
  * @swagger
  * /api/planners/{id}:
  *   put:
- *     summary: Cập nhật kế hoạch (full update)
+ *     summary: Cập nhật kế hoạch
  *     description: Cập nhật nhiều trường của kế hoạch như tên, ngày, số người, phương tiện, ngân sách
  *     tags: [Planners - Pilgrim]
  *     security:
@@ -173,60 +173,6 @@ router.put(
     authenticate,
     PlannerValidator.updatePlanner,
     PlannerController.updatePlanner
-);
-
-/**
- * @swagger
- * /api/planners/{id}/status:
- *   patch:
- *     summary: Cập nhật trạng thái kế hoạch
- *     description: Cập nhật chỉ trạng thái của kế hoạch (planning, ongoing, completed)
- *     tags: [Planners - Pilgrim]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: ID kế hoạch
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - status
- *             properties:
- *               status:
- *                 type: string
- *                 enum: [planning, ongoing, completed]
- *                 description: Trạng thái mới của kế hoạch
- *                 example: ongoing
- *     responses:
- *       200:
- *         description: Cập nhật trạng thái thành công
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/PlannerResponse'
- *       400:
- *         description: Lỗi xác thực
- *       401:
- *         description: Chưa xác thực
- *       403:
- *         description: Không có quyền - không phải chủ sở hữu
- *       404:
- *         description: Không tìm thấy kế hoạch
- */
-router.patch(
-    '/:id/status',
-    authenticate,
-    PlannerValidator.updatePlannerStatus,
-    PlannerController.updatePlannerStatus
 );
 
 /**
@@ -509,6 +455,202 @@ router.delete(
     authenticate,
     PlannerValidator.validatePlannerId,
     PlannerController.disableShare
+);
+
+/**
+ * @swagger
+ * /api/planners/{id}/complete:
+ *   post:
+ *     summary: Đánh dấu kế hoạch hoàn thành
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của kế hoạch
+ *     responses:
+ *       200:
+ *         description: Đánh dấu hoàn thành thành công
+ *       400:
+ *         description: Kế hoạch không ở trạng thái ongoing
+ *       401:
+ *         description: Chưa xác thực
+ *       403:
+ *         description: Không có quyền
+ *       404:
+ *         description: Không tìm thấy kế hoạch
+ */
+router.post(
+    '/:id/complete',
+    authenticate,
+    PlannerValidator.validatePlannerId,
+    PlannerController.completePlanner
+);
+
+/**
+ * @swagger
+ * /api/planners/{id}/invite:
+ *   post:
+ *     summary: Mời người tham gia kế hoạch qua email
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               role:
+ *                 type: string
+ *                 enum: [viewer, editor]
+ *                 default: viewer
+ *     responses:
+ *       200:
+ *         description: Gửi lời mời thành công
+ */
+router.post(
+    '/:id/invite',
+    authenticate,
+    PlannerValidator.validatePlannerId,
+    PlannerController.inviteUser
+);
+
+/**
+ * @swagger
+ * /api/planners/invite/{token}:
+ *   post:
+ *     summary: Phản hồi lời mời tham gia kế hoạch
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - action
+ *             properties:
+ *               action:
+ *                 type: string
+ *                 enum: [accept, reject]
+ *                 description: Hành động (accept = chấp nhận, reject = từ chối)
+ *     responses:
+ *       200:
+ *         description: Xử lý lời mời thành công
+ */
+router.post(
+    '/invite/:token',
+    authenticate,
+    PlannerController.respondToInvite
+);
+
+/**
+ * @swagger
+ * /api/planners/{id}/invites:
+ *   get:
+ *     summary: Lấy danh sách lời mời của kế hoạch
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Lấy danh sách thành công
+ */
+router.get(
+    '/:id/invites',
+    authenticate,
+    PlannerValidator.validatePlannerId,
+    PlannerController.getInvites
+);
+
+/**
+ * @swagger
+ * /api/planners/{id}/members:
+ *   get:
+ *     summary: Lấy danh sách thành viên của kế hoạch
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Lấy danh sách thành công
+ */
+router.get(
+    '/:id/members',
+    authenticate,
+    PlannerValidator.validatePlannerId,
+    PlannerController.getMembers
+);
+
+/**
+ * @swagger
+ * /api/planners/{id}/members/{memberId}:
+ *   delete:
+ *     summary: Xóa thành viên khỏi kế hoạch
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: path
+ *         name: memberId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Xóa thành viên thành công
+ */
+router.delete(
+    '/:id/members/:memberId',
+    authenticate,
+    PlannerValidator.validatePlannerId,
+    PlannerController.removeMember
 );
 
 module.exports = router;
