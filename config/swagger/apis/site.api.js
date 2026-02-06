@@ -1712,3 +1712,207 @@
  *       404:
  *         description: Không tìm thấy site
  */
+
+// ============================================
+// FAVORITES ROUTES (Pilgrim)
+// ============================================
+
+/**
+ * @swagger
+ * /api/sites/favorites:
+ *   get:
+ *     summary: Lấy danh sách địa điểm yêu thích
+ *     description: Lấy danh sách các địa điểm mà user đã thêm vào yêu thích
+ *     tags: [Favorites - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Số trang
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Số lượng mỗi trang
+ *     responses:
+ *       200:
+ *         description: Lấy danh sách yêu thích thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Lấy danh sách yêu thích thành công"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     sites:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                           code:
+ *                             type: string
+ *                             example: "CHNAM001"
+ *                           name:
+ *                             type: string
+ *                             example: "Nhà thờ Đức Bà Sài Gòn"
+ *                           description:
+ *                             type: string
+ *                           address:
+ *                             type: string
+ *                           province:
+ *                             type: string
+ *                           district:
+ *                             type: string
+ *                           region:
+ *                             type: string
+ *                             enum: [Bac, Trung, Nam]
+ *                           type:
+ *                             type: string
+ *                             enum: [church, shrine, monastery, center, other]
+ *                           patron_saint:
+ *                             type: string
+ *                           cover_image:
+ *                             type: string
+ *                           opening_hours:
+ *                             type: object
+ *                           latitude:
+ *                             type: number
+ *                           longitude:
+ *                             type: number
+ *                           is_active:
+ *                             type: boolean
+ *                           created_at:
+ *                             type: string
+ *                             format: date-time
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                           example: 1
+ *                         limit:
+ *                           type: integer
+ *                           example: 10
+ *                         total:
+ *                           type: integer
+ *                           example: 5
+ *                         totalPages:
+ *                           type: integer
+ *                           example: 1
+ *       401:
+ *         description: Chưa xác thực
+ *       500:
+ *         description: Lỗi server
+ */
+
+/**
+ * @swagger
+ * /api/sites/{id}/favorite:
+ *   post:
+ *     summary: Thêm địa điểm vào danh sách yêu thích
+ *     description: Thêm một địa điểm vào danh sách yêu thích của user
+ *     tags: [Favorites - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của địa điểm
+ *     responses:
+ *       200:
+ *         description: Thêm vào yêu thích thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Đã thêm địa điểm vào danh sách yêu thích"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     site_id:
+ *                       type: string
+ *                       format: uuid
+ *                     site_name:
+ *                       type: string
+ *                       example: "Nhà thờ Đức Bà Sài Gòn"
+ *       400:
+ *         description: Địa điểm không hoạt động
+ *       404:
+ *         description: Không tìm thấy địa điểm
+ *       409:
+ *         description: Địa điểm đã có trong danh sách yêu thích
+ *       401:
+ *         description: Chưa xác thực
+ *       500:
+ *         description: Lỗi server
+ *   delete:
+ *     summary: Xóa địa điểm khỏi danh sách yêu thích
+ *     description: Xóa một địa điểm khỏi danh sách yêu thích của user
+ *     tags: [Favorites - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của địa điểm
+ *     responses:
+ *       200:
+ *         description: Xóa khỏi yêu thích thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Đã xóa địa điểm khỏi danh sách yêu thích"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     site_id:
+ *                       type: string
+ *                       format: uuid
+ *                     site_name:
+ *                       type: string
+ *                       example: "Nhà thờ Đức Bà Sài Gòn"
+ *       400:
+ *         description: Địa điểm không có trong danh sách yêu thích
+ *       404:
+ *         description: Không tìm thấy địa điểm
+ *       401:
+ *         description: Chưa xác thực
+ *       500:
+ *         description: Lỗi server
+ */

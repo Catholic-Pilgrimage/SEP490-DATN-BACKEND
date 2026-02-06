@@ -569,6 +569,44 @@ class NotificationService {
             throw error;
         }
     }
+
+    // Notify all users who favorited a site about updates
+    static async notifyFavoriteSiteUsers(siteId, updateType) {
+        try {
+            const { UserFavorite, Site } = require('../models');
+
+            const site = await Site.findByPk(siteId);
+            if (!site) {
+                Logger.warn(`Site ${siteId} not found for favorite notification`);
+                return;
+            }
+
+            const favorites = await UserFavorite.findAll({
+                where: { site_id: siteId }
+            });
+
+            if (favorites.length === 0) {
+                Logger.info(`No users favorited site ${site.name}`);
+                return;
+            }
+
+            Logger.info(`Notifying ${favorites.length} users about ${updateType} at ${site.name}`);
+
+            for (const fav of favorites) {
+                try {
+                    await this.createNotification('favorite_site_update', fav.user_id, {
+                        siteName: site.name,
+                        updateType: updateType
+                    });
+                } catch (err) {
+                    Logger.error(`Failed to notify user ${fav.user_id}:`, err);
+                }
+            }
+        } catch (error) {
+            Logger.error('Notify favorite site users error:', error);
+           
+        }
+    }
 }
 
 module.exports = NotificationService;

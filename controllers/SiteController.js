@@ -196,6 +196,17 @@ exports.restoreSite = async (req, res) => {
 
 // ===================== USER FAVORITES =====================
 
+// User: Get favorite sites
+exports.getFavorites = async (req, res) => {
+  try {
+    const { page, limit } = req.query;
+    const result = await SiteService.getFavorites(req.user.id, { page, limit });
+    return ResponseUtil.success(res, result, req.__('site.get_favorites_success'));
+  } catch (error) {
+    return ResponseUtil.error(res, req.__('error.server_error'));
+  }
+};
+
 // User: Add site to favorites
 exports.addFavorite = async (req, res) => {
   try {

@@ -2,6 +2,7 @@ const { Site, User, VerificationRequest, SiteMedia, MassSchedule, Event, NearbyP
 const { Op } = require('sequelize');
 const Logger = require('../utils/logger.util');
 const appConfig = require('../config/app.config');
+const NotificationService = require('./notificationService');
 
 // Site code constants
 const TYPE_CODES = {
@@ -234,6 +235,20 @@ class SiteService {
 
       await site.update(dataToUpdate);
       Logger.info(`Site updated by manager ${managerId}: ${site.code}`);
+
+      // Notify users who favorited this site 
+      const importantFields = ['opening_hours', 'address', 'contact_info'];
+      const updatedImportantFields = importantFields.filter(f => dataToUpdate[f] !== undefined);
+
+      if (updatedImportantFields.length > 0) {
+        const updateTypeMap = {
+          opening_hours: 'giờ hoạt động',
+          address: 'địa chỉ',
+          contact_info: 'thông tin liên hệ'
+        };
+        const updateType = updatedImportantFields.map(f => updateTypeMap[f]).join(', ');
+        await NotificationService.notifyFavoriteSiteUsers(site.id, updateType);
+      }
 
       // Get creator info
       const creator = await User.findByPk(site.created_by);
@@ -546,6 +561,48 @@ class SiteService {
     }
   }
 
+
+  /**
+   * User: Get favorite sites
+   */
+  static async getFavorites(userId, filters = {}) {
+    try {
+      const page = parseInt(filters.page) || 1;
+      const limit = parseInt(filters.limit) || 10;
+      const offset = (page - 1) * limit;
+
+      const { count, rows } = await Site.findAndCountAll({
+        include: [
+          {
+            model: User,
+            as: 'favoritedBy',
+            where: { id: userId },
+            attributes: [],
+            through: { attributes: ['created_at'] }
+          }
+        ],
+        where: { is_active: true },
+        order: [['name', 'ASC']],
+        limit,
+        offset
+      });
+
+      Logger.info(`User ${userId} retrieved ${rows.length} favorite sites`);
+
+      return {
+        sites: rows,
+        pagination: {
+          page,
+          limit,
+          total: count,
+          totalPages: Math.ceil(count / limit)
+        }
+      };
+    } catch (error) {
+      Logger.error('Get favorites error:', error);
+      throw error;
+    }
+  }
 
   /**
    * User: Add site to favorites
