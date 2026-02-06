@@ -43,7 +43,7 @@ DO $$ BEGIN
     -- Journal & Community
     CREATE TYPE journal_privacy AS ENUM ('private', 'public');
     CREATE TYPE content_status AS ENUM ('draft', 'published', 'pending', 'approved', 'rejected');
-    CREATE TYPE group_privacy AS ENUM ('public', 'private', 'closed');
+    CREATE TYPE group_privacy AS ENUM ('public', 'private');
     CREATE TYPE group_member_role AS ENUM ('admin', 'member');
     
     -- AI (UPDATED - removed prayer/verse)
@@ -656,6 +656,52 @@ CREATE TABLE IF NOT EXISTS group_members (
     joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (group_id, user_id)
 );
+
+-- 10.2.1 Group Invites
+CREATE TABLE IF NOT EXISTS group_invites (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    inviter_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    email VARCHAR(255) NOT NULL,
+    token VARCHAR(100) UNIQUE NOT NULL,
+    role group_member_role DEFAULT 'member',
+    status invite_status DEFAULT 'pending',
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_group_invites_group ON group_invites(group_id);
+CREATE INDEX IF NOT EXISTS idx_group_invites_email ON group_invites(email);
+CREATE INDEX IF NOT EXISTS idx_group_invites_token ON group_invites(token);
+CREATE INDEX IF NOT EXISTS idx_group_invites_status ON group_invites(status) WHERE status = 'pending';
+
+-- 10.2.2 Group Join Requests
+CREATE TABLE IF NOT EXISTS group_join_requests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    message TEXT,
+    status invite_status DEFAULT 'pending',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_group_join_requests_group ON group_join_requests(group_id);
+CREATE INDEX IF NOT EXISTS idx_group_join_requests_user ON group_join_requests(user_id);
+CREATE INDEX IF NOT EXISTS idx_group_join_requests_status ON group_join_requests(status) WHERE status = 'pending';
+
+-- Constraint: 1 user only 1 pending request per group
+CREATE UNIQUE INDEX IF NOT EXISTS uq_group_join_requests_pending
+ON group_join_requests(group_id, user_id)
+WHERE status = 'pending';
+
+-- Trigger
+DROP TRIGGER IF EXISTS update_group_join_requests_updated_at ON group_join_requests;
+CREATE TRIGGER update_group_join_requests_updated_at
+    BEFORE UPDATE ON group_join_requests
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
 
 -- 10.3 Posts
 CREATE TABLE IF NOT EXISTS posts (

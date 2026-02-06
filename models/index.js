@@ -19,6 +19,10 @@ const UserCheckin = require('./UserCheckin');
 const Notification = require('./Notification');
 const UserPushToken = require('./UserPushToken');
 const SOSRequest = require('./SOSRequest');
+const Group = require('./Group');
+const GroupMember = require('./GroupMember');
+const GroupInvite = require('./GroupInvite');
+const GroupJoinRequest = require('./GroupJoinRequest');
 
 
 
@@ -164,6 +168,42 @@ SOSRequest.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
 // SOSRequest - User (assigned LocalGuide)
 SOSRequest.belongsTo(User, { foreignKey: 'assigned_to', as: 'assignedGuide' });
 
+// ===================== GROUPS =====================
+
+// Group - User (creator)
+User.hasMany(Group, { foreignKey: 'created_by', as: 'createdGroups' });
+Group.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+
+// Group - User (members) - Many-to-Many through GroupMember
+Group.belongsToMany(User, {
+  through: GroupMember,
+  foreignKey: 'group_id',
+  otherKey: 'user_id',
+  as: 'members'
+});
+User.belongsToMany(Group, {
+  through: GroupMember,
+  foreignKey: 'user_id',
+  otherKey: 'group_id',
+  as: 'groups'
+});
+
+// GroupInvite - Group
+Group.hasMany(GroupInvite, { foreignKey: 'group_id', as: 'invites' });
+GroupInvite.belongsTo(Group, { foreignKey: 'group_id', as: 'group' });
+
+// GroupInvite - User (inviter)
+User.hasMany(GroupInvite, { foreignKey: 'inviter_id', as: 'sentInvites' });
+GroupInvite.belongsTo(User, { foreignKey: 'inviter_id', as: 'inviter' });
+
+// GroupJoinRequest - Group
+Group.hasMany(GroupJoinRequest, { foreignKey: 'group_id', as: 'joinRequests' });
+GroupJoinRequest.belongsTo(Group, { foreignKey: 'group_id', as: 'group' });
+
+// GroupJoinRequest - User (requester)
+User.hasMany(GroupJoinRequest, { foreignKey: 'user_id', as: 'joinRequests' });
+GroupJoinRequest.belongsTo(User, { foreignKey: 'user_id', as: 'requester' });
+
 
 const db = {
   sequelize,
@@ -183,16 +223,14 @@ const db = {
   PlannerItem,
   UserFavorite,
   UserCheckin,
-  VerificationRequest,
-  GuideShiftSubmission,
-  GuideShift,
   NearbyPlace,
-  Journal,
-  Planner,
-  PlannerItem,
   Notification,
   UserPushToken,
-  SOSRequest
+  SOSRequest,
+  Group,
+  GroupMember,
+  GroupInvite,
+  GroupJoinRequest
 };
 
 module.exports = db;
