@@ -388,5 +388,20 @@
     "not_found": "Comment not found",
     "forbidden": "You don't have permission to access this comment",
     "only_owner": "Only comment owner can perform this action"
+  },
+  "report": {
+    "created": "Report submitted successfully",
+    "list_retrieved": "Reports retrieved successfully",
+    "my_reports_retrieved": "Your reports retrieved successfully",
+    "retrieved": "Report details retrieved successfully",
+    "resolved": "Report resolved successfully",
+    "deleted": "Report deleted successfully",
+    "not_found": "Report not found",
+    "already_reported": "You have already reported this content",
+    "cannot_report_own": "Cannot report your own content",
+    "only_public_journals": "Can only report public journals",
+    "already_processed": "Report has already been processed",
+    "only_own_report": "You can only delete your own reports",
+    "cannot_delete_processed": "Cannot delete processed reports"
   }
 }

@@ -387,5 +387,20 @@
     "not_found": "Không tìm thấy bình luận",
     "forbidden": "Bạn không có quyền truy cập bình luận này",
     "only_owner": "Chỉ chủ bình luận mới có quyền thực hiện hành động này"
+  },
+  "report": {
+    "created": "Gửi báo cáo vi phạm thành công",
+    "list_retrieved": "Lấy danh sách báo cáo thành công",
+    "my_reports_retrieved": "Lấy danh sách báo cáo của bạn thành công",
+    "retrieved": "Lấy chi tiết báo cáo thành công",
+    "resolved": "Xử lý báo cáo thành công",
+    "deleted": "Xóa báo cáo thành công",
+    "not_found": "Không tìm thấy báo cáo",
+    "already_reported": "Bạn đã báo cáo nội dung này rồi",
+    "cannot_report_own": "Không thể báo cáo nội dung của chính mình",
+    "only_public_journals": "Chỉ có thể báo cáo nhật ký công khai",
+    "already_processed": "Báo cáo đã được xử lý",
+    "only_own_report": "Bạn chỉ có thể xóa báo cáo của mình",
+    "cannot_delete_processed": "Không thể xóa báo cáo đã được xử lý"
   }
 }

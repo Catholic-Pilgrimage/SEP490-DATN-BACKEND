@@ -26,6 +26,7 @@ const GroupJoinRequest = require('./GroupJoinRequest');
 const Post = require('./Post');
 const PostLike = require('./PostLike');
 const PostComment = require('./PostComment');
+const Report = require('./Report');
 
 
 
@@ -239,6 +240,14 @@ PostComment.belongsTo(Post, { foreignKey: 'post_id', as: 'post' });
 User.hasMany(PostComment, { foreignKey: 'user_id', as: 'postComments' });
 PostComment.belongsTo(User, { foreignKey: 'user_id', as: 'author' });
 
+// Report - User (reporter)
+User.hasMany(Report, { foreignKey: 'reporter_id', as: 'reports' });
+Report.belongsTo(User, { foreignKey: 'reporter_id', as: 'reporter' });
+
+// Report - User (resolver)
+User.hasMany(Report, { foreignKey: 'resolved_by', as: 'resolvedReports' });
+Report.belongsTo(User, { foreignKey: 'resolved_by', as: 'resolver' });
+
 
 const db = {
   sequelize,
@@ -268,7 +277,8 @@ const db = {
   GroupJoinRequest,
   Post,
   PostLike,
-  PostComment
+  PostComment,
+  Report
 };
 
 module.exports = db;

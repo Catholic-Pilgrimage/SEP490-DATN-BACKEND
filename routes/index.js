@@ -16,6 +16,7 @@ const notificationRoutes = require('./notification.routes');
 const sosRoutes = require('./sos.routes');
 const groupRoutes = require('./group.routes');
 const postRoutes = require('./post.routes');
+const reportRoutes = require('./report.routes');
 
 router.get('/', (req, res) => {
   res.json({
@@ -41,7 +42,8 @@ router.get('/', (req, res) => {
       notifications: '/api/notifications',
       sos: '/api/sos',
       groups: '/api/groups',
-      posts: '/api/posts'
+      posts: '/api/posts',
+      reports: '/api/reports'
     }
   });
 });
@@ -102,8 +104,12 @@ router.use('/sos', sosRoutes);
 
 // Group routes
 router.use('/groups', groupRoutes);
+
 // Post routes
 router.use('/posts', postRoutes);
+
+// Report routes
+router.use('/reports', reportRoutes);
 
 
 module.exports = router;
