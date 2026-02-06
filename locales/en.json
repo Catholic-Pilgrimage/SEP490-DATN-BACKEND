@@ -367,5 +367,26 @@
     "join_request_not_found": "Join request not found",
     "join_request_processed": "Join request has already been processed",
     "only_public_join_request": "Join requests are only allowed for public groups"
+  },
+  "post": {
+    "created": "Post created successfully",
+    "updated": "Post updated successfully",
+    "deleted": "Post deleted successfully",
+    "retrieved": "Post retrieved successfully",
+    "list_retrieved": "Posts retrieved successfully",
+    "liked": "Post liked successfully",
+    "unliked": "Post unliked successfully",
+    "not_found": "Post not found",
+    "forbidden": "You don't have permission to access this post",
+    "only_owner": "Only post owner can perform this action"
+  },
+  "comment": {
+    "created": "Comment added successfully",
+    "updated": "Comment updated successfully",
+    "deleted": "Comment deleted successfully",
+    "list_retrieved": "Comments retrieved successfully",
+    "not_found": "Comment not found",
+    "forbidden": "You don't have permission to access this comment",
+    "only_owner": "Only comment owner can perform this action"
   }
 }

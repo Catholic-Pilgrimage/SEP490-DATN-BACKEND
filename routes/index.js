@@ -15,6 +15,7 @@ const checkinHistoryRoutes = require('./checkin-history.routes');
 const notificationRoutes = require('./notification.routes');
 const sosRoutes = require('./sos.routes');
 const groupRoutes = require('./group.routes');
+const postRoutes = require('./post.routes');
 
 router.get('/', (req, res) => {
   res.json({
@@ -39,7 +40,8 @@ router.get('/', (req, res) => {
       checkinHistory: '/api/checkins/me',
       notifications: '/api/notifications',
       sos: '/api/sos',
-      groups: '/api/groups'
+      groups: '/api/groups',
+      posts: '/api/posts'
     }
   });
 });
@@ -100,5 +102,8 @@ router.use('/sos', sosRoutes);
 
 // Group routes
 router.use('/groups', groupRoutes);
+// Post routes
+router.use('/posts', postRoutes);
+
 
 module.exports = router;
