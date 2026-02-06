@@ -23,6 +23,10 @@ const Group = require('./Group');
 const GroupMember = require('./GroupMember');
 const GroupInvite = require('./GroupInvite');
 const GroupJoinRequest = require('./GroupJoinRequest');
+const Post = require('./Post');
+const PostLike = require('./PostLike');
+const PostComment = require('./PostComment');
+const Report = require('./Report');
 
 
 
@@ -204,6 +208,46 @@ GroupJoinRequest.belongsTo(Group, { foreignKey: 'group_id', as: 'group' });
 User.hasMany(GroupJoinRequest, { foreignKey: 'user_id', as: 'joinRequests' });
 GroupJoinRequest.belongsTo(User, { foreignKey: 'user_id', as: 'requester' });
 
+// ===================== POSTS =====================
+
+// Post - User (author)
+User.hasMany(Post, { foreignKey: 'user_id', as: 'posts' });
+Post.belongsTo(User, { foreignKey: 'user_id', as: 'author' });
+
+// Post - Group
+Group.hasMany(Post, { foreignKey: 'group_id', as: 'posts' });
+Post.belongsTo(Group, { foreignKey: 'group_id', as: 'group' });
+
+// Post - User (likes) - Many-to-Many through PostLike
+Post.belongsToMany(User, {
+  through: PostLike,
+  foreignKey: 'post_id',
+  otherKey: 'user_id',
+  as: 'likedBy'
+});
+User.belongsToMany(Post, {
+  through: PostLike,
+  foreignKey: 'user_id',
+  otherKey: 'post_id',
+  as: 'likedPosts'
+});
+
+// PostComment - Post
+Post.hasMany(PostComment, { foreignKey: 'post_id', as: 'comments' });
+PostComment.belongsTo(Post, { foreignKey: 'post_id', as: 'post' });
+
+// PostComment - User (author)
+User.hasMany(PostComment, { foreignKey: 'user_id', as: 'postComments' });
+PostComment.belongsTo(User, { foreignKey: 'user_id', as: 'author' });
+
+// Report - User (reporter)
+User.hasMany(Report, { foreignKey: 'reporter_id', as: 'reports' });
+Report.belongsTo(User, { foreignKey: 'reporter_id', as: 'reporter' });
+
+// Report - User (resolver)
+User.hasMany(Report, { foreignKey: 'resolved_by', as: 'resolvedReports' });
+Report.belongsTo(User, { foreignKey: 'resolved_by', as: 'resolver' });
+
 
 const db = {
   sequelize,
@@ -230,7 +274,11 @@ const db = {
   Group,
   GroupMember,
   GroupInvite,
-  GroupJoinRequest
+  GroupJoinRequest,
+  Post,
+  PostLike,
+  PostComment,
+  Report
 };
 
 module.exports = db;

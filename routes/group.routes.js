@@ -136,7 +136,7 @@ router.get(
  * @swagger
  * /api/groups/{id}:
  *   patch:
- *     summary: Cập nhật thông tin nhóm (chỉ admin)
+ *     summary: Cập nhật thông tin nhóm (chỉ chủ nhóm)
  *     tags: [Groups]
  *     security:
  *       - bearerAuth: []
@@ -191,7 +191,7 @@ router.patch(
  * @swagger
  * /api/groups/{id}:
  *   delete:
- *     summary: Xóa nhóm (chỉ admin)
+ *     summary: Xóa nhóm (chỉ chủ nhóm)
  *     tags: [Groups]
  *     security:
  *       - bearerAuth: []
@@ -222,7 +222,7 @@ router.delete(
  * @swagger
  * /api/groups/{id}/invite:
  *   post:
- *     summary: Mời thành viên qua email (chỉ admin)
+ *     summary: Mời thành viên qua email (chỉ chủ nhóm)
  *     tags: [Groups]
  *     security:
  *       - bearerAuth: []
@@ -320,7 +320,7 @@ router.post(
  * @swagger
  * /api/groups/{id}/members/{userId}:
  *   delete:
- *     summary: Xóa thành viên khỏi nhóm (chỉ admin)
+ *     summary: Xóa thành viên khỏi nhóm (chỉ chủ nhóm)
  *     tags: [Groups]
  *     security:
  *       - bearerAuth: []
@@ -435,7 +435,7 @@ router.post(
  * @swagger
  * /api/groups/{id}/join-requests:
  *   get:
- *     summary: Lấy danh sách yêu cầu tham gia nhóm (chỉ admin)
+ *     summary: Lấy danh sách yêu cầu tham gia nhóm (chỉ chủ nhóm)
  *     tags: [Groups]
  *     security:
  *       - bearerAuth: []
@@ -514,6 +514,54 @@ router.put(
     authenticate,
     groupValidator.respondToJoinRequest,
     GroupController.respondToJoinRequest
+);
+
+/**
+ * @swagger
+ * /api/groups/{id}/posts:
+ *   get:
+ *     summary: Lấy danh sách bài viết trong nhóm
+ *     tags: [Groups]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của nhóm
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Số trang
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Số lượng bài viết mỗi trang
+ *     responses:
+ *       200:
+ *         description: Lấy danh sách bài viết thành công
+ *       403:
+ *         description: Không có quyền truy cập (nhóm riêng tư)
+ *       404:
+ *         description: Không tìm thấy nhóm
+ */
+const PostController = require('../controllers/PostController');
+router.get(
+    '/:id/posts',
+    authenticate,
+    groupValidator.groupId,
+    (req, res) => {
+        // Forward to PostController with group_id from params
+        req.query.group_id = req.params.id;
+        return PostController.getPosts(req, res);
+    }
 );
 
 module.exports = router;

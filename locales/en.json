@@ -367,5 +367,41 @@
     "join_request_not_found": "Join request not found",
     "join_request_processed": "Join request has already been processed",
     "only_public_join_request": "Join requests are only allowed for public groups"
+  },
+  "post": {
+    "created": "Post created successfully",
+    "updated": "Post updated successfully",
+    "deleted": "Post deleted successfully",
+    "retrieved": "Post retrieved successfully",
+    "list_retrieved": "Posts retrieved successfully",
+    "liked": "Post liked successfully",
+    "unliked": "Post unliked successfully",
+    "not_found": "Post not found",
+    "forbidden": "You don't have permission to access this post",
+    "only_owner": "Only post owner can perform this action"
+  },
+  "comment": {
+    "created": "Comment added successfully",
+    "updated": "Comment updated successfully",
+    "deleted": "Comment deleted successfully",
+    "list_retrieved": "Comments retrieved successfully",
+    "not_found": "Comment not found",
+    "forbidden": "You don't have permission to access this comment",
+    "only_owner": "Only comment owner can perform this action"
+  },
+  "report": {
+    "created": "Report submitted successfully",
+    "list_retrieved": "Reports retrieved successfully",
+    "my_reports_retrieved": "Your reports retrieved successfully",
+    "retrieved": "Report details retrieved successfully",
+    "resolved": "Report resolved successfully",
+    "deleted": "Report deleted successfully",
+    "not_found": "Report not found",
+    "already_reported": "You have already reported this content",
+    "cannot_report_own": "Cannot report your own content",
+    "only_public_journals": "Can only report public journals",
+    "already_processed": "Report has already been processed",
+    "only_own_report": "You can only delete your own reports",
+    "cannot_delete_processed": "Cannot delete processed reports"
   }
 }

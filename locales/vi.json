@@ -366,5 +366,41 @@
     "join_request_not_found": "Không tìm thấy yêu cầu tham gia",
     "join_request_processed": "Yêu cầu tham gia đã được xử lý",
     "only_public_join_request": "Chỉ có thể gửi yêu cầu tham gia vào nhóm công khai"
+  },
+  "post": {
+    "created": "Tạo bài viết thành công",
+    "updated": "Cập nhật bài viết thành công",
+    "deleted": "Xóa bài viết thành công",
+    "retrieved": "Lấy thông tin bài viết thành công",
+    "list_retrieved": "Lấy danh sách bài viết thành công",
+    "liked": "Thích bài viết thành công",
+    "unliked": "Bỏ thích bài viết thành công",
+    "not_found": "Không tìm thấy bài viết",
+    "forbidden": "Bạn không có quyền truy cập bài viết này",
+    "only_owner": "Chỉ chủ bài viết mới có quyền thực hiện hành động này"
+  },
+  "comment": {
+    "created": "Thêm bình luận thành công",
+    "updated": "Cập nhật bình luận thành công",
+    "deleted": "Xóa bình luận thành công",
+    "list_retrieved": "Lấy danh sách bình luận thành công",
+    "not_found": "Không tìm thấy bình luận",
+    "forbidden": "Bạn không có quyền truy cập bình luận này",
+    "only_owner": "Chỉ chủ bình luận mới có quyền thực hiện hành động này"
+  },
+  "report": {
+    "created": "Gửi báo cáo vi phạm thành công",
+    "list_retrieved": "Lấy danh sách báo cáo thành công",
+    "my_reports_retrieved": "Lấy danh sách báo cáo của bạn thành công",
+    "retrieved": "Lấy chi tiết báo cáo thành công",
+    "resolved": "Xử lý báo cáo thành công",
+    "deleted": "Xóa báo cáo thành công",
+    "not_found": "Không tìm thấy báo cáo",
+    "already_reported": "Bạn đã báo cáo nội dung này rồi",
+    "cannot_report_own": "Không thể báo cáo nội dung của chính mình",
+    "only_public_journals": "Chỉ có thể báo cáo nhật ký công khai",
+    "already_processed": "Báo cáo đã được xử lý",
+    "only_own_report": "Bạn chỉ có thể xóa báo cáo của mình",
+    "cannot_delete_processed": "Không thể xóa báo cáo đã được xử lý"
   }
 }
