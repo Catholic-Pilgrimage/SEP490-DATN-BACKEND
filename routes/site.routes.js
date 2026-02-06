@@ -139,6 +139,66 @@ publicRouter.use(i18nMiddleware);
 
 /**
  * @swagger
+ * /api/sites/favorites:
+ *   get:
+ *     summary: Lấy danh sách địa điểm yêu thích
+ *     tags: [Favorites - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Số trang
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Số lượng mỗi trang
+ *     responses:
+ *       200:
+ *         description: Lấy danh sách yêu thích thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Lấy danh sách yêu thích thành công"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     sites:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                         limit:
+ *                           type: integer
+ *                         total:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
+ */
+publicRouter.get(
+  '/favorites',
+  authMiddleware,
+  SiteController.getFavorites
+);
+
+/**
+ * @swagger
  * /api/sites/{id}/favorite:
  *   post:
  *     summary: Thêm địa điểm vào danh sách yêu thích

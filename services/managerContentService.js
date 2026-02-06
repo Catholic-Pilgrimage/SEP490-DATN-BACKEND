@@ -120,6 +120,11 @@ class ManagerContentService {
                     siteName: site?.name || '',
                     reason: rejectionReason || ''
                 });
+
+                // Notify users who favorited this site (only on approval)
+                if (status === 'approved') {
+                    await NotificationService.notifyFavoriteSiteUsers(user.site_id, 'media mới');
+                }
             }
 
             Logger.info(`Manager ${userId} ${status} media ${media.code}`);
@@ -287,6 +292,11 @@ class ManagerContentService {
                     siteName: site?.name || '',
                     reason: rejectionReason || ''
                 });
+
+                // Notify users who favorited this site (only on approval)
+                if (status === 'approved') {
+                    await NotificationService.notifyFavoriteSiteUsers(user.site_id, 'lịch lễ mới');
+                }
             }
 
             Logger.info(`Manager ${userId} ${status} schedule ${schedule.code}`);
@@ -446,6 +456,11 @@ class ManagerContentService {
                     eventName: event.name || '',
                     reason: rejectionReason || ''
                 });
+
+                // Notify users who favorited this site (only on approval)
+                if (status === 'approved') {
+                    await NotificationService.notifyFavoriteSiteUsers(user.site_id, 'sự kiện mới');
+                }
             }
 
             Logger.info(`Manager ${userId} ${status} event ${event.code}`);
@@ -603,6 +618,11 @@ class ManagerContentService {
                     siteName: site?.name || '',
                     reason: rejectionReason || ''
                 });
+
+                // Notify users who favorited this site (only on approval)
+                if (status === 'approved') {
+                    await NotificationService.notifyFavoriteSiteUsers(user.site_id, 'địa điểm lân cận mới');
+                }
             }
 
             Logger.info(`Manager ${userId} ${status} nearby place ${place.code}`);

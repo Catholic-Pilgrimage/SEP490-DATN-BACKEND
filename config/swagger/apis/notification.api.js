@@ -297,4 +297,183 @@
  *         description: Chưa xác thực
  */
 
+/**
+ * @swagger
+ * /api/notifications/test:
+ *   post:
+ *     summary: 🧪 TEST - Gửi 1 notification test
+ *     description: Endpoint để test notification (chỉ dùng cho development). Có thể chỉ định user_id để test cho user khác.
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - type
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 enum:
+ *                   - local_guide_created
+ *                   - local_guide_disabled
+ *                   - local_guide_removed
+ *                   - shift_assigned
+ *                   - shift_rejected
+ *                   - site_update_submitted
+ *                   - site_approved
+ *                   - site_rejected
+ *                   - site_hidden
+ *                   - media_approved
+ *                   - media_rejected
+ *                   - event_approved
+ *                   - event_rejected
+ *                   - schedule_approved
+ *                   - schedule_rejected
+ *                   - nearby_place_approved
+ *                   - nearby_place_rejected
+ *                   - sos_created
+ *                   - sos_assigned
+ *                   - sos_resolved
+ *                   - planner_invite
+ *                   - planner_joined
+ *                   - favorite_site_update
+ *                   - verification_submitted
+ *                   - site_registration_submitted
+ *                   - media_submitted
+ *                   - event_submitted
+ *                   - schedule_submitted
+ *                   - nearby_place_submitted
+ *                   - shift_submitted
+ *                 example: media_submitted
+ *                 description: Loại notification cần test
+ *               user_id:
+ *                 type: string
+ *                 format: uuid
+ *                 example: "a4ad2993-ea29-4533-b11f-b4230c615ff3"
+ *                 description: User ID nhận notification (optional, mặc định là user đang đăng nhập)
+ *               data:
+ *                 type: object
+ *                 description: Custom data (optional)
+ *                 properties:
+ *                   siteName:
+ *                     type: string
+ *                     example: "Nhà thờ Đức Bà"
+ *                   guideName:
+ *                     type: string
+ *                     example: "Nguyễn Văn A"
+ *                   eventName:
+ *                     type: string
+ *                     example: "Lễ Giáng Sinh"
+ *                   placeName:
+ *                     type: string
+ *                     example: "Nhà hàng ABC"
+ *                   weekStart:
+ *                     type: string
+ *                     example: "05/02/2026"
+ *                   reason:
+ *                     type: string
+ *                     example: "Nội dung không phù hợp"
+ *     responses:
+ *       200:
+ *         description: Gửi test notification thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Test notification sent to user a4ad2993-ea29-4533-b11f-b4230c615ff3"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       format: uuid
+ *                     type:
+ *                       type: string
+ *                       example: "media_submitted"
+ *                     title:
+ *                       type: string
+ *                       example: "Media mới cần duyệt"
+ *                     message:
+ *                       type: string
+ *                       example: "Nguyễn Văn A đã tải lên media mới"
+ *                     created_at:
+ *                       type: string
+ *                       format: date-time
+ *       400:
+ *         description: Type không hợp lệ hoặc user_id không đúng định dạng
+ *       401:
+ *         description: Chưa xác thực
+ */
+
+/**
+ * @swagger
+ * /api/notifications/test/all:
+ *   post:
+ *     summary: 🧪 TEST - Gửi TẤT CẢ notification types
+ *     description: Gửi tất cả 30 loại notification cùng lúc để test UI (chỉ dùng cho development). Có thể chỉ định user_id để test cho user khác.
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               user_id:
+ *                 type: string
+ *                 format: uuid
+ *                 example: "a4ad2993-ea29-4533-b11f-b4230c615ff3"
+ *                 description: User ID nhận notification (optional, mặc định là user đang đăng nhập)
+ *     responses:
+ *       200:
+ *         description: Gửi tất cả test notifications thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Sent 30 test notifications to user a4ad2993-ea29-4533-b11f-b4230c615ff3"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                       example: 30
+ *                       description: Tổng số notifications đã gửi
+ *                     results:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           type:
+ *                             type: string
+ *                             example: "media_submitted"
+ *                           success:
+ *                             type: boolean
+ *                             example: true
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *       400:
+ *         description: user_id không đúng định dạng
+ *       401:
+ *         description: Chưa xác thực
+ */
+
 module.exports = {};

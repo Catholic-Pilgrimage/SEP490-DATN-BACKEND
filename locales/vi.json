@@ -62,6 +62,7 @@
     "favorite_removed": "Đã xóa địa điểm khỏi danh sách yêu thích",
     "already_favorited": "Địa điểm đã có trong danh sách yêu thích",
     "not_favorited": "Địa điểm không có trong danh sách yêu thích",
+    "get_favorites_success": "Lấy danh sách yêu thích thành công",
     "not_active": "Địa điểm không khả dụng",
     "get_list_success": "Lấy danh sách địa điểm thành công",
     "get_detail_success": "Lấy chi tiết địa điểm thành công",

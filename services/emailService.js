@@ -1,6 +1,9 @@
 const { resend, emailConfig } = require('../config/resend.config');
 const Logger = require('../utils/logger.util');
 
+// Logo URL
+const LOGO_URL = 'https://res.cloudinary.com/dij64ko4y/image/upload/v1770366676/unnamed-removebg-preview_zanilk.png';
+
 // Vietnamese text with diacritics
 const VI = {
   title: 'Xác thực tài khoản của bạn',
@@ -17,10 +20,14 @@ class EmailService {
    * Email template header - Catholic style
    */
   static getEmailHeader() {
+    const logoHtml = LOGO_URL 
+      ? `<img src="${LOGO_URL}" alt="Catholic Pilgrimage Logo" style="max-width: 70px; height: auto; margin-bottom: 8px;" />`
+      : `<div style="font-size: 36px; color: #ffd700;">&#10013;</div>`;
+    
     return `
-      <div style="background: linear-gradient(135deg, #4a0e4e 0%, #7b1fa2 100%); padding: 30px; text-align: center;">
-        <div style="font-size: 48px; color: #ffd700;">&#10013;</div>
-        <h1 style="color: #fff; margin: 10px 0 0 0; font-weight: normal; font-style: italic; font-family: Georgia, 'Segoe UI', serif;">Catholic Pilgrimage</h1>
+      <div style="background: linear-gradient(135deg, #4a0e4e 0%, #7b1fa2 100%); padding: 20px; text-align: center;">
+        ${logoHtml}
+        <h1 style="color: #fff; margin: 5px 0 0 0; font-weight: normal; font-style: italic; font-family: Georgia, 'Segoe UI', serif; font-size: 20px;">Catholic Pilgrimage</h1>
       </div>
     `;
   }

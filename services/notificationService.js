@@ -393,6 +393,59 @@ class NotificationService {
     }
 
     /**
+     * TEST ONLY: Send test notification
+     */
+    static async sendTestNotification(userId, type, customData = {}) {
+        try {
+            const template = NOTIFICATION_TEMPLATES[type];
+            if (!template) {
+                throw new Error(`Unknown notification type: ${type}`);
+            }
+
+            // Use custom data or default test data
+            const testData = {
+                siteName: 'Test Site',
+                guideName: 'Test Guide',
+                eventName: 'Test Event',
+                placeName: 'Test Place',
+                weekStart: new Date().toLocaleDateString('vi-VN'),
+                reason: 'Test reason',
+                ...customData
+            };
+
+            return await this.createNotification(type, userId, testData);
+        } catch (error) {
+            Logger.error('Send test notification error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * TEST ONLY: Send all notification types
+     */
+    static async sendAllTestNotifications(userId) {
+        try {
+            const allTypes = Object.keys(NOTIFICATION_TEMPLATES);
+            const results = [];
+
+            for (const type of allTypes) {
+                try {
+                    const notification = await this.sendTestNotification(userId, type);
+                    results.push({ type, success: true, id: notification.id });
+                } catch (error) {
+                    results.push({ type, success: false, error: error.message });
+                }
+            }
+
+            Logger.info(`Sent ${results.length} test notifications to user ${userId}`);
+            return { total: results.length, results };
+        } catch (error) {
+            Logger.error('Send all test notifications error:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Register or update push token
      */
     static async registerPushToken(userId, expoToken, platform = null, deviceId = null) {
@@ -514,6 +567,44 @@ class NotificationService {
         } catch (error) {
             Logger.error('Notify site manager error:', error);
             throw error;
+        }
+    }
+
+    // Notify all users who favorited a site about updates
+    static async notifyFavoriteSiteUsers(siteId, updateType) {
+        try {
+            const { UserFavorite, Site } = require('../models');
+
+            const site = await Site.findByPk(siteId);
+            if (!site) {
+                Logger.warn(`Site ${siteId} not found for favorite notification`);
+                return;
+            }
+
+            const favorites = await UserFavorite.findAll({
+                where: { site_id: siteId }
+            });
+
+            if (favorites.length === 0) {
+                Logger.info(`No users favorited site ${site.name}`);
+                return;
+            }
+
+            Logger.info(`Notifying ${favorites.length} users about ${updateType} at ${site.name}`);
+
+            for (const fav of favorites) {
+                try {
+                    await this.createNotification('favorite_site_update', fav.user_id, {
+                        siteName: site.name,
+                        updateType: updateType
+                    });
+                } catch (err) {
+                    Logger.error(`Failed to notify user ${fav.user_id}:`, err);
+                }
+            }
+        } catch (error) {
+            Logger.error('Notify favorite site users error:', error);
+           
         }
     }
 }
