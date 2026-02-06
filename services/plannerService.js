@@ -1,9 +1,10 @@
-const { Planner, PlannerItem, User, Site } = require('../models');
+const { Planner, PlannerItem, User, Site, PlannerInvite, PlannerMember } = require('../models');
 const { Op } = require('sequelize');
 const Logger = require('../utils/logger.util');
 const OSRMUtil = require('../utils/osrm.util');
 const sequelize = require('../config/database');
 const crypto = require('crypto');
+const EmailService = require('./emailService');
 const { calculateEstimatedTime, parseDurationToMinutes, isWithinOpeningHours } = require('../utils/timeCalculation.util');
 
 class PlannerService {
@@ -188,38 +189,6 @@ class PlannerService {
             return this.formatPlannerResponse(planner);
         } catch (error) {
             Logger.error('Update planner error:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Update planner status only
-     */
-    static async updatePlannerStatus(plannerId, userId, status) {
-        try {
-            const planner = await Planner.findByPk(plannerId);
-
-            if (!planner) {
-                throw new Error('Planner not found');
-            }
-
-            // Check ownership
-            if (planner.user_id !== userId) {
-                throw new Error('Forbidden');
-            }
-
-            // Validate status
-            if (!['planning', 'ongoing', 'completed'].includes(status)) {
-                throw new Error('Invalid status');
-            }
-
-            // Update only status
-            await planner.update({ status });
-
-            Logger.info(`Planner status updated by user ${userId}: ${plannerId} -> ${status}`);
-            return this.formatPlannerResponse(planner);
-        } catch (error) {
-            Logger.error('Update planner status error:', error);
             throw error;
         }
     }
@@ -425,7 +394,7 @@ class PlannerService {
                 note: note || null,
                 nearby_amenity_ids: nearby_amenity_ids || [],
                 estimated_time: finalEstimatedTime,
-                rest_duration: rest_duration || null
+                rest_duration: rest_duration || '3 hours' // Default 3 hours
             }, { transaction });
 
             await transaction.commit();
@@ -829,6 +798,419 @@ class PlannerService {
             return { message: 'Sharing disabled successfully' };
         } catch (error) {
             Logger.error('Disable share error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Mark planner as completed
+     */
+    static async completePlanner(plannerId, userId) {
+        try {
+            const planner = await Planner.findByPk(plannerId);
+
+            if (!planner) {
+                throw new Error('Planner not found');
+            }
+
+            if (planner.user_id !== userId) {
+                throw new Error('Forbidden');
+            }
+
+            if (planner.status !== 'ongoing') {
+                throw new Error('Planner is not ongoing');
+            }
+
+            await planner.update({
+                status: 'completed',
+                completed_at: new Date()
+            });
+
+            Logger.info(`Planner ${plannerId} marked as completed by user ${userId}`);
+            return this.formatPlannerResponse(planner);
+        } catch (error) {
+            Logger.error('Complete planner error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Auto complete ongoing planners that have passed their end_date
+     * Called by cron job
+     */
+    static async autoCompleteExpiredPlanners() {
+        try {
+            const now = new Date();
+            now.setHours(0, 0, 0, 0); // Start of today
+
+            const expiredPlanners = await Planner.findAll({
+                where: {
+                    status: 'ongoing',
+                    end_date: {
+                        [Op.lt]: now
+                    }
+                }
+            });
+
+            let completedCount = 0;
+            for (const planner of expiredPlanners) {
+                await planner.update({
+                    status: 'completed',
+                    completed_at: new Date()
+                });
+                completedCount++;
+            }
+
+            Logger.info(`Auto-completed ${completedCount} expired planners`);
+            return completedCount;
+        } catch (error) {
+            Logger.error('Auto complete expired planners error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Invite user to planner via email
+     */
+    static async inviteUserToPlanner(plannerId, userId, email, role = 'viewer') {
+        try {
+            const planner = await Planner.findByPk(plannerId, {
+                include: [{
+                    model: User,
+                    as: 'members'
+                }]
+            });
+
+            if (!planner) {
+                throw new Error('Planner not found');
+            }
+
+            // Chỉ owner mới được mời
+            if (planner.user_id !== userId) {
+                throw new Error('Forbidden');
+            }
+
+            // Chỉ cho phép mời khi đang planning
+            if (planner.status !== 'planning') {
+                throw new Error('Can only invite when planner is in planning status');
+            }
+
+            // Kiểm tra số lượng members hiện tại
+            const currentMemberCount = planner.members ? planner.members.length : 0;
+            const pendingInvites = await PlannerInvite.count({
+                where: {
+                    planner_id: plannerId,
+                    status: 'pending'
+                }
+            });
+
+            const totalSlots = planner.number_of_people;
+            const availableSlots = totalSlots - currentMemberCount - pendingInvites - 1; // -1 for owner
+
+            if (availableSlots <= 0) {
+                throw new Error(`Planner is full. Max participants: ${totalSlots}`);
+            }
+
+            // Kiểm tra email đã được mời chưa
+            const existingInvite = await PlannerInvite.findOne({
+                where: {
+                    planner_id: plannerId,
+                    email,
+                    status: 'pending'
+                }
+            });
+
+            if (existingInvite) {
+                throw new Error('User already invited');
+            }
+
+            // Kiểm tra user có tồn tại trong hệ thống không
+            const userWithEmail = await User.findOne({ where: { email } });
+            if (!userWithEmail) {
+                throw new Error('User not found. Only registered users can be invited');
+            }
+
+            // Kiểm tra user đã là member chưa
+            const existingMember = await PlannerMember.findOne({
+                where: {
+                    planner_id: plannerId,
+                    user_id: userWithEmail.id
+                }
+            });
+
+            if (existingMember) {
+                throw new Error('User is already a member');
+            }
+
+            // Tạo invite token
+            const token = crypto.randomBytes(32).toString('hex');
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + 7); // Expires in 7 days
+
+            const invite = await PlannerInvite.create({
+                planner_id: plannerId,
+                inviter_id: userId,
+                email,
+                token,
+                role,
+                status: 'pending',
+                expires_at: expiresAt
+            });
+
+            // Gửi email mời
+            const inviter = await User.findByPk(userId, { attributes: ['full_name', 'email'] });
+            const inviterName = inviter?.full_name || 'Người dùng';
+
+            try {
+                await EmailService.sendPlannerInvitation(email, inviterName, planner.name, token, role);
+            } catch (emailError) {
+                Logger.error('Failed to send planner invitation email:', emailError);
+                // Vẫn trả về invite dù email gửi thất bại
+            }
+
+            Logger.info(`Invite sent to ${email} for planner ${plannerId}`);
+
+            const baseUrl = process.env.FRONTEND_URL || 'https://catholicpilgrimage.app';
+            return {
+                id: invite.id,
+                email: invite.email,
+                role: invite.role,
+                token: invite.token,
+                expires_at: invite.expires_at,
+                invite_link: `${baseUrl}/planners/invite/${token}`
+            };
+        } catch (error) {
+            Logger.error('Invite user to planner error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Respond to planner invite (accept or reject)
+     */
+    static async respondToInvite(token, userId, action) {
+        try {
+            if (!['accept', 'reject'].includes(action)) {
+                throw new Error('Invalid action. Must be "accept" or "reject"');
+            }
+
+            const invite = await PlannerInvite.findOne({
+                where: { token },
+                include: [{
+                    model: Planner,
+                    as: 'planner',
+                    include: [{
+                        model: User,
+                        as: 'members'
+                    }]
+                }]
+            });
+
+            if (!invite) {
+                throw new Error('Invite not found');
+            }
+
+            if (invite.status !== 'pending') {
+                throw new Error('Invite already processed');
+            }
+
+            // Kiểm tra planner có còn ở trạng thái planning không
+            if (invite.planner.status !== 'planning') {
+                await invite.update({ status: 'expired' });
+                throw new Error('Cannot respond to invite. Trip has already started or completed');
+            }
+
+            // Kiểm tra invite đã hết hạn chưa
+            if (new Date() > new Date(invite.expires_at)) {
+                await invite.update({ status: 'expired' });
+                throw new Error('Invite has expired');
+            }
+
+            // Verify user email matches
+            const user = await User.findByPk(userId);
+            if (!user || user.email !== invite.email) {
+                throw new Error('Email mismatch. This invite is for another user');
+            }
+
+            if (action === 'accept') {
+                const planner = invite.planner;
+
+                // Kiểm tra planner còn chỗ không
+                const currentMemberCount = planner.members ? planner.members.length : 0;
+                const totalSlots = planner.number_of_people;
+
+                if (currentMemberCount + 1 > totalSlots) { // +1 for owner
+                    throw new Error(`Planner is full. Max participants: ${totalSlots}`);
+                }
+
+                // Thêm user vào planner members
+                await PlannerMember.create({
+                    planner_id: planner.id,
+                    user_id: userId,
+                    role: invite.role
+                });
+
+                // Cập nhật invite status
+                await invite.update({ status: 'accepted' });
+
+                Logger.info(`User ${userId} accepted invite for planner ${planner.id}`);
+
+                return this.formatPlannerResponse(planner);
+            } else {
+                // Reject
+                await invite.update({ status: 'rejected' });
+
+                Logger.info(`User ${userId} rejected invite for planner ${invite.planner_id}`);
+
+                return { message: 'Invite rejected successfully' };
+            }
+        } catch (error) {
+            Logger.error('Respond to invite error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get pending invites for a planner
+     */
+    static async getPlannerInvites(plannerId, userId) {
+        try {
+            const planner = await Planner.findByPk(plannerId);
+
+            if (!planner) {
+                throw new Error('Planner not found');
+            }
+
+            if (planner.user_id !== userId) {
+                throw new Error('Forbidden');
+            }
+
+            const invites = await PlannerInvite.findAll({
+                where: {
+                    planner_id: plannerId
+                },
+                include: [{
+                    model: User,
+                    as: 'inviter',
+                    attributes: ['id', 'full_name', 'email', 'avatar_url']
+                }],
+                order: [['created_at', 'DESC']]
+            });
+
+            return invites.map(invite => ({
+                id: invite.id,
+                email: invite.email,
+                role: invite.role,
+                status: invite.status,
+                expires_at: invite.expires_at,
+                created_at: invite.created_at,
+                inviter: invite.inviter
+            }));
+        } catch (error) {
+            Logger.error('Get planner invites error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get planner members
+     */
+    static async getPlannerMembers(plannerId, userId) {
+        try {
+            const planner = await Planner.findByPk(plannerId, {
+                include: [{
+                    model: User,
+                    as: 'members',
+                    through: {
+                        attributes: ['role', 'joined_at']
+                    },
+                    attributes: ['id', 'full_name', 'email', 'avatar_url']
+                }, {
+                    model: User,
+                    as: 'owner',
+                    attributes: ['id', 'full_name', 'email', 'avatar_url']
+                }]
+            });
+
+            if (!planner) {
+                throw new Error('Planner not found');
+            }
+
+            // Check if user has access (owner or member)
+            const isOwner = planner.user_id === userId;
+            const isMember = planner.members?.some(m => m.id === userId);
+
+            if (!isOwner && !isMember) {
+                throw new Error('Forbidden');
+            }
+
+            const members = [
+                {
+                    ...planner.owner.toJSON(),
+                    role: 'owner',
+                    joined_at: planner.created_at
+                },
+                ...(planner.members || []).map(member => ({
+                    ...member.toJSON(),
+                    role: member.PlannerMember.role,
+                    joined_at: member.PlannerMember.joined_at
+                }))
+            ];
+
+            return {
+                total_slots: planner.number_of_people,
+                current_members: members.length,
+                available_slots: planner.number_of_people - members.length,
+                members
+            };
+        } catch (error) {
+            Logger.error('Get planner members error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Remove member from planner
+     */
+    static async removePlannerMember(plannerId, memberId, userId) {
+        try {
+            const planner = await Planner.findByPk(plannerId);
+
+            if (!planner) {
+                throw new Error('Planner not found');
+            }
+
+            // Only owner can remove members
+            if (planner.user_id !== userId) {
+                throw new Error('Forbidden');
+            }
+
+            // Cannot remove during ongoing trip
+            if (planner.status === 'ongoing') {
+                throw new Error('Cannot remove members during ongoing trip');
+            }
+
+            // Cannot remove owner
+            if (memberId === planner.user_id) {
+                throw new Error('Cannot remove owner');
+            }
+
+            const deleted = await PlannerMember.destroy({
+                where: {
+                    planner_id: plannerId,
+                    user_id: memberId
+                }
+            });
+
+            if (deleted === 0) {
+                throw new Error('Member not found');
+            }
+
+            Logger.info(`Member ${memberId} removed from planner ${plannerId}`);
+
+            return { message: 'Member removed successfully' };
+        } catch (error) {
+            Logger.error('Remove planner member error:', error);
             throw error;
         }
     }

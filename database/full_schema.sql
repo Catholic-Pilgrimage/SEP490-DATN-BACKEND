@@ -484,16 +484,22 @@ CREATE TABLE IF NOT EXISTS planners (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     start_date DATE,
+    end_date DATE, -- NEW: Explicit end date for easier validation
     number_of_days INT DEFAULT 1,
     number_of_people INT DEFAULT 1,
     transportation VARCHAR(100),
-
     status planner_status DEFAULT 'planning',
+    started_at TIMESTAMP WITH TIME ZONE, -- NEW: When first check-in happened
+    completed_at TIMESTAMP WITH TIME ZONE, -- NEW: When marked as completed
+    
     is_public BOOLEAN DEFAULT FALSE,
     share_token VARCHAR(50) UNIQUE DEFAULT NULL,
     share_role VARCHAR(20) DEFAULT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Constraint: end_date must be after start_date
+    CONSTRAINT chk_planner_dates CHECK (end_date IS NULL OR end_date >= start_date)
 );
 
 CREATE INDEX IF NOT EXISTS idx_planners_user ON planners(user_id);

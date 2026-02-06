@@ -14,11 +14,12 @@ class PlannerValidator {
             .custom((value) => {
                 if (value) {
                     const inputDate = new Date(value);
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
+                    const tomorrow = new Date();
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    tomorrow.setHours(0, 0, 0, 0);
 
-                    if (inputDate < today) {
-                        throw new Error('Ngày bắt đầu không được là ngày trong quá khứ');
+                    if (inputDate < tomorrow) {
+                        throw new Error('Ngày bắt đầu phải từ ngày mai trở đi');
                     }
                 }
                 return true;
@@ -60,11 +61,12 @@ class PlannerValidator {
             .custom((value) => {
                 if (value) {
                     const inputDate = new Date(value);
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
+                    const tomorrow = new Date();
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    tomorrow.setHours(0, 0, 0, 0);
 
-                    if (inputDate < today) {
-                        throw new Error('Ngày bắt đầu không được là ngày trong quá khứ');
+                    if (inputDate < tomorrow) {
+                        throw new Error('Ngày bắt đầu phải từ ngày mai trở đi');
                     }
                 }
                 return true;
@@ -256,16 +258,6 @@ class PlannerValidator {
         body('role')
             .notEmpty().withMessage('Role không được để trống')
             .isIn(['viewer', 'editor']).withMessage('Role phải là viewer hoặc editor')
-    ];
-
-    // Validate update planner status only
-    static updatePlannerStatus = [
-        param('id')
-            .isUUID().withMessage('Planner ID không hợp lệ'),
-
-        body('status')
-            .notEmpty().withMessage('Trạng thái không được để trống')
-            .isIn(['planning', 'ongoing', 'completed']).withMessage('Trạng thái phải là planning, ongoing hoặc completed')
     ];
 }
 

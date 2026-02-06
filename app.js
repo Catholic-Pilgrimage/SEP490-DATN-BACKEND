@@ -12,6 +12,8 @@ const i18nMiddleware = require('./middlewares/i18n.middleware');
 const errorMiddleware = require('./middlewares/error.middleware');
 // WebSocket
 const { initSocket } = require('./websockets/socket');
+// Cron jobs
+const { startCronJobs } = require('./utils/cronJobs');
 
 const app = express();
 const server = http.createServer(app);
@@ -89,6 +91,9 @@ server.listen(PORT, () => {
   console.log(`WebSocket enabled on port ${PORT}`);
   console.log(`Swagger docs available at http://localhost:${PORT}/api-docs`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  
+  // Start cron jobs
+  startCronJobs();
 });
 
 module.exports = { app, server };

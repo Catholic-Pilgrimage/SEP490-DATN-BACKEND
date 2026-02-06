@@ -1,4 +1,4 @@
-const { PlannerItem, Site, UserCheckin } = require('../models');
+const { PlannerItem, Site, UserCheckin, Planner } = require('../models');
 const OSRMUtil = require('../utils/osrm.util');
 
 class CheckinService {
@@ -12,17 +12,42 @@ class CheckinService {
      * @returns {Promise<{distance: number, is_valid: boolean}>}
      */
     static async checkin(userId, plannerItemId, latitude, longitude, note) {
-        // Fetch planner item with associated site
+        // Fetch planner item with associated site and planner
         const plannerItem = await PlannerItem.findByPk(plannerItemId, {
-            include: [{
-                model: Site,
-                as: 'site',
-                attributes: ['id', 'name', 'latitude', 'longitude']
-            }]
+            include: [
+                {
+                    model: Site,
+                    as: 'site',
+                    attributes: ['id', 'name', 'latitude', 'longitude']
+                },
+                {
+                    model: Planner,
+                    as: 'planner',
+                    attributes: ['id', 'user_id', 'status', 'end_date', 'started_at']
+                }
+            ]
         });
 
         if (!plannerItem) {
             throw new Error('Planner item not found');
+        }
+
+        const planner = plannerItem.planner;
+
+        // Check quyền sở hữu
+        if (planner.user_id !== userId) {
+            throw new Error('Không có quyền check-in kế hoạch này');
+        }
+
+        // Kiểm tra planner đã hết hạn chưa
+        if (planner.end_date) {
+            const now = new Date();
+            const endDate = new Date(planner.end_date);
+            endDate.setHours(23, 59, 59, 999);
+            
+            if (now > endDate) {
+                throw new Error('Kế hoạch đã kết thúc, không thể check-in');
+            }
         }
 
         const site = plannerItem.site;
@@ -70,9 +95,18 @@ class CheckinService {
             throw new Error('Bạn đã check-in điểm này rồi');
         }
 
+        // Tự động chuyển planner sang 'ongoing' nếu đây là check-in đầu tiên
+        if (planner.status === 'planning' && !planner.started_at) {
+            await planner.update({
+                status: 'ongoing',
+                started_at: new Date()
+            });
+        }
+
         return {
             distance: Math.round(distance),
-            is_valid: true
+            is_valid: true,
+            planner_status: planner.status === 'planning' ? 'ongoing' : planner.status
         };
     }
 
