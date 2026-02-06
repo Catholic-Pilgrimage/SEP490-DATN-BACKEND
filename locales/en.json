@@ -334,5 +334,37 @@
       "sos_resolved_title": "SOS resolved",
       "sos_resolved_body": "SOS request {{sosCode}} has been resolved"
     }
+  },
+  "group": {
+    "created": "Group created successfully",
+    "updated": "Group updated successfully",
+    "deleted": "Group deleted successfully",
+    "retrieved": "Group retrieved successfully",
+    "list_retrieved": "Groups retrieved successfully",
+    "invitation_sent": "Invitation sent successfully",
+    "invitation_accepted": "Invitation accepted successfully",
+    "invitation_rejected": "Invitation rejected successfully",
+    "member_removed": "Member removed successfully",
+    "left": "Left group successfully",
+    "join_request_sent": "Join request sent successfully",
+    "join_requests_retrieved": "Join requests retrieved successfully",
+    "join_request_approved": "Join request approved successfully",
+    "join_request_rejected": "Join request rejected successfully",
+    "not_found": "Group not found",
+    "forbidden": "You don't have permission to access this group",
+    "only_admin": "Only admins can perform this action",
+    "already_member": "User is already a member of this group",
+    "already_invited": "An invitation has already been sent to this email",
+    "invitation_not_found": "Invitation not found",
+    "invitation_expired": "Invitation has expired",
+    "invitation_processed": "Invitation has already been processed",
+    "email_mismatch": "Email does not match the invitation",
+    "cannot_remove_self": "Admins cannot remove themselves. Please use leave group instead",
+    "admin_cannot_leave": "Admins cannot leave the group. Please transfer ownership or delete the group",
+    "not_member": "You are not a member of this group",
+    "join_request_already_pending": "You already have a pending join request",
+    "join_request_not_found": "Join request not found",
+    "join_request_processed": "Join request has already been processed",
+    "only_public_join_request": "Join requests are only allowed for public groups"
   }
 }

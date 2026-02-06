@@ -333,5 +333,37 @@
       "sos_resolved_title": "SOS đã giải quyết",
       "sos_resolved_body": "Yêu cầu SOS {{sosCode}} đã được giải quyết"
     }
+  },
+  "group": {
+    "created": "Tạo nhóm thành công",
+    "updated": "Cập nhật nhóm thành công",
+    "deleted": "Xóa nhóm thành công",
+    "retrieved": "Lấy thông tin nhóm thành công",
+    "list_retrieved": "Lấy danh sách nhóm thành công",
+    "invitation_sent": "Gửi lời mời thành công",
+    "invitation_accepted": "Chấp nhận lời mời thành công",
+    "invitation_rejected": "Từ chối lời mời thành công",
+    "member_removed": "Xóa thành viên thành công",
+    "left": "Rời nhóm thành công",
+    "join_request_sent": "Gửi yêu cầu tham gia thành công",
+    "join_requests_retrieved": "Lấy danh sách yêu cầu tham gia thành công",
+    "join_request_approved": "Chấp nhận yêu cầu tham gia thành công",
+    "join_request_rejected": "Từ chối yêu cầu tham gia thành công",
+    "not_found": "Không tìm thấy nhóm",
+    "forbidden": "Bạn không có quyền truy cập nhóm này",
+    "only_admin": "Chỉ admin mới có quyền thực hiện hành động này",
+    "already_member": "Người dùng đã là thành viên của nhóm",
+    "already_invited": "Lời mời đã được gửi đến email này",
+    "invitation_not_found": "Không tìm thấy lời mời",
+    "invitation_expired": "Lời mời đã hết hạn",
+    "invitation_processed": "Lời mời đã được xử lý",
+    "email_mismatch": "Email không khớp với lời mời",
+    "cannot_remove_self": "Admin không thể tự xóa mình. Vui lòng sử dụng chức năng rời nhóm",
+    "admin_cannot_leave": "Admin không thể rời nhóm. Vui lòng chuyển quyền admin hoặc xóa nhóm",
+    "not_member": "Bạn không phải là thành viên của nhóm này",
+    "join_request_already_pending": "Bạn đã có yêu cầu tham gia đang chờ xử lý",
+    "join_request_not_found": "Không tìm thấy yêu cầu tham gia",
+    "join_request_processed": "Yêu cầu tham gia đã được xử lý",
+    "only_public_join_request": "Chỉ có thể gửi yêu cầu tham gia vào nhóm công khai"
   }
 }

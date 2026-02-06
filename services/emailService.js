@@ -764,6 +764,88 @@ class EmailService {
       throw error;
     }
   }
+
+  /**
+   * Send group invitation email
+   */
+  static async sendGroupInvitation(email, inviterName, groupName, token) {
+    try {
+      Logger.info(`Sending group invitation to: ${email}`);
+      const currentYear = new Date().getFullYear();
+
+      // Accept and reject URLs (adjust based on your frontend routes)
+      const acceptUrl = `${process.env.FRONTEND_URL || 'https://catholicpilgrimage.app'}/groups/invitations/${token}/accept`;
+      const rejectUrl = `${process.env.FRONTEND_URL || 'https://catholicpilgrimage.app'}/groups/invitations/${token}/reject`;
+
+      const htmlContent = `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>Lời mời tham gia nhóm</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Arial, sans-serif;">
+  <div style="font-family: 'Segoe UI', Tahoma, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #fff;">
+    ${this.getEmailHeader()}
+    
+    <div style="padding: 30px; background: #fff;">
+      <h2 style="color: #4a0e4e; font-weight: normal;">Lời mời tham gia nhóm</h2>
+      
+      <p style="color: #333; line-height: 1.8; font-size: 16px;">
+        <strong>${inviterName}</strong> đã mời bạn tham gia nhóm:
+      </p>
+      
+      <div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 25px; border-radius: 8px; margin: 25px 0; text-align: center; border: 2px solid #4caf50;">
+        <h3 style="color: #2e7d32; margin: 0; font-size: 22px;">${groupName}</h3>
+      </div>
+      
+      <p style="color: #333; line-height: 1.8; font-size: 16px;">
+        Nhóm này là nơi để chia sẻ kinh nghiệm hành hương, cầu nguyện và kết nối với cộng đồng Công giáo.
+      </p>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${acceptUrl}" style="display: inline-block; background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); color: #fff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          Xem nhóm
+        </a>
+      </div>
+      
+      <p style="color: #999; font-size: 14px; text-align: center; margin-top: 20px;">
+        Lời mời này sẽ hết hạn sau 7 ngày.
+      </p>
+      
+      <div style="text-align: center; margin-top: 30px; padding: 20px; background: #f8f6f0; border-radius: 8px;">
+        <p style="color: #7b1fa2; font-style: italic; margin: 0;">
+          "Vì ở đâu có hai ba người họp lại nhân danh Thầy, thì Thầy ở giữa họ"
+        </p>
+        <p style="color: #999; font-size: 12px; margin: 10px 0 0 0;">- Mt 18:20</p>
+      </div>
+    </div>
+    
+    ${this.getEmailFooter(currentYear)}
+  </div>
+</body>
+</html>`;
+
+      const { data, error } = await resend.emails.send({
+        from: emailConfig.from,
+        to: email,
+        subject: `Lời mời tham gia nhóm "${groupName}" - Catholic Pilgrimage`,
+        html: htmlContent
+      });
+
+      if (error) {
+        Logger.error('Send group invitation email error:', error);
+        throw new Error(`Failed to send email: ${error.message}`);
+      }
+
+      Logger.info(`Group invitation email sent to: ${email}`);
+      return data;
+    } catch (error) {
+      Logger.error('Email service error:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = EmailService;
