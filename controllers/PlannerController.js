@@ -167,6 +167,23 @@ class PlannerController {
             if (error.message.includes('Quãng đường quá xa')) {
                 return ResponseUtil.badRequest(res, req.__('planner.distance_too_far'));
             }
+            if (error.message.includes('missing coordinates')) {
+                const siteName = error.message.match(/"([^"]+)"/)?.[1] || '';
+                return ResponseUtil.badRequest(res, req.__('planner.site_missing_coordinates', { siteName }));
+            }
+            if (error.message.includes('Cannot calculate travel time')) {
+                const sites = error.message.match(/"([^"]+)"/g)?.map(s => s.replace(/"/g, '')) || [];
+                return ResponseUtil.badRequest(res, req.__('planner.travel_time_calc_failed', { fromSite: sites[0] || '', toSite: sites[1] || '' }));
+            }
+            if (error.message.includes('Travel time between sites is too long')) {
+                const hours = error.message.match(/(\d+) hours/)?.[1] || '?';
+                return ResponseUtil.badRequest(res, req.__('planner.travel_time_too_long', { hours }));
+            }
+            if (error.message.includes('Total time for day')) {
+                const dayMatch = error.message.match(/day (\d+)/)?.[1] || '?';
+                const hoursMatch = error.message.match(/(\d+) hours/)?.[1] || '?';
+                return ResponseUtil.badRequest(res, req.__('planner.total_time_exceeds_24h', { day: dayMatch, hours: hoursMatch }));
+            }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
@@ -201,6 +218,14 @@ class PlannerController {
             }
             if (error.message === 'Invalid item ID in reorder list') {
                 return ResponseUtil.badRequest(res, req.__('planner.invalid_item_id'));
+            }
+            if (error.message.includes('missing coordinates')) {
+                const siteName = error.message.match(/"([^"]+)"/)?.[1] || '';
+                return ResponseUtil.badRequest(res, req.__('planner.site_missing_coordinates', { siteName }));
+            }
+            if (error.message.includes('Cannot calculate travel time')) {
+                const sites = error.message.match(/"([^"]+)"/g)?.map(s => s.replace(/"/g, '')) || [];
+                return ResponseUtil.badRequest(res, req.__('planner.travel_time_calc_failed', { fromSite: sites[0] || '', toSite: sites[1] || '' }));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }

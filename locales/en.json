@@ -297,6 +297,8 @@
     "site_closed_on_day": "Site is closed on this day",
     "invalid_day_number_range": "Invalid day number. Must be between 1 and {{max}}",
     "distance_error": "Cannot calculate distance. Please try again",
+    "site_missing_coordinates": "Site \"{{siteName}}\" is missing coordinates (latitude/longitude). Cannot calculate travel time.",
+    "travel_time_calc_failed": "Cannot calculate travel time from \"{{fromSite}}\" to \"{{toSite}}\". Please try again later.",
     "complete_success": "Planner marked as completed",
     "not_ongoing": "Can only complete ongoing planners",
     "invite_sent": "Invitation sent successfully",
