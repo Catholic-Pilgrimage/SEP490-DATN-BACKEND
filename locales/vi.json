@@ -293,6 +293,8 @@
     "site_closed_on_day": "Địa điểm đóng cửa vào ngày này",
     "invalid_day_number_range": "Số ngày không hợp lệ. Phải từ 1 đến {{max}}",
     "distance_error": "Không thể tính khoảng cách. Vui lòng thử lại",
+    "site_missing_coordinates": "Địa điểm \"{{siteName}}\" chưa có tọa độ (latitude/longitude). Không thể tính thời gian di chuyển.",
+    "travel_time_calc_failed": "Không thể tính thời gian di chuyển từ \"{{fromSite}}\" đến \"{{toSite}}\". Vui lòng thử lại sau.",
     "complete_success": "Đánh dấu hoàn thành kế hoạch thành công",
     "not_ongoing": "Chỉ có thể hoàn thành kế hoạch đang thực hiện",
     "invite_sent": "Gửi lời mời thành công",

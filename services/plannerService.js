@@ -282,37 +282,45 @@ class PlannerService {
             if (previousItem && previousItem.site) {
                 const prevSite = previousItem.site;
 
-                // Check if both sites have coordinates
-                if (prevSite.latitude && prevSite.longitude && site.latitude && site.longitude) {
-                    // Map transportation to VietMap vehicle type
-                    let vehicle = 'bike'; // default
-                    if (planner.transportation) {
-                        const lowerTransport = planner.transportation.toLowerCase();
-                        if (lowerTransport.includes('car') || lowerTransport === 'car') {
-                            vehicle = 'car';
-                        } else if (lowerTransport.includes('bus')) {
-                            vehicle = 'car'; // bus uses car routing
-                        } else if (lowerTransport.includes('motorbike')) {
-                            vehicle = 'bike';
-                        }
+                // Validate: both sites must have coordinates
+                if (!prevSite.latitude || !prevSite.longitude) {
+                    throw new Error(`Site "${prevSite.name}" is missing coordinates (latitude/longitude). Cannot calculate travel time.`);
+                }
+                if (!site.latitude || !site.longitude) {
+                    throw new Error(`Site "${site.name}" is missing coordinates (latitude/longitude). Cannot calculate travel time.`);
+                }
+
+                // Map transportation to VietMap vehicle type
+                let vehicle = 'bike'; // default
+                if (planner.transportation) {
+                    const lowerTransport = planner.transportation.toLowerCase();
+                    if (lowerTransport.includes('car') || lowerTransport === 'car') {
+                        vehicle = 'car';
+                    } else if (lowerTransport.includes('bus')) {
+                        vehicle = 'car'; // bus uses car routing
+                    } else if (lowerTransport.includes('motorbike')) {
+                        vehicle = 'bike';
                     }
+                }
 
-                    // Get route info from Vietmap (only for travel time)
-                    const routeInfo = await OSRMUtil.getRouteInfo(
-                        { lat: parseFloat(prevSite.latitude), lng: parseFloat(prevSite.longitude) },
-                        { lat: parseFloat(site.latitude), lng: parseFloat(site.longitude) },
-                        vehicle
-                    );
+                // Get route info from Vietmap (only for travel time)
+                const routeInfo = await OSRMUtil.getRouteInfo(
+                    { lat: parseFloat(prevSite.latitude), lng: parseFloat(prevSite.longitude) },
+                    { lat: parseFloat(site.latitude), lng: parseFloat(site.longitude) },
+                    vehicle
+                );
 
-                    if (routeInfo && routeInfo.duration) {
-                        travelTimeMinutes = Math.ceil(routeInfo.duration / 60); // Convert seconds to minutes
-                        Logger.info(`Travel time from previous site: ${travelTimeMinutes} minutes`);
+                if (!routeInfo || !routeInfo.duration) {
+                    Logger.error(`VietMap API failed to calculate route from "${prevSite.name}" to "${site.name}"`);
+                    throw new Error(`Cannot calculate travel time from "${prevSite.name}" to "${site.name}". Please try again later.`);
+                }
 
-                        // Validation 1: Travel time should not exceed 24 hours
-                        if (travelTimeMinutes > 1440) { // 1440 minutes = 24 hours
-                            throw new Error(`Travel time between sites is too long (${Math.floor(travelTimeMinutes / 60)} hours). Maximum allowed is 24 hours.`);
-                        }
-                    }
+                travelTimeMinutes = Math.ceil(routeInfo.duration / 60); // Convert seconds to minutes
+                Logger.info(`Travel time from previous site: ${travelTimeMinutes} minutes`);
+
+                // Validation 1: Travel time should not exceed 24 hours
+                if (travelTimeMinutes > 1440) { // 1440 minutes = 24 hours
+                    throw new Error(`Travel time between sites is too long (${Math.floor(travelTimeMinutes / 60)} hours). Maximum allowed is 24 hours.`);
                 }
             }
 
@@ -502,34 +510,39 @@ class PlannerService {
 
                 let travelTimeMinutes = 0;
 
-                // Get travel time from VietMap
-                if (previousItem.site && currentItem.site &&
-                    previousItem.site.latitude && previousItem.site.longitude &&
-                    currentItem.site.latitude && currentItem.site.longitude) {
+                // Validate: both sites must have coordinates
+                if (!previousItem.site || !previousItem.site.latitude || !previousItem.site.longitude) {
+                    throw new Error(`Site "${previousItem.site?.name || 'Unknown'}" is missing coordinates (latitude/longitude). Cannot calculate travel time.`);
+                }
+                if (!currentItem.site || !currentItem.site.latitude || !currentItem.site.longitude) {
+                    throw new Error(`Site "${currentItem.site?.name || 'Unknown'}" is missing coordinates (latitude/longitude). Cannot calculate travel time.`);
+                }
 
-                    // Map transportation to VietMap vehicle type
-                    let vehicle = 'bike';
-                    if (planner.transportation) {
-                        const lowerTransport = planner.transportation.toLowerCase();
-                        if (lowerTransport.includes('car') || lowerTransport === 'car') {
-                            vehicle = 'car';
-                        } else if (lowerTransport.includes('bus')) {
-                            vehicle = 'car';
-                        } else if (lowerTransport.includes('motorbike')) {
-                            vehicle = 'bike';
-                        }
-                    }
-
-                    const routeInfo = await OSRMUtil.getRouteInfo(
-                        { lat: parseFloat(previousItem.site.latitude), lng: parseFloat(previousItem.site.longitude) },
-                        { lat: parseFloat(currentItem.site.latitude), lng: parseFloat(currentItem.site.longitude) },
-                        vehicle
-                    );
-
-                    if (routeInfo && routeInfo.duration) {
-                        travelTimeMinutes = Math.ceil(routeInfo.duration / 60);
+                // Map transportation to VietMap vehicle type
+                let vehicle = 'bike';
+                if (planner.transportation) {
+                    const lowerTransport = planner.transportation.toLowerCase();
+                    if (lowerTransport.includes('car') || lowerTransport === 'car') {
+                        vehicle = 'car';
+                    } else if (lowerTransport.includes('bus')) {
+                        vehicle = 'car';
+                    } else if (lowerTransport.includes('motorbike')) {
+                        vehicle = 'bike';
                     }
                 }
+
+                const routeInfo = await OSRMUtil.getRouteInfo(
+                    { lat: parseFloat(previousItem.site.latitude), lng: parseFloat(previousItem.site.longitude) },
+                    { lat: parseFloat(currentItem.site.latitude), lng: parseFloat(currentItem.site.longitude) },
+                    vehicle
+                );
+
+                if (!routeInfo || !routeInfo.duration) {
+                    Logger.error(`VietMap API failed to calculate route from "${previousItem.site.name}" to "${currentItem.site.name}"`);
+                    throw new Error(`Cannot calculate travel time from "${previousItem.site.name}" to "${currentItem.site.name}". Please try again later.`);
+                }
+
+                travelTimeMinutes = Math.ceil(routeInfo.duration / 60);
 
                 // Calculate new estimated time
                 const newEstimatedTime = calculateEstimatedTime(previousItem, travelTimeMinutes, '09:00');
