@@ -379,12 +379,7 @@ router.delete(
  *         application/json:
  *           schema:
  *             type: object
- *             properties:
- *               role:
- *                 type: string
- *                 enum: [viewer, editor]
- *                 default: viewer
- *                 description: Quyền của người được chia sẻ
+ *             properties: {}
  *     responses:
  *       200:
  *         description: Tạo/cập nhật token thành công
@@ -405,10 +400,14 @@ router.delete(
  *                       example: "abc123def456..."
  *                     role:
  *                       type: string
- *                       example: "editor"
+ *                       example: "viewer"
  *                     link:
  *                       type: string
  *                       example: "myapp://planners/share/abc123def456..."
+ *                     qr_code:
+ *                       type: string
+ *                       description: QR code as base64 data URL
+ *                       example: "data:image/png;base64,..."
  *       401:
  *         description: Chưa xác thực
  *       403:
@@ -513,17 +512,15 @@ router.post(
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - email
  *             properties:
  *               email:
  *                 type: string
  *                 format: email
- *               role:
- *                 type: string
- *                 enum: [viewer, editor]
- *                 default: viewer
  *     responses:
  *       200:
- *         description: Gửi lời mời thành công
+ *         description: Gửi lời mời thành công (kèm QR code)
  */
 router.post(
     '/:id/invite',

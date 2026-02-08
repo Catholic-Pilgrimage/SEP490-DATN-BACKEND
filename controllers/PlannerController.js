@@ -26,6 +26,15 @@ class PlannerController {
             if (error.message === 'Number of people must be at least 1') {
                 return ResponseUtil.badRequest(res, req.__('planner.invalid_people'));
             }
+            if (error.message === 'Planner exceeds 30 days') {
+                return ResponseUtil.badRequest(res, req.__('planner.exceeds_max_days'));
+            }
+            if (error.message === 'Planner dates overlap') {
+                return ResponseUtil.badRequest(res, req.__('planner.dates_overlap', { dates: error.conflictDates.join(', ') }), { conflict_dates: error.conflictDates });
+            }
+            if (error.message === 'End date must be after or equal to start date') {
+                return ResponseUtil.badRequest(res, req.__('planner.invalid_end_date'));
+            }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
@@ -97,6 +106,12 @@ class PlannerController {
             }
             if (error.message.includes('End date must be')) {
                 return ResponseUtil.badRequest(res, req.__('planner.invalid_end_date'));
+            }
+            if (error.message === 'Planner exceeds 30 days') {
+                return ResponseUtil.badRequest(res, req.__('planner.exceeds_max_days'));
+            }
+            if (error.message === 'Planner dates overlap') {
+                return ResponseUtil.badRequest(res, req.__('planner.dates_overlap', { dates: error.conflictDates.join(', ') }), { conflict_dates: error.conflictDates });
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
@@ -277,8 +292,7 @@ class PlannerController {
 
             const result = await PlannerService.createShareToken(
                 req.params.id,
-                req.user.id,
-                req.body.role
+                req.user.id
             );
 
             return ResponseUtil.success(res, result, req.__('planner.share_token_created'));
@@ -288,9 +302,6 @@ class PlannerController {
             }
             if (error.message === 'Forbidden') {
                 return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
-            }
-            if (error.message === 'Invalid role') {
-                return ResponseUtil.badRequest(res, req.__('planner.invalid_role'));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
@@ -345,12 +356,11 @@ class PlannerController {
      */
     static async inviteUser(req, res) {
         try {
-            const { email, role } = req.body;
+            const { email } = req.body;
             const result = await PlannerService.inviteUserToPlanner(
                 req.params.id,
                 req.user.id,
-                email,
-                role
+                email
             );
             return ResponseUtil.success(res, result, 'Đã gửi lời mời thành công');
         } catch (error) {

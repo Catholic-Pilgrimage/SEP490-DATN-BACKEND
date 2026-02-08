@@ -39,7 +39,7 @@ const PlannerInvite = sequelize.define('PlannerInvite', {
         type: DataTypes.STRING(20),
         defaultValue: 'viewer',
         validate: {
-            isIn: [['viewer', 'editor']]
+            isIn: [['viewer']]
         }
     },
     status: {

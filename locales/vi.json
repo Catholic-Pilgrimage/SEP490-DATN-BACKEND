@@ -272,6 +272,8 @@
     "invalid_people": "Số người phải lớn hơn hoặc bằng 1",
     "invalid_status": "Trạng thái không hợp lệ",
     "invalid_end_date": "Ngày kết thúc phải sau hoặc bằng ngày bắt đầu",
+    "exceeds_max_days": "Kế hoạch hành hương không được vượt quá 30 ngày",
+    "dates_overlap": "Bạn đã có lịch trình vào những ngày này: {{dates}}",
     "item_add_success": "Thêm điểm thành công",
     "item_add_success_with_warning": "Thêm điểm thành công (có cảnh báo)",
     "item_delete_success": "Xóa điểm thành công",

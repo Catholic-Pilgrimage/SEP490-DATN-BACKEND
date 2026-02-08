@@ -24,7 +24,7 @@ const PlannerMember = sequelize.define('PlannerMember', {
         type: DataTypes.STRING(20),
         defaultValue: 'viewer',
         validate: {
-            isIn: [['viewer', 'editor']]
+            isIn: [['viewer']]
         }
     },
     joined_at: {

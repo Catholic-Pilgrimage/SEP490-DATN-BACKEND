@@ -281,6 +281,8 @@
     "invalid_days": "Number of days must be at least 1",
     "invalid_people": "Number of people must be at least 1",
     "invalid_end_date": "End date must be after or equal to start date",
+    "exceeds_max_days": "Pilgrimage plan cannot exceed 30 days",
+    "dates_overlap": "You already have a plan on these dates: {{dates}}",
     "item_add_success": "Item added successfully",
     "item_add_success_with_warning": "Item added successfully (with warning)",
     "item_delete_success": "Item deleted successfully",

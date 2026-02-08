@@ -2,10 +2,10 @@ const { Planner } = require('../models');
 const ResponseUtil = require('../utils/response.util');
 
 /**
- * Middleware to check share token and role permissions
- * @param {string} requiredRole - 'viewer' or 'editor'
+ * Middleware to check share token permissions
+ * All shared planners are viewer-only (owner is stored as user_id)
  */
-const checkShareRole = (requiredRole) => {
+const checkShareRole = () => {
     return async (req, res, next) => {
         try {
             // Extract token from params, body, or query
@@ -18,8 +18,7 @@ const checkShareRole = (requiredRole) => {
             // Find planner by token
             const planner = await Planner.findOne({
                 where: {
-                    share_token: token,
-                    is_public: true
+                    share_token: token
                 }
             });
 
@@ -27,13 +26,9 @@ const checkShareRole = (requiredRole) => {
                 return ResponseUtil.forbidden(res, 'Invalid token');
             }
 
-            // Check role permission
-            if (requiredRole === 'editor' && planner.share_role !== 'editor') {
-                return ResponseUtil.forbidden(res, 'Read only');
-            }
-
-            // Attach planner to request for downstream use
+            // All shared access is viewer-only
             req.sharedPlanner = planner;
+            req.shareRole = 'viewer';
             next();
         } catch (error) {
             console.error('Check share role error:', error);

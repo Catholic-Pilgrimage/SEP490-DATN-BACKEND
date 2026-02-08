@@ -37,7 +37,7 @@ DO $$ BEGIN
     
     -- Planner
     CREATE TYPE planner_status AS ENUM ('planning', 'ongoing', 'completed');
-    CREATE TYPE planner_role AS ENUM ('viewer', 'editor');
+    CREATE TYPE planner_role AS ENUM ('viewer');
 
     
     -- Journal & Community
@@ -492,9 +492,8 @@ CREATE TABLE IF NOT EXISTS planners (
     started_at TIMESTAMP WITH TIME ZONE, -- NEW: When first check-in happened
     completed_at TIMESTAMP WITH TIME ZONE, -- NEW: When marked as completed
     
-    is_public BOOLEAN DEFAULT FALSE,
     share_token VARCHAR(50) UNIQUE DEFAULT NULL,
-    share_role VARCHAR(20) DEFAULT NULL,
+    qr_code_url TEXT DEFAULT NULL, -- QR code image URL (Cloudinary)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     

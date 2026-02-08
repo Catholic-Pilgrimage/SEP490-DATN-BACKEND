@@ -5,6 +5,7 @@ const OSRMUtil = require('../utils/osrm.util');
 const sequelize = require('../config/database');
 const crypto = require('crypto');
 const EmailService = require('./emailService');
+const QRCode = require('qrcode');
 const { calculateEstimatedTime, parseDurationToMinutes, isWithinOpeningHours } = require('../utils/timeCalculation.util');
 
 class PlannerService {
@@ -27,6 +28,52 @@ class PlannerService {
                 const endDateObj = new Date(end_date);
                 if (endDateObj < startDateObj) {
                     throw new Error('End date must be after or equal to start date');
+                }
+
+                // Validate max 30 days
+                const diffTime = endDateObj.getTime() - startDateObj.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // inclusive
+                if (diffDays > 30) {
+                    throw new Error('Planner exceeds 30 days');
+                }
+            }
+
+            // Check overlapping dates with existing planners
+            if (start_date && end_date) {
+                const overlappingPlanners = await Planner.findAll({
+                    where: {
+                        user_id: userId,
+                        start_date: { [Op.ne]: null },
+                        end_date: { [Op.ne]: null },
+                        [Op.and]: [
+                            { start_date: { [Op.lte]: end_date } },
+                            { end_date: { [Op.gte]: start_date } }
+                        ]
+                    },
+                    attributes: ['id', 'name', 'start_date', 'end_date']
+                });
+
+                if (overlappingPlanners.length > 0) {
+                    // Collect all conflicting dates
+                    const conflictDates = new Set();
+                    const reqStart = new Date(start_date);
+                    const reqEnd = new Date(end_date);
+
+                    for (const p of overlappingPlanners) {
+                        const pStart = new Date(p.start_date);
+                        const pEnd = new Date(p.end_date);
+                        const overlapStart = pStart > reqStart ? pStart : reqStart;
+                        const overlapEnd = pEnd < reqEnd ? pEnd : reqEnd;
+
+                        for (let d = new Date(overlapStart); d <= overlapEnd; d.setDate(d.getDate() + 1)) {
+                            conflictDates.add(d.toISOString().split('T')[0]);
+                        }
+                    }
+
+                    const sortedDates = Array.from(conflictDates).sort();
+                    const error = new Error('Planner dates overlap');
+                    error.conflictDates = sortedDates;
+                    throw error;
                 }
             }
 
@@ -163,6 +210,50 @@ class PlannerService {
                 const endDateObj = new Date(finalEndDate);
                 if (endDateObj < startDateObj) {
                     throw new Error('End date must be after or equal to start date');
+                }
+
+                // Validate max 30 days
+                const diffTime = endDateObj.getTime() - startDateObj.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // inclusive
+                if (diffDays > 30) {
+                    throw new Error('Planner exceeds 30 days');
+                }
+
+                // Check overlapping dates with existing planners (exclude current planner)
+                const overlappingPlanners = await Planner.findAll({
+                    where: {
+                        user_id: userId,
+                        id: { [Op.ne]: plannerId },
+                        start_date: { [Op.ne]: null },
+                        end_date: { [Op.ne]: null },
+                        [Op.and]: [
+                            { start_date: { [Op.lte]: finalEndDate } },
+                            { end_date: { [Op.gte]: finalStartDate } }
+                        ]
+                    },
+                    attributes: ['id', 'name', 'start_date', 'end_date']
+                });
+
+                if (overlappingPlanners.length > 0) {
+                    const conflictDates = new Set();
+                    const reqStart = new Date(finalStartDate);
+                    const reqEnd = new Date(finalEndDate);
+
+                    for (const p of overlappingPlanners) {
+                        const pStart = new Date(p.start_date);
+                        const pEnd = new Date(p.end_date);
+                        const overlapStart = pStart > reqStart ? pStart : reqStart;
+                        const overlapEnd = pEnd < reqEnd ? pEnd : reqEnd;
+
+                        for (let d = new Date(overlapStart); d <= overlapEnd; d.setDate(d.getDate() + 1)) {
+                            conflictDates.add(d.toISOString().split('T')[0]);
+                        }
+                    }
+
+                    const sortedDates = Array.from(conflictDates).sort();
+                    const error = new Error('Planner dates overlap');
+                    error.conflictDates = sortedDates;
+                    throw error;
                 }
             }
 
@@ -670,7 +761,7 @@ class PlannerService {
 
             status: planner.status,
             share_token: planner.share_token,
-            share_role: planner.share_role,
+            qr_code_url: planner.qr_code_url,
             owner: planner.owner ? {
                 id: planner.owner.id,
                 full_name: planner.owner.full_name,
@@ -743,9 +834,10 @@ class PlannerService {
     }
 
     /**
-     * Create or update share token with role
+     * Create or update share token with QR code (viewer only)
+     * Owner is identified by user_id, shared users are always viewer
      */
-    static async createShareToken(plannerId, userId, role = 'viewer') {
+    static async createShareToken(plannerId, userId) {
         try {
             const planner = await Planner.findByPk(plannerId);
 
@@ -758,26 +850,34 @@ class PlannerService {
                 throw new Error('Forbidden');
             }
 
-            // Validate role
-            if (!['viewer', 'editor'].includes(role)) {
-                throw new Error('Invalid role');
-            }
-
             // Generate token if not exists
             if (!planner.share_token) {
                 planner.share_token = crypto.randomBytes(24).toString('hex');
             }
 
-            planner.share_role = role;
+            const shareLink = `myapp://planners/share/${planner.share_token}`;
+
+            // Generate QR code as data URL (base64 PNG)
+            const qrCodeDataUrl = await QRCode.toDataURL(shareLink, {
+                width: 400,
+                margin: 2,
+                color: {
+                    dark: '#4a0e4e',
+                    light: '#ffffff'
+                }
+            });
+
+            planner.qr_code_url = qrCodeDataUrl;
 
             await planner.save();
 
-            Logger.info(`Share token created/updated for planner ${plannerId} by user ${userId} with role ${role}`);
+            Logger.info(`Share token + QR code created for planner ${plannerId} by user ${userId}`);
 
             return {
                 token: planner.share_token,
-                role: planner.share_role,
-                link: `myapp://planners/share/${planner.share_token}`
+                role: 'viewer',
+                link: shareLink,
+                qr_code: qrCodeDataUrl
             };
         } catch (error) {
             Logger.error('Create share token error:', error);
@@ -802,7 +902,7 @@ class PlannerService {
             }
 
             planner.share_token = null;
-            planner.share_role = null;
+            planner.qr_code_url = null;
 
             await planner.save();
 
@@ -885,7 +985,7 @@ class PlannerService {
     /**
      * Invite user to planner via email
      */
-    static async inviteUserToPlanner(plannerId, userId, email, role = 'viewer') {
+    static async inviteUserToPlanner(plannerId, userId, email) {
         try {
             const planner = await Planner.findByPk(plannerId, {
                 include: [{
@@ -907,6 +1007,9 @@ class PlannerService {
             if (planner.status !== 'planning') {
                 throw new Error('Can only invite when planner is in planning status');
             }
+
+            // Role luôn là viewer (owner = null trong DB, viewer cho tất cả người được mời)
+            const role = 'viewer';
 
             // Kiểm tra số lượng members hiện tại
             const currentMemberCount = planner.members ? planner.members.length : 0;
@@ -975,7 +1078,7 @@ class PlannerService {
             const inviterName = inviter?.full_name || 'Người dùng';
 
             try {
-                await EmailService.sendPlannerInvitation(email, inviterName, planner.name, token, role);
+                await EmailService.sendPlannerInvitation(email, inviterName, planner.name, token);
             } catch (emailError) {
                 Logger.error('Failed to send planner invitation email:', emailError);
                 // Vẫn trả về invite dù email gửi thất bại
@@ -984,13 +1087,26 @@ class PlannerService {
             Logger.info(`Invite sent to ${email} for planner ${plannerId}`);
 
             const baseUrl = process.env.FRONTEND_URL || 'https://catholicpilgrimage.app';
+            const inviteLink = `${baseUrl}/planners/invite/${token}`;
+
+            // Generate QR code for invite link
+            const qrCodeDataUrl = await QRCode.toDataURL(inviteLink, {
+                width: 400,
+                margin: 2,
+                color: {
+                    dark: '#4a0e4e',
+                    light: '#ffffff'
+                }
+            });
+
             return {
                 id: invite.id,
                 email: invite.email,
                 role: invite.role,
                 token: invite.token,
                 expires_at: invite.expires_at,
-                invite_link: `${baseUrl}/planners/invite/${token}`
+                invite_link: inviteLink,
+                qr_code: qrCodeDataUrl
             };
         } catch (error) {
             Logger.error('Invite user to planner error:', error);
