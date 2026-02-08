@@ -177,11 +177,7 @@ class PlannerValidator {
     // Validate create share token
     static createShareToken = [
         param('id')
-            .isUUID().withMessage('Planner ID không hợp lệ'),
-
-        body('role')
-            .optional()
-            .isIn(['viewer', 'editor']).withMessage('Role phải là viewer hoặc editor')
+            .isUUID().withMessage('Planner ID không hợp lệ')
     ];
 
     // Validate share token param

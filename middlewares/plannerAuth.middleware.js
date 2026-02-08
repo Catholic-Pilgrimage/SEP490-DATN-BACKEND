@@ -6,7 +6,8 @@ const { Planner } = require('../models');
  * 1. Owner authentication (req.user from JWT)
  * 2. Share token (query param: ?share_token=xxx)
  * 
- * Sets req.accessMode to 'owner', 'viewer', or 'editor'
+ * Sets req.accessMode to 'owner' or 'viewer'
+ * Owner is identified by user_id in planners table (NULL role = owner)
  */
 const authenticateOwnerOrToken = async (req, res, next) => {
     try {
@@ -30,8 +31,7 @@ const authenticateOwnerOrToken = async (req, res, next) => {
         const planner = await Planner.findOne({
             where: {
                 id: req.params.id,
-                share_token: shareToken,
-                is_public: true
+                share_token: shareToken
             }
         });
 
@@ -42,8 +42,8 @@ const authenticateOwnerOrToken = async (req, res, next) => {
             });
         }
 
-        // Set access mode based on share_role
-        req.accessMode = planner.share_role; // 'viewer' or 'editor'
+        // All shared access is viewer-only
+        req.accessMode = 'viewer';
         req.sharedPlanner = planner;
 
         next();
@@ -54,19 +54,6 @@ const authenticateOwnerOrToken = async (req, res, next) => {
             error: { message: 'Server error' }
         });
     }
-};
-
-/**
- * Require editor or owner permission
- */
-const requireEditor = (req, res, next) => {
-    if (req.accessMode === 'viewer') {
-        return res.status(403).json({
-            success: false,
-            error: { message: 'Read-only access. Editor permission required.' }
-        });
-    }
-    next();
 };
 
 /**
@@ -84,6 +71,5 @@ const requireOwner = (req, res, next) => {
 
 module.exports = {
     authenticateOwnerOrToken,
-    requireEditor,
     requireOwner
 };

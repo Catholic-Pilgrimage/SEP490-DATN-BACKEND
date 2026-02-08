@@ -61,16 +61,10 @@ const Planner = sequelize.define('Planner', {
         allowNull: true,
         unique: true
     },
-    share_role: {
-        type: DataTypes.STRING(20),
+    qr_code_url: {
+        type: DataTypes.TEXT,
         allowNull: true,
-        defaultValue: null,
-        validate: {
-            isIn: {
-                args: [['viewer', 'editor', null]],
-                msg: 'share_role must be viewer, editor, or null'
-            }
-        }
+        defaultValue: null
     }
 }, {
     tableName: 'planners',

@@ -855,15 +855,25 @@ class EmailService {
   }
 
   /**
-   * Send planner invitation email
+   * Send planner invitation email with QR code
    */
-  static async sendPlannerInvitation(email, inviterName, plannerName, token, role) {
+  static async sendPlannerInvitation(email, inviterName, plannerName, token) {
     try {
       Logger.info(`Sending planner invitation to: ${email}`);
       const currentYear = new Date().getFullYear();
+      const QRCode = require('qrcode');
 
       const inviteUrl = `${process.env.FRONTEND_URL || 'https://catholicpilgrimage.app'}/planners/invite/${token}`;
-      const roleText = role === 'editor' ? 'Biên tập viên' : 'Người xem';
+
+      // Generate QR code as base64 data URL for embedding in email
+      const qrCodeDataUrl = await QRCode.toDataURL(inviteUrl, {
+        width: 200,
+        margin: 2,
+        color: {
+          dark: '#4a0e4e',
+          light: '#ffffff'
+        }
+      });
 
       const htmlContent = `
 <!DOCTYPE html>
@@ -886,7 +896,7 @@ class EmailService {
       
       <div style="background: linear-gradient(135deg, #e8eaf6 0%, #c5cae9 100%); padding: 25px; border-radius: 8px; margin: 25px 0; text-align: center; border: 2px solid #3f51b5;">
         <h3 style="color: #283593; margin: 0; font-size: 22px;">📋 ${plannerName}</h3>
-        <p style="color: #5c6bc0; margin: 10px 0 0 0; font-size: 14px;">Vai trò: <strong>${roleText}</strong></p>
+        <p style="color: #5c6bc0; margin: 10px 0 0 0; font-size: 14px;">Vai trò: <strong>Người xem</strong></p>
       </div>
       
       <p style="color: #333; line-height: 1.8; font-size: 16px;">
@@ -897,6 +907,11 @@ class EmailService {
         <a href="${inviteUrl}" style="display: inline-block; background: linear-gradient(135deg, #3f51b5 0%, #303f9f 100%); color: #fff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
           Xem lời mời
         </a>
+      </div>
+
+      <div style="text-align: center; margin: 20px 0; padding: 20px; background: #f5f5f5; border-radius: 8px;">
+        <p style="color: #666; font-size: 14px; margin: 0 0 10px 0;">Hoặc quét mã QR để xem lời mời:</p>
+        <img src="${qrCodeDataUrl}" alt="QR Code" style="width: 200px; height: 200px; border-radius: 8px;" />
       </div>
       
       <p style="color: #999; font-size: 14px; text-align: center; margin-top: 20px;">

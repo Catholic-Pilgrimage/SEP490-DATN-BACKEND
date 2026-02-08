@@ -198,10 +198,9 @@
  *           type: string
  *         share_token:
  *           type: string
- *         share_role:
+ *         qr_code_url:
  *           type: string
- *           enum: [viewer, editor]
- *           description: Quyền của người được chia sẻ qua token
+ *           description: QR code image as base64 data URL
  *         owner:
  *           type: object
  *           properties:
