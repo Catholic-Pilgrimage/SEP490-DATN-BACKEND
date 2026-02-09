@@ -1,7 +1,7 @@
 const { User, Site, GuideShift, GuideShiftSubmission } = require('../../models');
 const { Op } = require('sequelize');
 const Logger = require('../../utils/logger.util');
-const NotificationService = require('../notificationService');
+const NotificationService = require('../shared/notificationService');
 
 class LocalGuideShiftService {
     /**

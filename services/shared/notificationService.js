@@ -1,8 +1,8 @@
 const { Expo } = require('expo-server-sdk');
-const { Notification, UserPushToken, User } = require('../models');
+const { Notification, UserPushToken, User } = require('../../models');
 const { Op } = require('sequelize');
-const Logger = require('../utils/logger.util');
-const { emitNotification } = require('../websockets/socket');
+const Logger = require('../../utils/logger.util');
+const { emitNotification } = require('../../websockets/socket');
 
 // Create Expo SDK client
 const expo = new Expo();
@@ -573,7 +573,7 @@ class NotificationService {
     // Notify all users who favorited a site about updates
     static async notifyFavoriteSiteUsers(siteId, updateType) {
         try {
-            const { UserFavorite, Site } = require('../models');
+            const { UserFavorite, Site } = require('../../models');
 
             const site = await Site.findByPk(siteId);
             if (!site) {

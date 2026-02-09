@@ -1,7 +1,8 @@
-const ManagerLocalGuideService = require('../services/managerLocalGuideService');
-const ResponseUtil = require('../utils/response.util');
+const ManagerLocalGuideService = require('../../services/manager/localGuideService');
+const ResponseUtil = require('../../utils/response.util');
 const { validationResult } = require('express-validator');
-const { formatValidationErrors } = require('../utils/validation.util');
+const { formatValidationErrors } = require('../../utils/validation.util');
+
 
 /**
  * Manager: Create Local Guide

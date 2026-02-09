@@ -1,5 +1,5 @@
-const { resend, emailConfig } = require('../config/resend.config');
-const Logger = require('../utils/logger.util');
+const { resend, emailConfig } = require('../../config/resend.config');
+const Logger = require('../../utils/logger.util');
 
 // Logo URL
 const LOGO_URL = 'https://res.cloudinary.com/dij64ko4y/image/upload/v1770366676/unnamed-removebg-preview_zanilk.png';

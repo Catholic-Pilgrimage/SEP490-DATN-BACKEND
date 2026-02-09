@@ -1,7 +1,7 @@
-const { User, Site, SiteMedia, MassSchedule, Event, GuideShift, NearbyPlace } = require('../models');
-const Logger = require('../utils/logger.util');
+const { User, Site, SiteMedia, MassSchedule, Event, GuideShift, NearbyPlace } = require('../../models');
+const Logger = require('../../utils/logger.util');
 const { Op } = require('sequelize');
-const NotificationService = require('./notificationService');
+const NotificationService = require('../shared/notificationService');
 
 class ManagerContentService {
 

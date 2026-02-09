@@ -1,5 +1,10 @@
 const express = require('express');
-const SiteController = require('../controllers/SiteController');
+
+// Import split controllers by role
+const { AdminSiteController } = require('../controllers/admin');
+const { ManagerSiteController } = require('../controllers/manager');
+const { PilgrimSiteController } = require('../controllers/pilgrim');
+
 const SiteValidator = require('../validators/site.validator');
 const authMiddleware = require('../middlewares/auth.middleware');
 const i18nMiddleware = require('../middlewares/i18n.middleware');
@@ -14,7 +19,7 @@ adminRouter.get(
   '/',
   authMiddleware,
   authMiddleware.authorize('admin'),
-  SiteController.getSites
+  AdminSiteController.getSites
 );
 
 // GET /api/admin/sites/:id - Get site by ID
@@ -22,7 +27,7 @@ adminRouter.get(
   '/:id',
   authMiddleware,
   authMiddleware.authorize('admin'),
-  SiteController.getSiteById
+  AdminSiteController.getSiteById
 );
 
 // PUT /api/admin/sites/:id - Update site
@@ -32,7 +37,7 @@ adminRouter.put(
   authMiddleware.authorize('admin'),
   upload.single('cover_image'),
   SiteValidator.updateSite,
-  SiteController.updateSite
+  AdminSiteController.updateSite
 );
 
 // DELETE /api/admin/sites/:id - Soft delete site
@@ -40,7 +45,7 @@ adminRouter.delete(
   '/:id',
   authMiddleware,
   authMiddleware.authorize('admin'),
-  SiteController.deleteSite
+  AdminSiteController.deleteSite
 );
 
 // PATCH /api/admin/sites/:id/restore - Restore site
@@ -48,7 +53,7 @@ adminRouter.patch(
   '/:id/restore',
   authMiddleware,
   authMiddleware.authorize('admin'),
-  SiteController.restoreSite
+  AdminSiteController.restoreSite
 );
 
 // GET /api/admin/sites/:siteId/local-guides - Get local guides of a site
@@ -56,7 +61,7 @@ adminRouter.get(
   '/:siteId/local-guides',
   authMiddleware,
   authMiddleware.authorize('admin'),
-  SiteController.getSiteGuides
+  AdminSiteController.getSiteGuides
 );
 
 // GET /api/admin/sites/:siteId/shifts - Get shift submissions of a site
@@ -64,7 +69,7 @@ adminRouter.get(
   '/:siteId/shifts',
   authMiddleware,
   authMiddleware.authorize('admin'),
-  SiteController.getSiteShifts
+  AdminSiteController.getSiteShifts
 );
 
 // GET /api/admin/sites/:siteId/media - Get media of a site
@@ -72,7 +77,7 @@ adminRouter.get(
   '/:siteId/media',
   authMiddleware,
   authMiddleware.authorize('admin'),
-  SiteController.getSiteMedia
+  AdminSiteController.getSiteMedia
 );
 
 // GET /api/admin/sites/:siteId/schedules - Get schedules of a site
@@ -80,7 +85,7 @@ adminRouter.get(
   '/:siteId/schedules',
   authMiddleware,
   authMiddleware.authorize('admin'),
-  SiteController.getSiteSchedules
+  AdminSiteController.getSiteSchedules
 );
 
 // GET /api/admin/sites/:siteId/events - Get events of a site
@@ -88,7 +93,7 @@ adminRouter.get(
   '/:siteId/events',
   authMiddleware,
   authMiddleware.authorize('admin'),
-  SiteController.getSiteEvents
+  AdminSiteController.getSiteEvents
 );
 
 // GET /api/admin/sites/:siteId/nearby-places - Get nearby places of a site
@@ -96,7 +101,7 @@ adminRouter.get(
   '/:siteId/nearby-places',
   authMiddleware,
   authMiddleware.authorize('admin'),
-  SiteController.getSiteNearbyPlaces
+  AdminSiteController.getSiteNearbyPlaces
 );
 
 
@@ -111,7 +116,7 @@ managerRouter.post(
   authMiddleware.authorize('manager'),
   upload.single('cover_image'),
   SiteValidator.createSite,
-  SiteController.createManagerSite
+  ManagerSiteController.createManagerSite
 );
 
 // GET /api/manager/sites - Get my site
@@ -119,7 +124,7 @@ managerRouter.get(
   '/',
   authMiddleware,
   authMiddleware.authorize('manager'),
-  SiteController.getManagerSite
+  ManagerSiteController.getManagerSite
 );
 
 // PUT /api/manager/sites - Update my site
@@ -129,7 +134,7 @@ managerRouter.put(
   authMiddleware.authorize('manager'),
   upload.single('cover_image'),
   SiteValidator.updateSite,
-  SiteController.updateManagerSite
+  ManagerSiteController.updateManagerSite
 );
 
 
@@ -141,7 +146,7 @@ publicRouter.use(i18nMiddleware);
 publicRouter.get(
   '/favorites',
   authMiddleware,
-  SiteController.getFavorites
+  PilgrimSiteController.getFavorites
 );
 
 // Add site to favorites
@@ -149,7 +154,7 @@ publicRouter.post(
   '/:id/favorite',
   authMiddleware,
   SiteValidator.validateSiteId,
-  SiteController.addFavorite
+  PilgrimSiteController.addFavorite
 );
 
 // Remove site from favorites
@@ -157,7 +162,7 @@ publicRouter.delete(
   '/:id/favorite',
   authMiddleware,
   SiteValidator.validateSiteId,
-  SiteController.removeFavorite
+  PilgrimSiteController.removeFavorite
 );
 
 

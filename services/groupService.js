@@ -1,6 +1,6 @@
 const { Group, GroupMember, GroupInvite, GroupJoinRequest, User, sequelize } = require('../models');
 const { Op } = require('sequelize');
-const emailService = require('./emailService');
+const emailService = require('./shared/emailService');
 const crypto = require('crypto');
 
 class GroupService {

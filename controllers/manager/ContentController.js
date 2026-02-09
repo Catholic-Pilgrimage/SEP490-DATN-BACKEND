@@ -1,5 +1,5 @@
-const ManagerContentService = require('../services/managerContentService');
-const ResponseUtil = require('../utils/response.util');
+const ManagerContentService = require('../../services/manager/contentService');
+const ResponseUtil = require('../../utils/response.util');
 
 
 /**

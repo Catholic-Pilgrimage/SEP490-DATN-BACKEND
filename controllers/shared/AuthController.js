@@ -1,7 +1,7 @@
-const AuthService = require('../services/authService');
-const ResponseUtil = require('../utils/response.util');
+const AuthService = require('../../services/shared/authService');
+const ResponseUtil = require('../../utils/response.util');
 const { validationResult } = require('express-validator');
-const { formatValidationErrors } = require('../utils/validation.util');
+const { formatValidationErrors } = require('../../utils/validation.util');
 
 // Register a new user
 exports.register = async (req, res) => {
@@ -35,7 +35,7 @@ exports.login = async (req, res) => {
     const result = await AuthService.login(email, password);
 
    
-    const { User } = require('../models');
+    const { User } = require('../../models');
     const user = await User.findOne({ where: { email: email.toLowerCase().trim() } });
     if (user && user.language) {
       req.setLocale(user.language);
@@ -44,7 +44,7 @@ exports.login = async (req, res) => {
     return ResponseUtil.success(res, result, req.__('auth.login_success'));
   } catch (error) {
    
-    const { User } = require('../models');
+    const { User } = require('../../models');
     const user = await User.findOne({ where: { email: req.body.email?.toLowerCase().trim() } });
     if (user && user.language) {
       req.setLocale(user.language);

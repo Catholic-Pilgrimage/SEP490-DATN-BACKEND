@@ -1,10 +1,10 @@
-const { User, Site, GuideShift, GuideShiftSubmission } = require('../models');
+const { User, Site, GuideShift, GuideShiftSubmission } = require('../../models');
 const { Op } = require('sequelize');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const Logger = require('../utils/logger.util');
-const EmailService = require('./emailService');
-const NotificationService = require('./notificationService');
+const Logger = require('../../utils/logger.util');
+const EmailService = require('../shared/emailService');
+const NotificationService = require('../shared/notificationService');
 
 class ManagerLocalGuideService {
 
@@ -210,7 +210,7 @@ class ManagerLocalGuideService {
 
 
                 // Reject all pending content
-                const { Event, SiteMedia, MassSchedule, NearbyPlace } = require('../models');
+                const { Event, SiteMedia, MassSchedule, NearbyPlace } = require('../../models');
 
                 // Event, SiteMedia, MassSchedule use 'created_by'
                 const contentModelsWithCreatedBy = [Event, SiteMedia, MassSchedule];

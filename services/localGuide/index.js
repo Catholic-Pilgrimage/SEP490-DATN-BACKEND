@@ -4,6 +4,7 @@ const LocalGuideScheduleService = require('./scheduleService');
 const LocalGuideEventService = require('./eventService');
 const LocalGuideShiftService = require('./shiftService');
 const LocalGuideNearbyPlaceService = require('./nearbyPlaceService');
+const LocalGuideSOSService = require('./sosService');
 
 module.exports = {
     // Site
@@ -48,5 +49,8 @@ module.exports = {
     getNearbyPlaces: LocalGuideNearbyPlaceService.getNearbyPlaces.bind(LocalGuideNearbyPlaceService),
     updateNearbyPlace: LocalGuideNearbyPlaceService.updateNearbyPlace.bind(LocalGuideNearbyPlaceService),
     deleteNearbyPlace: LocalGuideNearbyPlaceService.deleteNearbyPlace.bind(LocalGuideNearbyPlaceService),
-    restoreNearbyPlace: LocalGuideNearbyPlaceService.restoreNearbyPlace.bind(LocalGuideNearbyPlaceService)
+    restoreNearbyPlace: LocalGuideNearbyPlaceService.restoreNearbyPlace.bind(LocalGuideNearbyPlaceService),
+
+    // SOS
+    LocalGuideSOSService
 };

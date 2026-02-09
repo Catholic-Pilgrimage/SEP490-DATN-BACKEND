@@ -1,7 +1,7 @@
-const NotificationService = require('../services/notificationService');
-const ResponseUtil = require('../utils/response.util');
+const NotificationService = require('../../services/shared/notificationService');
+const ResponseUtil = require('../../utils/response.util');
 const { validationResult } = require('express-validator');
-const { formatValidationErrors } = require('../utils/validation.util');
+const { formatValidationErrors } = require('../../utils/validation.util');
 
 /**
  * Get user's notifications

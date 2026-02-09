@@ -1,6 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const SOSController = require('../controllers/SOSController');
+
+// Import split controllers by role
+const { PilgrimSOSController } = require('../controllers/pilgrim');
+const { LocalGuideSOSController } = require('../controllers/localGuide');
+const { ManagerSOSController } = require('../controllers/manager');
+const { AdminSOSController } = require('../controllers/admin');
+
 const authMiddleware = require('../middlewares/auth.middleware');
 const i18nMiddleware = require('../middlewares/i18n.middleware');
 
@@ -15,16 +21,16 @@ router.use(i18nMiddleware);
 // ===================== PILGRIM APIs =====================
 
 // POST - Create SOS request
-router.post('/', authMiddleware, SOSController.createSOS);
+router.post('/', authMiddleware, PilgrimSOSController.createSOS);
 
 // GET - Get my SOS requests
-router.get('/', authMiddleware, SOSController.getMySOS);
+router.get('/', authMiddleware, PilgrimSOSController.getMySOS);
 
 // GET - Get SOS detail (pilgrim)
-router.get('/:id', authMiddleware, SOSController.getSOSDetail);
+router.get('/:id', authMiddleware, PilgrimSOSController.getSOSDetail);
 
 // DELETE - Cancel SOS request
-router.delete('/:id', authMiddleware, SOSController.cancelSOS);
+router.delete('/:id', authMiddleware, PilgrimSOSController.cancelSOS);
 
 // ===================== LOCAL GUIDE APIs =====================
 
@@ -33,7 +39,7 @@ router.get(
     '/site/list',
     authMiddleware,
     authMiddleware.authorize('local_guide'),
-    SOSController.getSiteSOS
+    LocalGuideSOSController.getSiteSOS
 );
 
 // GET - Get SOS detail (local guide)
@@ -41,7 +47,7 @@ router.get(
     '/site/:id',
     authMiddleware,
     authMiddleware.authorize('local_guide'),
-    SOSController.getSOSDetailForGuide
+    LocalGuideSOSController.getSOSDetailForGuide
 );
 
 // PATCH - Assign (accept) SOS
@@ -49,7 +55,7 @@ router.patch(
     '/:id/assign',
     authMiddleware,
     authMiddleware.authorize('local_guide'),
-    SOSController.assignSOS
+    LocalGuideSOSController.assignSOS
 );
 
 // PATCH - Resolve SOS
@@ -57,7 +63,7 @@ router.patch(
     '/:id/resolve',
     authMiddleware,
     authMiddleware.authorize('local_guide'),
-    SOSController.resolveSOS
+    LocalGuideSOSController.resolveSOS
 );
 
 // ===================== MANAGER APIs =====================
@@ -67,7 +73,7 @@ router.get(
     '/manager/list',
     authMiddleware,
     authMiddleware.authorize('manager'),
-    SOSController.getManagerSOS
+    ManagerSOSController.getManagerSOS
 );
 
 // GET - Get SOS statistics
@@ -75,7 +81,7 @@ router.get(
     '/manager/stats',
     authMiddleware,
     authMiddleware.authorize('manager'),
-    SOSController.getSOSStats
+    ManagerSOSController.getSOSStats
 );
 
 // ===================== ADMIN APIs =====================
@@ -85,7 +91,7 @@ router.get(
     '/admin/list',
     authMiddleware,
     authMiddleware.authorize('admin'),
-    SOSController.getAdminSOS
+    AdminSOSController.getAdminSOS
 );
 
 // GET - Get SOS statistics (all sites)
@@ -93,8 +99,9 @@ router.get(
     '/admin/stats',
     authMiddleware,
     authMiddleware.authorize('admin'),
-    SOSController.getAdminSOSStats
+    AdminSOSController.getAdminSOSStats
 );
 
 module.exports = router;
+
 

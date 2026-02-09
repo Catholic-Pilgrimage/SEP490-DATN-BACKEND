@@ -1,5 +1,9 @@
 const express = require('express');
-const VerificationController = require('../controllers/VerificationController');
+
+// Import split controllers by role
+const { PilgrimVerificationController } = require('../controllers/pilgrim');
+const { AdminVerificationController } = require('../controllers/admin');
+
 const VerificationValidator = require('../validators/verification.validator');
 const authMiddleware = require('../middlewares/auth.middleware');
 const i18nMiddleware = require('../middlewares/i18n.middleware');
@@ -14,14 +18,14 @@ publicRouter.post(
     '/guest-request',
     uploadDocument.single('certificate'),
     VerificationValidator.createGuestRequest,
-    VerificationController.createGuestRequest
+    PilgrimVerificationController.createGuestRequest
 );
 
 // POST - Submit transition request (guest or pilgrim)
 publicRouter.post(
     '/transition',
     uploadDocument.single('certificate'),
-    VerificationController.createTransitionRequest
+    PilgrimVerificationController.createTransitionRequest
 );
 
 // Pilgrim Router
@@ -35,7 +39,7 @@ pilgrimRouter.post(
     authMiddleware.authorize('pilgrim'),
     uploadDocument.single('certificate'),
     VerificationValidator.createRequest,
-    VerificationController.createRequest
+    PilgrimVerificationController.createRequest
 );
 
 // POST - Submit transition request (authenticated pilgrim)
@@ -44,7 +48,7 @@ pilgrimRouter.post(
     authMiddleware,
     authMiddleware.authorize('pilgrim'),
     uploadDocument.single('certificate'),
-    VerificationController.createTransitionRequest
+    PilgrimVerificationController.createTransitionRequest
 );
 
 // GET - Get my verification request
@@ -52,7 +56,7 @@ pilgrimRouter.get(
     '/me',
     authMiddleware,
     authMiddleware.authorize('pilgrim'),
-    VerificationController.getMyRequest
+    PilgrimVerificationController.getMyRequest
 );
 
 // Admin Router
@@ -64,7 +68,7 @@ adminRouter.get(
     '/',
     authMiddleware,
     authMiddleware.authorize('admin'),
-    VerificationController.getRequests
+    AdminVerificationController.getRequests
 );
 
 // GET  - Get detail
@@ -72,7 +76,7 @@ adminRouter.get(
     '/:id',
     authMiddleware,
     authMiddleware.authorize('admin'),
-    VerificationController.getRequestById
+    AdminVerificationController.getRequestById
 );
 
 // PATCH - Update status (approve/reject)
@@ -81,7 +85,7 @@ adminRouter.patch(
     authMiddleware,
     authMiddleware.authorize('admin'),
     VerificationValidator.updateStatus,
-    VerificationController.updateStatus
+    AdminVerificationController.updateStatus
 );
 
 module.exports = {
@@ -89,4 +93,3 @@ module.exports = {
     pilgrimRouter,
     adminRouter
 };
-

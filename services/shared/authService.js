@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
-const { User, RefreshToken, BlacklistedToken, PasswordReset } = require('../models');
-const JwtUtil = require('../utils/jwt.util');
-const Logger = require('../utils/logger.util');
+const { User, RefreshToken, BlacklistedToken, PasswordReset } = require('../../models');
+const JwtUtil = require('../../utils/jwt.util');
+const Logger = require('../../utils/logger.util');
 const EmailService = require('./emailService');
 
 class AuthService {

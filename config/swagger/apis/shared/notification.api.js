@@ -1,8 +1,8 @@
 /**
  * @swagger
  * tags:
- *   name: Pilgrim - Notifications
- *   description: Quản lý thông báo
+ *   name: Notifications
+ *   description: Quản lý thông báo (dùng chung cho tất cả roles)
  */
 
 /**
@@ -10,7 +10,7 @@
  * /api/notifications:
  *   get:
  *     summary: Lấy danh sách thông báo
- *     tags: [Pilgrim - Notifications]
+ *     tags: [Notifications]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -95,7 +95,7 @@
  * /api/notifications/token:
  *   post:
  *     summary: Đăng ký Expo push token
- *     tags: [Pilgrim - Notifications]
+ *     tags: [Notifications]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -158,7 +158,7 @@
  * /api/notifications/token:
  *   delete:
  *     summary: Thu hồi push token
- *     tags: [Pilgrim - Notifications]
+ *     tags: [Notifications]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -187,7 +187,7 @@
  * /api/notifications/{id}/read:
  *   patch:
  *     summary: Đánh dấu thông báo đã đọc
- *     tags: [Pilgrim - Notifications]
+ *     tags: [Notifications]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -212,7 +212,7 @@
  * /api/notifications/read-all:
  *   patch:
  *     summary: Đánh dấu tất cả thông báo đã đọc
- *     tags: [Pilgrim - Notifications]
+ *     tags: [Notifications]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -244,7 +244,7 @@
  * /api/notifications:
  *   delete:
  *     summary: Xóa tất cả thông báo
- *     tags: [Pilgrim - Notifications]
+ *     tags: [Notifications]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -277,7 +277,7 @@
  * /api/notifications/{id}:
  *   delete:
  *     summary: Xóa một thông báo
- *     tags: [Pilgrim - Notifications]
+ *     tags: [Notifications]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -303,7 +303,7 @@
  *   post:
  *     summary: 🧪 TEST - Gửi 1 notification test
  *     description: Endpoint để test notification (chỉ dùng cho development). Có thể chỉ định user_id để test cho user khác.
- *     tags: [Pilgrim - Notifications]
+ *     tags: [Notifications]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -421,7 +421,7 @@
  *   post:
  *     summary: 🧪 TEST - Gửi TẤT CẢ notification types
  *     description: Gửi tất cả 30 loại notification cùng lúc để test UI (chỉ dùng cho development). Có thể chỉ định user_id để test cho user khác.
- *     tags: [Pilgrim - Notifications]
+ *     tags: [Notifications]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -477,3 +477,4 @@
  */
 
 module.exports = {};
+

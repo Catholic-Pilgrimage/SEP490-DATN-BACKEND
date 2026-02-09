@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const ManagerContentController = require('../controllers/ManagerContentController');
+const ManagerContentController = require('../controllers/manager/ContentController');
 const authMiddleware = require('../middlewares/auth.middleware');
 const i18nMiddleware = require('../middlewares/i18n.middleware');
 

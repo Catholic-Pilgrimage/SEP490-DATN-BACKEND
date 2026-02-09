@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const ManagerLocalGuideController = require('../controllers/ManagerLocalGuideController');
+const ManagerLocalGuideController = require('../controllers/manager/LocalGuideController');
 const ManagerLocalGuideValidator = require('../validators/managerLocalGuide.validator');
 const authMiddleware = require('../middlewares/auth.middleware');
 const i18nMiddleware = require('../middlewares/i18n.middleware');

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const AdminController = require('../controllers/AdminController');
+const { AdminUserController } = require('../controllers/admin');
 const AdminValidator = require('../validators/admin.validator');
 const authMiddleware = require('../middlewares/auth.middleware');
 const i18nMiddleware = require('../middlewares/i18n.middleware');
@@ -11,9 +11,9 @@ router.use(authMiddleware);
 router.use(authMiddleware.authorize('admin'));
 
 // Routes
-router.get('/users', AdminValidator.getUsers, AdminController.getUsers);
-router.get('/users/:id', AdminValidator.validateUserId, AdminController.getUserById);
-router.put('/users/:id', AdminValidator.updateUser, AdminController.updateUser);
-router.patch('/users/:id/status', AdminValidator.updateUserStatus, AdminController.updateUserStatus);
+router.get('/users', AdminValidator.getUsers, AdminUserController.getUsers);
+router.get('/users/:id', AdminValidator.validateUserId, AdminUserController.getUserById);
+router.put('/users/:id', AdminValidator.updateUser, AdminUserController.updateUser);
+router.patch('/users/:id/status', AdminValidator.updateUserStatus, AdminUserController.updateUserStatus);
 
 module.exports = router;

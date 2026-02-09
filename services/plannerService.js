@@ -4,7 +4,7 @@ const Logger = require('../utils/logger.util');
 const OSRMUtil = require('../utils/osrm.util');
 const sequelize = require('../config/database');
 const crypto = require('crypto');
-const EmailService = require('./emailService');
+const EmailService = require('./shared/emailService');
 const QRCode = require('qrcode');
 const { calculateEstimatedTime, parseDurationToMinutes, isWithinOpeningHours } = require('../utils/timeCalculation.util');
 

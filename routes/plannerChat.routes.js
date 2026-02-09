@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const PlannerChatController = require('../controllers/PlannerChatController');
+const PlannerChatController = require('../controllers/pilgrim/PlannerChatController');
 const PlannerChatValidator = require('../validators/plannerChat.validator');
 const authenticate = require('../middlewares/auth.middleware');
 const { upload } = require('../config/cloudinary.config');

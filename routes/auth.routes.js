@@ -8,7 +8,7 @@ const i18nMiddleware = require('../middlewares/i18n.middleware');
 
 router.use(i18nMiddleware);
 
-const AuthController = require('../controllers/AuthController');
+const AuthController = require('../controllers/shared/AuthController');
 
 // Routes
 router.post('/register', AuthValidator.register, AuthController.register);
