@@ -395,13 +395,13 @@ class PlannerController {
     static async respondToInvite(req, res) {
         try {
             const { action } = req.body;
-            
+
             if (!action || !['accept', 'reject'].includes(action)) {
                 return ResponseUtil.badRequest(res, 'Action phải là "accept" hoặc "reject"');
             }
 
             const result = await PlannerService.respondToInvite(req.params.token, req.user.id, action);
-            
+
             const message = action === 'accept' ? 'Đã chấp nhận lời mời' : 'Đã từ chối lời mời';
             return ResponseUtil.success(res, result, message);
         } catch (error) {

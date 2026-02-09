@@ -121,6 +121,29 @@ function initSocket(httpServer) {
 
             Logger.info(`Pilgrim ${socket.userId} location update for SOS ${sosId}: ${latitude}, ${longitude}`);
         });
+
+        // ===================== PLANNER CHAT =====================
+
+        /**
+         * Join planner chat room
+         * Used by owner and members when viewing planner
+         */
+        socket.on('join_planner_chat', ({ plannerId }) => {
+            if (!plannerId) return;
+            const room = `planner_chat_${plannerId}`;
+            socket.join(room);
+            Logger.info(`User ${socket.userId} joined planner chat room: ${room}`);
+        });
+
+        /**
+         * Leave planner chat room
+         */
+        socket.on('leave_planner_chat', ({ plannerId }) => {
+            if (!plannerId) return;
+            const room = `planner_chat_${plannerId}`;
+            socket.leave(room);
+            Logger.info(`User ${socket.userId} left planner chat room: ${room}`);
+        });
     });
 
     Logger.info('WebSocket server initialized');
@@ -168,9 +191,43 @@ function emitToRole(role, event, data) {
     io.to(`role_${role}`).emit(event, data);
 }
 
+/**
+ * Emit chat message to planner room
+ * @param {string} plannerId - Planner ID
+ * @param {object} message - Message data
+ */
+function emitPlannerChatMessage(plannerId, message) {
+    if (!io) {
+        Logger.warn('Socket.io not initialized, skipping emit');
+        return;
+    }
+
+    const room = `planner_chat_${plannerId}`;
+    io.to(room).emit('planner_chat_message', message);
+    Logger.info(`Emitted chat message to ${room}`);
+}
+
+/**
+ * Emit chat message deleted event
+ * @param {string} plannerId - Planner ID
+ * @param {string} messageId - Message ID
+ */
+function emitPlannerChatMessageDeleted(plannerId, messageId) {
+    if (!io) {
+        Logger.warn('Socket.io not initialized, skipping emit');
+        return;
+    }
+
+    const room = `planner_chat_${plannerId}`;
+    io.to(room).emit('planner_chat_message_deleted', { messageId });
+    Logger.info(`Emitted message deleted to ${room}`);
+}
+
 module.exports = {
     initSocket,
     getIO,
     emitNotification,
-    emitToRole
+    emitToRole,
+    emitPlannerChatMessage,
+    emitPlannerChatMessageDeleted
 };

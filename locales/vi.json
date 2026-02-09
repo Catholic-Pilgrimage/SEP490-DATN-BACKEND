@@ -242,7 +242,13 @@
     "age_minimum": "Bạn phải từ {{min}} tuổi trở lên",
     "otp_invalid": "Mã OTP phải có 6 số",
     "password_not_match": "Xác nhận mật khẩu không khớp",
-    "password_same_as_old": "Mật khẩu mới phải khác mật khẩu hiện tại"
+    "password_same_as_old": "Mật khẩu mới phải khác mật khẩu hiện tại",
+    "invalid_uuid": "ID không hợp lệ",
+    "page_positive": "Số trang phải là số nguyên dương",
+    "limit_range": "Giới hạn phải từ 1 đến 100",
+    "invalid_message_type": "Loại tin nhắn phải là text hoặc image",
+    "content_length": "Nội dung phải từ 1 đến 1000 ký tự",
+    "invalid_url": "URL không hợp lệ"
   },
   "journal": {
     "create_success": "Tạo nhật ký thành công",
@@ -313,7 +319,19 @@
     "pending_invite_exists": "Email này đã được mời trước đó",
     "user_not_registered": "Người dùng chưa đăng ký tài khoản. Chỉ có thể mời người dùng đã đăng ký",
     "member_removed": "Xóa thành viên thành công",
-    "cannot_remove_owner": "Không thể xóa chủ kế hoạch"
+    "cannot_remove_owner": "Không thể xóa chủ kế hoạch",
+    "chat": {
+      "get_messages_success": "Lấy tin nhắn thành công",
+      "send_message_success": "Gửi tin nhắn thành công",
+      "delete_message_success": "Xóa tin nhắn thành công",
+      "upload_image_success": "Upload ảnh thành công",
+      "forbidden": "Bạn không có quyền truy cập chat này",
+      "message_not_found": "Tin nhắn không tồn tại",
+      "content_required": "Nội dung tin nhắn không được để trống",
+      "image_url_required": "URL ảnh không được để trống",
+      "image_required": "Vui lòng chọn ảnh để upload",
+      "cannot_send_completed": "Không thể gửi tin nhắn cho planner đã hoàn thành"
+    }
   },
   "error": {
     "server_error": "Lỗi máy chủ",

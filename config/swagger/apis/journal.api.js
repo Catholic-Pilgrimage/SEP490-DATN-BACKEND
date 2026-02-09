@@ -2,7 +2,7 @@
  * @swagger
  * /api/journals:
  *   post:
- *     tags: [Journals - Pilgrim]
+ *     tags: [Pilgrim - Journals]
  *     summary: Tạo nhật ký mới
  *     description: Tạo nhật ký với tiêu đề, nội dung, ảnh (tối đa 10), audio, video và liên kết địa điểm
  *     security:
@@ -27,7 +27,7 @@
  *
  * /api/journals/me:
  *   get:
- *     tags: [Journals - Pilgrim]
+ *     tags: [Pilgrim - Journals]
  *     summary: Lấy nhật ký của tôi
  *     description: Lấy tất cả nhật ký (riêng tư và công khai) của người dùng đã đăng nhập
  *     security:
@@ -57,7 +57,7 @@
  *
  * /api/journals/public:
  *   get:
- *     tags: [Journals - Pilgrim]
+ *     tags: [Pilgrim - Journals]
  *     summary: Lấy nhật ký công khai
  *     description: Lấy tất cả nhật ký công khai với các bộ lọc tùy chọn
  *     parameters:
@@ -101,7 +101,7 @@
  *
  * /api/journals/{id}:
  *   get:
- *     tags: [Journals - Pilgrim]
+ *     tags: [Pilgrim - Journals]
  *     summary: Lấy nhật ký theo ID
  *     description: Lấy một nhật ký cụ thể. Nhật ký công khai ai cũng xem được, nhật ký riêng tư chỉ chủ sở hữu mới xem được
  *     parameters:
@@ -125,7 +125,7 @@
  *         description: Không tìm thấy nhật ký
  *
  *   patch:
- *     tags: [Journals - Pilgrim]
+ *     tags: [Pilgrim - Journals]
  *     summary: Cập nhật nhật ký
  *     description: Cập nhật nhật ký (chỉ chủ sở hữu). Tất cả các trường đều tùy chọn
  *     security:
@@ -161,7 +161,7 @@
  *         description: Không tìm thấy nhật ký
  *
  *   delete:
- *     tags: [Journals - Pilgrim]
+ *     tags: [Pilgrim - Journals]
  *     summary: Xóa nhật ký
  *     description: Xóa nhật ký (chỉ chủ sở hữu)
  *     security:

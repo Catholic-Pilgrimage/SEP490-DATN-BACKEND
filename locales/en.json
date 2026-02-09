@@ -256,7 +256,13 @@
     "age_minimum": "You must be at least {{min}} years old",
     "otp_invalid": "OTP must be 6 digits",
     "password_not_match": "Password confirmation does not match",
-    "password_same_as_old": "New password must be different from current password"
+    "password_same_as_old": "New password must be different from current password",
+    "invalid_uuid": "Invalid ID format",
+    "page_positive": "Page must be a positive integer",
+    "limit_range": "Limit must be between 1 and 100",
+    "invalid_message_type": "Message type must be text or image",
+    "content_length": "Content must be between 1 and 1000 characters",
+    "invalid_url": "Invalid URL"
   },
   "journal": {
     "create_success": "Journal created successfully",
@@ -317,7 +323,19 @@
     "pending_invite_exists": "This email has already been invited",
     "user_not_registered": "User not registered. Can only invite registered users",
     "member_removed": "Member removed successfully",
-    "cannot_remove_owner": "Cannot remove planner owner"
+    "cannot_remove_owner": "Cannot remove planner owner",
+    "chat": {
+      "get_messages_success": "Messages retrieved successfully",
+      "send_message_success": "Message sent successfully",
+      "delete_message_success": "Message deleted successfully",
+      "upload_image_success": "Image uploaded successfully",
+      "forbidden": "You don't have permission to access this chat",
+      "message_not_found": "Message not found",
+      "content_required": "Message content is required",
+      "image_url_required": "Image URL is required",
+      "image_required": "Please select an image to upload",
+      "cannot_send_completed": "Cannot send messages to completed planner"
+    }
   },
   "error": {
     "server_error": "Server error",

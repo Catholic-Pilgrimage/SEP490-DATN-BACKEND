@@ -1,7 +1,7 @@
 /**
  * @swagger
  * tags:
- *   - name: Manager Content
+ *   - name: Manager - Content
  *     description: Manager Content Approval (Media, Schedule, Event)
  */
 
@@ -11,7 +11,7 @@
  *   get:
  *     summary: Danh sách media của site (Manager only)
  *     description: Manager xem tất cả media của site được gán với filter và pagination
- *     tags: [Manager Content]
+ *     tags: [Manager - Content]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -91,7 +91,7 @@
  *       Manager approve hoặc reject media của site.
  *       - **approved**: Duyệt media
  *       - **rejected**: Từ chối media (bắt buộc có lý do)
- *     tags: [Manager Content]
+ *     tags: [Manager - Content]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -159,7 +159,7 @@
  *       Manager toggle trạng thái is_active của media:
  *       - `is_active: false` → Ẩn media (soft delete)
  *       - `is_active: true` → Khôi phục media
- *     tags: [Manager Content]
+ *     tags: [Manager - Content]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -334,7 +334,7 @@
  *     description: |
  *       Manager xem tất cả lịch lễ của site được gán với filter và pagination.
  *       Bao gồm thông tin người tạo (Local Guide).
- *     tags: [Manager Content]
+ *     tags: [Manager - Content]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -417,7 +417,7 @@
  *       - **rejected**: Từ chối lịch lễ (bắt buộc có lý do)
  *
  *       Chỉ có thể duyệt/từ chối lịch lễ đang ở trạng thái `pending`.
- *     tags: [Manager Content]
+ *     tags: [Manager - Content]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -487,7 +487,7 @@
  *       - `is_active: true` → Khôi phục lịch lễ
  *
  *       Chỉ có thể ẩn/hiện lịch lễ đã được **approved**.
- *     tags: [Manager Content]
+ *     tags: [Manager - Content]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -549,7 +549,7 @@
  *     description: |
  *       Manager xem tất cả sự kiện của site được gán với filter và pagination.
  *       Bao gồm thông tin người tạo (Local Guide).
- *     tags: [Manager Content]
+ *     tags: [Manager - Content]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -625,7 +625,7 @@
  *       - **rejected**: Từ chối sự kiện (bắt buộc có lý do)
  *
  *       Chỉ có thể duyệt/từ chối sự kiện đang ở trạng thái `pending`.
- *     tags: [Manager Content]
+ *     tags: [Manager - Content]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -695,7 +695,7 @@
  *       - `is_active: true` → Khôi phục sự kiện
  *
  *       Chỉ có thể ẩn/hiện sự kiện đã được **approved**.
- *     tags: [Manager Content]
+ *     tags: [Manager - Content]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -836,7 +836,7 @@
  *     description: |
  *       Manager xem tất cả địa điểm lân cận của site được gán với filter và pagination.
  *       Bao gồm thông tin người đề xuất (Local Guide).
- *     tags: [Manager Content]
+ *     tags: [Manager - Content]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -918,7 +918,7 @@
  *       - **rejected**: Từ chối địa điểm lân cận (bắt buộc có lý do)
  *       
  *       Chỉ có thể duyệt/từ chối địa điểm lân cận đang ở trạng thái `pending`.
- *     tags: [Manager Content]
+ *     tags: [Manager - Content]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -988,7 +988,7 @@
  *       - `is_active: true` → Khôi phục địa điểm lân cận
  *       
  *       Chỉ có thể ẩn/hiện địa điểm lân cận đã được **approved**.
- *     tags: [Manager Content]
+ *     tags: [Manager - Content]
  *     security:
  *       - bearerAuth: []
  *     parameters:

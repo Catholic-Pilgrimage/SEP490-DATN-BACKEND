@@ -552,6 +552,24 @@ CREATE TABLE IF NOT EXISTS planner_members (
     PRIMARY KEY (planner_id, user_id)
 );
 
+-- 7.4 Planner Messages (Mini Chat)
+CREATE TABLE IF NOT EXISTS planner_messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    planner_id UUID NOT NULL REFERENCES planners(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    message_type VARCHAR(20) DEFAULT 'text' CHECK (message_type IN ('text', 'image')),
+    content TEXT,
+    image_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT check_message_content CHECK (
+        (message_type = 'text' AND content IS NOT NULL) OR
+        (message_type = 'image' AND image_url IS NOT NULL)
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_planner_messages_planner ON planner_messages(planner_id);
+CREATE INDEX IF NOT EXISTS idx_planner_messages_created ON planner_messages(planner_id, created_at DESC);
+
 -- ============================================
 -- 8. USER INTERACTIONS
 -- ============================================

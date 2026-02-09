@@ -1,7 +1,7 @@
 /**
  * @swagger
  * tags:
- *   name: Verification
+ *   name: Pilgrim - Verification
  *   description: API quản lý yêu cầu xác minh Manager
  */
 
@@ -10,7 +10,7 @@
  * /api/verification/guest-request:
  *   post:
  *     summary: Gửi yêu cầu xác minh (Guest - không cần đăng nhập)
- *     tags: [Verification]
+ *     tags: [Pilgrim - Verification]
  *     description: |
  *       Cho phép người chưa có tài khoản gửi yêu cầu trở thành Manager.
  *       Khi Admin approve, hệ thống sẽ tự động:
@@ -111,7 +111,7 @@
  * /api/verification-requests:
  *   post:
  *     summary: Gửi yêu cầu xác minh (Pilgrim only)
- *     tags: [Verification]
+ *     tags: [Pilgrim - Verification]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -160,7 +160,7 @@
  * /api/verification-requests/me:
  *   get:
  *     summary: Xem yêu cầu xác minh của tôi (Pilgrim only)
- *     tags: [Verification]
+ *     tags: [Pilgrim - Verification]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -176,111 +176,6 @@
 
 /**
  * @swagger
- * /api/admin/verification-requests:
- *   get:
- *     summary: Danh sách yêu cầu xác minh (Admin only)
- *     tags: [Verification]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           default: 1
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 10
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *           enum: [pending, approved, rejected]
- *       - in: query
- *         name: search
- *         schema:
- *           type: string
- *         description: Tìm theo code hoặc tên site
- *     responses:
- *       200:
- *         description: Thành công
- *       403:
- *         description: Không có quyền admin
- */
-
-/**
- * @swagger
- * /api/admin/verification-requests/{id}:
- *   get:
- *     summary: Chi tiết yêu cầu xác minh (Admin only)
- *     tags: [Verification]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *     responses:
- *       200:
- *         description: Thành công
- *       404:
- *         description: Không tìm thấy yêu cầu
- *   patch:
- *     summary: Cập nhật trạng thái yêu cầu - Approve/Reject (Admin only)
- *     tags: [Verification]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - status
- *             properties:
- *               status:
- *                 type: string
- *                 enum: [approved, rejected]
- *                 description: Trạng thái mới
- *               rejection_reason:
- *                 type: string
- *                 minLength: 10
- *                 description: Bắt buộc khi status = rejected
- *                 example: "Giấy tờ không hợp lệ, vui lòng gửi lại"
- *           examples:
- *             approve:
- *               summary: Phê duyệt
- *               value:
- *                 status: "approved"
- *             reject:
- *               summary: Từ chối
- *               value:
- *                 status: "rejected"
- *                 rejection_reason: "Giấy tờ không hợp lệ, vui lòng gửi lại"
- *     responses:
- *       200:
- *         description: Cập nhật thành công
- *       400:
- *         description: Dữ liệu không hợp lệ hoặc yêu cầu không pending
- *       404:
- *         description: Không tìm thấy yêu cầu
- */
-
-/**
- * @swagger
  * /api/verification/transition:
  *   post:
  *     summary: Gửi yêu cầu thay thế Manager (Guest - Manager Transition)
@@ -290,7 +185,7 @@
  *       - Manager cũ bị demote về Pilgrim
  *       - Local Guides được đánh dấu "inherited"
  *       - Người xin trở thành Manager mới của site
- *     tags: [Verification]
+ *     tags: [Pilgrim - Verification]
  *     requestBody:
  *       required: true
  *       content:
@@ -374,7 +269,7 @@
  *     description: |
  *       Cho phép Pilgrim gửi yêu cầu thay thế Manager của một địa điểm có sẵn.
  *       Thông tin người dùng sẽ lấy từ token đăng nhập.
- *     tags: [Verification]
+ *     tags: [Pilgrim - Verification]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -411,3 +306,5 @@
  *       409:
  *         description: Đã có yêu cầu pending
  */
+
+module.exports = {};

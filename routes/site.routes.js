@@ -137,90 +137,14 @@ managerRouter.put(
 const publicRouter = express.Router();
 publicRouter.use(i18nMiddleware);
 
-/**
- * @swagger
- * /api/sites/favorites:
- *   get:
- *     summary: Lấy danh sách địa điểm yêu thích
- *     tags: [Favorites - Pilgrim]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           default: 1
- *         description: Số trang
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 10
- *         description: Số lượng mỗi trang
- *     responses:
- *       200:
- *         description: Lấy danh sách yêu thích thành công
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Lấy danh sách yêu thích thành công"
- *                 data:
- *                   type: object
- *                   properties:
- *                     sites:
- *                       type: array
- *                       items:
- *                         type: object
- *                     pagination:
- *                       type: object
- *                       properties:
- *                         page:
- *                           type: integer
- *                         limit:
- *                           type: integer
- *                         total:
- *                           type: integer
- *                         totalPages:
- *                           type: integer
- */
+// Get favorite sites
 publicRouter.get(
   '/favorites',
   authMiddleware,
   SiteController.getFavorites
 );
 
-/**
- * @swagger
- * /api/sites/{id}/favorite:
- *   post:
- *     summary: Thêm địa điểm vào danh sách yêu thích
- *     tags: [Favorites - Pilgrim]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: ID của địa điểm
- *     responses:
- *       200:
- *         description: Thêm vào yêu thích thành công
- *       404:
- *         description: Không tìm thấy địa điểm
- *       409:
- *         description: Địa điểm đã có trong danh sách yêu thích
- */
+// Add site to favorites
 publicRouter.post(
   '/:id/favorite',
   authMiddleware,
@@ -228,30 +152,7 @@ publicRouter.post(
   SiteController.addFavorite
 );
 
-/**
- * @swagger
- * /api/sites/{id}/favorite:
- *   delete:
- *     summary: Xóa địa điểm khỏi danh sách yêu thích
- *     tags: [Favorites - Pilgrim]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: ID của địa điểm
- *     responses:
- *       200:
- *         description: Xóa khỏi yêu thích thành công
- *       404:
- *         description: Không tìm thấy địa điểm
- *       400:
- *         description: Địa điểm không có trong danh sách yêu thích
- */
+// Remove site from favorites
 publicRouter.delete(
   '/:id/favorite',
   authMiddleware,

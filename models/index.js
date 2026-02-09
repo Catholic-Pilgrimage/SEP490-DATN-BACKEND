@@ -16,6 +16,7 @@ const Planner = require('./Planner');
 const PlannerItem = require('./PlannerItem');
 const PlannerInvite = require('./PlannerInvite');
 const PlannerMember = require('./PlannerMember');
+const PlannerMessage = require('./PlannerMessage');
 const UserFavorite = require('./UserFavorite');
 const UserCheckin = require('./UserCheckin');
 const Notification = require('./Notification');
@@ -113,6 +114,14 @@ User.belongsToMany(Planner, {
   otherKey: 'planner_id',
   as: 'joinedPlanners'
 });
+
+// Planner - PlannerMessage
+Planner.hasMany(PlannerMessage, { foreignKey: 'planner_id', as: 'messages' });
+PlannerMessage.belongsTo(Planner, { foreignKey: 'planner_id', as: 'planner' });
+
+// User - PlannerMessage
+User.hasMany(PlannerMessage, { foreignKey: 'user_id', as: 'plannerMessages' });
+PlannerMessage.belongsTo(User, { foreignKey: 'user_id', as: 'sender' });
 
 // PlannerItem - Site
 PlannerItem.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
@@ -291,6 +300,7 @@ const db = {
   PlannerItem,
   PlannerInvite,
   PlannerMember,
+  PlannerMessage,
   UserFavorite,
   UserCheckin,
   NearbyPlace,

@@ -1,7 +1,7 @@
 /**
  * @swagger
  * tags:
- *   name: Admin
+ *   name: Admin - Users
  *   description: API quản lý người dùng (chỉ dành cho Admin)
  */
 
@@ -10,7 +10,7 @@
  * /api/admin/users:
  *   get:
  *     summary: Lấy danh sách users (Admin only)
- *     tags: [Admin]
+ *     tags: [Admin - Users]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -70,7 +70,7 @@
  * /api/admin/users/{id}:
  *   get:
  *     summary: Lấy chi tiết 1 user (Admin only)
- *     tags: [Admin]
+ *     tags: [Admin - Users]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -123,7 +123,7 @@
  * /api/admin/users/{id}/status:
  *   patch:
  *     summary: Cập nhật status user - Block/Unblock (Admin only)
- *     tags: [Admin]
+ *     tags: [Admin - Users]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -173,7 +173,7 @@
  * /api/admin/users/{id}:
  *   put:
  *     summary: Cập nhật thông tin user bao gồm cả role (Admin only)
- *     tags: [Admin]
+ *     tags: [Admin - Users]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -209,3 +209,5 @@
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
+
+module.exports = {};
