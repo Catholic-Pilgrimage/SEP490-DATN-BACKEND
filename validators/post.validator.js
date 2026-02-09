@@ -12,11 +12,6 @@ const postValidator = {
             .isLength({ min: 1, max: 10000 })
             .withMessage('Post content must be between 1 and 10000 characters'),
 
-        body('group_id')
-            .optional({ nullable: true, checkFalsy: true })
-            .isUUID()
-            .withMessage('Invalid group ID'),
-
         body('image_urls')
             .optional()
             .isArray()
@@ -59,11 +54,6 @@ const postValidator = {
      * Validation for getting posts
      */
     getPosts: [
-        query('group_id')
-            .optional({ nullable: true, checkFalsy: true })
-            .isUUID()
-            .withMessage('Invalid group ID'),
-
         query('page')
             .optional()
             .isInt({ min: 1 })

@@ -15,14 +15,6 @@ const Post = sequelize.define('Post', {
             key: 'id'
         }
     },
-    group_id: {
-        type: DataTypes.UUID,
-        allowNull: true,
-        references: {
-            model: 'groups',
-            key: 'id'
-        }
-    },
     content: {
         type: DataTypes.TEXT,
         allowNull: false,

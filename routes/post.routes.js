@@ -50,10 +50,6 @@ const uploadImages = multer({
  *               content:
  *                 type: string
  *                 description: Nội dung bài viết
- *               group_id:
- *                 type: string
- *                 format: uuid
- *                 description: ID nhóm (nếu post trong nhóm)
  *               images:
  *                 type: array
  *                 items:
@@ -85,12 +81,6 @@ router.post('/',
  *     security:
  *       - bearerAuth: []
  *     parameters:
- *       - in: query
- *         name: group_id
- *         schema:
- *           type: string
- *           format: uuid
- *         description: Lọc theo nhóm
  *       - in: query
  *         name: page
  *         schema:
