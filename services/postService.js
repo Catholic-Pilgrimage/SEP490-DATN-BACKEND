@@ -1,4 +1,4 @@
-const { Post, PostLike, PostComment, User, Group, GroupMember, sequelize } = require('../models');
+const { Post, PostLike, PostComment, User, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 class PostService {
@@ -7,28 +7,11 @@ class PostService {
      */
     async createPost(userId, data) {
         try {
-            const { content, group_id, image_urls } = data;
-
-            // If posting to a group, verify membership
-            if (group_id) {
-                const membership = await GroupMember.findOne({
-                    where: {
-                        group_id,
-                        user_id: userId
-                    }
-                });
-
-                if (!membership) {
-                    const error = new Error('You must be a member of this group to post');
-                    error.statusCode = 403;
-                    throw error;
-                }
-            }
+            const { content, image_urls } = data;
 
             // Create post
             const post = await Post.create({
                 user_id: userId,
-                group_id: group_id || null,
                 content,
                 image_urls: image_urls || [],
                 status: 'published'
@@ -46,36 +29,12 @@ class PostService {
      */
     async getPosts(userId, filters = {}) {
         try {
-            const { group_id, page = 1, limit = 20 } = filters;
+            const { page = 1, limit = 20 } = filters;
             const offset = (page - 1) * limit;
 
             const whereClause = {
                 status: 'published'
             };
-
-            if (group_id) {
-                // Verify user has access to group
-                const membership = await GroupMember.findOne({
-                    where: { group_id, user_id: userId }
-                });
-
-                const group = await Group.findByPk(group_id);
-                
-                if (!group) {
-                    const error = new Error('Group not found');
-                    error.statusCode = 404;
-                    throw error;
-                }
-
-                // If private group, must be member
-                if (group.privacy === 'private' && !membership) {
-                    const error = new Error('Access denied to private group');
-                    error.statusCode = 403;
-                    throw error;
-                }
-
-                whereClause.group_id = group_id;
-            }
 
             const { count, rows: posts } = await Post.findAndCountAll({
                 where: whereClause,
@@ -84,11 +43,6 @@ class PostService {
                         model: User,
                         as: 'author',
                         attributes: ['id', 'full_name', 'avatar_url']
-                    },
-                    {
-                        model: Group,
-                        as: 'group',
-                        attributes: ['id', 'name', 'privacy', 'avatar_url']
                     }
                 ],
                 order: [['created_at', 'DESC']],
@@ -138,11 +92,6 @@ class PostService {
                         model: User,
                         as: 'author',
                         attributes: ['id', 'full_name', 'avatar_url']
-                    },
-                    {
-                        model: Group,
-                        as: 'group',
-                        attributes: ['id', 'name', 'privacy', 'avatar_url']
                     }
                 ]
             });
@@ -151,25 +100,6 @@ class PostService {
                 const error = new Error('Post not found');
                 error.statusCode = 404;
                 throw error;
-            }
-
-            // Check if post is in private group and user has access
-            if (post.group_id) {
-                const group = await Group.findByPk(post.group_id);
-                if (group.privacy === 'private') {
-                    const membership = await GroupMember.findOne({
-                        where: {
-                            group_id: post.group_id,
-                            user_id: userId
-                        }
-                    });
-
-                    if (!membership) {
-                        const error = new Error('Access denied to private group post');
-                        error.statusCode = 403;
-                        throw error;
-                    }
-                }
             }
 
             // Check if user liked the post
@@ -236,20 +166,8 @@ class PostService {
                 throw error;
             }
 
-            // Check permissions: owner or admin/group admin
+            // Check permissions: owner or admin
             let canDelete = post.user_id === userId || userRole === 'admin';
-
-            if (!canDelete && post.group_id) {
-                // Check if user is group admin
-                const membership = await GroupMember.findOne({
-                    where: {
-                        group_id: post.group_id,
-                        user_id: userId,
-                        role: 'admin'
-                    }
-                });
-                canDelete = !!membership;
-            }
 
             if (!canDelete) {
                 const error = new Error('You do not have permission to delete this post');
@@ -276,25 +194,6 @@ class PostService {
                 const error = new Error('Post not found');
                 error.statusCode = 404;
                 throw error;
-            }
-
-            // Check if post is in private group and user has access
-            if (post.group_id) {
-                const group = await Group.findByPk(post.group_id);
-                if (group.privacy === 'private') {
-                    const membership = await GroupMember.findOne({
-                        where: {
-                            group_id: post.group_id,
-                            user_id: userId
-                        }
-                    });
-
-                    if (!membership) {
-                        const error = new Error('Access denied to private group post');
-                        error.statusCode = 403;
-                        throw error;
-                    }
-                }
             }
 
             // Check if already liked
@@ -383,25 +282,6 @@ class PostService {
                 throw error;
             }
 
-            // Check if post is in private group and user has access
-            if (post.group_id) {
-                const group = await Group.findByPk(post.group_id);
-                if (group.privacy === 'private') {
-                    const membership = await GroupMember.findOne({
-                        where: {
-                            group_id: post.group_id,
-                            user_id: userId
-                        }
-                    });
-
-                    if (!membership) {
-                        const error = new Error('Access denied to private group post');
-                        error.statusCode = 403;
-                        throw error;
-                    }
-                }
-            }
-
             const comment = await PostComment.create({
                 post_id: postId,
                 user_id: userId,
@@ -438,25 +318,6 @@ class PostService {
                 const error = new Error('Post not found');
                 error.statusCode = 404;
                 throw error;
-            }
-
-            // Check if post is in private group and user has access
-            if (post.group_id) {
-                const group = await Group.findByPk(post.group_id);
-                if (group.privacy === 'private') {
-                    const membership = await GroupMember.findOne({
-                        where: {
-                            group_id: post.group_id,
-                            user_id: userId
-                        }
-                    });
-
-                    if (!membership) {
-                        const error = new Error('Access denied to private group post');
-                        error.statusCode = 403;
-                        throw error;
-                    }
-                }
             }
 
             const { count, rows: comments } = await PostComment.findAndCountAll({
@@ -542,22 +403,10 @@ class PostService {
 
             const post = await Post.findByPk(postId);
 
-            // Check permissions: comment owner, post owner, group admin, or system admin
+            // Check permissions: comment owner, post owner, or system admin
             let canDelete = comment.user_id === userId || 
                            post.user_id === userId || 
                            userRole === 'admin';
-
-            if (!canDelete && post.group_id) {
-                // Check if user is group admin
-                const membership = await GroupMember.findOne({
-                    where: {
-                        group_id: post.group_id,
-                        user_id: userId,
-                        role: 'admin'
-                    }
-                });
-                canDelete = !!membership;
-            }
 
             if (!canDelete) {
                 const error = new Error('You do not have permission to delete this comment');

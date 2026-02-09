@@ -22,10 +22,6 @@ const UserCheckin = require('./UserCheckin');
 const Notification = require('./Notification');
 const UserPushToken = require('./UserPushToken');
 const SOSRequest = require('./SOSRequest');
-const Group = require('./Group');
-const GroupMember = require('./GroupMember');
-const GroupInvite = require('./GroupInvite');
-const GroupJoinRequest = require('./GroupJoinRequest');
 const Post = require('./Post');
 const PostLike = require('./PostLike');
 const PostComment = require('./PostComment');
@@ -205,51 +201,11 @@ SOSRequest.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
 // SOSRequest - User (assigned LocalGuide)
 SOSRequest.belongsTo(User, { foreignKey: 'assigned_to', as: 'assignedGuide' });
 
-// ===================== GROUPS =====================
-
-// Group - User (creator)
-User.hasMany(Group, { foreignKey: 'created_by', as: 'createdGroups' });
-Group.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
-
-// Group - User (members) - Many-to-Many through GroupMember
-Group.belongsToMany(User, {
-  through: GroupMember,
-  foreignKey: 'group_id',
-  otherKey: 'user_id',
-  as: 'members'
-});
-User.belongsToMany(Group, {
-  through: GroupMember,
-  foreignKey: 'user_id',
-  otherKey: 'group_id',
-  as: 'groups'
-});
-
-// GroupInvite - Group
-Group.hasMany(GroupInvite, { foreignKey: 'group_id', as: 'invites' });
-GroupInvite.belongsTo(Group, { foreignKey: 'group_id', as: 'group' });
-
-// GroupInvite - User (inviter)
-User.hasMany(GroupInvite, { foreignKey: 'inviter_id', as: 'sentGroupInvites' });
-GroupInvite.belongsTo(User, { foreignKey: 'inviter_id', as: 'inviter' });
-
-// GroupJoinRequest - Group
-Group.hasMany(GroupJoinRequest, { foreignKey: 'group_id', as: 'joinRequests' });
-GroupJoinRequest.belongsTo(Group, { foreignKey: 'group_id', as: 'group' });
-
-// GroupJoinRequest - User (requester)
-User.hasMany(GroupJoinRequest, { foreignKey: 'user_id', as: 'joinRequests' });
-GroupJoinRequest.belongsTo(User, { foreignKey: 'user_id', as: 'requester' });
-
 // ===================== POSTS =====================
 
 // Post - User (author)
 User.hasMany(Post, { foreignKey: 'user_id', as: 'posts' });
 Post.belongsTo(User, { foreignKey: 'user_id', as: 'author' });
-
-// Post - Group
-Group.hasMany(Post, { foreignKey: 'group_id', as: 'posts' });
-Post.belongsTo(Group, { foreignKey: 'group_id', as: 'group' });
 
 // Post - User (likes) - Many-to-Many through PostLike
 Post.belongsToMany(User, {
@@ -307,10 +263,6 @@ const db = {
   Notification,
   UserPushToken,
   SOSRequest,
-  Group,
-  GroupMember,
-  GroupInvite,
-  GroupJoinRequest,
   Post,
   PostLike,
   PostComment,
