@@ -23,10 +23,16 @@ exports.getMessages = async (req, res) => {
 
         const result = await PlannerChatService.getMessages(plannerId, userId, filters);
 
-        return ResponseUtil.success(res, result, 'Lấy tin nhắn thành công');
+        return ResponseUtil.success(res, result, req.__('planner.chat.get_messages_success'));
     } catch (error) {
-        if (error.message === 'Forbidden') {
-            return ResponseUtil.error(res, 'Bạn không có quyền truy cập chat này', 403);
+        if (error.message === 'NO_ACCESS') {
+            return ResponseUtil.error(res, req.__('planner.chat.no_access'), 403);
+        }
+        if (error.message === 'NO_MEMBERS') {
+            return ResponseUtil.error(res, req.__('planner.chat.no_members'), 403);
+        }
+        if (error.message === 'PLANNER_NOT_FOUND') {
+            return ResponseUtil.error(res, req.__('planner.chat.planner_not_found'), 404);
         }
         return ResponseUtil.error(res, error.message, 500);
     }
@@ -51,19 +57,25 @@ exports.sendMessage = async (req, res) => {
         // Emit WebSocket event to planner chat room
         emitPlannerChatMessage(plannerId, result);
 
-        return ResponseUtil.success(res, result, 'Gửi tin nhắn thành công', 201);
+        return ResponseUtil.success(res, result, req.__('planner.chat.send_message_success'), 201);
     } catch (error) {
-        if (error.message === 'Forbidden') {
-            return ResponseUtil.error(res, 'Bạn không có quyền gửi tin nhắn', 403);
+        if (error.message === 'NO_ACCESS') {
+            return ResponseUtil.error(res, req.__('planner.chat.no_access'), 403);
+        }
+        if (error.message === 'NO_MEMBERS') {
+            return ResponseUtil.error(res, req.__('planner.chat.no_members'), 403);
+        }
+        if (error.message === 'PLANNER_NOT_FOUND') {
+            return ResponseUtil.error(res, req.__('planner.chat.planner_not_found'), 404);
         }
         if (error.message === 'Cannot send messages to completed planner') {
-            return ResponseUtil.error(res, 'Không thể gửi tin nhắn cho planner đã hoàn thành', 400);
+            return ResponseUtil.error(res, req.__('planner.chat.cannot_send_completed'), 400);
         }
         if (error.message === 'Content is required for text messages') {
-            return ResponseUtil.error(res, 'Nội dung tin nhắn không được để trống', 400);
+            return ResponseUtil.error(res, req.__('planner.chat.content_required'), 400);
         }
         if (error.message === 'Image URL is required for image messages') {
-            return ResponseUtil.error(res, 'URL ảnh không được để trống', 400);
+            return ResponseUtil.error(res, req.__('planner.chat.image_url_required'), 400);
         }
         return ResponseUtil.error(res, error.message, 500);
     }
@@ -83,15 +95,21 @@ exports.uploadImage = async (req, res) => {
         const userId = req.user.id;
 
         if (!req.file) {
-            return ResponseUtil.error(res, 'Vui lòng chọn ảnh để upload', 400);
+            return ResponseUtil.error(res, req.__('planner.chat.image_required'), 400);
         }
 
         const result = await PlannerChatService.uploadImage(plannerId, userId, req.file);
 
-        return ResponseUtil.success(res, result, 'Upload ảnh thành công', 201);
+        return ResponseUtil.success(res, result, req.__('planner.chat.upload_image_success'), 201);
     } catch (error) {
-        if (error.message === 'Forbidden') {
-            return ResponseUtil.error(res, 'Bạn không có quyền upload ảnh', 403);
+        if (error.message === 'NO_ACCESS') {
+            return ResponseUtil.error(res, req.__('planner.chat.no_access'), 403);
+        }
+        if (error.message === 'NO_MEMBERS') {
+            return ResponseUtil.error(res, req.__('planner.chat.no_members'), 403);
+        }
+        if (error.message === 'PLANNER_NOT_FOUND') {
+            return ResponseUtil.error(res, req.__('planner.chat.planner_not_found'), 404);
         }
         return ResponseUtil.error(res, error.message, 500);
     }
@@ -115,13 +133,13 @@ exports.deleteMessage = async (req, res) => {
         // Emit WebSocket event to planner chat room
         emitPlannerChatMessageDeleted(plannerId, messageId);
 
-        return ResponseUtil.success(res, null, 'Xóa tin nhắn thành công');
+        return ResponseUtil.success(res, null, req.__('planner.chat.delete_message_success'));
     } catch (error) {
         if (error.message === 'Forbidden') {
-            return ResponseUtil.error(res, 'Bạn không có quyền xóa tin nhắn này', 403);
+            return ResponseUtil.error(res, req.__('planner.chat.forbidden_delete'), 403);
         }
         if (error.message === 'Message not found') {
-            return ResponseUtil.error(res, 'Tin nhắn không tồn tại', 404);
+            return ResponseUtil.error(res, req.__('planner.chat.message_not_found'), 404);
         }
         return ResponseUtil.error(res, error.message, 500);
     }

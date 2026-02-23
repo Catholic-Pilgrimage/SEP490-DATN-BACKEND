@@ -2,6 +2,7 @@ const { User, Site, GuideShift, GuideShiftSubmission } = require('../../models')
 const { Op } = require('sequelize');
 const Logger = require('../../utils/logger.util');
 const NotificationService = require('../shared/notificationService');
+const appConfig = require('../../config/app.config');
 
 class LocalGuideShiftService {
     /**
@@ -48,6 +49,14 @@ class LocalGuideShiftService {
         const site = await Site.findByPk(user.site_id);
         if (!site) {
             throw new Error('Site not found');
+        }
+
+        // Validate week_start_date is not in the past
+        const now = new Date(new Date().toLocaleString('en-US', { timeZone: appConfig.timezone }));
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const weekStart = new Date(week_start_date);
+        if (weekStart < today) {
+            throw new Error('Cannot register shifts for a past date. week_start_date must be today or in the future.');
         }
 
         // Check if there's already a pending submission for this week
@@ -316,6 +325,14 @@ class LocalGuideShiftService {
 
         if (!submission) {
             throw new Error('Submission not found or already approved');
+        }
+
+        // Validate week_start_date is not in the past
+        const now = new Date(new Date().toLocaleString('en-US', { timeZone: appConfig.timezone }));
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const weekStart = new Date(submission.week_start_date);
+        if (weekStart < today) {
+            throw new Error('Cannot update shifts for a past date. The submission week has already passed.');
         }
 
         const wasRejected = submission.status === 'rejected';
