@@ -3,18 +3,37 @@ const Logger = require('../../utils/logger.util');
 
 /**
  * Check if user can access planner chat (owner or member)
+ * Chat is only available when planner has at least 1 member (not just owner)
+ * @returns {Object} { canAccess: boolean, reason: string }
  */
 exports.canAccessChat = async (plannerId, userId) => {
     const planner = await Planner.findByPk(plannerId);
-    if (!planner) return false;
+    if (!planner) {
+        return { canAccess: false, reason: 'PLANNER_NOT_FOUND' };
+    }
 
-    if (planner.user_id === userId) return true;
-
+    // Check if user is owner or member
+    const isOwner = planner.user_id === userId;
     const member = await PlannerMember.findOne({
         where: { planner_id: plannerId, user_id: userId }
     });
+    const isMember = !!member;
 
-    return !!member;
+    if (!isOwner && !isMember) {
+        return { canAccess: false, reason: 'NO_ACCESS' };
+    }
+
+    // Chat is only available when planner has at least 1 member
+    // (Solo planner doesn't need chat)
+    const memberCount = await PlannerMember.count({
+        where: { planner_id: plannerId }
+    });
+
+    if (memberCount === 0) {
+        return { canAccess: false, reason: 'NO_MEMBERS' };
+    }
+
+    return { canAccess: true, reason: null };
 };
 
 /**
@@ -23,9 +42,9 @@ exports.canAccessChat = async (plannerId, userId) => {
 exports.getMessages = async (plannerId, userId, filters = {}) => {
     try {
         // Check access
-        const canAccess = await exports.canAccessChat(plannerId, userId);
+        const { canAccess, reason } = await exports.canAccessChat(plannerId, userId);
         if (!canAccess) {
-            throw new Error('Forbidden');
+            throw new Error(reason || 'Forbidden');
         }
 
         const { page = 1, limit = 50 } = filters;
@@ -74,9 +93,9 @@ exports.getMessages = async (plannerId, userId, filters = {}) => {
  */
 exports.sendMessage = async (plannerId, userId, messageData) => {
     try {
-        const canAccess = await exports.canAccessChat(plannerId, userId);
+        const { canAccess, reason } = await exports.canAccessChat(plannerId, userId);
         if (!canAccess) {
-            throw new Error('Forbidden');
+            throw new Error(reason || 'Forbidden');
         }
 
         const planner = await Planner.findByPk(plannerId);
@@ -110,7 +129,6 @@ exports.sendMessage = async (plannerId, userId, messageData) => {
             }]
         });
 
-        // Auto-cleanup old messages (keep last 100)
         const messageCount = await PlannerMessage.count({ where: { planner_id: plannerId } });
         if (messageCount > 100) {
             const oldMessages = await PlannerMessage.findAll({
@@ -150,13 +168,12 @@ exports.sendMessage = async (plannerId, userId, messageData) => {
 exports.uploadImage = async (plannerId, userId, file) => {
     try {
         // Check access
-        const canAccess = await exports.canAccessChat(plannerId, userId);
+        const { canAccess, reason } = await exports.canAccessChat(plannerId, userId);
         if (!canAccess) {
-            throw new Error('Forbidden');
+            throw new Error(reason || 'Forbidden');
         }
 
-        // File already uploaded by cloudinary middleware
-        // file.path contains the Cloudinary URL
+   
         Logger.info(`Image uploaded to Cloudinary for planner ${plannerId}`);
 
         return {
