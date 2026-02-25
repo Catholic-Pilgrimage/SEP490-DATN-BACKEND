@@ -110,7 +110,7 @@ class PlannerService {
             const offset = (page - 1) * limit;
 
             const { rows: planners, count: total } = await Planner.findAndCountAll({
-                where: { user_id: userId },
+                where: { user_id: userId, is_active: true },
                 include: [
                     { model: User, as: 'owner', attributes: ['id', 'full_name', 'email', 'avatar_url'] }
                 ],
@@ -285,7 +285,7 @@ class PlannerService {
     }
 
     /**
-     * Delete planner
+     * Delete planner (soft delete - set is_active to false)
      */
     static async deletePlanner(plannerId, userId) {
         try {
@@ -300,9 +300,10 @@ class PlannerService {
                 throw new Error('Forbidden');
             }
 
-            await planner.destroy();
+            // Soft delete - set is_active to false
+            await planner.update({ is_active: false });
 
-            Logger.info(`Planner deleted by user ${userId}: ${plannerId}`);
+            Logger.info(`Planner soft deleted by user ${userId}: ${plannerId}`);
             return { id: plannerId, message: 'Planner deleted successfully' };
         } catch (error) {
             Logger.error('Delete planner error:', error);

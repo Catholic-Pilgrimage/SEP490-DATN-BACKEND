@@ -55,10 +55,7 @@
  *           type: string
  *           enum: [motorbike, car, bus]
  *           example: "bus"
- *         status:
- *           type: string
- *           enum: [planning, ongoing, completed]
- *           example: "ongoing"
+
  *
  *     AddPlannerItemRequest:
  *       type: object

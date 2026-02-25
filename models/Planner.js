@@ -65,6 +65,11 @@ const Planner = sequelize.define('Planner', {
         type: DataTypes.TEXT,
         allowNull: true,
         defaultValue: null
+    },
+    is_active: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true,
+        allowNull: false
     }
 }, {
     tableName: 'planners',
