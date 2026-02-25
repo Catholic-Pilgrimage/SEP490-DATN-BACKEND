@@ -199,6 +199,12 @@ class PlannerController {
                 const hoursMatch = error.message.match(/(\d+) hours/)?.[1] || '?';
                 return ResponseUtil.badRequest(res, req.__('planner.total_time_exceeds_24h', { day: dayMatch, hours: hoursMatch }));
             }
+            if (error.message === 'Estimated time is required') {
+                return ResponseUtil.badRequest(res, 'Giờ dự kiến không được để trống');
+            }
+            if (error.message === 'Rest duration is required') {
+                return ResponseUtil.badRequest(res, 'Thời gian nghỉ ngơi không được để trống');
+            }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }

@@ -862,10 +862,11 @@ class EmailService {
       Logger.info(`Sending planner invitation to: ${email}`);
       const currentYear = new Date().getFullYear();
       const QRCode = require('qrcode');
+      const { cloudinary } = require('../../config/cloudinary.config');
 
       const inviteUrl = `${process.env.FRONTEND_URL || 'https://catholicpilgrimage.app'}/planners/invite/${token}`;
 
-      // Generate QR code as base64 data URL for embedding in email
+      // Generate QR code as base64 data URL
       const qrCodeDataUrl = await QRCode.toDataURL(inviteUrl, {
         width: 200,
         margin: 2,
@@ -874,6 +875,20 @@ class EmailService {
           light: '#ffffff'
         }
       });
+
+      // Upload QR code to Cloudinary for email compatibility (Gmail doesn't support base64 images)
+      let qrCodeUrl = qrCodeDataUrl; // fallback to base64 if upload fails
+      try {
+        const uploadResult = await cloudinary.uploader.upload(qrCodeDataUrl, {
+          folder: 'catholic_pilgrimage/qr_codes',
+          public_id: `invite_${token}`,
+          overwrite: true
+        });
+        qrCodeUrl = uploadResult.secure_url;
+        Logger.info(`QR code uploaded to Cloudinary: ${qrCodeUrl}`);
+      } catch (uploadError) {
+        Logger.warn(`Failed to upload QR code to Cloudinary, using base64: ${uploadError.message}`);
+      }
 
       const htmlContent = `
 <!DOCTYPE html>
@@ -911,7 +926,7 @@ class EmailService {
 
       <div style="text-align: center; margin: 20px 0; padding: 20px; background: #f5f5f5; border-radius: 8px;">
         <p style="color: #666; font-size: 14px; margin: 0 0 10px 0;">Hoặc quét mã QR để xem lời mời:</p>
-        <img src="${qrCodeDataUrl}" alt="QR Code" style="width: 200px; height: 200px; border-radius: 8px;" />
+        <img src="${qrCodeUrl}" alt="QR Code" style="width: 200px; height: 200px; border-radius: 8px;" />
       </div>
       
       <p style="color: #999; font-size: 14px; text-align: center; margin-top: 20px;">
