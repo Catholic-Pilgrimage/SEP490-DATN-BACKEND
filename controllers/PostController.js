@@ -25,14 +25,13 @@ class PostController {
     }
 
     /**
-     * Get posts (optionally filtered by group)
+     * Get posts
      * GET /posts
      */
     async getPosts(req, res) {
         try {
             const userId = req.user.id;
             const filters = {
-                group_id: req.query.group_id,
                 page: req.query.page || 1,
                 limit: req.query.limit || 20
             };

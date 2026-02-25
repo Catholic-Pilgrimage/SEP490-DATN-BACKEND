@@ -110,7 +110,7 @@ class PlannerService {
             const offset = (page - 1) * limit;
 
             const { rows: planners, count: total } = await Planner.findAndCountAll({
-                where: { user_id: userId },
+                where: { user_id: userId, is_active: true },
                 include: [
                     { model: User, as: 'owner', attributes: ['id', 'full_name', 'email', 'avatar_url'] }
                 ],
@@ -285,7 +285,7 @@ class PlannerService {
     }
 
     /**
-     * Delete planner
+     * Delete planner (soft delete - set is_active to false)
      */
     static async deletePlanner(plannerId, userId) {
         try {
@@ -300,9 +300,10 @@ class PlannerService {
                 throw new Error('Forbidden');
             }
 
-            await planner.destroy();
+            // Soft delete - set is_active to false
+            await planner.update({ is_active: false });
 
-            Logger.info(`Planner deleted by user ${userId}: ${plannerId}`);
+            Logger.info(`Planner soft deleted by user ${userId}: ${plannerId}`);
             return { id: plannerId, message: 'Planner deleted successfully' };
         } catch (error) {
             Logger.error('Delete planner error:', error);
@@ -319,6 +320,11 @@ class PlannerService {
 
         try {
             const { site_id, day_number, note, nearby_amenity_ids, estimated_time, rest_duration } = itemData;
+
+            // Validate required fields
+            if (!rest_duration) {
+                throw new Error('Rest duration is required');
+            }
 
             // Check planner exists and user is owner (if userId provided)
             const planner = await Planner.findByPk(plannerId);
@@ -454,9 +460,12 @@ class PlannerService {
                     }
                 }
             } else {
-                // First item in the day: use user input or default
-                finalEstimatedTime = estimated_time || '09:00';
-                Logger.info(`Using ${estimated_time ? 'user-provided' : 'default'} estimated_time: ${finalEstimatedTime}`);
+                // First item in the day: user must provide estimated_time
+                if (!estimated_time) {
+                    throw new Error('Estimated time is required');
+                }
+                finalEstimatedTime = estimated_time;
+                Logger.info(`Using user-provided estimated_time: ${finalEstimatedTime}`);
             }
 
             // Validation 3: Check if estimated_time falls within site's opening hours
@@ -493,7 +502,7 @@ class PlannerService {
                 note: note || null,
                 nearby_amenity_ids: nearby_amenity_ids || [],
                 estimated_time: finalEstimatedTime,
-                rest_duration: rest_duration || '3 hours' // Default 3 hours
+                rest_duration: rest_duration
             }, { transaction });
 
             await transaction.commit();

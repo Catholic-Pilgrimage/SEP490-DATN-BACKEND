@@ -494,6 +494,7 @@ CREATE TABLE IF NOT EXISTS planners (
     
     share_token VARCHAR(50) UNIQUE DEFAULT NULL,
     qr_code_url TEXT DEFAULT NULL, -- QR code image URL (Cloudinary)
+    is_active BOOLEAN DEFAULT TRUE NOT NULL, -- Soft delete flag (false = hidden from user)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     
