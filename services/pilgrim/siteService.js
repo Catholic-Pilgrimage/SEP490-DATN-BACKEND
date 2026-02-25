@@ -203,7 +203,7 @@ class PilgrimSiteService {
       };
 
       // Filter by media type
-      if (filters.type && ['image', 'video', 'panorama'].includes(filters.type)) {
+      if (filters.type && ['image', 'video', 'model_3d'].includes(filters.type)) {
         where.type = filters.type;
       }
 

@@ -86,6 +86,9 @@
     "no_site": "Bạn chưa có địa điểm nào"
   },
   "manager": {
+    "upload_3d_model_success": "Upload model 3D thành công",
+    "file_required": "Vui lòng chọn file để upload",
+    "get_media_success": "Lấy danh sách media thành công",
     "media_approved": "Duyệt media thành công",
     "media_rejected": "Từ chối media thành công",
     "media_restored": "Khôi phục media thành công",

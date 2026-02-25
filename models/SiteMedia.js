@@ -28,7 +28,7 @@ const SiteMedia = sequelize.define('SiteMedia', {
         type: DataTypes.STRING,
         allowNull: false,
         validate: {
-            isIn: [['image', 'video', 'panorama']]
+            isIn: [['image', 'video', 'model_3d']]
         }
     },
     caption: {

@@ -6,7 +6,7 @@ class LocalGuideValidator {
     static uploadMedia = [
         body('type')
             .notEmpty().withMessage('Loại media không được để trống')
-            .isIn(['image', 'video', 'panorama']).withMessage('Loại media phải là image, video hoặc panorama'),
+            .isIn(['image', 'video']).withMessage('Loại media phải là image hoặc video'),
 
         body('caption')
             .optional()
@@ -18,8 +18,8 @@ class LocalGuideValidator {
     static updateMedia = [
         body('type')
             .optional()
-            .isIn(['image', 'video', 'panorama'])
-            .withMessage('Loại media phải là image, video hoặc panorama'),
+            .isIn(['image', 'video'])
+            .withMessage('Loại media phải là image hoặc video'),
 
         body('caption')
             .optional()

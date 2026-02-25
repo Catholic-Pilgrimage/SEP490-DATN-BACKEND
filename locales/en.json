@@ -202,6 +202,8 @@
     "remove_success": "Local Guide removed successfully"
   },
   "manager": {
+    "upload_3d_model_success": "3D model uploaded successfully",
+    "file_required": "Please select a file to upload",
     "no_site": "Manager has no assigned site",
     "get_media_success": "Media retrieved successfully",
     "media_approved": "Media approved successfully",

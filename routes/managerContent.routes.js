@@ -3,8 +3,20 @@ const router = express.Router();
 const ManagerContentController = require('../controllers/manager/ContentController');
 const authMiddleware = require('../middlewares/auth.middleware');
 const i18nMiddleware = require('../middlewares/i18n.middleware');
+const { upload3DModel } = require('../config/supabase.config');
 
 router.use(i18nMiddleware);
+
+// ===================== MEDIA =====================
+
+// POST - Upload 3D Model (Manager only)
+router.post(
+    '/media/3d-model',
+    authMiddleware,
+    authMiddleware.authorize('manager'),
+    upload3DModel.single('file'),
+    ManagerContentController.upload3DModel
+);
 
 // GET  - Get all media
 router.get(

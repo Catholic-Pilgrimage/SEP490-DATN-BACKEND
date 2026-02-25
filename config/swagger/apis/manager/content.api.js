@@ -2,11 +2,62 @@
  * @swagger
  * tags:
  *   - name: Manager - Content
- *     description: Manager Content Approval (Media, Schedule, Event)
+ *     description: Manager Content Management (Media, Schedule, Event)
  */
 
 /**
  * @swagger
+ * /api/manager/content/media/3d-model:
+ *   post:
+ *     summary: Upload Model 3D cho site (Manager only)
+ *     description: |
+ *       Manager upload model 3D (.glb, .gltf) cho site.
+ *       - Chỉ Manager mới có quyền upload model 3D
+ *       - Status tự động là 'approved' (không cần duyệt)
+ *       - File size tối đa: 100MB
+ *     tags: [Manager - Content]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - file
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: File model 3D (.glb hoặc .gltf)
+ *               caption:
+ *                 type: string
+ *                 example: "Model 3D nhà thờ"
+ *                 description: Mô tả model (tùy chọn)
+ *     responses:
+ *       201:
+ *         description: Upload thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Upload model 3D thành công"
+ *                 data:
+ *                   $ref: '#/components/schemas/SiteMedia'
+ *       400:
+ *         description: Thiếu file hoặc Manager chưa có site
+ *       401:
+ *         description: Chưa đăng nhập
+ *       403:
+ *         description: Không phải Manager
+ *
  * /api/manager/content/media:
  *   get:
  *     summary: Danh sách media của site (Manager only)
@@ -31,7 +82,7 @@
  *         name: type
  *         schema:
  *           type: string
- *           enum: [image, video, panorama]
+ *           enum: [image, video, model_3d]
  *         description: Lọc theo loại media
  *       - in: query
  *         name: status
@@ -230,7 +281,7 @@
  *           format: uri
  *         type:
  *           type: string
- *           enum: [image, video, panorama]
+ *           enum: [image, video, model_3d]
  *         caption:
  *           type: string
  *         status:

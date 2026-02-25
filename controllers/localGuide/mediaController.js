@@ -9,7 +9,7 @@ exports.uploadMedia = async (req, res) => {
     try {
         const { type, caption, url } = req.body;
 
-        if (!type || !['image', 'video', 'panorama'].includes(type)) {
+        if (!type || !['image', 'video'].includes(type)) {
             return ResponseUtil.badRequest(res, req.__('local_guide.invalid_media_type'));
         }
 
@@ -78,7 +78,7 @@ exports.updateMedia = async (req, res) => {
         const updateData = { caption };
 
         if (type) {
-            if (!['image', 'video', 'panorama'].includes(type)) {
+            if (!['image', 'video'].includes(type)) {
                 return ResponseUtil.badRequest(res, req.__('local_guide.invalid_media_type'));
             }
             updateData.type = type;

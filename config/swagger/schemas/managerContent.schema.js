@@ -34,11 +34,11 @@
  *         url:
  *           type: string
  *           format: uri
- *           example: "https://res.cloudinary.com/xxx/image/upload/v1234/panorama.jpg"
+ *           example: "https://res.cloudinary.com/xxx/image/upload/v1234/model.glb"
  *         type:
  *           type: string
- *           enum: [image, video, panorama]
- *           example: "panorama"
+ *           enum: [image, video, model_3d]
+ *           example: "model_3d"
  *         caption:
  *           type: string
  *           example: "Toàn cảnh nhà thờ"

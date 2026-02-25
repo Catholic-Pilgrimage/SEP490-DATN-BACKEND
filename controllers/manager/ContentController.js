@@ -1,6 +1,44 @@
 const ManagerContentService = require('../../services/manager/contentService');
 const ResponseUtil = require('../../utils/response.util');
+const { uploadToSupabase } = require('../../config/supabase.config');
 
+// ===================== MEDIA =====================
+
+/**
+ * Manager: Upload 3D Model
+ * POST /api/manager/content/media/3d-model
+ */
+exports.upload3DModel = async (req, res) => {
+    try {
+        const { caption } = req.body;
+
+        if (!req.file) {
+            return ResponseUtil.badRequest(res, req.__('manager.file_required'));
+        }
+
+        // Upload file buffer to Supabase Storage
+        const { url } = await uploadToSupabase(req.file.buffer, req.file.originalname);
+
+        const fileData = {
+            url,
+            caption
+        };
+
+        const result = await ManagerContentService.upload3DModel(req.user.id, fileData);
+        return ResponseUtil.created(res, result, req.__('manager.upload_3d_model_success'));
+    } catch (error) {
+        if (error.message === 'Unauthorized') {
+            return ResponseUtil.forbidden(res, req.__('auth.forbidden'));
+        }
+        if (error.message === 'Manager has no site') {
+            return ResponseUtil.badRequest(res, req.__('manager.no_site'));
+        }
+        if (error.message === 'File URL required') {
+            return ResponseUtil.badRequest(res, req.__('manager.file_required'));
+        }
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
 
 /**
  * Manager: Get Site Media

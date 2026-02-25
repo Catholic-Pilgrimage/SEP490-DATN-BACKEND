@@ -211,15 +211,14 @@
  *         url:
  *           type: string
  *           format: uri
- *           example: "https://res.cloudinary.com/xxx/image/upload/panorama.jpg"
+ *           example: "https://res.cloudinary.com/xxx/image/upload/sample.jpg"
  *         type:
  *           type: string
- *           enum: [image, video, panorama]
+ *           enum: [image, video]
  *           description: |
  *             - image: Ảnh gallery
  *             - video: Video
- *             - panorama: Ảnh 360° (equirectangular)
- *           example: "panorama"
+ *           example: "image"
  *         caption:
  *           type: string
  *           maxLength: 255
@@ -255,7 +254,7 @@
  *           example: "https://res.cloudinary.com/xxx/image/upload/sample.jpg"
  *         type:
  *           type: string
- *           enum: [image, video, panorama]
+ *           enum: [image, video]
  *           example: "image"
  *         caption:
  *           type: string

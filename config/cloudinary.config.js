@@ -28,7 +28,7 @@ const documentStorage = new CloudinaryStorage({
     }
 });
 
-// Media storage (for site gallery: images, videos, panoramas)
+// Media storage (for site gallery: images and videos only)
 const mediaStorage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: async (req, file) => {

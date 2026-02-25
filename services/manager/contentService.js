@@ -28,7 +28,7 @@ class ManagerContentService {
 
             const where = { site_id: user.site_id };
 
-            if (filters.type && ['image', 'video', 'panorama'].includes(filters.type)) {
+            if (filters.type && ['image', 'video', 'model_3d'].includes(filters.type)) {
                 where.type = filters.type;
             }
 
@@ -66,6 +66,71 @@ class ManagerContentService {
             };
         } catch (error) {
             Logger.error('Manager get media error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Manager: Upload 3D Model for site
+     */
+    static async upload3DModel(userId, fileData) {
+        try {
+            const user = await User.findByPk(userId);
+
+            if (!user || user.role !== 'manager') {
+                throw new Error('Unauthorized');
+            }
+
+            if (!user.site_id) {
+                throw new Error('Manager has no site');
+            }
+
+            const { url, caption } = fileData;
+
+            if (!url) {
+                throw new Error('File URL required');
+            }
+
+            // Generate code for model_3d
+            const now = new Date();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const dateStr = `${month}${day}`;
+
+            const latestMedia = await SiteMedia.findOne({
+                where: {
+                    code: {
+                        [Op.like]: `MDL${dateStr}%`
+                    }
+                },
+                order: [['code', 'DESC']]
+            });
+
+            let sequence = 1;
+            if (latestMedia && latestMedia.code) {
+                const lastSeq = parseInt(latestMedia.code.slice(-3), 10);
+                if (!isNaN(lastSeq)) {
+                    sequence = lastSeq + 1;
+                }
+            }
+
+            const code = `MDL${dateStr}${String(sequence).padStart(3, '0')}`;
+
+            const media = await SiteMedia.create({
+                site_id: user.site_id,
+                code,
+                url,
+                type: 'model_3d',
+                caption,
+                status: 'approved', // Manager upload → auto approved
+                created_by: userId
+            });
+
+            Logger.info(`Manager ${userId} uploaded 3D model ${media.code} for site ${user.site_id}`);
+
+            return media;
+        } catch (error) {
+            Logger.error('Manager upload 3D model error:', error);
             throw error;
         }
     }
