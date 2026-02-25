@@ -19,7 +19,11 @@ const options = {
       },
       {
         url: 'https://sep490-datn-backend.onrender.com',
-        description: 'Production server'
+        description: 'Production server (Render)'
+      },
+      {
+        url: 'https://www.catholicpilgrimage.id.vn',
+        description: 'Production server (Custom Domain)'
       }
     ],
     components: {
