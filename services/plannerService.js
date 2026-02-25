@@ -321,6 +321,11 @@ class PlannerService {
         try {
             const { site_id, day_number, note, nearby_amenity_ids, estimated_time, rest_duration } = itemData;
 
+            // Validate required fields
+            if (!rest_duration) {
+                throw new Error('Rest duration is required');
+            }
+
             // Check planner exists and user is owner (if userId provided)
             const planner = await Planner.findByPk(plannerId);
             if (!planner) {
@@ -455,9 +460,12 @@ class PlannerService {
                     }
                 }
             } else {
-                // First item in the day: use user input or default
-                finalEstimatedTime = estimated_time || '09:00';
-                Logger.info(`Using ${estimated_time ? 'user-provided' : 'default'} estimated_time: ${finalEstimatedTime}`);
+                // First item in the day: user must provide estimated_time
+                if (!estimated_time) {
+                    throw new Error('Estimated time is required');
+                }
+                finalEstimatedTime = estimated_time;
+                Logger.info(`Using user-provided estimated_time: ${finalEstimatedTime}`);
             }
 
             // Validation 3: Check if estimated_time falls within site's opening hours
@@ -494,7 +502,7 @@ class PlannerService {
                 note: note || null,
                 nearby_amenity_ids: nearby_amenity_ids || [],
                 estimated_time: finalEstimatedTime,
-                rest_duration: rest_duration || '3 hours' // Default 3 hours
+                rest_duration: rest_duration
             }, { transaction });
 
             await transaction.commit();
