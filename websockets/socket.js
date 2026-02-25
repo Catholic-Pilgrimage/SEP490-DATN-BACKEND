@@ -128,11 +128,26 @@ function initSocket(httpServer) {
          * Join planner chat room
          * Used by owner and members when viewing planner
          */
-        socket.on('join_planner_chat', ({ plannerId }) => {
+        socket.on('join_planner_chat', async ({ plannerId }) => {
             if (!plannerId) return;
-            const room = `planner_chat_${plannerId}`;
-            socket.join(room);
-            Logger.info(`User ${socket.userId} joined planner chat room: ${room}`);
+
+            try {
+                // Determine if user has access to planner chat before letting them join
+                const PlannerChatService = require('../services/pilgrim/plannerChatService');
+                const { canAccess } = await PlannerChatService.canAccessChat(plannerId, socket.userId);
+
+                if (!canAccess) {
+                    Logger.warn(`User ${socket.userId} attempted to join planner chat room ${plannerId} without permission`);
+                    socket.emit('error', { message: 'Forbidden access to planner chat' });
+                    return;
+                }
+
+                const room = `planner_chat_${plannerId}`;
+                socket.join(room);
+                Logger.info(`User ${socket.userId} joined planner chat room: ${room}`);
+            } catch (error) {
+                Logger.error(`Error verifying planner chat access for user ${socket.userId}:`, error.message);
+            }
         });
 
         /**

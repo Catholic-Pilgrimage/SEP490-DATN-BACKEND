@@ -188,6 +188,7 @@
     "get_site_schedule_success": "Site schedule retrieved successfully",
     "week_start_date_required": "Week start date is required",
     "past_date_not_allowed": "Cannot register shifts for a past date. Please select today or a future date.",
+    "all_shifts_past": "Cannot update. All shifts are in the past.",
     "create_nearby_place_success": "Nearby place created successfully",
     "get_nearby_places_success": "Nearby places retrieved successfully",
     "update_nearby_place_success": "Nearby place updated successfully",
