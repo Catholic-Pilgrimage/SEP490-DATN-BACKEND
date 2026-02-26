@@ -38,7 +38,9 @@
     "cannot_change_admin_status": "Không thể thay đổi trạng thái admin",
     "invalid_role": "Role không hợp lệ. Phải là 'pilgrim', 'local_guide' hoặc 'manager'",
     "role_updated": "Cập nhật role thành công",
-    "cannot_change_admin_role": "Không thể thay đổi role admin",
+    "cannot_change_admin_role": "Không thể thay đổi thông tin admin",
+    "cannot_change_role": "Không thể thay đổi role. Vui lòng sử dụng quy trình verification.",
+    "cannot_change_site": "Không thể thay đổi địa điểm. Vui lòng sử dụng quy trình verification hoặc liên hệ Manager.",
     "user_updated": "Cập nhật thông tin người dùng thành công",
     "manager_must_have_site": "Manager và Local Guide phải được gán vào một địa điểm",
     "pilgrim_cannot_have_site": "Pilgrim không thể được gán vào địa điểm"

@@ -38,7 +38,9 @@
     "cannot_change_admin_status": "Cannot change admin status",
     "invalid_role": "Invalid role. Must be 'pilgrim', 'local_guide' or 'manager'",
     "role_updated": "User role updated successfully",
-    "cannot_change_admin_role": "Cannot change admin role",
+    "cannot_change_admin_role": "Cannot update admin info",
+    "cannot_change_role": "Cannot change user role. Please use verification process.",
+    "cannot_change_site": "Cannot change user site. Please use verification process or contact Manager.",
     "user_updated": "User information updated successfully",
     "manager_must_have_site": "Manager and Local Guide must be assigned to a site",
     "pilgrim_cannot_have_site": "Pilgrim cannot be assigned to a site"

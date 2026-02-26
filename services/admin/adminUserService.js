@@ -126,7 +126,22 @@ class AdminUserService {
         return null;
       }
 
-      const allowedFields = ['full_name', 'phone', 'date_of_birth', 'role', 'site_id'];
+      // Cannot update admin info
+      if (user.role === 'admin') {
+        throw new Error('Cannot update admin info');
+      }
+
+      // Reject if trying to change role or site_id
+      if (updateData.role !== undefined) {
+        throw new Error('Cannot change user role');
+      }
+
+      if (updateData.site_id !== undefined) {
+        throw new Error('Cannot change user site');
+      }
+
+      // Only allow updating basic info
+      const allowedFields = ['full_name', 'phone', 'date_of_birth'];
       const dataToUpdate = {};
 
       allowedFields.forEach(field => {
@@ -134,37 +149,6 @@ class AdminUserService {
           dataToUpdate[field] = updateData[field];
         }
       });
-
-      if (dataToUpdate.role && !['pilgrim', 'local_guide', 'manager'].includes(dataToUpdate.role)) {
-        throw new Error('Invalid role');
-      }
-
-      if (dataToUpdate.role && user.role === 'admin') {
-        throw new Error('Cannot change admin role');
-      }
-
-
-      if (dataToUpdate.role) {
-        if (['manager', 'local_guide'].includes(dataToUpdate.role)) {
-          const finalSiteId = dataToUpdate.site_id !== undefined ? dataToUpdate.site_id : user.site_id;
-          if (!finalSiteId) {
-            throw new Error('Manager and Local Guide must be assigned to a site');
-          }
-        }
-        if (dataToUpdate.role === 'pilgrim') {
-          dataToUpdate.site_id = null;
-        }
-      }
-
-      if (dataToUpdate.site_id !== undefined) {
-        const finalRole = dataToUpdate.role || user.role;
-        if (finalRole === 'pilgrim' && dataToUpdate.site_id !== null) {
-          throw new Error('Pilgrim cannot be assigned to a site');
-        }
-        if (['manager', 'local_guide'].includes(finalRole) && !dataToUpdate.site_id) {
-          throw new Error('Manager and Local Guide must be assigned to a site');
-        }
-      }
 
       await user.update(dataToUpdate);
 
