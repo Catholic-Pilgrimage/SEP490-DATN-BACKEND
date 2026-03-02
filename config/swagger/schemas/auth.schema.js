@@ -93,6 +93,21 @@
  *           format: email
  *           example: "user@example.com"
  *
+ *     VerifyOtpRequest:
+ *       type: object
+ *       required:
+ *         - email
+ *         - otp
+ *       properties:
+ *         email:
+ *           type: string
+ *           format: email
+ *           example: "user@example.com"
+ *         otp:
+ *           type: string
+ *           example: "123456"
+ *           description: "Mã OTP 6 số nhận qua email"
+ *
  *     ResetPasswordRequest:
  *       type: object
  *       required:

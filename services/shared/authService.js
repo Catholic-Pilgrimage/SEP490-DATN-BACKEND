@@ -242,19 +242,19 @@ class AuthService {
                 throw new Error('User not found');
             }
 
-          
+
             const isValidPassword = await bcrypt.compare(currentPassword, user.password_hash);
             if (!isValidPassword) {
                 throw new Error('Current password is incorrect');
             }
 
-          
+
             const newPasswordHash = await bcrypt.hash(newPassword, 10);
 
-          
+
             await user.update({ password_hash: newPasswordHash });
 
-           
+
             await RefreshToken.destroy({ where: { user_id: userId } });
 
             Logger.info(`Password changed: ${userId}`);
@@ -277,7 +277,7 @@ class AuthService {
                 throw new Error('Email not found');
             }
 
-          
+
             const otp = Math.floor(100000 + Math.random() * 900000).toString();
             const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
@@ -327,18 +327,18 @@ class AuthService {
                 throw new Error('Invalid OTP');
             }
 
-      
+
             if (new Date() > resetRecord.expires_at) {
                 throw new Error('OTP has expired');
             }
 
-          
+
             const newPasswordHash = await bcrypt.hash(newPassword, 10);
 
-          
+
             await user.update({ password_hash: newPasswordHash });
 
-        
+
             await resetRecord.update({ is_used: true });
 
             await RefreshToken.destroy({ where: { user_id: user.id } });
@@ -346,6 +346,43 @@ class AuthService {
             Logger.info(`Password reset successful: ${normalizedEmail}`);
         } catch (error) {
             Logger.error('Reset password error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Verify OTP (chỉ kiểm tra, không reset mật khẩu)
+     */
+    static async verifyOtp(email, otp) {
+        try {
+            const normalizedEmail = email.toLowerCase().trim();
+
+            const user = await User.findOne({ where: { email: normalizedEmail } });
+            if (!user) {
+                throw new Error('User not found');
+            }
+
+            const resetRecord = await PasswordReset.findOne({
+                where: {
+                    user_id: user.id,
+                    otp,
+                    is_used: false
+                },
+                order: [['created_at', 'DESC']]
+            });
+
+            if (!resetRecord) {
+                throw new Error('Invalid OTP');
+            }
+
+            if (new Date() > resetRecord.expires_at) {
+                throw new Error('OTP has expired');
+            }
+
+            Logger.info(`OTP verified for: ${normalizedEmail}`);
+            return { verified: true };
+        } catch (error) {
+            Logger.error('Verify OTP error:', error);
             throw error;
         }
     }

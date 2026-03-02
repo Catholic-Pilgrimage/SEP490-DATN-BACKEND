@@ -34,7 +34,7 @@ exports.login = async (req, res) => {
     const { email, password } = req.body;
     const result = await AuthService.login(email, password);
 
-   
+
     const { User } = require('../../models');
     const user = await User.findOne({ where: { email: email.toLowerCase().trim() } });
     if (user && user.language) {
@@ -43,7 +43,7 @@ exports.login = async (req, res) => {
 
     return ResponseUtil.success(res, result, req.__('auth.login_success'));
   } catch (error) {
-   
+
     const { User } = require('../../models');
     const user = await User.findOne({ where: { email: req.body.email?.toLowerCase().trim() } });
     if (user && user.language) {
@@ -170,6 +170,32 @@ exports.resetPassword = async (req, res) => {
     }
     if (error.message === 'OTP has expired') {
       return ResponseUtil.badRequest(res, req.__('auth.otp_expired'));
+    }
+    return ResponseUtil.error(res, req.__('error.server_error'));
+  }
+};
+
+// Verify OTP only (without resetting password)
+exports.verifyOtp = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const formattedErrors = formatValidationErrors(errors.array());
+      return ResponseUtil.badRequest(res, req.__('validation.failed'), formattedErrors);
+    }
+
+    const { email, otp } = req.body;
+    const result = await AuthService.verifyOtp(email, otp);
+    return ResponseUtil.success(res, result, req.__('auth.otp_verified'));
+  } catch (error) {
+    if (error.message === 'Invalid OTP') {
+      return ResponseUtil.badRequest(res, req.__('auth.invalid_otp'));
+    }
+    if (error.message === 'OTP has expired') {
+      return ResponseUtil.badRequest(res, req.__('auth.otp_expired'));
+    }
+    if (error.message === 'User not found') {
+      return ResponseUtil.notFound(res, req.__('auth.user_not_found'));
     }
     return ResponseUtil.error(res, req.__('error.server_error'));
   }
