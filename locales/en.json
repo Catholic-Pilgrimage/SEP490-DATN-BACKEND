@@ -8,6 +8,7 @@
     "profile_updated": "Profile updated successfully",
     "password_changed": "Password changed successfully",
     "otp_sent": "OTP has been sent to your email",
+    "otp_verified": "OTP verified successfully",
     "password_reset_success": "Password reset successfully",
     "email_already_registered": "Email already registered",
     "invalid_credentials": "Invalid email or password",

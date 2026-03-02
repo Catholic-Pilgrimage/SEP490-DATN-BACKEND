@@ -8,6 +8,7 @@
     "profile_updated": "Cập nhật thông tin thành công",
     "password_changed": "Đổi mật khẩu thành công",
     "otp_sent": "Mã OTP đã được gửi đến email của bạn",
+    "otp_verified": "Xác minh OTP thành công",
     "password_reset_success": "Đặt lại mật khẩu thành công",
     "email_already_registered": "Email đã được đăng ký",
     "invalid_credentials": "Email hoặc mật khẩu không đúng",
