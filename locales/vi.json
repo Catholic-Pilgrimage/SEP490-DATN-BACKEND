@@ -423,5 +423,23 @@
     "already_processed": "Báo cáo đã được xử lý",
     "only_own_report": "Bạn chỉ có thể xóa báo cáo của mình",
     "cannot_delete_processed": "Không thể xóa báo cáo đã được xử lý"
+  },
+  "narrative": {
+    "update_success": "Cập nhật thuyết minh thành công",
+    "text_or_audio_required": "Vui lòng cung cấp văn bản thuyết minh hoặc file ghi âm",
+    "only_3d_model": "Thuyết minh chỉ có thể thêm vào mô hình 3D",
+    "text_too_short": "Văn bản thuyết minh phải có ít nhất 3 ký tự",
+    "text_too_long": "Văn bản thuyết minh không được vượt quá 5000 ký tự",
+    "tts_not_configured": "Dịch vụ chuyển văn bản thành giọng nói chưa được cấu hình",
+    "tts_error": "Tạo giọng nói thất bại. Vui lòng thử lại hoặc tải file ghi âm trực tiếp",
+    "get_voices_success": "Lấy danh sách giọng đọc thành công",
+    "approved_success": "Đã phê duyệt thuyết minh thành công",
+    "rejected_success": "Đã từ chối thuyết minh",
+    "not_pending": "Thuyết minh không ở trạng thái chờ duyệt",
+    "no_narrative": "Chưa có thuyết minh để duyệt. Cần upload audio trước",
+    "cannot_edit_approved": "Không thể sửa thuyết minh đã được duyệt. Vui lòng liên hệ Quản lý nếu cần thay đổi",
+    "cannot_delete_approved": "Không thể xóa thuyết minh đã được duyệt. Vui lòng liên hệ Quản lý nếu cần xóa",
+    "no_narrative_to_delete": "Không có thuyết minh để xóa",
+    "delete_success": "Xóa thuyết minh thành công"
   }
 }

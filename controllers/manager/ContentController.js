@@ -43,12 +43,13 @@ exports.upload3DModel = async (req, res) => {
 /**
  * Manager: Get Site Media
  * GET /api/manager/content/media
+ * Query params: page, limit, type, status, narrative_status, is_active
  */
 exports.getMedia = async (req, res) => {
     try {
-        const { page, limit, type, status } = req.query;
+        const { page, limit, type, status, narrative_status, is_active } = req.query;
         const result = await ManagerContentService.getMedia(req.user.id, {
-            page, limit, type, status
+            page, limit, type, status, narrative_status, is_active
         });
         return ResponseUtil.success(res, result, req.__('manager.get_media_success'));
     } catch (error) {
@@ -99,6 +100,48 @@ exports.updateMediaStatus = async (req, res) => {
         }
         if (error.message === 'Rejection reason required') {
             return ResponseUtil.badRequest(res, req.__('manager.rejection_reason_required'));
+        }
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
+
+/**
+ * Manager: Update Narrative Status (Approve/Reject narrative only)
+ * PATCH /api/manager/content/media/:id/narrative-status
+ */
+exports.updateNarrativeStatus = async (req, res) => {
+    try {
+        const { narrative_status, narrative_rejection_reason } = req.body;
+        const result = await ManagerContentService.updateNarrativeStatus(
+            req.user.id,
+            req.params.id,
+            narrative_status,
+            narrative_rejection_reason
+        );
+
+        const message = narrative_status === 'approved'
+            ? req.__('manager.narrative_approved')
+            : req.__('manager.narrative_rejected');
+
+        return ResponseUtil.success(res, result, message);
+    } catch (error) {
+        if (error.message === 'Unauthorized') {
+            return ResponseUtil.forbidden(res, req.__('auth.forbidden'));
+        }
+        if (error.message === 'Manager has no site') {
+            return ResponseUtil.badRequest(res, req.__('manager.no_site'));
+        }
+        if (error.message === 'Invalid narrative status') {
+            return ResponseUtil.badRequest(res, req.__('manager.invalid_narrative_status'));
+        }
+        if (error.message === 'Media not found') {
+            return ResponseUtil.notFound(res, req.__('manager.media_not_found'));
+        }
+        if (error.message === 'No narrative to review') {
+            return ResponseUtil.badRequest(res, req.__('manager.no_narrative'));
+        }
+        if (error.message === 'Narrative rejection reason required') {
+            return ResponseUtil.badRequest(res, req.__('manager.narrative_rejection_reason_required'));
         }
         return ResponseUtil.error(res, req.__('error.server_error'));
     }
@@ -438,6 +481,64 @@ exports.toggleNearbyPlaceActive = async (req, res) => {
         }
         if (error.message === 'Only approved nearby place can be toggled') {
             return ResponseUtil.badRequest(res, req.__('manager.only_approved_nearby_place_toggle'));
+        }
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
+
+// ===================== NARRATIVE (3D MODEL AUDIO) =====================
+// Note: Manager can only view and approve narratives created by Local Guides.
+// Manager cannot create/update narratives or access voice list.
+
+/**
+ * Manager: Update narrative status (approve/reject)
+ * PATCH /api/manager/content/media/:id/narrative-status
+ */
+exports.updateNarrativeStatus = async (req, res) => {
+    try {
+        const { status, rejection_reason } = req.body;
+
+        if (!status || !['approved', 'rejected'].includes(status)) {
+            return ResponseUtil.badRequest(res, req.__('manager.invalid_status'));
+        }
+
+        if (status === 'rejected' && !rejection_reason) {
+            return ResponseUtil.badRequest(res, req.__('manager.rejection_reason_required'));
+        }
+
+        const result = await ManagerContentService.updateNarrativeStatus(
+            req.user.id,
+            req.params.id,
+            status,
+            rejection_reason
+        );
+
+        const message = status === 'approved'
+            ? req.__('narrative.approved_success')
+            : req.__('narrative.rejected_success');
+
+        return ResponseUtil.success(res, result, message);
+    } catch (error) {
+        if (error.message === 'Unauthorized') {
+            return ResponseUtil.forbidden(res, req.__('auth.forbidden'));
+        }
+        if (error.message === 'Manager has no site') {
+            return ResponseUtil.badRequest(res, req.__('manager.no_site'));
+        }
+        if (error.message === 'Media not found') {
+            return ResponseUtil.notFound(res, req.__('local_guide.media_not_found'));
+        }
+        if (error.message === 'Not a 3D model') {
+            return ResponseUtil.badRequest(res, req.__('narrative.only_3d_model'));
+        }
+        if (error.message === 'Narrative not pending') {
+            return ResponseUtil.badRequest(res, req.__('narrative.not_pending'));
+        }
+        if (error.message === 'No narrative to review') {
+            return ResponseUtil.badRequest(res, req.__('narrative.no_narrative'));
+        }
+        if (error.message === 'Narrative rejection reason required') {
+            return ResponseUtil.badRequest(res, req.__('manager.rejection_reason_required'));
         }
         return ResponseUtil.error(res, req.__('error.server_error'));
     }

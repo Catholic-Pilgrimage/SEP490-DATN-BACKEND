@@ -119,7 +119,7 @@ class LocalGuideMediaService {
                 created_by: userId
             };
 
-            if (filters.type && ['image', 'video'].includes(filters.type)) {
+            if (filters.type && ['image', 'video', 'model_3d'].includes(filters.type)) {
                 where.type = filters.type;
             }
 
@@ -127,6 +127,14 @@ class LocalGuideMediaService {
                 where.status = filters.status;
             }
 
+            // Filter by narrative_status (for 3D models with narratives)
+            if (filters.narrative_status) {
+                if (filters.narrative_status === 'null') {
+                    where.narrative_status = null;
+                } else if (['pending', 'approved', 'rejected'].includes(filters.narrative_status)) {
+                    where.narrative_status = filters.narrative_status;
+                }
+            }
 
             if (filters.is_active !== undefined) {
                 where.is_active = filters.is_active === 'true' || filters.is_active === true;

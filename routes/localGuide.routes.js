@@ -3,7 +3,7 @@ const router = express.Router();
 const LocalGuideController = require('../controllers/localGuide');
 const authMiddleware = require('../middlewares/auth.middleware');
 const i18nMiddleware = require('../middlewares/i18n.middleware');
-const { uploadMedia } = require('../config/cloudinary.config');
+const { uploadMedia, uploadNarrativeAudio } = require('../config/cloudinary.config');
 const LocalGuideValidator = require('../validators/localGuide.validator');
 const { handleValidationErrors } = require('../utils/validation.util');
 
@@ -26,6 +26,14 @@ router.post(
     LocalGuideValidator.uploadMedia,
     handleValidationErrors,
     LocalGuideController.uploadMedia
+);
+
+// GET - Get available TTS voices
+router.get(
+    '/media/voices',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    LocalGuideController.getVoices
 );
 
 // GET  - List site media
@@ -66,6 +74,23 @@ router.put(
     LocalGuideValidator.updateMedia,
     handleValidationErrors,
     LocalGuideController.updateMedia
+);
+
+// PUT - Update narrative for 3D Model (audio or text-to-speech)
+router.put(
+    '/media/:id/narrative',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    uploadNarrativeAudio.single('audio_file'),
+    LocalGuideController.updateNarrative
+);
+
+// DELETE - Delete narrative for 3D Model
+router.delete(
+    '/media/:id/narrative',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    LocalGuideController.deleteNarrative
 );
 
 // ========================

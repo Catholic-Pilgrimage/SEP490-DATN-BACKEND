@@ -26,7 +26,7 @@ router.get(
     ManagerContentController.getMedia
 );
 
-// PATCH - Approve/Reject
+// PATCH - Approve/Reject media (including narrative)
 router.patch(
     '/media/:id/status',
     authMiddleware,
@@ -40,6 +40,14 @@ router.patch(
     authMiddleware,
     authMiddleware.authorize('manager'),
     ManagerContentController.toggleMediaActive
+);
+
+// PATCH - Approve/Reject narrative for 3D model
+router.patch(
+    '/media/:id/narrative-status',
+    authMiddleware,
+    authMiddleware.authorize('manager'),
+    ManagerContentController.updateNarrativeStatus
 );
 
 // ===================== SCHEDULES =====================

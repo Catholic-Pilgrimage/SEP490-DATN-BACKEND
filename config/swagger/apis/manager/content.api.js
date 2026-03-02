@@ -95,6 +95,12 @@
  *         schema:
  *           type: boolean
  *         description: Lọc theo trạng thái active (true = đang hoạt động, false = đã xóa)
+ *       - in: query
+ *         name: narrative_status
+ *         schema:
+ *           type: string
+ *           enum: [pending, approved, rejected]
+ *         description: Lọc theo trạng thái duyệt thuyết minh
  *     responses:
  *       200:
  *         description: Thành công
@@ -293,6 +299,23 @@
  *         is_active:
  *           type: boolean
  *           description: Trạng thái active (false = đã ẩn)
+ *         audio_url:
+ *           type: string
+ *           nullable: true
+ *           description: URL audio thuyết minh (Cloudinary). Null nếu chưa có
+ *         narration_text:
+ *           type: string
+ *           nullable: true
+ *           description: Văn bản thuyết minh gốc (dùng cho TTS)
+ *         narrative_status:
+ *           type: string
+ *           nullable: true
+ *           enum: [pending, approved, rejected]
+ *           description: "Trạng thái duyệt thuyết minh: null (chưa có), pending, approved, rejected"
+ *         narrative_rejection_reason:
+ *           type: string
+ *           nullable: true
+ *           description: Lý do từ chối thuyết minh
  *         created_by:
  *           type: string
  *           format: uuid

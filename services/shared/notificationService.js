@@ -80,6 +80,14 @@ const NOTIFICATION_TEMPLATES = {
         title: 'Địa điểm lân cận bị từ chối',
         message: 'Địa điểm "{{placeName}}" đã bị từ chối: {{reason}}'
     },
+    narrative_approved: {
+        title: 'Thuyết minh được duyệt',
+        message: 'Thuyết minh âm thanh tại {{siteName}} đã được Manager duyệt'
+    },
+    narrative_rejected: {
+        title: 'Thuyết minh bị từ chối',
+        message: 'Thuyết minh đã bị từ chối: {{reason}}'
+    },
 
     // Favorite site update
     favorite_site_update: {
@@ -604,7 +612,7 @@ class NotificationService {
             }
         } catch (error) {
             Logger.error('Notify favorite site users error:', error);
-           
+
         }
     }
 }

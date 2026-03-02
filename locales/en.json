@@ -426,5 +426,23 @@
     "already_processed": "Report has already been processed",
     "only_own_report": "You can only delete your own reports",
     "cannot_delete_processed": "Cannot delete processed reports"
+  },
+  "narrative": {
+    "update_success": "Narrative updated successfully",
+    "text_or_audio_required": "Please provide either narration text or an audio file",
+    "only_3d_model": "Narrative can only be added to 3D models",
+    "text_too_short": "Narration text must have at least 3 characters",
+    "text_too_long": "Narration text must not exceed 5000 characters",
+    "tts_not_configured": "Text-to-Speech service is not configured",
+    "tts_error": "Text-to-Speech generation failed. Please try again or upload audio file directly",
+    "get_voices_success": "Get available voices successfully",
+    "approved_success": "Narrative approved successfully",
+    "rejected_success": "Narrative rejected successfully",
+    "not_pending": "Narrative is not pending review",
+    "no_narrative": "No narrative to review. Audio must be uploaded first",
+    "cannot_edit_approved": "Cannot edit approved narrative. Please contact Manager if changes are needed",
+    "cannot_delete_approved": "Cannot delete approved narrative. Please contact Manager if you need to remove it",
+    "no_narrative_to_delete": "No narrative to delete",
+    "delete_success": "Narrative deleted successfully"
   }
 }

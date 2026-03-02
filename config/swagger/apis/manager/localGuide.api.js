@@ -1,7 +1,7 @@
 /**
  * @swagger
  * tags:
- *   name: Manager Local Guides
+ *   name: Manager - Local Guides
  *   description: API quản lý Local Guide (Manager only)
  */
 

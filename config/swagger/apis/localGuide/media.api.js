@@ -73,7 +73,7 @@
  *         name: type
  *         schema:
  *           type: string
- *           enum: [image, video]
+ *           enum: [image, video, model_3d]
  *         description: Lọc theo loại media
  *       - in: query
  *         name: status
@@ -86,6 +86,12 @@
  *         schema:
  *           type: boolean
  *         description: Lọc theo trạng thái active (true = đang hoạt động, false = đã xóa)
+ *       - in: query
+ *         name: narrative_status
+ *         schema:
+ *           type: string
+ *           enum: [pending, approved, rejected]
+ *         description: Lọc theo trạng thái duyệt thuyết minh
  *     responses:
  *       200:
  *         description: Lấy danh sách thành công

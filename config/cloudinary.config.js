@@ -96,6 +96,20 @@ const uploadJournalVideo = multer({
     limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit for video
 });
 
+// Narrative audio storage (for 3D Model voiceover - uses memory storage for FPT AI pipeline)
+const uploadNarrativeAudio = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+    fileFilter: (req, file, cb) => {
+        const allowedMimes = ['audio/mpeg', 'audio/wav', 'audio/mp3', 'audio/x-wav', 'audio/mp4', 'audio/aac', 'audio/ogg'];
+        if (allowedMimes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Invalid audio format. Allowed: mp3, wav, m4a, aac, ogg'), false);
+        }
+    }
+});
+
 module.exports = {
     cloudinary,
     upload,
@@ -103,5 +117,6 @@ module.exports = {
     uploadMedia,
     uploadJournalImages,
     uploadJournalAudio,
-    uploadJournalVideo
+    uploadJournalVideo,
+    uploadNarrativeAudio
 };

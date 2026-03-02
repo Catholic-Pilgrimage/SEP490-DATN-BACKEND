@@ -51,12 +51,13 @@ exports.uploadMedia = async (req, res) => {
 /**
  * Local Guide: Get Site Media with filter & pagination
  * GET /api/local-guide/media
+ * Query params: page, limit, type, status, narrative_status, is_active
  */
 exports.getSiteMedia = async (req, res) => {
     try {
-        const { page, limit, type, status } = req.query;
+        const { page, limit, type, status, narrative_status, is_active } = req.query;
         const result = await LocalGuideService.getSiteMedia(req.user.id, {
-            page, limit, type, status
+            page, limit, type, status, narrative_status, is_active
         });
         return ResponseUtil.success(res, result, req.__('local_guide.get_media_success'));
     } catch (error) {
