@@ -1,7 +1,6 @@
 const { Planner, PlannerItem, User, Site, PlannerInvite, PlannerMember } = require('../models');
 const { Op } = require('sequelize');
 const Logger = require('../utils/logger.util');
-const OSRMUtil = require('../utils/osrm.util');
 const sequelize = require('../config/database');
 const crypto = require('crypto');
 const EmailService = require('./shared/emailService');
@@ -375,51 +374,7 @@ class PlannerService {
                 throw new Error('Cannot add the same site consecutively. Please add a different site or move to the next day.');
             }
 
-            // If there's a previous site, get travel time from Vietmap
-            if (previousItem && previousItem.site) {
-                const prevSite = previousItem.site;
-
-                // Validate: both sites must have coordinates
-                if (!prevSite.latitude || !prevSite.longitude) {
-                    throw new Error(`Site "${prevSite.name}" is missing coordinates (latitude/longitude). Cannot calculate travel time.`);
-                }
-                if (!site.latitude || !site.longitude) {
-                    throw new Error(`Site "${site.name}" is missing coordinates (latitude/longitude). Cannot calculate travel time.`);
-                }
-
-                // Map transportation to VietMap vehicle type
-                let vehicle = 'bike'; // default
-                if (planner.transportation) {
-                    const lowerTransport = planner.transportation.toLowerCase();
-                    if (lowerTransport.includes('car') || lowerTransport === 'car') {
-                        vehicle = 'car';
-                    } else if (lowerTransport.includes('bus')) {
-                        vehicle = 'car'; // bus uses car routing
-                    } else if (lowerTransport.includes('motorbike')) {
-                        vehicle = 'bike';
-                    }
-                }
-
-                // Get route info from Vietmap (only for travel time)
-                const routeInfo = await OSRMUtil.getRouteInfo(
-                    { lat: parseFloat(prevSite.latitude), lng: parseFloat(prevSite.longitude) },
-                    { lat: parseFloat(site.latitude), lng: parseFloat(site.longitude) },
-                    vehicle
-                );
-
-                if (!routeInfo || !routeInfo.duration) {
-                    Logger.error(`VietMap API failed to calculate route from "${prevSite.name}" to "${site.name}"`);
-                    throw new Error(`Cannot calculate travel time from "${prevSite.name}" to "${site.name}". Please try again later.`);
-                }
-
-                travelTimeMinutes = Math.ceil(routeInfo.duration / 60); // Convert seconds to minutes
-                Logger.info(`Travel time from previous site: ${travelTimeMinutes} minutes`);
-
-                // Validation 1: Travel time should not exceed 24 hours
-                if (travelTimeMinutes > 1440) { // 1440 minutes = 24 hours
-                    throw new Error(`Travel time between sites is too long (${Math.floor(travelTimeMinutes / 60)} hours). Maximum allowed is 24 hours.`);
-                }
-            }
+            // Note: Travel time calculation is handled by mobile app
 
             // Auto-calculate estimated_time based on previous item
             // User can only set estimated_time for the FIRST item in a day
@@ -604,45 +559,12 @@ class PlannerService {
             });
 
             // Recalculate times for each item (except first)
+            // Note: Travel time calculation is handled by mobile app, using 0 for backend calculation
             for (let i = 1; i < itemsWithSites.length; i++) {
                 const currentItem = itemsWithSites[i];
                 const previousItem = itemsWithSites[i - 1];
 
-                let travelTimeMinutes = 0;
-
-                // Validate: both sites must have coordinates
-                if (!previousItem.site || !previousItem.site.latitude || !previousItem.site.longitude) {
-                    throw new Error(`Site "${previousItem.site?.name || 'Unknown'}" is missing coordinates (latitude/longitude). Cannot calculate travel time.`);
-                }
-                if (!currentItem.site || !currentItem.site.latitude || !currentItem.site.longitude) {
-                    throw new Error(`Site "${currentItem.site?.name || 'Unknown'}" is missing coordinates (latitude/longitude). Cannot calculate travel time.`);
-                }
-
-                // Map transportation to VietMap vehicle type
-                let vehicle = 'bike';
-                if (planner.transportation) {
-                    const lowerTransport = planner.transportation.toLowerCase();
-                    if (lowerTransport.includes('car') || lowerTransport === 'car') {
-                        vehicle = 'car';
-                    } else if (lowerTransport.includes('bus')) {
-                        vehicle = 'car';
-                    } else if (lowerTransport.includes('motorbike')) {
-                        vehicle = 'bike';
-                    }
-                }
-
-                const routeInfo = await OSRMUtil.getRouteInfo(
-                    { lat: parseFloat(previousItem.site.latitude), lng: parseFloat(previousItem.site.longitude) },
-                    { lat: parseFloat(currentItem.site.latitude), lng: parseFloat(currentItem.site.longitude) },
-                    vehicle
-                );
-
-                if (!routeInfo || !routeInfo.duration) {
-                    Logger.error(`VietMap API failed to calculate route from "${previousItem.site.name}" to "${currentItem.site.name}"`);
-                    throw new Error(`Cannot calculate travel time from "${previousItem.site.name}" to "${currentItem.site.name}". Please try again later.`);
-                }
-
-                travelTimeMinutes = Math.ceil(routeInfo.duration / 60);
+                let travelTimeMinutes = 0; // Travel time handled by mobile
 
                 // Calculate new estimated time
                 const newEstimatedTime = calculateEstimatedTime(previousItem, travelTimeMinutes, '09:00');
@@ -742,6 +664,126 @@ class PlannerService {
         } catch (error) {
             await transaction.rollback();
             Logger.error('Delete planner item error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Update planner item (estimated_time, rest_duration, note)
+     */
+    static async updatePlannerItem(plannerId, userId, itemId, updateData) {
+        const transaction = await sequelize.transaction();
+
+        try {
+            // Check planner exists and user is owner
+            const planner = await Planner.findByPk(plannerId);
+            if (!planner) {
+                throw new Error('Planner not found');
+            }
+
+            if (userId && planner.user_id !== userId) {
+                throw new Error('Forbidden');
+            }
+
+            // Get item
+            const item = await PlannerItem.findByPk(itemId, {
+                include: [{ model: Site, as: 'site' }],
+                transaction
+            });
+
+            if (!item) {
+                throw new Error('Item not found');
+            }
+
+            if (item.planner_id !== plannerId) {
+                throw new Error('Item does not belong to this planner');
+            }
+
+            const dataToUpdate = {};
+
+            // Update note
+            if (updateData.note !== undefined) {
+                dataToUpdate.note = updateData.note;
+            }
+
+            // Update rest_duration
+            if (updateData.rest_duration !== undefined) {
+                dataToUpdate.rest_duration = updateData.rest_duration;
+            }
+
+            // Update estimated_time (only for first item in day)
+            if (updateData.estimated_time !== undefined) {
+                // Check if this is the first item in the day
+                const firstItem = await PlannerItem.findOne({
+                    where: {
+                        planner_id: plannerId,
+                        day_number: item.day_number
+                    },
+                    order: [['order_index', 'ASC']],
+                    transaction
+                });
+
+                if (firstItem.id !== itemId) {
+                    throw new Error('Can only update estimated_time for the first item of the day');
+                }
+
+                // Validate opening hours
+                if (item.site && item.site.opening_hours && planner.start_date) {
+                    const startDate = new Date(planner.start_date);
+                    const actualDate = new Date(startDate);
+                    actualDate.setDate(startDate.getDate() + (item.day_number - 1));
+
+                    const openingCheck = isWithinOpeningHours(updateData.estimated_time, item.site.opening_hours, actualDate);
+                    if (!openingCheck.isOpen) {
+                        throw new Error(openingCheck.message);
+                    }
+                }
+
+                dataToUpdate.estimated_time = updateData.estimated_time;
+            }
+
+            // Update item
+            await item.update(dataToUpdate, { transaction });
+
+            // Recalculate estimated_time for subsequent items if rest_duration or estimated_time changed
+            if (updateData.rest_duration !== undefined || updateData.estimated_time !== undefined) {
+                const subsequentItems = await PlannerItem.findAll({
+                    where: {
+                        planner_id: plannerId,
+                        day_number: item.day_number,
+                        order_index: { [Op.gt]: item.order_index }
+                    },
+                    include: [{ model: Site, as: 'site' }],
+                    order: [['order_index', 'ASC']],
+                    transaction
+                });
+
+                let previousItem = await PlannerItem.findByPk(itemId, { transaction });
+
+                for (const nextItem of subsequentItems) {
+                    const newEstimatedTime = calculateEstimatedTime(previousItem, 0, '09:00');
+                    await nextItem.update({ estimated_time: newEstimatedTime }, { transaction });
+                    previousItem = nextItem;
+                }
+            }
+
+            await transaction.commit();
+
+            // Fetch updated item
+            const result = await PlannerItem.findByPk(itemId, {
+                include: [
+                    { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image'] }
+                ]
+            });
+
+            Logger.info(`Item ${itemId} updated in planner ${plannerId} by user ${userId}`);
+
+            return this.formatPlannerItemResponse(result);
+        } catch (error) {
+            if (transaction && !transaction.finished) {
+                await transaction.rollback();
+            }
+            Logger.error('Update planner item error:', error);
             throw error;
         }
     }

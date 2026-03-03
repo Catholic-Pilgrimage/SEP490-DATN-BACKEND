@@ -283,6 +283,8 @@
     "dates_overlap": "Bạn đã có lịch trình vào những ngày này: {{dates}}",
     "item_add_success": "Thêm điểm thành công",
     "item_add_success_with_warning": "Thêm điểm thành công (có cảnh báo)",
+    "item_update_success": "Cập nhật điểm thành công",
+    "only_first_item_estimated_time": "Chỉ có thể cập nhật giờ dự kiến cho điểm đầu tiên trong ngày",
     "item_delete_success": "Xóa điểm thành công",
     "item_not_found": "Không tìm thấy điểm",
     "item_not_belong": "Điểm không thuộc kế hoạch này",

@@ -352,6 +352,72 @@ router.delete(
     PlannerController.deletePlannerItem
 );
 
+/**
+ * @swagger
+ * /api/planners/{id}/items/{itemId}:
+ *   put:
+ *     summary: Cập nhật một điểm trong kế hoạch
+ *     description: Cập nhật giờ dự kiến, thời gian nghỉ, ghi chú của một địa điểm. Lưu ý - estimated_time chỉ có thể cập nhật cho điểm đầu tiên trong ngày.
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Planner ID
+ *       - in: path
+ *         name: itemId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Item ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               estimated_time:
+ *                 type: string
+ *                 description: Giờ dự kiến đến (chỉ cho điểm đầu tiên trong ngày)
+ *                 example: "09:30"
+ *               rest_duration:
+ *                 type: string
+ *                 description: Thời gian nghỉ ngơi tại địa điểm (tối thiểu 1 tiếng)
+ *                 example: "2 hours"
+ *               note:
+ *                 type: string
+ *                 description: Ghi chú
+ *                 example: "Nhớ mang theo ô"
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PlannerItem'
+ *       400:
+ *         description: Lỗi xác thực hoặc không thể cập nhật estimated_time cho điểm không phải đầu tiên
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - not the owner
+ *       404:
+ *         description: Planner or item not found
+ */
+router.put(
+    '/:id/items/:itemId',
+    authenticate,
+    PlannerValidator.updatePlannerItem,
+    PlannerController.updatePlannerItem
+);
+
 // ============================================
 // SHARE TOKEN MANAGEMENT ROUTES (Owner only)
 // ============================================

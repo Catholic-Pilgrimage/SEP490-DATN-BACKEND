@@ -169,6 +169,42 @@ class PlannerValidator {
             .isUUID().withMessage('Item ID không hợp lệ')
     ];
 
+    // Validate update planner item
+    static updatePlannerItem = [
+        param('id')
+            .isUUID().withMessage('Planner ID không hợp lệ'),
+
+        param('itemId')
+            .isUUID().withMessage('Item ID không hợp lệ'),
+
+        body('estimated_time')
+            .optional()
+            .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).withMessage('Giờ dự kiến phải có định dạng HH:MM (ví dụ: 09:00, 14:30)'),
+
+        body('rest_duration')
+            .optional()
+            .isString().withMessage('Thời gian nghỉ phải là chuỗi')
+            .matches(/^\d+\s+(hour|hours|minute|minutes|min|mins)$/i).withMessage('Thời gian nghỉ phải có định dạng như: "1 hour", "30 minutes", "2 hours"')
+            .trim()
+            .custom((value) => {
+                const match = value.match(/^(\d+)\s+(hour|hours|minute|minutes|min|mins)$/i);
+                if (match) {
+                    const num = parseInt(match[1]);
+                    const unit = match[2].toLowerCase();
+                    let totalMinutes = unit.startsWith('hour') ? num * 60 : num;
+                    if (totalMinutes < 60) {
+                        throw new Error('Thời gian nghỉ ngơi tại địa điểm phải tối thiểu 1 tiếng');
+                    }
+                }
+                return true;
+            }),
+
+        body('note')
+            .optional()
+            .isString().withMessage('Ghi chú phải là chuỗi')
+            .trim()
+    ];
+
     // Validate get planners query
     static getUserPlanners = [
         query('page')
