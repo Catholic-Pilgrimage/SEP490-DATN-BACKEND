@@ -122,6 +122,21 @@ exports.deleteAllNotifications = async (req, res) => {
 };
 
 /**
+ * Delete all read notifications
+ */
+exports.deleteReadNotifications = async (req, res) => {
+    try {
+        console.log('[DEBUG] Delete read notifications for user:', req.user.id);
+        const result = await NotificationService.deleteReadNotifications(req.user.id);
+        console.log('[DEBUG] Delete read result:', result);
+        return ResponseUtil.success(res, result, req.__('notification.delete_success'));
+    } catch (error) {
+        console.error('[ERROR] Delete read notifications error:', error);
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
+
+/**
  * TEST ONLY: Send test notification
  */
 exports.sendTestNotification = async (req, res) => {

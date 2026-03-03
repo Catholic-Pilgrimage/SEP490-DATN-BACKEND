@@ -401,6 +401,25 @@ class NotificationService {
     }
 
     /**
+     * Delete all read notifications for a user
+     */
+    static async deleteReadNotifications(userId) {
+        try {
+            const deletedCount = await Notification.destroy({
+                where: { 
+                    receiver_id: userId,
+                    is_read: true
+                }
+            });
+            Logger.info(`Deleted ${deletedCount} read notifications for user ${userId}`);
+            return { deleted: deletedCount };
+        } catch (error) {
+            Logger.error('Delete read notifications error:', error);
+            throw error;
+        }
+    }
+
+    /**
      * TEST ONLY: Send test notification
      */
     static async sendTestNotification(userId, type, customData = {}) {
