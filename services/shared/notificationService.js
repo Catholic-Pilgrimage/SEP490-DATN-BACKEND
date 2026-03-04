@@ -7,148 +7,334 @@ const { emitNotification } = require('../../websockets/socket');
 // Create Expo SDK client
 const expo = new Expo();
 
-// Notification title/message templates
+// Notification title/message templates (multilingual)
 const NOTIFICATION_TEMPLATES = {
     // LocalGuide notifications
     local_guide_created: {
-        title: 'Chào mừng bạn đến với đội ngũ!',
-        message: 'Bạn đã được thêm làm Hướng dẫn viên tại {{siteName}}'
+        vi: {
+            title: 'Chào mừng bạn đến với đội ngũ!',
+            message: 'Bạn đã được thêm làm Hướng dẫn viên tại {{siteName}}'
+        },
+        en: {
+            title: 'Welcome to the team!',
+            message: 'You have been added as a Local Guide at {{siteName}}'
+        }
     },
     local_guide_disabled: {
-        title: 'Tài khoản bị tạm khóa',
-        message: 'Tài khoản hướng dẫn viên của bạn đã bị tạm khóa'
+        vi: {
+            title: 'Tài khoản bị tạm khóa',
+            message: 'Tài khoản hướng dẫn viên của bạn đã bị tạm khóa'
+        },
+        en: {
+            title: 'Account suspended',
+            message: 'Your local guide account has been suspended'
+        }
     },
     local_guide_removed: {
-        title: 'Tài khoản bị xóa',
-        message: 'Bạn đã bị xóa khỏi đội ngũ hướng dẫn viên tại {{siteName}}'
+        vi: {
+            title: 'Tài khoản bị xóa',
+            message: 'Bạn đã bị xóa khỏi đội ngũ hướng dẫn viên tại {{siteName}}'
+        },
+        en: {
+            title: 'Account removed',
+            message: 'You have been removed from the local guide team at {{siteName}}'
+        }
     },
 
     // Shift notifications
     shift_assigned: {
-        title: 'Lịch trực được duyệt',
-        message: 'Lịch trực tuần {{weekStart}} đã được Manager duyệt'
+        vi: {
+            title: 'Lịch trực được duyệt',
+            message: 'Lịch trực tuần {{weekStart}} đã được Manager duyệt'
+        },
+        en: {
+            title: 'Shift approved',
+            message: 'Your shift for week {{weekStart}} has been approved by Manager'
+        }
     },
     shift_rejected: {
-        title: 'Lịch trực bị từ chối',
-        message: 'Lịch trực tuần {{weekStart}} đã bị từ chối: {{reason}}'
+        vi: {
+            title: 'Lịch trực bị từ chối',
+            message: 'Lịch trực tuần {{weekStart}} đã bị từ chối: {{reason}}'
+        },
+        en: {
+            title: 'Shift rejected',
+            message: 'Your shift for week {{weekStart}} was rejected: {{reason}}'
+        }
     },
 
     // Site notifications (for Manager)
     site_approved: {
-        title: 'Địa điểm được phê duyệt',
-        message: 'Địa điểm {{siteName}} đã được Admin phê duyệt'
+        vi: {
+            title: 'Địa điểm được phê duyệt',
+            message: 'Địa điểm {{siteName}} đã được Admin phê duyệt'
+        },
+        en: {
+            title: 'Site approved',
+            message: 'Site {{siteName}} has been approved by Admin'
+        }
     },
     site_rejected: {
-        title: 'Địa điểm bị từ chối',
-        message: 'Đơn đăng ký quản lý {{siteName}} đã bị từ chối: {{reason}}'
+        vi: {
+            title: 'Địa điểm bị từ chối',
+            message: 'Đơn đăng ký quản lý {{siteName}} đã bị từ chối: {{reason}}'
+        },
+        en: {
+            title: 'Site rejected',
+            message: 'Your application to manage {{siteName}} was rejected: {{reason}}'
+        }
     },
     site_hidden: {
-        title: 'Địa điểm bị ẩn',
-        message: 'Địa điểm {{siteName}} đã bị Admin ẩn khỏi hệ thống'
+        vi: {
+            title: 'Địa điểm bị ẩn',
+            message: 'Địa điểm {{siteName}} đã bị Admin ẩn khỏi hệ thống'
+        },
+        en: {
+            title: 'Site hidden',
+            message: 'Site {{siteName}} has been hidden by Admin'
+        }
     },
 
     // Content approval notifications
     media_approved: {
-        title: 'Media được duyệt',
-        message: 'Media của bạn tại {{siteName}} đã được duyệt'
+        vi: {
+            title: 'Media được duyệt',
+            message: 'Media của bạn tại {{siteName}} đã được duyệt'
+        },
+        en: {
+            title: 'Media approved',
+            message: 'Your media at {{siteName}} has been approved'
+        }
     },
     media_rejected: {
-        title: 'Media bị từ chối',
-        message: 'Media của bạn đã bị từ chối: {{reason}}'
+        vi: {
+            title: 'Media bị từ chối',
+            message: 'Media của bạn đã bị từ chối: {{reason}}'
+        },
+        en: {
+            title: 'Media rejected',
+            message: 'Your media was rejected: {{reason}}'
+        }
     },
     event_approved: {
-        title: 'Sự kiện được duyệt',
-        message: 'Sự kiện "{{eventName}}" đã được duyệt'
+        vi: {
+            title: 'Sự kiện được duyệt',
+            message: 'Sự kiện "{{eventName}}" đã được duyệt'
+        },
+        en: {
+            title: 'Event approved',
+            message: 'Event "{{eventName}}" has been approved'
+        }
     },
     event_rejected: {
-        title: 'Sự kiện bị từ chối',
-        message: 'Sự kiện "{{eventName}}" đã bị từ chối: {{reason}}'
+        vi: {
+            title: 'Sự kiện bị từ chối',
+            message: 'Sự kiện "{{eventName}}" đã bị từ chối: {{reason}}'
+        },
+        en: {
+            title: 'Event rejected',
+            message: 'Event "{{eventName}}" was rejected: {{reason}}'
+        }
     },
     schedule_approved: {
-        title: 'Lịch lễ được duyệt',
-        message: 'Lịch lễ mới tại {{siteName}} đã được duyệt'
+        vi: {
+            title: 'Lịch lễ được duyệt',
+            message: 'Lịch lễ mới tại {{siteName}} đã được duyệt'
+        },
+        en: {
+            title: 'Schedule approved',
+            message: 'New mass schedule at {{siteName}} has been approved'
+        }
     },
     schedule_rejected: {
-        title: 'Lịch lễ bị từ chối',
-        message: 'Lịch lễ đã bị từ chối: {{reason}}'
+        vi: {
+            title: 'Lịch lễ bị từ chối',
+            message: 'Lịch lễ đã bị từ chối: {{reason}}'
+        },
+        en: {
+            title: 'Schedule rejected',
+            message: 'Mass schedule was rejected: {{reason}}'
+        }
     },
     nearby_place_approved: {
-        title: 'Địa điểm lân cận được duyệt',
-        message: 'Địa điểm "{{placeName}}" tại {{siteName}} đã được duyệt'
+        vi: {
+            title: 'Địa điểm lân cận được duyệt',
+            message: 'Địa điểm "{{placeName}}" tại {{siteName}} đã được duyệt'
+        },
+        en: {
+            title: 'Nearby place approved',
+            message: 'Place "{{placeName}}" at {{siteName}} has been approved'
+        }
     },
     nearby_place_rejected: {
-        title: 'Địa điểm lân cận bị từ chối',
-        message: 'Địa điểm "{{placeName}}" đã bị từ chối: {{reason}}'
+        vi: {
+            title: 'Địa điểm lân cận bị từ chối',
+            message: 'Địa điểm "{{placeName}}" đã bị từ chối: {{reason}}'
+        },
+        en: {
+            title: 'Nearby place rejected',
+            message: 'Place "{{placeName}}" was rejected: {{reason}}'
+        }
     },
     narrative_approved: {
-        title: 'Thuyết minh được duyệt',
-        message: 'Thuyết minh âm thanh tại {{siteName}} đã được Manager duyệt'
+        vi: {
+            title: 'Thuyết minh được duyệt',
+            message: 'Thuyết minh âm thanh tại {{siteName}} đã được Manager duyệt'
+        },
+        en: {
+            title: 'Narrative approved',
+            message: 'Audio narrative at {{siteName}} has been approved by Manager'
+        }
     },
     narrative_rejected: {
-        title: 'Thuyết minh bị từ chối',
-        message: 'Thuyết minh đã bị từ chối: {{reason}}'
+        vi: {
+            title: 'Thuyết minh bị từ chối',
+            message: 'Thuyết minh đã bị từ chối: {{reason}}'
+        },
+        en: {
+            title: 'Narrative rejected',
+            message: 'Narrative was rejected: {{reason}}'
+        }
     },
 
     // Favorite site update
     favorite_site_update: {
-        title: 'Cập nhật từ {{siteName}}',
-        message: '{{siteName}} có {{updateType}} mới'
+        vi: {
+            title: 'Cập nhật từ {{siteName}}',
+            message: '{{siteName}} có {{updateType}} mới'
+        },
+        en: {
+            title: 'Update from {{siteName}}',
+            message: '{{siteName}} has new {{updateType}}'
+        }
     },
 
     // Planner notifications
     planner_invite: {
-        title: 'Lời mời tham gia kế hoạch',
-        message: '{{inviterName}} đã mời bạn tham gia kế hoạch "{{plannerName}}"'
+        vi: {
+            title: 'Lời mời tham gia kế hoạch',
+            message: '{{inviterName}} đã mời bạn tham gia kế hoạch "{{plannerName}}"'
+        },
+        en: {
+            title: 'Planner invitation',
+            message: '{{inviterName}} invited you to join planner "{{plannerName}}"'
+        }
     },
     planner_joined: {
-        title: 'Thành viên mới',
-        message: '{{memberName}} đã tham gia kế hoạch "{{plannerName}}"'
+        vi: {
+            title: 'Thành viên mới',
+            message: '{{memberName}} đã tham gia kế hoạch "{{plannerName}}"'
+        },
+        en: {
+            title: 'New member',
+            message: '{{memberName}} joined planner "{{plannerName}}"'
+        }
     },
 
     // SOS notifications
     sos_created: {
-        title: 'SOS mới',
-        message: 'Có yêu cầu SOS mới tại {{siteName}}'
+        vi: {
+            title: 'SOS mới',
+            message: 'Có yêu cầu SOS mới tại {{siteName}}'
+        },
+        en: {
+            title: 'New SOS',
+            message: 'New SOS request at {{siteName}}'
+        }
     },
     sos_assigned: {
-        title: 'SOS được tiếp nhận',
-        message: 'Yêu cầu SOS của bạn đang được xử lý'
+        vi: {
+            title: 'SOS được tiếp nhận',
+            message: 'Yêu cầu SOS của bạn đang được xử lý'
+        },
+        en: {
+            title: 'SOS assigned',
+            message: 'Your SOS request is being handled'
+        }
     },
     sos_resolved: {
-        title: 'SOS đã giải quyết',
-        message: 'Yêu cầu SOS của bạn đã được giải quyết'
+        vi: {
+            title: 'SOS đã giải quyết',
+            message: 'Yêu cầu SOS của bạn đã được giải quyết'
+        },
+        en: {
+            title: 'SOS resolved',
+            message: 'Your SOS request has been resolved'
+        }
     },
 
     // Admin notifications
     verification_submitted: {
-        title: 'Yêu cầu xác minh mới',
-        message: '{{applicantName}} đã gửi yêu cầu xác minh tài khoản Manager'
+        vi: {
+            title: 'Yêu cầu xác minh mới',
+            message: '{{applicantName}} đã gửi yêu cầu xác minh tài khoản Manager'
+        },
+        en: {
+            title: 'New verification request',
+            message: '{{applicantName}} submitted a Manager account verification request'
+        }
     },
     site_registration_submitted: {
-        title: 'Đăng ký địa điểm mới',
-        message: '{{managerName}} đã đăng ký quản lý địa điểm "{{siteName}}"'
+        vi: {
+            title: 'Đăng ký địa điểm mới',
+            message: '{{managerName}} đã đăng ký quản lý địa điểm "{{siteName}}"'
+        },
+        en: {
+            title: 'New site registration',
+            message: '{{managerName}} registered to manage site "{{siteName}}"'
+        }
     },
 
     // Manager notifications (content submitted by LocalGuide)
     media_submitted: {
-        title: 'Media mới cần duyệt',
-        message: '{{guideName}} đã tải lên media mới'
+        vi: {
+            title: 'Media mới cần duyệt',
+            message: '{{guideName}} đã tải lên media mới'
+        },
+        en: {
+            title: 'New media for review',
+            message: '{{guideName}} uploaded new media'
+        }
     },
     event_submitted: {
-        title: 'Sự kiện mới cần duyệt',
-        message: '{{guideName}} đã tạo sự kiện "{{eventName}}"'
+        vi: {
+            title: 'Sự kiện mới cần duyệt',
+            message: '{{guideName}} đã tạo sự kiện "{{eventName}}"'
+        },
+        en: {
+            title: 'New event for review',
+            message: '{{guideName}} created event "{{eventName}}"'
+        }
     },
     schedule_submitted: {
-        title: 'Lịch lễ mới cần duyệt',
-        message: '{{guideName}} đã thêm lịch lễ mới'
+        vi: {
+            title: 'Lịch lễ mới cần duyệt',
+            message: '{{guideName}} đã thêm lịch lễ mới'
+        },
+        en: {
+            title: 'New schedule for review',
+            message: '{{guideName}} added new mass schedule'
+        }
     },
     nearby_place_submitted: {
-        title: 'Địa điểm lân cận cần duyệt',
-        message: '{{guideName}} đã đề xuất địa điểm "{{placeName}}"'
+        vi: {
+            title: 'Địa điểm lân cận cần duyệt',
+            message: '{{guideName}} đã đề xuất địa điểm "{{placeName}}"'
+        },
+        en: {
+            title: 'New nearby place for review',
+            message: '{{guideName}} suggested place "{{placeName}}"'
+        }
     },
     shift_submitted: {
-        title: 'Lịch trực mới cần duyệt',
-        message: '{{guideName}} đã gửi lịch trực tuần {{weekStart}}'
+        vi: {
+            title: 'Lịch trực mới cần duyệt',
+            message: '{{guideName}} đã gửi lịch trực tuần {{weekStart}}'
+        },
+        en: {
+            title: 'New shift for review',
+            message: '{{guideName}} submitted shift for week {{weekStart}}'
+        }
     }
 };
 
@@ -178,8 +364,17 @@ class NotificationService {
                 return null;
             }
 
-            const title = this.formatMessage(template.title, data);
-            const message = this.formatMessage(template.message, data);
+            // Get user language preference
+            const receiver = await User.findByPk(receiverId, {
+                attributes: ['language']
+            });
+            const userLanguage = receiver?.language || 'vi'; // Default to Vietnamese
+
+            // Get template in user's language
+            const localizedTemplate = template[userLanguage] || template.vi; // Fallback to Vietnamese
+
+            const title = this.formatMessage(localizedTemplate.title, data);
+            const message = this.formatMessage(localizedTemplate.message, data);
 
             // 1. Create in-app notification
             const notification = await Notification.create({
@@ -190,7 +385,7 @@ class NotificationService {
                 data
             });
 
-            Logger.info(`Notification created: ${type} for user ${receiverId}`);
+            Logger.info(`Notification created: ${type} for user ${receiverId} (lang: ${userLanguage})`);
 
             // 2. Send push notification (mobile)
             await this.sendPushNotification(receiverId, title, message, { type, ...data });
