@@ -288,9 +288,6 @@ class LocalGuideValidator {
             .optional()
             .isLength({ max: 500 }).withMessage('Địa chỉ tối đa 500 ký tự')
             .trim(),
-        body('distance_meters')
-            .optional()
-            .isInt({ min: 0 }).withMessage('Khoảng cách phải là số nguyên dương'),
         body('phone')
             .optional()
             .isLength({ max: 20 }).withMessage('Số điện thoại tối đa 20 ký tự')
@@ -321,9 +318,6 @@ class LocalGuideValidator {
             .optional()
             .isLength({ max: 500 }).withMessage('Địa chỉ tối đa 500 ký tự')
             .trim(),
-        body('distance_meters')
-            .optional()
-            .isInt({ min: 0 }).withMessage('Khoảng cách phải là số nguyên dương'),
         body('phone')
             .optional()
             .isLength({ max: 20 }).withMessage('Số điện thoại tối đa 20 ký tự')
