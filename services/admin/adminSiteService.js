@@ -472,7 +472,7 @@ class AdminSiteService {
       if (filters.status && ['pending', 'approved', 'rejected'].includes(filters.status)) {
         where.status = filters.status;
       }
-      if (filters.type && ['image', 'video', 'panorama'].includes(filters.type)) {
+      if (filters.type && ['image', 'video', 'model_3d'].includes(filters.type)) {
         where.type = filters.type;
       }
 

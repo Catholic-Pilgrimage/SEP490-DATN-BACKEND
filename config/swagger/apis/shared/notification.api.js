@@ -274,6 +274,40 @@
 
 /**
  * @swagger
+ * /api/notifications/read:
+ *   delete:
+ *     summary: Xóa tất cả thông báo đã đọc
+ *     description: Xóa tất cả thông báo có trạng thái is_read = true
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Xóa thông báo đã đọc thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Xóa thông báo thành công"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     deleted:
+ *                       type: integer
+ *                       example: 8
+ *                       description: Số lượng thông báo đã đọc đã xóa
+ *       401:
+ *         description: Chưa xác thực
+ */
+
+/**
+ * @swagger
  * /api/notifications/{id}:
  *   delete:
  *     summary: Xóa một thông báo

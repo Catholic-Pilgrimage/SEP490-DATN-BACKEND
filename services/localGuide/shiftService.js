@@ -51,12 +51,22 @@ class LocalGuideShiftService {
             throw new Error('Site not found');
         }
 
-        // Validate week_start_date is not in the past
+        // Validate week_start_date and individual shift dates
         const now = new Date(new Date().toLocaleString('en-US', { timeZone: appConfig.timezone }));
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        today.setHours(0, 0, 0, 0);
+
         const weekStart = new Date(week_start_date);
-        if (weekStart < today) {
-            throw new Error('Cannot register shifts for a past date. week_start_date must be today or in the future.');
+        weekStart.setHours(0, 0, 0, 0);
+
+        // Calculate week end date (6 days after week start - Sunday)
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        weekEnd.setHours(23, 59, 59, 999);
+
+        // Check if entire week is in the past
+        if (weekEnd < today) {
+            throw new Error('Cannot register shifts for a past week. All days in this week have passed.');
         }
 
         // Check if there's already a pending submission for this week
@@ -107,6 +117,20 @@ class LocalGuideShiftService {
             const { day_of_week, start_time, end_time } = shifts[i];
 
             try {
+                // Validate individual shift date is not in the past
+                const shiftDate = new Date(weekStart);
+                shiftDate.setDate(shiftDate.getDate() + day_of_week);
+                shiftDate.setHours(0, 0, 0, 0);
+
+                if (shiftDate < today) {
+                    errors.push({
+                        index: i,
+                        day_of_week,
+                        error: `Cannot register shift for day ${day_of_week} - this date has already passed`
+                    });
+                    continue;
+                }
+
                 const normalizedStart = normalizeTime(start_time);
                 const normalizedEnd = normalizeTime(end_time);
 
@@ -327,12 +351,22 @@ class LocalGuideShiftService {
             throw new Error('Submission not found or already approved');
         }
 
-        // Validate week_start_date is not in the past
+        // Validate week_start_date and individual shift dates
         const now = new Date(new Date().toLocaleString('en-US', { timeZone: appConfig.timezone }));
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        today.setHours(0, 0, 0, 0);
+
         const weekStart = new Date(submission.week_start_date);
-        if (weekStart < today) {
-            throw new Error('Cannot update shifts for a past date. The submission week has already passed.');
+        weekStart.setHours(0, 0, 0, 0);
+
+        // Calculate week end date
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        weekEnd.setHours(23, 59, 59, 999);
+
+        // Check if entire week is in the past
+        if (weekEnd < today) {
+            throw new Error('Cannot update shifts for a past week. All days in this week have passed.');
         }
 
         const wasRejected = submission.status === 'rejected';
@@ -342,15 +376,80 @@ class LocalGuideShiftService {
 
         const normalizeTime = (time) => time.length === 5 ? `${time}:00` : time;
         const validatedShifts = [];
+        const errors = [];
 
         for (const shift of shifts) {
+            // Validate individual shift date is not in the past
+            const shiftDate = new Date(weekStart);
+            shiftDate.setDate(shiftDate.getDate() + shift.day_of_week);
+            shiftDate.setHours(0, 0, 0, 0);
+
+            if (shiftDate < today) {
+                errors.push({
+                    day_of_week: shift.day_of_week,
+                    error: `Cannot update shift for day ${shift.day_of_week} - this date has already passed`
+                });
+                continue;
+            }
+
             const normalizedStart = normalizeTime(shift.start_time);
             const normalizedEnd = normalizeTime(shift.end_time);
+
+            // Validate duration
+            const start = new Date(`1970-01-01T${normalizedStart}`);
+            const end = new Date(`1970-01-01T${normalizedEnd}`);
+            let durationHours = (end - start) / (1000 * 60 * 60);
+            if (durationHours < 0) durationHours += 24;
+
+            if (durationHours > 12) {
+                errors.push({ day_of_week: shift.day_of_week, error: 'Shift duration cannot exceed 12 hours' });
+                continue;
+            }
+
+            if (durationHours <= 0) {
+                errors.push({ day_of_week: shift.day_of_week, error: 'Shift duration must be greater than 0' });
+                continue;
+            }
+
+        
+            if (site.opening_hours) {
+                const siteOpen = site.opening_hours.open;
+                const siteClose = site.opening_hours.close;
+                if (siteOpen && siteClose) {
+                    const normalizedSiteOpen = normalizeTime(siteOpen);
+                    const normalizedSiteClose = normalizeTime(siteClose);
+                    if (normalizedStart < normalizedSiteOpen) {
+                        errors.push({ day_of_week: shift.day_of_week, error: `Shift must start after site opening (${siteOpen})` });
+                        continue;
+                    }
+                    if (normalizedEnd > normalizedSiteClose) {
+                        errors.push({ day_of_week: shift.day_of_week, error: `Shift must end before site closing (${siteClose})` });
+                        continue;
+                    }
+                }
+            }
+
+            // Check self-overlap
+            const selfOverlap = validatedShifts.some(s =>
+                s.day_of_week === shift.day_of_week &&
+                s.start_time < normalizedEnd &&
+                s.end_time > normalizedStart
+            );
+
+            if (selfOverlap) {
+                errors.push({ day_of_week: shift.day_of_week, error: 'Shift overlaps with another shift in this request' });
+                continue;
+            }
+
             validatedShifts.push({
                 day_of_week: shift.day_of_week,
                 start_time: normalizedStart,
                 end_time: normalizedEnd
             });
+        }
+
+        if (validatedShifts.length === 0) {
+            throw new Error('No valid shifts to update. All shifts are in the past.');
         }
 
         // Delete old shifts

@@ -28,12 +28,21 @@ class ManagerContentService {
 
             const where = { site_id: user.site_id };
 
-            if (filters.type && ['image', 'video', 'panorama'].includes(filters.type)) {
+            if (filters.type && ['image', 'video', 'model_3d'].includes(filters.type)) {
                 where.type = filters.type;
             }
 
             if (filters.status && ['pending', 'approved', 'rejected'].includes(filters.status)) {
                 where.status = filters.status;
+            }
+
+            // Filter by narrative_status (for 3D models with narratives)
+            if (filters.narrative_status) {
+                if (filters.narrative_status === 'null') {
+                    where.narrative_status = null;
+                } else if (['pending', 'approved', 'rejected'].includes(filters.narrative_status)) {
+                    where.narrative_status = filters.narrative_status;
+                }
             }
 
             // Filter by is_active (true/false/all)
@@ -66,6 +75,71 @@ class ManagerContentService {
             };
         } catch (error) {
             Logger.error('Manager get media error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Manager: Upload 3D Model for site
+     */
+    static async upload3DModel(userId, fileData) {
+        try {
+            const user = await User.findByPk(userId);
+
+            if (!user || user.role !== 'manager') {
+                throw new Error('Unauthorized');
+            }
+
+            if (!user.site_id) {
+                throw new Error('Manager has no site');
+            }
+
+            const { url, caption } = fileData;
+
+            if (!url) {
+                throw new Error('File URL required');
+            }
+
+            // Generate code for model_3d
+            const now = new Date();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const dateStr = `${month}${day}`;
+
+            const latestMedia = await SiteMedia.findOne({
+                where: {
+                    code: {
+                        [Op.like]: `MDL${dateStr}%`
+                    }
+                },
+                order: [['code', 'DESC']]
+            });
+
+            let sequence = 1;
+            if (latestMedia && latestMedia.code) {
+                const lastSeq = parseInt(latestMedia.code.slice(-3), 10);
+                if (!isNaN(lastSeq)) {
+                    sequence = lastSeq + 1;
+                }
+            }
+
+            const code = `MDL${dateStr}${String(sequence).padStart(3, '0')}`;
+
+            const media = await SiteMedia.create({
+                site_id: user.site_id,
+                code,
+                url,
+                type: 'model_3d',
+                caption,
+                status: 'approved', // Manager upload → auto approved
+                created_by: userId
+            });
+
+            Logger.info(`Manager ${userId} uploaded 3D model ${media.code} for site ${user.site_id}`);
+
+            return media;
+        } catch (error) {
+            Logger.error('Manager upload 3D model error:', error);
             throw error;
         }
     }
@@ -669,6 +743,79 @@ class ManagerContentService {
             return place;
         } catch (error) {
             Logger.error('Manager toggle nearby place active error:', error);
+            throw error;
+        }
+    }
+
+    // ===================== NARRATIVE STATUS =====================
+
+    /**
+     * Manager: Update narrative status (approve/reject)
+     */
+    static async updateNarrativeStatus(userId, mediaId, status, rejectionReason = null) {
+        try {
+            const user = await User.findByPk(userId);
+
+            if (!user || user.role !== 'manager') {
+                throw new Error('Unauthorized');
+            }
+
+            if (!user.site_id) {
+                throw new Error('Manager has no site');
+            }
+
+            if (!['approved', 'rejected'].includes(status)) {
+                throw new Error('Invalid narrative status');
+            }
+
+            if (status === 'rejected' && !rejectionReason) {
+                throw new Error('Narrative rejection reason required');
+            }
+
+            const media = await SiteMedia.findOne({
+                where: { id: mediaId, site_id: user.site_id }
+            });
+
+            if (!media) {
+                throw new Error('Media not found');
+            }
+
+            if (media.type !== 'model_3d') {
+                throw new Error('Not a 3D model');
+            }
+
+            if (media.narrative_status !== 'pending') {
+                throw new Error('Narrative not pending');
+            }
+
+            if (!media.audio_url) {
+                throw new Error('No narrative to review');
+            }
+
+            const updateData = { narrative_status: status };
+            if (status === 'rejected') {
+                updateData.narrative_rejection_reason = rejectionReason;
+            } else {
+                updateData.narrative_rejection_reason = null;
+            }
+
+            await media.update(updateData);
+
+            // Notify LocalGuide who created the media
+            if (media.created_by) {
+                const site = await Site.findByPk(user.site_id);
+                const notificationType = status === 'approved' ? 'narrative_approved' : 'narrative_rejected';
+                await NotificationService.createNotification(notificationType, media.created_by, {
+                    siteName: site?.name || '',
+                    reason: rejectionReason || ''
+                });
+            }
+
+            Logger.info(`Manager ${userId} ${status} narrative for media ${media.code}`);
+
+            return media;
+        } catch (error) {
+            Logger.error('Manager update narrative status error:', error);
             throw error;
         }
     }

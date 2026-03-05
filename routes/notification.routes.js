@@ -46,6 +46,13 @@ router.delete(
     NotificationController.revokePushToken
 );
 
+// DELETE /api/notifications/read - Delete all read notifications (BEFORE /:id)
+router.delete(
+    '/read',
+    authMiddleware,
+    NotificationController.deleteReadNotifications
+);
+
 // PATCH /api/notifications/:id/read - Mark single as read
 router.patch(
     '/:id/read',

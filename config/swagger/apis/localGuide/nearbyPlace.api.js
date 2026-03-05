@@ -10,7 +10,9 @@
  * /api/local-guide/nearby-places:
  *   post:
  *     summary: Tạo địa điểm lân cận mới (Local Guide only)
- *     description: Local Guide đề xuất địa điểm lân cận (ăn uống, lưu trú, y tế) gần site
+ *     description: |
+ *       Local Guide đề xuất địa điểm lân cận (ăn uống, lưu trú, y tế) gần site.
+ *       `distance_meters` được tự động tính từ tọa độ của địa điểm lân cận và tọa độ của site.
  *     tags: [Local Guide - Nearby Places]
  *     security:
  *       - bearerAuth: []
@@ -44,10 +46,6 @@
  *                 type: number
  *                 format: float
  *                 example: 106.699092
- *               distance_meters:
- *                 type: integer
- *                 example: 500
- *                 description: Khoảng cách từ site (mét)
  *               phone:
  *                 type: string
  *                 example: "0901234567"
@@ -183,9 +181,6 @@
  *                 type: number
  *                 format: float
  *                 example: 106.699092
- *               distance_meters:
- *                 type: integer
- *                 example: 500
  *               phone:
  *                 type: string
  *                 example: "0901234567"

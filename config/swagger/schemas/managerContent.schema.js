@@ -31,21 +31,61 @@
  *         site_id:
  *           type: string
  *           format: uuid
+ *         code:
+ *           type: string
+ *           example: "MDL0228001"
  *         url:
  *           type: string
  *           format: uri
- *           example: "https://res.cloudinary.com/xxx/image/upload/v1234/panorama.jpg"
+ *           example: "https://res.cloudinary.com/xxx/image/upload/v1234/model.glb"
  *         type:
  *           type: string
- *           enum: [image, video, panorama]
- *           example: "panorama"
+ *           enum: [image, video, model_3d]
+ *           example: "model_3d"
  *         caption:
  *           type: string
  *           example: "Toàn cảnh nhà thờ"
  *         status:
  *           type: string
  *           enum: [pending, approved, rejected]
+ *           example: "approved"
+ *           description: Trạng thái duyệt của media (3D model/image/video)
+ *         rejection_reason:
+ *           type: string
+ *           nullable: true
+ *           example: null
+ *           description: Lý do từ chối media
+ *         is_active:
+ *           type: boolean
+ *           example: true
+ *           description: Trạng thái active (false = đã ẩn/xóa mềm)
+ *         audio_url:
+ *           type: string
+ *           format: uri
+ *           nullable: true
+ *           example: "https://res.cloudinary.com/xxx/video/upload/v1234/narration.mp3"
+ *           description: URL file audio thuyết minh (chỉ cho model_3d)
+ *         narration_text:
+ *           type: string
+ *           nullable: true
+ *           example: "Kính chào quý khách hành hương..."
+ *           description: Nội dung text thuyết minh (dùng cho TTS)
+ *         narrative_status:
+ *           type: string
+ *           enum: [pending, approved, rejected]
+ *           nullable: true
  *           example: "pending"
+ *           description: |
+ *             Trạng thái duyệt thuyết minh (riêng biệt với status của media):
+ *             - null: Chưa có thuyết minh
+ *             - pending: Đang chờ Manager duyệt
+ *             - approved: Đã được duyệt
+ *             - rejected: Bị từ chối
+ *         narrative_rejection_reason:
+ *           type: string
+ *           nullable: true
+ *           example: null
+ *           description: Lý do từ chối thuyết minh (nếu narrative_status = rejected)
  *         creator:
  *           type: object
  *           description: Thông tin người upload (Local Guide)
@@ -60,6 +100,9 @@
  *               type: string
  *               format: email
  *               example: "localguide@example.com"
+ *         created_by:
+ *           type: string
+ *           format: uuid
  *         created_at:
  *           type: string
  *           format: date-time

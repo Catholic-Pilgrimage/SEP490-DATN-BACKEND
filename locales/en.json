@@ -8,6 +8,7 @@
     "profile_updated": "Profile updated successfully",
     "password_changed": "Password changed successfully",
     "otp_sent": "OTP has been sent to your email",
+    "otp_verified": "OTP verified successfully",
     "password_reset_success": "Password reset successfully",
     "email_already_registered": "Email already registered",
     "invalid_credentials": "Invalid email or password",
@@ -38,7 +39,9 @@
     "cannot_change_admin_status": "Cannot change admin status",
     "invalid_role": "Invalid role. Must be 'pilgrim', 'local_guide' or 'manager'",
     "role_updated": "User role updated successfully",
-    "cannot_change_admin_role": "Cannot change admin role",
+    "cannot_change_admin_role": "Cannot update admin info",
+    "cannot_change_role": "Cannot change user role. Please use verification process.",
+    "cannot_change_site": "Cannot change user site. Please use verification process or contact Manager.",
     "user_updated": "User information updated successfully",
     "manager_must_have_site": "Manager and Local Guide must be assigned to a site",
     "pilgrim_cannot_have_site": "Pilgrim cannot be assigned to a site"
@@ -188,6 +191,7 @@
     "get_site_schedule_success": "Site schedule retrieved successfully",
     "week_start_date_required": "Week start date is required",
     "past_date_not_allowed": "Cannot register shifts for a past date. Please select today or a future date.",
+    "all_shifts_past": "Cannot update. All shifts are in the past.",
     "create_nearby_place_success": "Nearby place created successfully",
     "get_nearby_places_success": "Nearby places retrieved successfully",
     "update_nearby_place_success": "Nearby place updated successfully",
@@ -201,6 +205,8 @@
     "remove_success": "Local Guide removed successfully"
   },
   "manager": {
+    "upload_3d_model_success": "3D model uploaded successfully",
+    "file_required": "Please select a file to upload",
     "no_site": "Manager has no assigned site",
     "get_media_success": "Media retrieved successfully",
     "media_approved": "Media approved successfully",
@@ -423,5 +429,23 @@
     "already_processed": "Report has already been processed",
     "only_own_report": "You can only delete your own reports",
     "cannot_delete_processed": "Cannot delete processed reports"
+  },
+  "narrative": {
+    "update_success": "Narrative updated successfully",
+    "text_or_audio_required": "Please provide either narration text or an audio file",
+    "only_3d_model": "Narrative can only be added to 3D models",
+    "text_too_short": "Narration text must have at least 3 characters",
+    "text_too_long": "Narration text must not exceed 5000 characters",
+    "tts_not_configured": "Text-to-Speech service is not configured",
+    "tts_error": "Text-to-Speech generation failed. Please try again or upload audio file directly",
+    "get_voices_success": "Get available voices successfully",
+    "approved_success": "Narrative approved successfully",
+    "rejected_success": "Narrative rejected successfully",
+    "not_pending": "Narrative is not pending review",
+    "no_narrative": "No narrative to review. Audio must be uploaded first",
+    "cannot_edit_approved": "Cannot edit approved narrative. Please contact Manager if changes are needed",
+    "cannot_delete_approved": "Cannot delete approved narrative. Please contact Manager if you need to remove it",
+    "no_narrative_to_delete": "No narrative to delete",
+    "delete_success": "Narrative deleted successfully"
   }
 }

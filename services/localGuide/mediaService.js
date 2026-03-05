@@ -12,7 +12,7 @@ class LocalGuideMediaService {
         const prefixMap = {
             image: 'IMG',
             video: 'VID',
-            panorama: 'PAN'
+            model_3d: 'MDL'
         };
         const prefix = prefixMap[type] || 'MED';
 
@@ -42,9 +42,10 @@ class LocalGuideMediaService {
     }
 
     /**
-     * Local Guide: Upload Site Media (Image, Video, Panorama)
-     * - File upload: image, video, panorama (via Cloudinary)
+     * Local Guide: Upload Site Media (Image, Video only)
+     * - File upload: image, video (via Cloudinary)
      * - URL: YouTube video link
+     * - Note: model_3d can only be uploaded by Manager
      */
     static async uploadMedia(userId, fileData) {
         try {
@@ -60,7 +61,7 @@ class LocalGuideMediaService {
 
             const { url, type, caption } = fileData;
 
-            if (!['image', 'video', 'panorama'].includes(type)) {
+            if (!['image', 'video'].includes(type)) {
                 throw new Error('Invalid media type');
             }
 
@@ -118,7 +119,7 @@ class LocalGuideMediaService {
                 created_by: userId
             };
 
-            if (filters.type && ['image', 'video', 'panorama'].includes(filters.type)) {
+            if (filters.type && ['image', 'video', 'model_3d'].includes(filters.type)) {
                 where.type = filters.type;
             }
 
@@ -126,6 +127,14 @@ class LocalGuideMediaService {
                 where.status = filters.status;
             }
 
+            // Filter by narrative_status (for 3D models with narratives)
+            if (filters.narrative_status) {
+                if (filters.narrative_status === 'null') {
+                    where.narrative_status = null;
+                } else if (['pending', 'approved', 'rejected'].includes(filters.narrative_status)) {
+                    where.narrative_status = filters.narrative_status;
+                }
+            }
 
             if (filters.is_active !== undefined) {
                 where.is_active = filters.is_active === 'true' || filters.is_active === true;
@@ -192,7 +201,7 @@ class LocalGuideMediaService {
                 dataToUpdate.caption = caption;
             }
 
-            if (type && ['image', 'video', 'panorama'].includes(type)) {
+            if (type && ['image', 'video'].includes(type)) {
                 dataToUpdate.type = type;
             }
 

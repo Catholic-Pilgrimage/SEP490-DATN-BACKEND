@@ -1,6 +1,7 @@
-const { User, NearbyPlace } = require('../../models');
+const { User, NearbyPlace, Site } = require('../../models');
 const { Op } = require('sequelize');
 const Logger = require('../../utils/logger.util');
+const HaversineUtil = require('../../utils/haversine.util');
 const NotificationService = require('../shared/notificationService');
 
 class LocalGuideNearbyPlaceService {
@@ -46,7 +47,19 @@ class LocalGuideNearbyPlaceService {
                 throw new Error('Local Guide has no site');
             }
 
-            const { name, category, address, latitude, longitude, distance_meters, phone, description } = data;
+            const { name, category, address, latitude, longitude, phone, description } = data;
+
+            // Auto-calculate distance from Site
+            let calculatedDistance = null;
+            const site = await Site.findByPk(user.site_id);
+            if (site && site.latitude && site.longitude && latitude && longitude) {
+                calculatedDistance = Math.round(
+                    HaversineUtil.distance(
+                        parseFloat(site.latitude), parseFloat(site.longitude),
+                        parseFloat(latitude), parseFloat(longitude)
+                    )
+                );
+            }
 
             const code = await this.generateNearbyPlaceCode();
 
@@ -59,7 +72,7 @@ class LocalGuideNearbyPlaceService {
                 address: address || null,
                 latitude,
                 longitude,
-                distance_meters: distance_meters || null,
+                distance_meters: calculatedDistance,
                 phone: phone || null,
                 description: description || null,
                 status: 'pending'
@@ -159,7 +172,7 @@ class LocalGuideNearbyPlaceService {
                 throw new Error('Cannot update approved nearby place');
             }
 
-            const { name, category, address, latitude, longitude, distance_meters, phone, description } = updateData;
+            const { name, category, address, latitude, longitude, phone, description } = updateData;
 
             const dataToUpdate = {};
             if (name !== undefined) dataToUpdate.name = name;
@@ -167,9 +180,23 @@ class LocalGuideNearbyPlaceService {
             if (address !== undefined) dataToUpdate.address = address;
             if (latitude !== undefined) dataToUpdate.latitude = latitude;
             if (longitude !== undefined) dataToUpdate.longitude = longitude;
-            if (distance_meters !== undefined) dataToUpdate.distance_meters = distance_meters;
             if (phone !== undefined) dataToUpdate.phone = phone;
             if (description !== undefined) dataToUpdate.description = description;
+
+            // Auto-recalculate distance if coordinates changed
+            if (latitude !== undefined || longitude !== undefined) {
+                const site = await Site.findByPk(user.site_id);
+                const finalLat = parseFloat(latitude !== undefined ? latitude : place.latitude);
+                const finalLng = parseFloat(longitude !== undefined ? longitude : place.longitude);
+                if (site && site.latitude && site.longitude && finalLat && finalLng) {
+                    dataToUpdate.distance_meters = Math.round(
+                        HaversineUtil.distance(
+                            parseFloat(site.latitude), parseFloat(site.longitude),
+                            finalLat, finalLng
+                        )
+                    );
+                }
+            }
 
             if (place.status === 'rejected') {
                 dataToUpdate.status = 'pending';

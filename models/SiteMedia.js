@@ -28,7 +28,7 @@ const SiteMedia = sequelize.define('SiteMedia', {
         type: DataTypes.STRING,
         allowNull: false,
         validate: {
-            isIn: [['image', 'video', 'panorama']]
+            isIn: [['image', 'video', 'model_3d']]
         }
     },
     caption: {
@@ -49,6 +49,30 @@ const SiteMedia = sequelize.define('SiteMedia', {
     is_active: {
         type: DataTypes.BOOLEAN,
         defaultValue: true
+    },
+    audio_url: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: 'URL to audio narration file (Cloudinary)'
+    },
+    narration_text: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: 'Text content for AI-generated voiceover'
+    },
+    narrative_status: {
+        type: DataTypes.STRING(20),
+        defaultValue: null,
+        allowNull: true,
+        validate: {
+            isIn: [['pending', 'approved', 'rejected']]
+        },
+        comment: 'Approval status of narrative: NULL (no narrative), pending, approved, rejected'
+    },
+    narrative_rejection_reason: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: 'Reason for rejecting the narrative'
     },
     created_by: {
         type: DataTypes.UUID,

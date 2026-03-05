@@ -18,7 +18,7 @@ exports.createSubmission = async (req, res) => {
         if (error.message === 'Local Guide not assigned to any site') {
             return ResponseUtil.badRequest(res, req.__('local_guide.no_site'));
         }
-        if (error.message.includes('Cannot register shifts for a past date')) {
+        if (error.message.includes('Cannot register shifts for a past')) {
             return ResponseUtil.badRequest(res, req.__('local_guide.past_date_not_allowed') || error.message);
         }
         if (error.message.includes('pending submission')) {
@@ -95,8 +95,11 @@ exports.updateSubmission = async (req, res) => {
         if (error.message === 'Submission not found or already approved') {
             return ResponseUtil.notFound(res, req.__('local_guide.submission_not_found_or_approved'));
         }
-        if (error.message.includes('Cannot update shifts for a past date')) {
+        if (error.message.includes('Cannot update shifts for a past')) {
             return ResponseUtil.badRequest(res, req.__('local_guide.past_date_not_allowed') || error.message);
+        }
+        if (error.message === 'No valid shifts to update. All shifts are in the past.') {
+            return ResponseUtil.badRequest(res, req.__('local_guide.all_shifts_past'));
         }
         return ResponseUtil.error(res, req.__('error.server_error'));
     }

@@ -6,6 +6,7 @@ const scheduleController = require('./scheduleController');
 const eventController = require('./eventController');
 const shiftController = require('./shiftController');
 const nearbyPlaceController = require('./nearbyPlaceController');
+const narrativeController = require('./narrativeController');
 const LocalGuideSOSController = require('./SOSController');
 
 module.exports = {
@@ -26,6 +27,9 @@ module.exports = {
 
     // Nearby Place
     ...nearbyPlaceController,
+
+    // Narrative (3D Model Audio)
+    ...narrativeController,
 
     // SOS
     LocalGuideSOSController

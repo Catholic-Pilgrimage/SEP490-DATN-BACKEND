@@ -2,7 +2,7 @@
  * @swagger
  * tags:
  *   - name: Local Guide - Media
- *     description: API quản lý media (hình ảnh, video, panorama)
+ *     description: API quản lý media (hình ảnh, video) - Model 3D chỉ Manager mới upload được
  */
 
 /**
@@ -11,9 +11,10 @@
  *   post:
  *     summary: Upload media cho site (Local Guide only)
  *     description: |
- *       Upload hình ảnh, video, hoặc panorama cho site.
- *       - File upload: image, video, panorama (qua Cloudinary)
+ *       Upload hình ảnh hoặc video cho site.
+ *       - File upload: image, video (qua Cloudinary)
  *       - URL: YouTube video link
+ *       - Note: Model 3D chỉ Manager mới có quyền upload
  *     tags: [Local Guide - Media]
  *     security:
  *       - bearerAuth: []
@@ -28,7 +29,7 @@
  *             properties:
  *               type:
  *                 type: string
- *                 enum: [image, video, panorama]
+ *                 enum: [image, video]
  *                 example: "image"
  *               caption:
  *                 type: string
@@ -36,7 +37,7 @@
  *               file:
  *                 type: string
  *                 format: binary
- *                 description: File upload (image/video/panorama)
+ *                 description: File upload (image/video)
  *               url:
  *                 type: string
  *                 example: "https://youtube.com/watch?v=xxx"
@@ -72,7 +73,7 @@
  *         name: type
  *         schema:
  *           type: string
- *           enum: [image, video, panorama]
+ *           enum: [image, video, model_3d]
  *         description: Lọc theo loại media
  *       - in: query
  *         name: status
@@ -85,6 +86,12 @@
  *         schema:
  *           type: boolean
  *         description: Lọc theo trạng thái active (true = đang hoạt động, false = đã xóa)
+ *       - in: query
+ *         name: narrative_status
+ *         schema:
+ *           type: string
+ *           enum: [pending, approved, rejected]
+ *         description: Lọc theo trạng thái duyệt thuyết minh
  *     responses:
  *       200:
  *         description: Lấy danh sách thành công
@@ -118,7 +125,7 @@
  *             properties:
  *               type:
  *                 type: string
- *                 enum: [image, video, panorama]
+ *                 enum: [image, video]
  *               caption:
  *                 type: string
  *               file:

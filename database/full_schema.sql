@@ -28,7 +28,7 @@ DO $$ BEGIN
     -- Sites
     CREATE TYPE site_region AS ENUM ('Bac', 'Trung', 'Nam');
     CREATE TYPE site_type AS ENUM ('church', 'shrine', 'monastery', 'center', 'other');
-    CREATE TYPE media_type AS ENUM ('image', 'video', 'panorama');
+    CREATE TYPE media_type AS ENUM ('image', 'video', 'model_3d');
     CREATE TYPE site_content_status AS ENUM ('pending', 'approved', 'rejected');
     
     -- Nearby Places (NEW)

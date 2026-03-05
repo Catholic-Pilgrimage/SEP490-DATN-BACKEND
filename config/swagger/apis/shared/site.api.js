@@ -329,7 +329,7 @@
  *         name: type
  *         schema:
  *           type: string
- *           enum: [image, video, panorama]
+ *           enum: [image, video, model_3d]
  *         description: Lọc theo loại media
  *     responses:
  *       200:
@@ -355,7 +355,7 @@
  *                         type: string
  *                       type:
  *                         type: string
- *                         enum: [image, video, panorama]
+ *                         enum: [image, video, model_3d]
  *                       caption:
  *                         type: string
  *                       created_at:

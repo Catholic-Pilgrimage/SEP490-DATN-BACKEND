@@ -6,7 +6,7 @@ class LocalGuideValidator {
     static uploadMedia = [
         body('type')
             .notEmpty().withMessage('Loại media không được để trống')
-            .isIn(['image', 'video', 'panorama']).withMessage('Loại media phải là image, video hoặc panorama'),
+            .isIn(['image', 'video']).withMessage('Loại media phải là image hoặc video'),
 
         body('caption')
             .optional()
@@ -18,8 +18,8 @@ class LocalGuideValidator {
     static updateMedia = [
         body('type')
             .optional()
-            .isIn(['image', 'video', 'panorama'])
-            .withMessage('Loại media phải là image, video hoặc panorama'),
+            .isIn(['image', 'video'])
+            .withMessage('Loại media phải là image hoặc video'),
 
         body('caption')
             .optional()
@@ -288,9 +288,6 @@ class LocalGuideValidator {
             .optional()
             .isLength({ max: 500 }).withMessage('Địa chỉ tối đa 500 ký tự')
             .trim(),
-        body('distance_meters')
-            .optional()
-            .isInt({ min: 0 }).withMessage('Khoảng cách phải là số nguyên dương'),
         body('phone')
             .optional()
             .isLength({ max: 20 }).withMessage('Số điện thoại tối đa 20 ký tự')
@@ -321,9 +318,6 @@ class LocalGuideValidator {
             .optional()
             .isLength({ max: 500 }).withMessage('Địa chỉ tối đa 500 ký tự')
             .trim(),
-        body('distance_meters')
-            .optional()
-            .isInt({ min: 0 }).withMessage('Khoảng cách phải là số nguyên dương'),
         body('phone')
             .optional()
             .isLength({ max: 20 }).withMessage('Số điện thoại tối đa 20 ký tự')
