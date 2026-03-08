@@ -167,8 +167,51 @@ router.get(
  *         description: Không có quyền - không phải chủ sở hữu
  *       404:
  *         description: Không tìm thấy kế hoạch
+ *   patch:
+ *     summary: Cập nhật một phần kế hoạch
+ *     description: Cập nhật một hoặc nhiều trường của kế hoạch (partial update)
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID kế hoạch
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdatePlannerRequest'
+ *     responses:
+ *       200:
+ *         description: Cập nhật kế hoạch thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PlannerResponse'
+ *       400:
+ *         description: Lỗi xác thực
+ *       401:
+ *         description: Chưa xác thực
+ *       403:
+ *         description: Không có quyền - không phải chủ sở hữu
+ *       404:
+ *         description: Không tìm thấy kế hoạch
  */
 router.put(
+    '/:id',
+    authenticate,
+    PlannerValidator.updatePlanner,
+    PlannerController.updatePlanner
+);
+
+// PATCH method for partial updates (same handler as PUT)
+router.patch(
     '/:id',
     authenticate,
     PlannerValidator.updatePlanner,

@@ -4,11 +4,13 @@ const multer = require('multer');
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-    console.warn('  Supabase credentials not found in .env');
-}
+let supabase = null;
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+if (!supabaseUrl || !supabaseKey) {
+    console.warn('  Supabase credentials not found in .env - Supabase features will be disabled');
+} else {
+    supabase = createClient(supabaseUrl, supabaseKey);
+}
 
 /**
  * Multer memory storage for 3D model upload (50MB limit)
@@ -22,6 +24,9 @@ const upload3DModel = multer({
  * Upload file to Supabase Storage
  */
 async function uploadToSupabase(fileBuffer, fileName, bucket = '3d-models') {
+    if (!supabase) {
+        throw new Error('Supabase is not configured. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env');
+    }
     try {
         const filePath = `${Date.now()}-${fileName}`;
 
@@ -58,6 +63,9 @@ async function uploadToSupabase(fileBuffer, fileName, bucket = '3d-models') {
  * Delete file from Supabase Storage
  */
 async function deleteFromSupabase(filePath, bucket = '3d-models') {
+    if (!supabase) {
+        throw new Error('Supabase is not configured. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env');
+    }
     try {
         const { error } = await supabase.storage
             .from(bucket)

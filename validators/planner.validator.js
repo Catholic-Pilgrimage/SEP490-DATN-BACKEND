@@ -97,10 +97,13 @@ class PlannerValidator {
         body('site_id')
             .notEmpty().withMessage('Site ID không được để trống')
             .isUUID().withMessage('Site ID không hợp lệ'),
-
         body('day_number')
             .notEmpty().withMessage('Số ngày không được để trống')
             .isInt({ min: 1 }).withMessage('Số ngày phải lớn hơn hoặc bằng 1'),
+
+        body('event_id')
+            .optional({ nullable: true })
+            .isUUID().withMessage('Event ID không hợp lệ'),
 
         body('note')
             .optional()
@@ -121,20 +124,37 @@ class PlannerValidator {
             .optional()
             .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).withMessage('Giờ dự kiến phải có định dạng HH:MM (ví dụ: 09:00, 14:30)'),
 
+        body('travel_time_minutes')
+            .optional()
+            .isInt({ min: 0 }).withMessage('Thời gian di chuyển phải là số nguyên không âm'),
+
         body('rest_duration')
             .notEmpty().withMessage('Thời gian nghỉ ngơi không được để trống')
             .isString().withMessage('Thời gian nghỉ phải là chuỗi')
-            .matches(/^\d+\s+(hour|hours|minute|minutes|min|mins)$/i).withMessage('Thời gian nghỉ phải có định dạng như: "1 hour", "30 minutes", "2 hours"')
             .trim()
             .custom((value) => {
-                const match = value.match(/^(\d+)\s+(hour|hours|minute|minutes|min|mins)$/i);
-                if (match) {
-                    const num = parseInt(match[1]);
-                    const unit = match[2].toLowerCase();
-                    let totalMinutes = unit.startsWith('hour') ? num * 60 : num;
-                    if (totalMinutes < 60) {
-                        throw new Error('Thời gian nghỉ ngơi tại địa điểm phải tối thiểu 1 tiếng');
-                    }
+                // Regex cho format đơn giản ("2 hours", "30 minutes") hoặc phức hợp ("2 hours 45 minutes")
+                const simpleMatch = value.match(/^(\d+)\s+(hour|hours|minute|minutes|min|mins)$/i);
+                const complexMatch = value.match(/^(\d+)\s+(hour|hours)\s+(\d+)\s+(minute|minutes|min|mins)$/i);
+
+                let totalMinutes = 0;
+
+                if (complexMatch) {
+                    // Format: "2 hours 45 minutes"
+                    const hours = parseInt(complexMatch[1]);
+                    const minutes = parseInt(complexMatch[3]);
+                    totalMinutes = hours * 60 + minutes;
+                } else if (simpleMatch) {
+                    // Format: "2 hours" hoặc "90 minutes"
+                    const num = parseInt(simpleMatch[1]);
+                    const unit = simpleMatch[2].toLowerCase();
+                    totalMinutes = unit.startsWith('hour') ? num * 60 : num;
+                } else {
+                    throw new Error('Thời gian nghỉ phải có định dạng như: "1 hour", "30 minutes", "2 hours 45 minutes"');
+                }
+
+                if (totalMinutes < 60) {
+                    throw new Error('Thời gian nghỉ ngơi tại địa điểm phải tối thiểu 1 tiếng');
                 }
                 return true;
             })
@@ -184,17 +204,31 @@ class PlannerValidator {
         body('rest_duration')
             .optional()
             .isString().withMessage('Thời gian nghỉ phải là chuỗi')
-            .matches(/^\d+\s+(hour|hours|minute|minutes|min|mins)$/i).withMessage('Thời gian nghỉ phải có định dạng như: "1 hour", "30 minutes", "2 hours"')
             .trim()
             .custom((value) => {
-                const match = value.match(/^(\d+)\s+(hour|hours|minute|minutes|min|mins)$/i);
-                if (match) {
-                    const num = parseInt(match[1]);
-                    const unit = match[2].toLowerCase();
-                    let totalMinutes = unit.startsWith('hour') ? num * 60 : num;
-                    if (totalMinutes < 60) {
-                        throw new Error('Thời gian nghỉ ngơi tại địa điểm phải tối thiểu 1 tiếng');
-                    }
+                if (!value) return true;
+                // Regex cho format đơn giản ("2 hours", "30 minutes") hoặc phức hợp ("2 hours 45 minutes")
+                const simpleMatch = value.match(/^(\d+)\s+(hour|hours|minute|minutes|min|mins)$/i);
+                const complexMatch = value.match(/^(\d+)\s+(hour|hours)\s+(\d+)\s+(minute|minutes|min|mins)$/i);
+
+                let totalMinutes = 0;
+
+                if (complexMatch) {
+                    // Format: "2 hours 45 minutes"
+                    const hours = parseInt(complexMatch[1]);
+                    const minutes = parseInt(complexMatch[3]);
+                    totalMinutes = hours * 60 + minutes;
+                } else if (simpleMatch) {
+                    // Format: "2 hours" hoặc "90 minutes"
+                    const num = parseInt(simpleMatch[1]);
+                    const unit = simpleMatch[2].toLowerCase();
+                    totalMinutes = unit.startsWith('hour') ? num * 60 : num;
+                } else {
+                    throw new Error('Thời gian nghỉ phải có định dạng như: "1 hour", "30 minutes", "2 hours 45 minutes"');
+                }
+
+                if (totalMinutes < 60) {
+                    throw new Error('Thời gian nghỉ ngơi tại địa điểm phải tối thiểu 1 tiếng');
                 }
                 return true;
             }),
@@ -202,7 +236,21 @@ class PlannerValidator {
         body('note')
             .optional()
             .isString().withMessage('Ghi chú phải là chuỗi')
-            .trim()
+            .trim(),
+
+        body('nearby_amenity_ids')
+            .optional()
+            .isArray().withMessage('Danh sách tiện ích phải là mảng')
+            .custom((value) => {
+                if (value && !value.every(id => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))) {
+                    throw new Error('Tất cả nearby amenity IDs phải là UUID hợp lệ');
+                }
+                return true;
+            }),
+
+        body('travel_time_minutes')
+            .optional()
+            .isInt({ min: 0 }).withMessage('Thời gian di chuyển phải là số nguyên không âm')
     ];
 
     // Validate get planners query
@@ -270,17 +318,30 @@ class PlannerValidator {
         body('rest_duration')
             .notEmpty().withMessage('Thời gian nghỉ ngơi không được để trống')
             .isString().withMessage('Thời gian nghỉ phải là chuỗi')
-            .matches(/^\d+\s+(hour|hours|minute|minutes|min|mins)$/i).withMessage('Thời gian nghỉ phải có định dạng như: "1 hour", "30 minutes", "2 hours"')
             .trim()
             .custom((value) => {
-                const match = value.match(/^(\d+)\s+(hour|hours|minute|minutes|min|mins)$/i);
-                if (match) {
-                    const num = parseInt(match[1]);
-                    const unit = match[2].toLowerCase();
-                    let totalMinutes = unit.startsWith('hour') ? num * 60 : num;
-                    if (totalMinutes < 60) {
-                        throw new Error('Thời gian nghỉ ngơi tại địa điểm phải tối thiểu 1 tiếng');
-                    }
+                // Regex cho format đơn giản ("2 hours", "30 minutes") hoặc phức hợp ("2 hours 45 minutes")
+                const simpleMatch = value.match(/^(\d+)\s+(hour|hours|minute|minutes|min|mins)$/i);
+                const complexMatch = value.match(/^(\d+)\s+(hour|hours)\s+(\d+)\s+(minute|minutes|min|mins)$/i);
+
+                let totalMinutes = 0;
+
+                if (complexMatch) {
+                    // Format: "2 hours 45 minutes"
+                    const hours = parseInt(complexMatch[1]);
+                    const minutes = parseInt(complexMatch[3]);
+                    totalMinutes = hours * 60 + minutes;
+                } else if (simpleMatch) {
+                    // Format: "2 hours" hoặc "90 minutes"
+                    const num = parseInt(simpleMatch[1]);
+                    const unit = simpleMatch[2].toLowerCase();
+                    totalMinutes = unit.startsWith('hour') ? num * 60 : num;
+                } else {
+                    throw new Error('Thời gian nghỉ phải có định dạng như: "1 hour", "30 minutes", "2 hours 45 minutes"');
+                }
+
+                if (totalMinutes < 60) {
+                    throw new Error('Thời gian nghỉ ngơi tại địa điểm phải tối thiểu 1 tiếng');
                 }
                 return true;
             })
