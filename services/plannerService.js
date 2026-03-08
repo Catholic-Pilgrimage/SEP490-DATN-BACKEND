@@ -506,6 +506,34 @@ class PlannerService {
                 throw new Error('Day number must be at least 1');
             }
 
+            // ===== VALIDATION: Không được bỏ trống ngày trước đó =====
+            if (day_number > 1 && !multiDayItems) {
+                // Lấy tất cả các ngày đã có items
+                const existingDays = await PlannerItem.findAll({
+                    where: { planner_id: plannerId },
+                    attributes: [[sequelize.fn('DISTINCT', sequelize.col('day_number')), 'day_number']],
+                    raw: true
+                });
+
+                const dayNumbersSet = new Set(existingDays.map(d => d.day_number));
+
+                // Kiểm tra các ngày từ 1 đến day_number-1
+                const missingDays = [];
+                for (let i = 1; i < day_number; i++) {
+                    if (!dayNumbersSet.has(i)) {
+                        missingDays.push(i);
+                    }
+                }
+
+                if (missingDays.length > 0) {
+                    throw new Error(
+                        `Bạn không thể thêm địa điểm cho Ngày ${day_number} khi chưa có địa điểm cho ` +
+                        `Ngày ${missingDays.join(', ')}. Vui lòng thêm địa điểm theo thứ tự.`
+                    );
+                }
+            }
+            // ===== END: Validation =====
+
             let travelTimeMinutes = 0;
 
             // Get previous site in same day (if exists)
@@ -968,6 +996,38 @@ class PlannerService {
             const dayNumber = item.day_number;
             const deletedOrderIndex = item.order_index;
 
+            // ===== VALIDATION: Không được xóa item cuối cùng nếu tạo khoảng trống =====
+            // Đếm số items còn lại trong ngày sau khi xóa
+            const itemCountInDay = await PlannerItem.count({
+                where: {
+                    planner_id: plannerId,
+                    day_number: dayNumber
+                },
+                transaction
+            });
+
+            // Nếu đây là item cuối cùng của ngày
+            if (itemCountInDay === 1) {
+                // Kiểm tra xem có ngày nào lớn hơn không
+                const higherDayExists = await PlannerItem.findOne({
+                    where: {
+                        planner_id: plannerId,
+                        day_number: { [Op.gt]: dayNumber }
+                    },
+                    attributes: ['day_number'],
+                    order: [['day_number', 'ASC']],
+                    transaction
+                });
+
+                if (higherDayExists) {
+                    throw new Error(
+                        `Không thể xóa địa điểm cuối cùng của Ngày ${dayNumber} vì bạn đã có địa điểm cho ` +
+                        `Ngày ${higherDayExists.day_number}. Xin vui lòng xóa các ngày sau trước hoặc thêm địa điểm khác cho Ngày ${dayNumber}.`
+                    );
+                }
+            }
+            // ===== END: Validation =====
+
             // Delete item
             await item.destroy({ transaction });
 
@@ -1395,6 +1455,18 @@ class PlannerService {
                 throw new Error('Planner is not ongoing');
             }
 
+            // ===== VALIDATION: Planner phải có đủ items cho tất cả các ngày =====
+            const continuityCheck = await this.validatePlannerContinuity(plannerId);
+            
+            if (!continuityCheck.isValid) {
+                const missingDaysStr = continuityCheck.missingDays.join(', ');
+                throw new Error(
+                    `Không thể hoàn thành kế hoạch! Lịch trình chưa đầy đủ. ` +
+                    `Bạn cần thêm địa điểm cho Ngày ${missingDaysStr} (Tổng ${continuityCheck.totalDays} ngày).`
+                );
+            }
+            // ===== END: Validation =====
+
             await planner.update({
                 status: 'completed',
                 completed_at: new Date()
@@ -1755,6 +1827,58 @@ class PlannerService {
             };
         } catch (error) {
             Logger.error('Get planner members error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Validate that planner has items for ALL days
+     * @param {string} plannerId 
+     * @returns {Promise<{isValid: boolean, missingDays: number[], totalDays: number}>}
+     */
+    static async validatePlannerContinuity(plannerId) {
+        try {
+            const planner = await Planner.findByPk(plannerId);
+            
+            if (!planner) {
+                throw new Error('Planner not found');
+            }
+
+            // If no dates, skip validation (flexible planner)
+            if (!planner.start_date || !planner.end_date) {
+                return { isValid: true, missingDays: [], totalDays: 0 };
+            }
+
+            // Calculate total days
+            const startDate = new Date(planner.start_date);
+            const endDate = new Date(planner.end_date);
+            const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+
+            // Get all planner items
+            const items = await PlannerItem.findAll({
+                where: { planner_id: plannerId },
+                attributes: ['day_number'],
+                group: ['day_number'],
+                raw: true
+            });
+
+            const existingDays = new Set(items.map(item => item.day_number));
+            const missingDays = [];
+
+            // Check each day from 1 to totalDays
+            for (let day = 1; day <= totalDays; day++) {
+                if (!existingDays.has(day)) {
+                    missingDays.push(day);
+                }
+            }
+
+            return {
+                isValid: missingDays.length === 0,
+                missingDays,
+                totalDays
+            };
+        } catch (error) {
+            Logger.error('Validate planner continuity error:', error);
             throw error;
         }
     }
