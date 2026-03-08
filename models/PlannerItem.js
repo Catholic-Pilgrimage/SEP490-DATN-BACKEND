@@ -30,6 +30,14 @@ const PlannerItem = sequelize.define('PlannerItem', {
             min: 1
         }
     },
+    event_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'events',
+            key: 'id'
+        }
+    },
     order_index: {
         type: DataTypes.INTEGER,
         defaultValue: 1,
@@ -54,6 +62,12 @@ const PlannerItem = sequelize.define('PlannerItem', {
     rest_duration: {
         type: DataTypes.STRING, // PostgreSQL INTERVAL stored as string (e.g., '1 hour', '30 minutes')
         allowNull: true
+    },
+    travel_time_minutes: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: null,
+        comment: 'Travel time from previous site in minutes'
     }
 }, {
     tableName: 'planner_items',

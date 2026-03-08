@@ -176,8 +176,8 @@ class PlannerController {
             if (error.message.includes('Cannot add the same site consecutively')) {
                 return ResponseUtil.badRequest(res, req.__('planner.consecutive_site_not_allowed'));
             }
-            if (error.message.includes('closed on')) {
-                return ResponseUtil.badRequest(res, req.__('planner.site_closed_on_day'));
+            if (error.message.includes('closed on') || error.message.includes('Site is closed at')) {
+                return ResponseUtil.badRequest(res, error.message);
             }
             if (error.message.includes('Quãng đường quá xa')) {
                 return ResponseUtil.badRequest(res, req.__('planner.distance_too_far'));
@@ -204,6 +204,9 @@ class PlannerController {
             }
             if (error.message === 'Rest duration is required') {
                 return ResponseUtil.badRequest(res, 'Thời gian nghỉ ngơi không được để trống');
+            }
+            if (error.message.includes('Thời gian di chuyển quá dài')) {
+                return ResponseUtil.badRequest(res, error.message);
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
@@ -281,6 +284,53 @@ class PlannerController {
             }
             if (error.message === 'Item does not belong to this planner') {
                 return ResponseUtil.badRequest(res, req.__('planner.item_not_belong'));
+            }
+            return ResponseUtil.error(res, req.__('error.server_error'));
+        }
+    }
+
+    /**
+     * PUT /planners/:id/items/:itemId - Update planner item
+     */
+    static async updatePlannerItem(req, res) {
+        try {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
+            }
+
+            const result = await PlannerService.updatePlannerItem(
+                req.params.id,
+                req.user?.id,
+                req.params.itemId,
+                req.body
+            );
+
+            return ResponseUtil.success(res, result, req.__('planner.item_update_success'));
+        } catch (error) {
+            console.error('Update planner item error:', error.message);
+
+            if (error.message === 'Planner not found') {
+                return ResponseUtil.notFound(res, req.__('planner.not_found'));
+            }
+            if (error.message === 'Forbidden') {
+                return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
+            }
+            if (error.message === 'Item not found') {
+                return ResponseUtil.notFound(res, req.__('planner.item_not_found'));
+            }
+            if (error.message === 'Item does not belong to this planner') {
+                return ResponseUtil.badRequest(res, req.__('planner.item_not_belong'));
+            }
+            if (error.message === 'Can only update estimated_time for the first item of the day') {
+                return ResponseUtil.badRequest(res, req.__('planner.only_first_item_estimated_time'));
+            }
+            if (error.message.includes('closed on') || error.message.includes('Site is closed at')) {
+                return ResponseUtil.badRequest(res, error.message);
+            }
+            // Catch time validation errors (Vietnamese)
+            if (error.message.includes('không hợp lệ') || error.message.includes('Đã có địa điểm khác với giờ')) {
+                return ResponseUtil.badRequest(res, error.message);
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }

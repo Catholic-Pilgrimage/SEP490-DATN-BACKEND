@@ -126,12 +126,46 @@ class PilgrimSiteService {
         where.name = { [Op.iLike]: `%${filters.search}%` };
       }
 
+      const include = [];
+
+      // Filter by has_events
+      if (filters.has_events === 'true') {
+        const appConfig = require('../../config/app.config');
+        const today = new Date(new Date().toLocaleString('en-US', { timeZone: appConfig.timezone })).toISOString().split('T')[0];
+
+        const eventWhere = {
+          status: 'approved',
+          is_active: true,
+        };
+
+        if (filters.start_date && filters.end_date) {
+          // events that overlap with the date range
+          eventWhere.start_date = { [Op.lte]: filters.end_date };
+          eventWhere[Op.or] = [
+            { end_date: { [Op.gte]: filters.start_date } },
+            { end_date: null, start_date: { [Op.gte]: filters.start_date } }
+          ];
+        } else {
+          eventWhere.start_date = { [Op.gte]: today };
+        }
+
+        include.push({
+          model: Event,
+          as: 'events',
+          attributes: [],
+          where: eventWhere,
+          required: true // INNER JOIN so only sites with events are returned
+        });
+      }
+
       const { count, rows } = await Site.findAndCountAll({
         where,
+        include,
         attributes: ['id', 'code', 'name', 'description', 'address', 'province', 'district', 'region', 'type', 'patron_saint', 'cover_image', 'opening_hours', 'latitude', 'longitude'],
         order: [['name', 'ASC']],
         limit,
-        offset
+        offset,
+        distinct: true // Required when using limit and offset with include
       });
 
       return {
@@ -309,8 +343,14 @@ class PilgrimSiteService {
         is_active: true
       };
 
-      // Filter by date range (upcoming events)
-      if (filters.upcoming === 'true') {
+      // Filter by date range
+      if (filters.start_date && filters.end_date) {
+        where.start_date = { [Op.lte]: filters.end_date };
+        where[Op.or] = [
+          { end_date: { [Op.gte]: filters.start_date } },
+          { end_date: null, start_date: { [Op.gte]: filters.start_date } }
+        ];
+      } else if (filters.upcoming === 'true') {
         const appConfig = require('../../config/app.config');
         const today = new Date(new Date().toLocaleString('en-US', { timeZone: appConfig.timezone })).toISOString().split('T')[0];
         where.start_date = { [Op.gte]: today };

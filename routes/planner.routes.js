@@ -167,8 +167,51 @@ router.get(
  *         description: Không có quyền - không phải chủ sở hữu
  *       404:
  *         description: Không tìm thấy kế hoạch
+ *   patch:
+ *     summary: Cập nhật một phần kế hoạch
+ *     description: Cập nhật một hoặc nhiều trường của kế hoạch (partial update)
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID kế hoạch
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdatePlannerRequest'
+ *     responses:
+ *       200:
+ *         description: Cập nhật kế hoạch thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PlannerResponse'
+ *       400:
+ *         description: Lỗi xác thực
+ *       401:
+ *         description: Chưa xác thực
+ *       403:
+ *         description: Không có quyền - không phải chủ sở hữu
+ *       404:
+ *         description: Không tìm thấy kế hoạch
  */
 router.put(
+    '/:id',
+    authenticate,
+    PlannerValidator.updatePlanner,
+    PlannerController.updatePlanner
+);
+
+// PATCH method for partial updates (same handler as PUT)
+router.patch(
     '/:id',
     authenticate,
     PlannerValidator.updatePlanner,
@@ -350,6 +393,72 @@ router.delete(
     authenticate,
     PlannerValidator.deleteItem,
     PlannerController.deletePlannerItem
+);
+
+/**
+ * @swagger
+ * /api/planners/{id}/items/{itemId}:
+ *   put:
+ *     summary: Cập nhật một điểm trong kế hoạch
+ *     description: Cập nhật giờ dự kiến, thời gian nghỉ, ghi chú của một địa điểm. Lưu ý - estimated_time chỉ có thể cập nhật cho điểm đầu tiên trong ngày.
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Planner ID
+ *       - in: path
+ *         name: itemId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Item ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               estimated_time:
+ *                 type: string
+ *                 description: Giờ dự kiến đến (chỉ cho điểm đầu tiên trong ngày)
+ *                 example: "09:30"
+ *               rest_duration:
+ *                 type: string
+ *                 description: Thời gian nghỉ ngơi tại địa điểm (tối thiểu 1 tiếng)
+ *                 example: "2 hours"
+ *               note:
+ *                 type: string
+ *                 description: Ghi chú
+ *                 example: "Nhớ mang theo ô"
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PlannerItem'
+ *       400:
+ *         description: Lỗi xác thực hoặc không thể cập nhật estimated_time cho điểm không phải đầu tiên
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - not the owner
+ *       404:
+ *         description: Planner or item not found
+ */
+router.put(
+    '/:id/items/:itemId',
+    authenticate,
+    PlannerValidator.updatePlannerItem,
+    PlannerController.updatePlannerItem
 );
 
 // ============================================

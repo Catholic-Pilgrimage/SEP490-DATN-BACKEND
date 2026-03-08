@@ -298,6 +298,8 @@
     "dates_overlap": "You already have a plan on these dates: {{dates}}",
     "item_add_success": "Item added successfully",
     "item_add_success_with_warning": "Item added successfully (with warning)",
+    "item_update_success": "Item updated successfully",
+    "only_first_item_estimated_time": "Can only update estimated time for the first item of the day",
     "item_delete_success": "Item deleted successfully",
     "item_not_found": "Item not found",
     "item_not_belong": "Item does not belong to this planner",
