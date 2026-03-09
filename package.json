@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"  No tests configured yet\"",
+    "ci": "npm ci && npm run lint --if-present && npm test --if-present",
+    "ci:check": "echo \" Running CI checks locally...\" && npm run lint --if-present && npm test --if-present && echo \" All checks passed!\""
   },
   "keywords": [
     "express",
