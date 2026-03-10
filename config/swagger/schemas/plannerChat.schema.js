@@ -3,24 +3,30 @@
  * components:
  *   schemas:
  *     SendMessageRequest:
- *       type: object
- *       properties:
- *         message_type:
- *           type: string
- *           enum: [text, image]
- *           default: text
- *           example: "text"
- *           description: "Loại tin nhắn"
- *         content:
- *           type: string
- *           maxLength: 1000
- *           example: "Chúng ta nên đi vào lúc mấy giờ?"
- *           description: "Nội dung tin nhắn (bắt buộc với text, tùy chọn với image)"
- *         image_url:
- *           type: string
- *           format: uri
- *           example: "https://res.cloudinary.com/xxx/image/upload/v123/planner_chat/abc.jpg"
- *           description: "URL ảnh (bắt buộc với image type)"
+ *       oneOf:
+ *         - type: object
+ *           required: [message_type, content]
+ *           properties:
+ *             message_type:
+ *               type: string
+ *               enum: [text]
+ *             content:
+ *               type: string
+ *               maxLength: 1000
+ *               description: Nội dung tin nhắn
+ *         - type: object
+ *           required: [message_type, image]
+ *           properties:
+ *             message_type:
+ *               type: string
+ *               enum: [image]
+ *             image:
+ *               type: string
+ *               format: binary
+ *               description: File ảnh tải lên
+ *       discriminator:
+ *         propertyName: message_type
+ *       description: Payload gửi tin nhắn (dạng text hoặc upload ảnh)
  *
  *     PlannerMessage:
  *       type: object
@@ -104,22 +110,6 @@
  *         data:
  *           $ref: '#/components/schemas/PlannerMessage'
  *
- *     UploadImageResponse:
- *       type: object
- *       properties:
- *         success:
- *           type: boolean
- *           example: true
- *         message:
- *           type: string
- *           example: "Upload ảnh thành công"
- *         data:
- *           type: object
- *           properties:
- *             image_url:
- *               type: string
- *               format: uri
- *               example: "https://res.cloudinary.com/xxx/image/upload/v123/planner_chat/abc.jpg"
  */
 
 module.exports = {};

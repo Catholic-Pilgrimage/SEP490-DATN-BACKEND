@@ -14,20 +14,13 @@ router.get(
 );
 
 // POST /api/planners/:id/messages - Gửi tin nhắn
+// POST /api/planners/:id/messages - Gửi tin nhắn
 router.post(
     '/:id/messages',
     authenticate,
+    upload.single('image'),
     PlannerChatValidator.sendMessage,
     PlannerChatController.sendMessage
-);
-
-// POST /api/planners/:id/messages/upload-image - Upload ảnh
-router.post(
-    '/:id/messages/upload-image',
-    authenticate,
-    upload.single('image'),
-    PlannerChatValidator.validatePlannerId,
-    PlannerChatController.uploadImage
 );
 
 // DELETE /api/planners/:id/messages/:messageId - Xóa tin nhắn

@@ -56,24 +56,6 @@ const Planner = sequelize.define('Planner', {
         type: DataTypes.DATE,
         allowNull: true
     },
-    share_token: {
-        type: DataTypes.STRING(50),
-        allowNull: true,
-        unique: true
-    },
-    share_role: {
-        type: DataTypes.STRING(20),
-        allowNull: true,
-        defaultValue: 'viewer',
-        validate: {
-            isIn: [['viewer', 'editor']]
-        }
-    },
-    qr_code_url: {
-        type: DataTypes.TEXT,
-        allowNull: true,
-        defaultValue: null
-    },
     is_active: {
         type: DataTypes.BOOLEAN,
         defaultValue: true,

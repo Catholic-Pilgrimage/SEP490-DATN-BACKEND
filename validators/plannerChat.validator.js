@@ -33,10 +33,10 @@ class PlannerChatValidator {
             .isIn(['text', 'image'])
             .withMessage((value, { req }) => req.__('validation.invalid_message_type')),
         body('content')
-            .optional()
+            .optional({ checkFalsy: true })
             .isString()
             .trim()
-            .isLength({ min: 1, max: 1000 })
+            .isLength({ max: 1000 })
             .withMessage((value, { req }) => req.__('validation.content_length')),
         body('image_url')
             .optional()

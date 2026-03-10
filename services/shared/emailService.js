@@ -20,10 +20,10 @@ class EmailService {
    * Email template header - Catholic style
    */
   static getEmailHeader() {
-    const logoHtml = LOGO_URL 
+    const logoHtml = LOGO_URL
       ? `<img src="${LOGO_URL}" alt="Catholic Pilgrimage Logo" style="max-width: 70px; height: auto; margin-bottom: 8px;" />`
       : `<div style="font-size: 36px; color: #ffd700;">&#10013;</div>`;
-    
+
     return `
       <div style="background: linear-gradient(135deg, #4a0e4e 0%, #7b1fa2 100%); padding: 20px; text-align: center;">
         ${logoHtml}
@@ -780,9 +780,8 @@ class EmailService {
       Logger.info(`Sending group invitation to: ${email}`);
       const currentYear = new Date().getFullYear();
 
-      // Accept and reject URLs (adjust based on your frontend routes)
-      const acceptUrl = `${process.env.FRONTEND_URL || 'https://catholicpilgrimage.app'}/groups/invitations/${token}/accept`;
-      const rejectUrl = `${process.env.FRONTEND_URL || 'https://catholicpilgrimage.app'}/groups/invitations/${token}/reject`;
+      // Invite URL (adjust based on your frontend routes)
+      const inviteUrl = `${process.env.FRONTEND_URL || 'pilgrimapp:/'}/planners/invite/${token}`;
 
       const htmlContent = `
 <!DOCTYPE html>
@@ -812,8 +811,8 @@ class EmailService {
       </p>
       
       <div style="text-align: center; margin: 30px 0;">
-        <a href="${acceptUrl}" style="display: inline-block; background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); color: #fff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          Xem nhóm
+        <a href="${inviteUrl}" style="display: inline-block; background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); color: #fff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          Xem Lời Mời
         </a>
       </div>
       
@@ -857,14 +856,14 @@ class EmailService {
   /**
    * Send planner invitation email with QR code
    */
-  static async sendPlannerInvitation(email, inviterName, plannerName, token) {
+  static async sendPlannerInvitation(email, inviterName, plannerName, token, plannerDetails = {}) {
     try {
       Logger.info(`Sending planner invitation to: ${email}`);
       const currentYear = new Date().getFullYear();
       const QRCode = require('qrcode');
       const { cloudinary } = require('../../config/cloudinary.config');
 
-      const inviteUrl = `${process.env.FRONTEND_URL || 'https://catholicpilgrimage.app'}/planners/invite/${token}`;
+      const inviteUrl = `${process.env.FRONTEND_URL || 'pilgrimapp:/'}/planners/invite/${token}`;
 
       // Generate QR code as base64 data URL
       const qrCodeDataUrl = await QRCode.toDataURL(inviteUrl, {
@@ -890,6 +889,50 @@ class EmailService {
         Logger.warn(`Failed to upload QR code to Cloudinary, using base64: ${uploadError.message}`);
       }
 
+      // Format planner details
+      const { start_date, end_date, number_of_days, number_of_people, transportation } = plannerDetails;
+
+      const formatDate = (dateStr) => {
+        if (!dateStr) return '—';
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      };
+
+      const transportMap = {
+        car: '🚗 Ô tô',
+        bus: '🚌 Xe buýt',
+        motorbike: '🏍️ Xe máy',
+        walk: '🚶 Đi bộ',
+        train: '🚂 Tàu hỏa',
+        plane: '✈️ Máy bay',
+        other: '🚐 Khác'
+      };
+      const transportLabel = transportMap[transportation] || transportation || '—';
+
+      const plannerInfoHtml = `
+        <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+          <tr>
+            <td style="padding: 8px 12px; color: #666; font-size: 14px; border-bottom: 1px solid #e0e0e0;">📅 Ngày đi</td>
+            <td style="padding: 8px 12px; color: #333; font-weight: bold; font-size: 14px; border-bottom: 1px solid #e0e0e0;">${formatDate(start_date)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 12px; color: #666; font-size: 14px; border-bottom: 1px solid #e0e0e0;">📅 Ngày về</td>
+            <td style="padding: 8px 12px; color: #333; font-weight: bold; font-size: 14px; border-bottom: 1px solid #e0e0e0;">${formatDate(end_date)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 12px; color: #666; font-size: 14px; border-bottom: 1px solid #e0e0e0;">🗓️ Số ngày</td>
+            <td style="padding: 8px 12px; color: #333; font-weight: bold; font-size: 14px; border-bottom: 1px solid #e0e0e0;">${number_of_days || '—'} ngày</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 12px; color: #666; font-size: 14px; border-bottom: 1px solid #e0e0e0;">👥 Số người</td>
+            <td style="padding: 8px 12px; color: #333; font-weight: bold; font-size: 14px; border-bottom: 1px solid #e0e0e0;">${number_of_people || '—'} người</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 12px; color: #666; font-size: 14px;">🚗 Phương tiện</td>
+            <td style="padding: 8px 12px; color: #333; font-weight: bold; font-size: 14px;">${transportLabel}</td>
+          </tr>
+        </table>`;
+
       const htmlContent = `
 <!DOCTYPE html>
 <html lang="vi">
@@ -912,6 +955,7 @@ class EmailService {
       <div style="background: linear-gradient(135deg, #e8eaf6 0%, #c5cae9 100%); padding: 25px; border-radius: 8px; margin: 25px 0; text-align: center; border: 2px solid #3f51b5;">
         <h3 style="color: #283593; margin: 0; font-size: 22px;">📋 ${plannerName}</h3>
         <p style="color: #5c6bc0; margin: 10px 0 0 0; font-size: 14px;">Vai trò: <strong>Người xem</strong></p>
+        ${plannerInfoHtml}
       </div>
       
       <p style="color: #333; line-height: 1.8; font-size: 16px;">

@@ -24,13 +24,18 @@ exports.canAccessChat = async (plannerId, userId) => {
     }
 
     // Chat is only available when planner has at least 1 member
-    // (Solo planner doesn't need chat)
     const memberCount = await PlannerMember.count({
         where: { planner_id: plannerId }
     });
 
     if (memberCount === 0) {
-        return { canAccess: false, reason: 'NO_MEMBERS' };
+        const messageCount = await PlannerMessage.count({
+            where: { planner_id: plannerId }
+        });
+
+        if (messageCount === 0) {
+            return { canAccess: false, reason: 'NO_MEMBERS' };
+        }
     }
 
     return { canAccess: true, reason: null };
@@ -98,6 +103,12 @@ exports.sendMessage = async (plannerId, userId, messageData) => {
             throw new Error(reason || 'Forbidden');
         }
 
+        // Feature: Cannot send new messages if no members are in the planner (even if history is viewable)
+        const memberCount = await PlannerMember.count({ where: { planner_id: plannerId } });
+        if (memberCount === 0) {
+            throw new Error('NO_MEMBERS');
+        }
+
         const planner = await Planner.findByPk(plannerId);
         if (planner.status === 'completed') {
             throw new Error('Cannot send messages to completed planner');
@@ -157,30 +168,6 @@ exports.sendMessage = async (plannerId, userId, messageData) => {
         };
     } catch (error) {
         Logger.error('Send planner message error:', error);
-        throw error;
-    }
-};
-
-/**
- * Upload image for chat
- * Note: File is already uploaded to Cloudinary via multer-storage-cloudinary middleware
- */
-exports.uploadImage = async (plannerId, userId, file) => {
-    try {
-        // Check access
-        const { canAccess, reason } = await exports.canAccessChat(plannerId, userId);
-        if (!canAccess) {
-            throw new Error(reason || 'Forbidden');
-        }
-
-   
-        Logger.info(`Image uploaded to Cloudinary for planner ${plannerId}`);
-
-        return {
-            image_url: file.path
-        };
-    } catch (error) {
-        Logger.error('Upload chat image error:', error);
         throw error;
     }
 };

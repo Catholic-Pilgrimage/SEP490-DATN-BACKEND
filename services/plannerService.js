@@ -37,11 +37,22 @@ class PlannerService {
                 }
             }
 
-            // Check overlapping dates with existing planners
+            // Check overlapping dates with existing planners (both owned and joined)
             if (start_date && end_date) {
+                // Get IDs of planners the user has joined
+                const memberPlanners = await PlannerMember.findAll({
+                    where: { user_id: userId },
+                    attributes: ['planner_id']
+                });
+                const joinedPlannerIds = memberPlanners.map(m => m.planner_id);
+
                 const overlappingPlanners = await Planner.findAll({
                     where: {
-                        user_id: userId,
+                        is_active: true,
+                        [Op.or]: [
+                            { user_id: userId },
+                            { id: { [Op.in]: joinedPlannerIds } }
+                        ],
                         start_date: { [Op.ne]: null },
                         end_date: { [Op.ne]: null },
                         [Op.and]: [
@@ -102,14 +113,28 @@ class PlannerService {
 
     /**
      * Get user's planners with pagination
+     * Returns both planners created by the user and planners they are a member of
      */
     static async getUserPlanners(userId, filters = {}) {
         try {
             const { page = 1, limit = 10 } = filters;
             const offset = (page - 1) * limit;
 
+            // Lấy danh sách ID của các planner mà người dùng là thành viên
+            const memberPlanners = await PlannerMember.findAll({
+                where: { user_id: userId },
+                attributes: ['planner_id']
+            });
+            const joinedPlannerIds = memberPlanners.map(m => m.planner_id);
+
             const { rows: planners, count: total } = await Planner.findAndCountAll({
-                where: { user_id: userId, is_active: true },
+                where: {
+                    is_active: true,
+                    [Op.or]: [
+                        { user_id: userId }, // Planner do user tạo
+                        { id: { [Op.in]: joinedPlannerIds } } // Planner mà user tham gia
+                    ]
+                },
                 include: [
                     { model: User, as: 'owner', attributes: ['id', 'full_name', 'email', 'avatar_url'] }
                 ],
@@ -157,9 +182,19 @@ class PlannerService {
                 throw new Error('Planner not found');
             }
 
-            // Check ownership only if userId is provided (owner access)
+            // Check access: owner or member (if userId is provided)
             if (userId && planner.user_id !== userId) {
-                throw new Error('Forbidden');
+                // Check if user is a member
+                const isMember = await PlannerMember.findOne({
+                    where: {
+                        planner_id: plannerId,
+                        user_id: userId
+                    }
+                });
+
+                if (!isMember) {
+                    throw new Error('Forbidden');
+                }
             }
 
             return this.formatPlannerWithItems(planner);
@@ -333,7 +368,7 @@ class PlannerService {
             if (event_id) {
                 const { Event } = require('../models');
                 const event = await Event.findByPk(event_id);
-                
+
                 if (!event) {
                     throw new Error('Event not found');
                 }
@@ -378,7 +413,7 @@ class PlannerService {
 
                 // Calculate day_number (1-based)
                 const calculatedDayNumber = Math.ceil((eventStartDate - plannerStartDate) / (1000 * 60 * 60 * 24)) + 1;
-                
+
                 // Override day_number with calculated value
                 day_number = calculatedDayNumber;
                 Logger.info(`Event ${event.name}: auto-calculated day_number = ${day_number}`);
@@ -1352,91 +1387,6 @@ class PlannerService {
     }
 
     /**
-     * Create or update share token with QR code (viewer only)
-     * Owner is identified by user_id, shared users are always viewer
-     */
-    static async createShareToken(plannerId, userId) {
-        try {
-            const planner = await Planner.findByPk(plannerId);
-
-            if (!planner) {
-                throw new Error('Planner not found');
-            }
-
-            // Check ownership
-            if (planner.user_id !== userId) {
-                throw new Error('Forbidden');
-            }
-
-            // Generate token if not exists
-            if (!planner.share_token) {
-                planner.share_token = crypto.randomBytes(24).toString('hex');
-            }
-
-            // Always set share_role to viewer
-            planner.share_role = 'viewer';
-
-            const shareLink = `myapp://planners/share/${planner.share_token}`;
-
-            // Generate QR code as data URL (base64 PNG)
-            const qrCodeDataUrl = await QRCode.toDataURL(shareLink, {
-                width: 400,
-                margin: 2,
-                color: {
-                    dark: '#4a0e4e',
-                    light: '#ffffff'
-                }
-            });
-
-            planner.qr_code_url = qrCodeDataUrl;
-
-            await planner.save();
-
-            Logger.info(`Share token + QR code created for planner ${plannerId} by user ${userId}`);
-
-            return {
-                token: planner.share_token,
-                role: 'viewer',
-                link: shareLink,
-                qr_code: qrCodeDataUrl
-            };
-        } catch (error) {
-            Logger.error('Create share token error:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Disable sharing
-     */
-    static async disableShare(plannerId, userId) {
-        try {
-            const planner = await Planner.findByPk(plannerId);
-
-            if (!planner) {
-                throw new Error('Planner not found');
-            }
-
-            // Check ownership
-            if (planner.user_id !== userId) {
-                throw new Error('Forbidden');
-            }
-
-            planner.share_token = null;
-            planner.qr_code_url = null;
-
-            await planner.save();
-
-            Logger.info(`Sharing disabled for planner ${plannerId} by user ${userId}`);
-
-            return { message: 'Sharing disabled successfully' };
-        } catch (error) {
-            Logger.error('Disable share error:', error);
-            throw error;
-        }
-    }
-
-    /**
      * Mark planner as completed
      */
     static async completePlanner(plannerId, userId) {
@@ -1457,7 +1407,7 @@ class PlannerService {
 
             // ===== VALIDATION: Planner phải có đủ items cho tất cả các ngày =====
             const continuityCheck = await this.validatePlannerContinuity(plannerId);
-            
+
             if (!continuityCheck.isValid) {
                 const missingDaysStr = continuityCheck.missingDays.join(', ');
                 throw new Error(
@@ -1515,321 +1465,6 @@ class PlannerService {
         }
     }
 
-    /**
-     * Invite user to planner via email
-     */
-    static async inviteUserToPlanner(plannerId, userId, email) {
-        try {
-            const planner = await Planner.findByPk(plannerId, {
-                include: [{
-                    model: User,
-                    as: 'members'
-                }]
-            });
-
-            if (!planner) {
-                throw new Error('Planner not found');
-            }
-
-            // Chỉ owner mới được mời
-            if (planner.user_id !== userId) {
-                throw new Error('Forbidden');
-            }
-
-            // Chỉ cho phép mời khi đang planning
-            if (planner.status !== 'planning') {
-                throw new Error('Can only invite when planner is in planning status');
-            }
-
-            // Role luôn là viewer (owner = null trong DB, viewer cho tất cả người được mời)
-            const role = 'viewer';
-
-            // Kiểm tra số lượng members hiện tại
-            const currentMemberCount = planner.members ? planner.members.length : 0;
-            const pendingInvites = await PlannerInvite.count({
-                where: {
-                    planner_id: plannerId,
-                    status: 'pending'
-                }
-            });
-
-            const totalSlots = planner.number_of_people;
-            const availableSlots = totalSlots - currentMemberCount - pendingInvites - 1; // -1 for owner
-
-            if (availableSlots <= 0) {
-                throw new Error(`Planner is full. Max participants: ${totalSlots}`);
-            }
-
-            // Kiểm tra email đã được mời chưa
-            const existingInvite = await PlannerInvite.findOne({
-                where: {
-                    planner_id: plannerId,
-                    email,
-                    status: 'pending'
-                }
-            });
-
-            if (existingInvite) {
-                throw new Error('User already invited');
-            }
-
-            // Kiểm tra user có tồn tại trong hệ thống không
-            const userWithEmail = await User.findOne({ where: { email } });
-            if (!userWithEmail) {
-                throw new Error('User not found. Only registered users can be invited');
-            }
-
-            // Kiểm tra user đã là member chưa
-            const existingMember = await PlannerMember.findOne({
-                where: {
-                    planner_id: plannerId,
-                    user_id: userWithEmail.id
-                }
-            });
-
-            if (existingMember) {
-                throw new Error('User is already a member');
-            }
-
-            // Tạo invite token
-            const token = crypto.randomBytes(32).toString('hex');
-            const expiresAt = new Date();
-            expiresAt.setDate(expiresAt.getDate() + 7); // Expires in 7 days
-
-            const invite = await PlannerInvite.create({
-                planner_id: plannerId,
-                inviter_id: userId,
-                email,
-                token,
-                role,
-                status: 'pending',
-                expires_at: expiresAt
-            });
-
-            // Gửi email mời
-            const inviter = await User.findByPk(userId, { attributes: ['full_name', 'email'] });
-            const inviterName = inviter?.full_name || 'Người dùng';
-
-            try {
-                await EmailService.sendPlannerInvitation(email, inviterName, planner.name, token);
-            } catch (emailError) {
-                Logger.error('Failed to send planner invitation email:', emailError);
-                // Vẫn trả về invite dù email gửi thất bại
-            }
-
-            Logger.info(`Invite sent to ${email} for planner ${plannerId}`);
-
-            const baseUrl = process.env.FRONTEND_URL || 'https://catholicpilgrimage.app';
-            const inviteLink = `${baseUrl}/planners/invite/${token}`;
-
-            // Generate QR code for invite link
-            const qrCodeDataUrl = await QRCode.toDataURL(inviteLink, {
-                width: 400,
-                margin: 2,
-                color: {
-                    dark: '#4a0e4e',
-                    light: '#ffffff'
-                }
-            });
-
-            return {
-                id: invite.id,
-                email: invite.email,
-                role: invite.role,
-                token: invite.token,
-                expires_at: invite.expires_at,
-                invite_link: inviteLink,
-                qr_code: qrCodeDataUrl
-            };
-        } catch (error) {
-            Logger.error('Invite user to planner error:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Respond to planner invite (accept or reject)
-     */
-    static async respondToInvite(token, userId, action) {
-        try {
-            if (!['accept', 'reject'].includes(action)) {
-                throw new Error('Invalid action. Must be "accept" or "reject"');
-            }
-
-            const invite = await PlannerInvite.findOne({
-                where: { token },
-                include: [{
-                    model: Planner,
-                    as: 'planner',
-                    include: [{
-                        model: User,
-                        as: 'members'
-                    }]
-                }]
-            });
-
-            if (!invite) {
-                throw new Error('Invite not found');
-            }
-
-            if (invite.status !== 'pending') {
-                throw new Error('Invite already processed');
-            }
-
-            // Kiểm tra planner có còn ở trạng thái planning không
-            if (invite.planner.status !== 'planning') {
-                await invite.update({ status: 'expired' });
-                throw new Error('Cannot respond to invite. Trip has already started or completed');
-            }
-
-            // Kiểm tra invite đã hết hạn chưa
-            if (new Date() > new Date(invite.expires_at)) {
-                await invite.update({ status: 'expired' });
-                throw new Error('Invite has expired');
-            }
-
-            // Verify user email matches
-            const user = await User.findByPk(userId);
-            if (!user || user.email !== invite.email) {
-                throw new Error('Email mismatch. This invite is for another user');
-            }
-
-            if (action === 'accept') {
-                const planner = invite.planner;
-
-                // Kiểm tra planner còn chỗ không
-                const currentMemberCount = planner.members ? planner.members.length : 0;
-                const totalSlots = planner.number_of_people;
-
-                if (currentMemberCount + 1 > totalSlots) { // +1 for owner
-                    throw new Error(`Planner is full. Max participants: ${totalSlots}`);
-                }
-
-                // Thêm user vào planner members
-                await PlannerMember.create({
-                    planner_id: planner.id,
-                    user_id: userId,
-                    role: invite.role
-                });
-
-                // Cập nhật invite status
-                await invite.update({ status: 'accepted' });
-
-                Logger.info(`User ${userId} accepted invite for planner ${planner.id}`);
-
-                return this.formatPlannerResponse(planner);
-            } else {
-                // Reject
-                await invite.update({ status: 'rejected' });
-
-                Logger.info(`User ${userId} rejected invite for planner ${invite.planner_id}`);
-
-                return { message: 'Invite rejected successfully' };
-            }
-        } catch (error) {
-            Logger.error('Respond to invite error:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Get pending invites for a planner
-     */
-    static async getPlannerInvites(plannerId, userId) {
-        try {
-            const planner = await Planner.findByPk(plannerId);
-
-            if (!planner) {
-                throw new Error('Planner not found');
-            }
-
-            if (planner.user_id !== userId) {
-                throw new Error('Forbidden');
-            }
-
-            const invites = await PlannerInvite.findAll({
-                where: {
-                    planner_id: plannerId
-                },
-                include: [{
-                    model: User,
-                    as: 'inviter',
-                    attributes: ['id', 'full_name', 'email', 'avatar_url']
-                }],
-                order: [['created_at', 'DESC']]
-            });
-
-            return invites.map(invite => ({
-                id: invite.id,
-                email: invite.email,
-                role: invite.role,
-                status: invite.status,
-                expires_at: invite.expires_at,
-                created_at: invite.created_at,
-                inviter: invite.inviter
-            }));
-        } catch (error) {
-            Logger.error('Get planner invites error:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Get planner members
-     */
-    static async getPlannerMembers(plannerId, userId) {
-        try {
-            const planner = await Planner.findByPk(plannerId, {
-                include: [{
-                    model: User,
-                    as: 'members',
-                    through: {
-                        attributes: ['role', 'joined_at']
-                    },
-                    attributes: ['id', 'full_name', 'email', 'avatar_url']
-                }, {
-                    model: User,
-                    as: 'owner',
-                    attributes: ['id', 'full_name', 'email', 'avatar_url']
-                }]
-            });
-
-            if (!planner) {
-                throw new Error('Planner not found');
-            }
-
-            // Check if user has access (owner or member)
-            const isOwner = planner.user_id === userId;
-            const isMember = planner.members?.some(m => m.id === userId);
-
-            if (!isOwner && !isMember) {
-                throw new Error('Forbidden');
-            }
-
-            const members = [
-                {
-                    ...planner.owner.toJSON(),
-                    role: 'owner',
-                    joined_at: planner.created_at
-                },
-                ...(planner.members || []).map(member => ({
-                    ...member.toJSON(),
-                    role: member.PlannerMember.role,
-                    joined_at: member.PlannerMember.joined_at
-                }))
-            ];
-
-            return {
-                total_slots: planner.number_of_people,
-                current_members: members.length,
-                available_slots: planner.number_of_people - members.length,
-                members
-            };
-        } catch (error) {
-            Logger.error('Get planner members error:', error);
-            throw error;
-        }
-    }
 
     /**
      * Validate that planner has items for ALL days
@@ -1839,7 +1474,7 @@ class PlannerService {
     static async validatePlannerContinuity(plannerId) {
         try {
             const planner = await Planner.findByPk(plannerId);
-            
+
             if (!planner) {
                 throw new Error('Planner not found');
             }
@@ -1879,52 +1514,6 @@ class PlannerService {
             };
         } catch (error) {
             Logger.error('Validate planner continuity error:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Remove member from planner
-     */
-    static async removePlannerMember(plannerId, memberId, userId) {
-        try {
-            const planner = await Planner.findByPk(plannerId);
-
-            if (!planner) {
-                throw new Error('Planner not found');
-            }
-
-            // Only owner can remove members
-            if (planner.user_id !== userId) {
-                throw new Error('Forbidden');
-            }
-
-            // Cannot remove during ongoing trip
-            if (planner.status === 'ongoing') {
-                throw new Error('Cannot remove members during ongoing trip');
-            }
-
-            // Cannot remove owner
-            if (memberId === planner.user_id) {
-                throw new Error('Cannot remove owner');
-            }
-
-            const deleted = await PlannerMember.destroy({
-                where: {
-                    planner_id: plannerId,
-                    user_id: memberId
-                }
-            });
-
-            if (deleted === 0) {
-                throw new Error('Member not found');
-            }
-
-            Logger.info(`Member ${memberId} removed from planner ${plannerId}`);
-
-            return { message: 'Member removed successfully' };
-        } catch (error) {
-            Logger.error('Remove planner member error:', error);
             throw error;
         }
     }

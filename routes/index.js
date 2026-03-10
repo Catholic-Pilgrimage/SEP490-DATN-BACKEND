@@ -87,7 +87,12 @@ router.use('/sites', publicRoutes);
 // Journal routes
 router.use('/journals', journalRoutes);
 
-// Planner routes
+// Public planner invite preview route (no auth required)
+const { PilgrimPlannerShareController } = require('../controllers/pilgrim');
+const i18nMiddleware = require('../middlewares/i18n.middleware');
+router.get('/planners/invite/:token', i18nMiddleware, PilgrimPlannerShareController.getPlannerByInviteToken);
+
+// Planner routes (authenticated)
 router.use('/planners', plannerRoutes);
 
 // Planner Chat routes

@@ -49,10 +49,11 @@
  *           type: string
  *           maxLength: 1000
  *           description: Nội dung tin nhắn (bắt buộc nếu message_type = text)
- *         image_url:
+ *         image:
  *           type: string
- *           format: uri
- *           description: URL ảnh (bắt buộc nếu message_type = image)
+ *           format: binary
+ *           description: File ảnh (bắt buộc nếu message_type = image)
+ *       description: Payload gửi tin nhắn (dạng text hoặc upload ảnh)
  */
 
 /**
@@ -136,7 +137,7 @@
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             $ref: '#/components/schemas/SendMessageRequest'
  *     responses:
@@ -155,54 +156,6 @@
  *         description: Thiếu nội dung hoặc URL ảnh
  *       403:
  *         description: Không có quyền hoặc planner đã hoàn thành
- */
-
-/**
- * @swagger
- * /api/planners/{id}/messages/upload-image:
- *   post:
- *     summary: Upload ảnh cho chat
- *     description: Upload ảnh lên Cloudinary để sử dụng trong chat. Trả về image_url để dùng khi gửi tin nhắn.
- *     tags: [Pilgrim - Planner Chat]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: ID của planner
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             properties:
- *               image:
- *                 type: string
- *                 format: binary
- *                 description: File ảnh (max 5MB)
- *     responses:
- *       201:
- *         description: Upload ảnh thành công
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: object
- *                   properties:
- *                     image_url:
- *                       type: string
- *                       description: URL ảnh đã upload
- *       403:
- *         description: Không có quyền
  */
 
 /**

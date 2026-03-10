@@ -492,8 +492,6 @@ CREATE TABLE IF NOT EXISTS planners (
     started_at TIMESTAMP WITH TIME ZONE, -- NEW: When first check-in happened
     completed_at TIMESTAMP WITH TIME ZONE, -- NEW: When marked as completed
     
-    share_token VARCHAR(50) UNIQUE DEFAULT NULL,
-    qr_code_url TEXT DEFAULT NULL, -- QR code image URL (Cloudinary)
     is_active BOOLEAN DEFAULT TRUE NOT NULL, -- Soft delete flag (false = hidden from user)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

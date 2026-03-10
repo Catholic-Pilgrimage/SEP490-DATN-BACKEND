@@ -52,6 +52,12 @@ exports.sendMessage = async (req, res) => {
         const userId = req.user.id;
         const messageData = req.body;
 
+        // If an image was uploaded via multipart/form-data
+        if (req.file) {
+            messageData.message_type = 'image';
+            messageData.image_url = req.file.path;
+        }
+
         const result = await PlannerChatService.sendMessage(plannerId, userId, messageData);
 
         // Emit WebSocket event to planner chat room
@@ -76,40 +82,6 @@ exports.sendMessage = async (req, res) => {
         }
         if (error.message === 'Image URL is required for image messages') {
             return ResponseUtil.error(res, req.__('planner.chat.image_url_required'), 400);
-        }
-        return ResponseUtil.error(res, error.message, 500);
-    }
-};
-
-/**
- * POST /api/planners/:id/messages/upload-image - Upload image for chat
- */
-exports.uploadImage = async (req, res) => {
-    try {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return ResponseUtil.error(res, formatValidationErrors(errors.array()), 400);
-        }
-
-        const { id: plannerId } = req.params;
-        const userId = req.user.id;
-
-        if (!req.file) {
-            return ResponseUtil.error(res, req.__('planner.chat.image_required'), 400);
-        }
-
-        const result = await PlannerChatService.uploadImage(plannerId, userId, req.file);
-
-        return ResponseUtil.success(res, result, req.__('planner.chat.upload_image_success'), 201);
-    } catch (error) {
-        if (error.message === 'NO_ACCESS') {
-            return ResponseUtil.error(res, req.__('planner.chat.no_access'), 403);
-        }
-        if (error.message === 'NO_MEMBERS') {
-            return ResponseUtil.error(res, req.__('planner.chat.no_members'), 403);
-        }
-        if (error.message === 'PLANNER_NOT_FOUND') {
-            return ResponseUtil.error(res, req.__('planner.chat.planner_not_found'), 404);
         }
         return ResponseUtil.error(res, error.message, 500);
     }

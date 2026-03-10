@@ -330,9 +330,11 @@
     "trip_started": "Cannot respond to invitation after trip has started",
     "already_member": "User is already a member",
     "pending_invite_exists": "This email has already been invited",
-    "user_not_registered": "User not registered. Can only invite registered users",
     "member_removed": "Member removed successfully",
     "cannot_remove_owner": "Cannot remove planner owner",
+    "cannot_remove_ongoing": "Cannot remove members during ongoing trip",
+    "member_not_found": "Member not found",
+    "get_members_success": "Members retrieved successfully",
     "chat": {
       "get_messages_success": "Messages retrieved successfully",
       "send_message_success": "Message sent successfully",
