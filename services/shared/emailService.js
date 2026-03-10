@@ -780,8 +780,10 @@ class EmailService {
       Logger.info(`Sending group invitation to: ${email}`);
       const currentYear = new Date().getFullYear();
 
-      // Invite URL (adjust based on your frontend routes)
-      const inviteUrl = `${process.env.FRONTEND_URL || 'pilgrimapp:/'}/planners/invite/${token}`;
+      // Define separate URLs for the button and the generated QR code (if any)
+      // Buttons in emails often block custom schemes like 'pilgrimapp://', so we use a fallback web URL.
+      const buttonUrl = `${process.env.FRONTEND_URL || 'https://catholicpilgrimage.id.vn'}/groups/invitations/${token}`;
+      const qrUrl = `pilgrimapp://groups/invitations/${token}`;
 
       const htmlContent = `
 <!DOCTYPE html>
@@ -811,7 +813,7 @@ class EmailService {
       </p>
       
       <div style="text-align: center; margin: 30px 0;">
-        <a href="${inviteUrl}" style="display: inline-block; background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); color: #fff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <a href="${buttonUrl}" style="display: inline-block; background: linear-gradient(135deg, #4caf50 0%, #45a049 100%); color: #fff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
           Xem Lời Mời
         </a>
       </div>
@@ -863,10 +865,12 @@ class EmailService {
       const QRCode = require('qrcode');
       const { cloudinary } = require('../../config/cloudinary.config');
 
-      const inviteUrl = `${process.env.FRONTEND_URL || 'pilgrimapp:/'}/planners/invite/${token}`;
+      // Define separate URLs: one for the email button (HTTPS) and one for the QR code (Deep link)
+      const buttonUrl = `${process.env.FRONTEND_URL || 'https://catholicpilgrimage.id.vn'}/planners/invite/${token}`;
+      const qrUrl = `pilgrimapp://planners/invite/${token}`;
 
       // Generate QR code as base64 data URL
-      const qrCodeDataUrl = await QRCode.toDataURL(inviteUrl, {
+      const qrCodeDataUrl = await QRCode.toDataURL(qrUrl, {
         width: 200,
         margin: 2,
         color: {
@@ -963,7 +967,7 @@ class EmailService {
       </p>
       
       <div style="text-align: center; margin: 30px 0;">
-        <a href="${inviteUrl}" style="display: inline-block; background: linear-gradient(135deg, #3f51b5 0%, #303f9f 100%); color: #fff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <a href="${buttonUrl}" style="display: inline-block; background: linear-gradient(135deg, #3f51b5 0%, #303f9f 100%); color: #fff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
           Xem lời mời
         </a>
       </div>

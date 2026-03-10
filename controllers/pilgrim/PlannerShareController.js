@@ -63,11 +63,12 @@ class PlannerShareController {
      */
     static async respondToInvite(req, res) {
         try {
-            const { action } = req.body;
-
-            if (!action || !['accept', 'reject'].includes(action)) {
-                return ResponseUtil.badRequest(res, req.__('planner.invite_not_found'));
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
             }
+
+            const { action } = req.body;
 
             const result = await PlannerShareService.respondToInvite(req.params.token, req.user.id, action);
 
@@ -75,7 +76,7 @@ class PlannerShareController {
             return ResponseUtil.success(res, result, message);
         } catch (error) {
             if (error.message === 'Invalid action. Must be "accept" or "reject"') {
-                return ResponseUtil.badRequest(res, req.__('planner.invite_not_found'));
+                return ResponseUtil.badRequest(res, req.__('validation.failed'));
             }
             if (error.message === 'Invite not found') {
                 return ResponseUtil.notFound(res, req.__('planner.invite_not_found'));
@@ -85,6 +86,9 @@ class PlannerShareController {
             }
             if (error.message === 'Invite has expired') {
                 return ResponseUtil.badRequest(res, req.__('planner.invite_expired'));
+            }
+            if (error.message === 'Cannot respond to invite. Trip has already started or completed') {
+                return ResponseUtil.badRequest(res, req.__('planner.trip_started'));
             }
             if (error.message.includes('Planner is full')) {
                 return ResponseUtil.badRequest(res, req.__('planner.planner_full'));

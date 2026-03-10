@@ -88,13 +88,14 @@ router.post(
 router.post(
     '/:id/invite',
     authenticate,
-    PlannerValidator.validatePlannerId,
+    PlannerValidator.inviteUser,
     PilgrimPlannerShareController.inviteUser
 );
 
 router.post(
     '/invite/:token',
     authenticate,
+    PlannerValidator.respondToInvite,
     PilgrimPlannerShareController.respondToInvite
 );
 
@@ -115,7 +116,7 @@ router.get(
 router.delete(
     '/:id/members/:memberId',
     authenticate,
-    PlannerValidator.validatePlannerId,
+    PlannerValidator.removeMember,
     PilgrimPlannerShareController.removeMember
 );
 

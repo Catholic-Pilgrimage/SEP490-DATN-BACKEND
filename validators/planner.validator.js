@@ -376,6 +376,37 @@ class PlannerValidator {
             .notEmpty().withMessage('Role không được để trống')
             .isIn(['viewer', 'editor']).withMessage('Role phải là viewer hoặc editor')
     ];
+
+    // Validate invite user to planner
+    static inviteUser = [
+        param('id')
+            .isUUID().withMessage('Planner ID không hợp lệ'),
+
+        body('email')
+            .notEmpty().withMessage('Email không được để trống')
+            .isEmail().withMessage('Email không hợp lệ')
+            .normalizeEmail()
+    ];
+
+    // Validate respond to invite
+    static respondToInvite = [
+        param('token')
+            .notEmpty().withMessage('Token không được để trống')
+            .isString().withMessage('Token phải là chuỗi'),
+
+        body('action')
+            .notEmpty().withMessage('Action không được để trống')
+            .isIn(['accept', 'reject']).withMessage('Action phải là accept hoặc reject')
+    ];
+
+    // Validate remove member
+    static removeMember = [
+        param('id')
+            .isUUID().withMessage('Planner ID không hợp lệ'),
+
+        param('memberId')
+            .isUUID().withMessage('Member ID không hợp lệ')
+    ];
 }
 
 module.exports = PlannerValidator;
