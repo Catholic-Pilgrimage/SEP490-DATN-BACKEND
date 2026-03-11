@@ -60,6 +60,32 @@ exports.login = async (req, res) => {
   }
 };
 
+// Login user via Google (Firebase)
+exports.loginWithGoogle = async (req, res) => {
+  try {
+    const { firebaseIdToken } = req.body;
+    if (!firebaseIdToken) {
+      return ResponseUtil.badRequest(res, req.__('validation.failed'), [{ field: 'firebaseIdToken', message: 'firebaseIdToken is required' }]);
+    }
+
+    const result = await AuthService.loginWithGoogle(firebaseIdToken);
+
+    if (result.user && result.user.language) {
+      req.setLocale(result.user.language);
+    }
+
+    return ResponseUtil.success(res, result, req.__('auth.login_success'));
+  } catch (error) {
+    if (error.code === 'auth/argument-error' || error.code === 'auth/id-token-expired' || error.message.includes('Decoding Firebase ID token failed')) {
+      return ResponseUtil.unauthorized(res, req.__('auth.invalid_credentials'));
+    }
+    if (error.message === 'Account is banned') {
+      return ResponseUtil.forbidden(res, req.__('auth.account_banned'));
+    }
+    return ResponseUtil.error(res, req.__('error.server_error'));
+  }
+};
+
 exports.refreshToken = async (req, res) => {
   try {
     const { refreshToken } = req.body;

@@ -3,6 +3,7 @@ const { User, RefreshToken, BlacklistedToken, PasswordReset } = require('../../m
 const JwtUtil = require('../../utils/jwt.util');
 const Logger = require('../../utils/logger.util');
 const EmailService = require('./emailService');
+const admin = require('../../config/firebase.config');
 
 class AuthService {
     /**
@@ -412,6 +413,75 @@ class AuthService {
             Logger.info(`User logged out: ${userId}`);
         } catch (error) {
             Logger.error('Logout error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Đăng nhập / Đăng ký ẩn bằng Google thông qua Firebase
+     * @param {string} firebaseToken - Token từ Firebase trên Mobile
+     */
+    static async loginWithGoogle(firebaseToken) {
+        try {
+            // 1. Verify token với Firebase Admin
+            if (!admin.apps.length) {
+                throw new Error('Firebase Admin is not initialized');
+            }
+
+            const decodedToken = await admin.auth().verifyIdToken(firebaseToken);
+            const { email, name, picture } = decodedToken;
+            const normalizedEmail = email.toLowerCase().trim();
+
+            // 2. Tìm user trong DB
+            let user = await User.findOne({ where: { email: normalizedEmail } });
+
+            // 3. Nếu user bị ban thì chặn lại
+            if (user && user.status === 'banned') {
+                throw new Error('Account is banned');
+            }
+
+            // 4. Nếu chưa có user -> tự động đăng ký
+            if (!user) {
+                user = await User.create({
+                    email: normalizedEmail,
+                    full_name: name || 'Google User',
+                    avatar_url: picture,
+                    role: 'pilgrim',
+                    status: 'active',
+                    is_verified: true,
+                    language: 'vi'
+                });
+                Logger.info(`New user registered via Google: ${normalizedEmail}`);
+            }
+
+            // 5. Tạo tokens cho session
+            const accessToken = JwtUtil.generateAccessToken(user.id);
+            const refreshToken = JwtUtil.generateRefreshToken(user.id);
+            const tokenHash = JwtUtil.hashToken(refreshToken);
+            const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+            await RefreshToken.create({
+                user_id: user.id,
+                token_hash: tokenHash,
+                expires_at: expiresAt
+            });
+
+            Logger.info(`User logged in via Google: ${normalizedEmail}`);
+
+            return {
+                user: {
+                    id: user.id,
+                    email: user.email,
+                    full_name: user.full_name,
+                    role: user.role,
+                    avatar_url: user.avatar_url,
+                    language: user.language
+                },
+                accessToken,
+                refreshToken
+            };
+        } catch (error) {
+            Logger.error('Google login error:', error);
             throw error;
         }
     }
