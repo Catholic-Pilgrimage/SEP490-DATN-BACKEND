@@ -392,8 +392,12 @@
       "sos_assigned_title": "SOS đang được hỗ trợ",
       "sos_assigned_body": "{{guideName}} đang đến hỗ trợ bạn. SĐT: {{guidePhone}}",
       "sos_resolved_title": "SOS đã giải quyết",
-      "sos_resolved_body": "Yêu cầu SOS {{sosCode}} đã được giải quyết"
-    }
+      "sos_resolved_body": "Yêu cầu SOS {{sosCode}} đã được giải quyết",
+      "sos_planner_alert_title": "THÔNG BÁO KHẨN CẤP TỪ THÀNH VIÊN",
+      "sos_planner_alert_body": "Thành viên {{pilgrimName}} trong đoàn vừa gửi tín hiệu SOS cần hỗ trợ ngay lập tức!"
+    },
+    "default_sos_message": "Tôi cần hỗ trợ khẩn cấp, xin hãy giúp đỡ!",
+    "sos_cancelled_message": "Tín hiệu SOS từ {{pilgrimName}} đã được hủy."
   },
   "post": {
     "created": "Tạo bài viết thành công",

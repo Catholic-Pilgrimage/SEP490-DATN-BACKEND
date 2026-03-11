@@ -393,8 +393,12 @@
       "sos_assigned_title": "SOS is being handled",
       "sos_assigned_body": "{{guideName}} is coming to help you. Phone: {{guidePhone}}",
       "sos_resolved_title": "SOS resolved",
-      "sos_resolved_body": "SOS request {{sosCode}} has been resolved"
-    }
+      "sos_resolved_body": "SOS request {{sosCode}} has been resolved",
+      "sos_planner_alert_title": "URGENT: MEMBER NEEDS HELP",
+      "sos_planner_alert_body": "Group member {{pilgrimName}} just sent an SOS and needs immediate assistance!"
+    },
+    "default_sos_message": "I need urgent help, please assist me!",
+    "sos_cancelled_message": "SOS signal from {{pilgrimName}} has been cancelled."
   },
   "post": {
     "created": "Post created successfully",
