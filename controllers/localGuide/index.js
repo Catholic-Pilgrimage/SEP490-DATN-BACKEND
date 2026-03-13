@@ -8,6 +8,7 @@ const shiftController = require('./shiftController');
 const nearbyPlaceController = require('./nearbyPlaceController');
 const narrativeController = require('./narrativeController');
 const LocalGuideSOSController = require('./SOSController');
+const LocalGuideDashboardController = require('./DashboardController');
 
 module.exports = {
     // Site
@@ -32,6 +33,9 @@ module.exports = {
     ...narrativeController,
 
     // SOS
-    LocalGuideSOSController
+    LocalGuideSOSController,
+
+    // Dashboard
+    LocalGuideDashboardController
 };
 

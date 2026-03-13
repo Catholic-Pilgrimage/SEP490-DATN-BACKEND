@@ -44,7 +44,18 @@
     "cannot_change_site": "Cannot change user site. Please use verification process or contact Manager.",
     "user_updated": "User information updated successfully",
     "manager_must_have_site": "Manager and Local Guide must be assigned to a site",
-    "pilgrim_cannot_have_site": "Pilgrim cannot be assigned to a site"
+    "pilgrim_cannot_have_site": "Pilgrim cannot be assigned to a site",
+    "dashboard_success": "Dashboard statistics retrieved successfully",
+    "analytics_success": "Analytics data retrieved successfully",
+    "no_site_assigned": "Manager not assigned to any site",
+    "get_reports_success": "Reports retrieved successfully",
+    "get_report_success": "Report details retrieved successfully",
+    "report_not_found": "Report not found",
+    "report_already_processed": "Report already processed",
+    "invalid_action": "Invalid action",
+    "resolve_report_success": "Report resolved successfully",
+    "dismiss_report_success": "Report dismissed successfully",
+    "delete_report_success": "Report deleted successfully"
   },
   "site": {
     "create_success": "Site created successfully",
@@ -202,9 +213,14 @@
     "delete_approved_nearby_place_error": "Cannot delete approved nearby place",
     "restore_approved_nearby_place_error": "Cannot restore approved nearby place",
     "nearby_place_already_active": "Nearby place is already active",
-    "remove_success": "Local Guide removed successfully"
+    "remove_success": "Local Guide removed successfully",
+    "dashboard_success": "Dashboard statistics retrieved successfully",
+    "no_site_assigned": "Local Guide has no assigned site"
   },
   "manager": {
+    "dashboard_success": "Dashboard statistics retrieved successfully",
+    "analytics_success": "Analytics data retrieved successfully",
+    "no_site_assigned": "Manager not assigned to any site",
     "upload_3d_model_success": "3D model uploaded successfully",
     "file_required": "Please select a file to upload",
     "no_site": "Manager has no assigned site",
@@ -249,6 +265,9 @@
     "nearby_place_restored": "Nearby place restored successfully",
     "nearby_place_deactivated": "Nearby place deactivated successfully",
     "only_approved_nearby_place_toggle": "Only approved nearby place can be toggled"
+  },
+  "pilgrim": {
+    "dashboard_success": "Journey statistics retrieved successfully"
   },
   "validation": {
     "failed": "Validation failed",

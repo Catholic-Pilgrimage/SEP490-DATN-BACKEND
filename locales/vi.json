@@ -44,7 +44,18 @@
     "cannot_change_site": "Không thể thay đổi địa điểm. Vui lòng sử dụng quy trình verification hoặc liên hệ Manager.",
     "user_updated": "Cập nhật thông tin người dùng thành công",
     "manager_must_have_site": "Manager và Local Guide phải được gán vào một địa điểm",
-    "pilgrim_cannot_have_site": "Pilgrim không thể được gán vào địa điểm"
+    "pilgrim_cannot_have_site": "Pilgrim không thể được gán vào địa điểm",
+    "dashboard_success": "Lấy thống kê dashboard thành công",
+    "analytics_success": "Lấy dữ liệu phân tích thành công",
+    "no_site_assigned": "Manager chưa được gán vào địa điểm nào",
+    "get_reports_success": "Lấy danh sách báo cáo thành công",
+    "get_report_success": "Lấy chi tiết báo cáo thành công",
+    "report_not_found": "Không tìm thấy báo cáo",
+    "report_already_processed": "Báo cáo đã được xử lý",
+    "invalid_action": "Hành động không hợp lệ",
+    "resolve_report_success": "Xử lý báo cáo thành công",
+    "dismiss_report_success": "Bỏ qua báo cáo thành công",
+    "delete_report_success": "Xóa báo cáo thành công"
   },
   "site": {
     "create_success": "Tạo địa điểm thành công",
@@ -89,6 +100,9 @@
     "no_site": "Bạn chưa có địa điểm nào"
   },
   "manager": {
+    "dashboard_success": "Lấy thống kê dashboard thành công",
+    "analytics_success": "Lấy dữ liệu phân tích thành công",
+    "no_site_assigned": "Manager chưa được gán vào địa điểm nào",
     "upload_3d_model_success": "Upload model 3D thành công",
     "file_required": "Vui lòng chọn file để upload",
     "get_media_success": "Lấy danh sách media thành công",
@@ -237,7 +251,12 @@
     "delete_approved_nearby_place_error": "Không thể xóa địa điểm đã được duyệt",
     "restore_approved_nearby_place_error": "Không thể khôi phục địa điểm đã được duyệt",
     "nearby_place_already_active": "Địa điểm lân cận đã được kích hoạt",
-    "remove_success": "Xóa Local Guide thành công"
+    "remove_success": "Xóa Local Guide thành công",
+    "dashboard_success": "Lấy thống kê dashboard thành công",
+    "no_site_assigned": "Hướng dẫn viên chưa được gán vào địa điểm nào"
+  },
+  "pilgrim": {
+    "dashboard_success": "Lấy thống kê hành trình thành công"
   },
   "validation": {
     "failed": "Dữ liệu không hợp lệ",

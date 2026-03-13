@@ -5,8 +5,12 @@ const LocalGuideEventService = require('./eventService');
 const LocalGuideShiftService = require('./shiftService');
 const LocalGuideNearbyPlaceService = require('./nearbyPlaceService');
 const LocalGuideSOSService = require('./sosService');
+const LocalGuideDashboardService = require('./dashboardService');
 
 module.exports = {
+    // Dashboard
+    LocalGuideDashboardService,
+
     // Site
     getMySite: LocalGuideSiteService.getMySite.bind(LocalGuideSiteService),
 
