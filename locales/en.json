@@ -369,6 +369,11 @@
       "image_url_required": "Image URL is required",
       "image_required": "Please select an image to upload",
       "cannot_send_completed": "Cannot send messages to completed planner"
+    },
+    "calendar_sync": {
+      "success": "Calendar sync data retrieved successfully",
+      "missing_dates": "Planner must have start date and end date for calendar sync",
+      "no_items": "Planner has no items to sync"
     }
   },
   "error": {

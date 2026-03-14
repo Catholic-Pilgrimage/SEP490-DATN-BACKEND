@@ -368,6 +368,11 @@
       "image_url_required": "URL ảnh không được để trống",
       "image_required": "Vui lòng chọn ảnh để upload",
       "cannot_send_completed": "Không thể gửi tin nhắn cho planner đã hoàn thành"
+    },
+    "calendar_sync": {
+      "success": "Lấy dữ liệu đồng bộ lịch thành công",
+      "missing_dates": "Kế hoạch phải có ngày bắt đầu và kết thúc để đồng bộ lịch",
+      "no_items": "Kế hoạch chưa có địa điểm nào để đồng bộ"
     }
   },
   "error": {

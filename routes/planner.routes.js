@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const PlannerController = require('../controllers/PlannerController');
-const { PilgrimPlannerShareController } = require('../controllers/pilgrim');
+const { PilgrimPlannerShareController, PilgrimPlannerCalendarController } = require('../controllers/pilgrim');
 const PlannerValidator = require('../validators/planner.validator');
 const authenticate = require('../middlewares/auth.middleware');
 
@@ -83,6 +83,13 @@ router.post(
     authenticate,
     PlannerValidator.validatePlannerId,
     PlannerController.completePlanner
+);
+
+router.get(
+    '/:id/calendar-sync',
+    authenticate,
+    PlannerValidator.validatePlannerId,
+    PilgrimPlannerCalendarController.getCalendarSync
 );
 
 router.post(
