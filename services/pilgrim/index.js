@@ -5,6 +5,8 @@ const PilgrimPlannerChatService = require('./plannerChatService');
 const PilgrimPlannerShareService = require('./plannerShareService');
 const PilgrimPlannerCalendarService = require('./plannerCalendarService');
 const PilgrimDashboardService = require('./dashboardService');
+const PilgrimPlannerOfflineService = require('./plannerOfflineService');
+const PilgrimOfflineSyncService = require('./offlineSyncService');
 
 module.exports = {
     PilgrimVerificationService,
@@ -13,5 +15,7 @@ module.exports = {
     PilgrimPlannerChatService,
     PilgrimPlannerShareService,
     PilgrimPlannerCalendarService,
-    PilgrimDashboardService
+    PilgrimDashboardService,
+    PilgrimPlannerOfflineService,
+    PilgrimOfflineSyncService
 };

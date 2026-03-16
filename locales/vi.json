@@ -476,5 +476,10 @@
     "cannot_delete_approved": "Không thể xóa thuyết minh đã được duyệt. Vui lòng liên hệ Quản lý nếu cần xóa",
     "no_narrative_to_delete": "Không có thuyết minh để xóa",
     "delete_success": "Xóa thuyết minh thành công"
+  },
+  "offline": {
+    "download_success": "Tải dữ liệu offline thành công",
+    "sync_success": "Đồng bộ dữ liệu offline thành công",
+    "no_actions": "Không có hành động nào để đồng bộ"
   }
 }

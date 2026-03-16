@@ -1,8 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const PlannerController = require('../controllers/PlannerController');
-const { PilgrimPlannerShareController, PilgrimPlannerCalendarController } = require('../controllers/pilgrim');
+const { 
+    PilgrimPlannerShareController, 
+    PilgrimPlannerCalendarController,
+    PilgrimPlannerOfflineController,
+    PilgrimOfflineSyncController 
+} = require('../controllers/pilgrim');
 const PlannerValidator = require('../validators/planner.validator');
+const OfflineValidator = require('../validators/offline.validator');
 const authenticate = require('../middlewares/auth.middleware');
 
 
@@ -125,6 +131,21 @@ router.delete(
     authenticate,
     PlannerValidator.removeMember,
     PilgrimPlannerShareController.removeMember
+);
+
+// Offline Mode Routes
+router.get(
+    '/:id/offline-data',
+    authenticate,
+    PlannerValidator.validatePlannerId,
+    PilgrimPlannerOfflineController.getOfflineData
+);
+
+router.post(
+    '/sync/offline-actions',
+    authenticate,
+    OfflineValidator.syncActions,
+    PilgrimOfflineSyncController.syncActions
 );
 
 module.exports = router;

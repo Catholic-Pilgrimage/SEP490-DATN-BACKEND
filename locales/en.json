@@ -477,5 +477,10 @@
     "cannot_delete_approved": "Cannot delete approved narrative. Please contact Manager if you need to remove it",
     "no_narrative_to_delete": "No narrative to delete",
     "delete_success": "Narrative deleted successfully"
+  },
+  "offline": {
+    "download_success": "Offline data downloaded successfully",
+    "sync_success": "Offline data synced successfully",
+    "no_actions": "No actions to sync"
   }
 }

@@ -26,6 +26,7 @@ const Post = require('./Post');
 const PostLike = require('./PostLike');
 const PostComment = require('./PostComment');
 const Report = require('./Report');
+const OfflineSyncLog = require('./OfflineSyncLog');
 
 
 
@@ -237,6 +238,12 @@ Report.belongsTo(User, { foreignKey: 'reporter_id', as: 'reporter' });
 User.hasMany(Report, { foreignKey: 'resolved_by', as: 'resolvedReports' });
 Report.belongsTo(User, { foreignKey: 'resolved_by', as: 'resolver' });
 
+// ===================== OFFLINE SYNC LOGS =====================
+
+// OfflineSyncLog - User
+User.hasMany(OfflineSyncLog, { foreignKey: 'user_id', as: 'offlineSyncLogs' });
+OfflineSyncLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
 
 const db = {
   sequelize,
@@ -266,7 +273,8 @@ const db = {
   Post,
   PostLike,
   PostComment,
-  Report
+  Report,
+  OfflineSyncLog
 };
 
 module.exports = db;
