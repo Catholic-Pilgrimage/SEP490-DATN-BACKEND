@@ -27,6 +27,22 @@ const PlannerMember = sequelize.define('PlannerMember', {
             isIn: [['viewer']]
         }
     },
+    deposit_status: {
+        type: DataTypes.STRING(20),
+        defaultValue: 'pending',
+        validate: {
+            isIn: [['pending', 'paid', 'refunded', 'penalized']]
+        },
+        comment: 'pending: chưa đóng, paid: đã đóng cọc (escrow), refunded: đã hoàn, penalized: đã bị phạt'
+    },
+    join_status: {
+        type: DataTypes.STRING(20),
+        defaultValue: 'joined',
+        validate: {
+            isIn: [['joined', 'dropped_out', 'kicked']]
+        },
+        comment: 'joined: đang tham gia, dropped_out: tự rời (bị phạt), kicked: bị đuổi (hoàn 100%)'
+    },
     joined_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW

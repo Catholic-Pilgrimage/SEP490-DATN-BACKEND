@@ -470,3 +470,79 @@
  *       404:
  *         description: Không tìm thấy kế hoạch
  */
+
+/**
+ * @swagger
+ * /api/planners/{id}/transactions:
+ *   get:
+ *     summary: Xem sao kê quỹ nhóm
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Planner ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Số trang
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *         description: Số lượng mỗi trang
+ *     responses:
+ *       200:
+ *         description: Lấy sao kê thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Lấy sao kê quỹ nhóm thành công
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     summary:
+ *                       type: object
+ *                       properties:
+ *                         total_fund_locked:
+ *                           type: number
+ *                           example: 500000
+ *                     transactions:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Transaction'
+ *                     total:
+ *                       type: integer
+ *                       example: 5
+ *                     totalPages:
+ *                       type: integer
+ *                       example: 1
+ *                     currentPage:
+ *                       type: integer
+ *                       example: 1
+ *       401:
+ *         description: Chưa xác thực
+ *       403:
+ *         description: Không có quyền (không phải thành viên)
+ *       404:
+ *         description: Không tìm thấy kế hoạch
+ */
+

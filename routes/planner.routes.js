@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const PlannerController = require('../controllers/PlannerController');
-const { 
-    PilgrimPlannerShareController, 
+const {
+    PilgrimPlannerShareController,
     PilgrimPlannerCalendarController,
     PilgrimPlannerOfflineController,
-    PilgrimOfflineSyncController 
+    PilgrimOfflineSyncController
 } = require('../controllers/pilgrim');
 const PlannerValidator = require('../validators/planner.validator');
 const OfflineValidator = require('../validators/offline.validator');
@@ -98,6 +98,13 @@ router.get(
     PilgrimPlannerCalendarController.getCalendarSync
 );
 
+router.get(
+    '/:id/transactions',
+    authenticate,
+    PlannerValidator.validatePlannerId,
+    PlannerController.getPlannerTransactions
+);
+
 router.post(
     '/:id/invite',
     authenticate,
@@ -110,6 +117,20 @@ router.post(
     authenticate,
     PlannerValidator.respondToInvite,
     PilgrimPlannerShareController.respondToInvite
+);
+
+// Xác nhận tham gia (tạo link thanh toán cọc)
+router.post(
+    '/:id/confirm-join',
+    authenticate,
+    PlannerValidator.validatePlannerId,
+    PilgrimPlannerShareController.confirmJoin
+);
+
+// Webhook PayOS cho thanh toán cọc (public - không cần auth)
+router.post(
+    '/deposit-webhook',
+    PilgrimPlannerShareController.handleDepositWebhook
 );
 
 router.get(

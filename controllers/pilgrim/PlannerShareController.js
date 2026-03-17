@@ -167,6 +167,50 @@ class PlannerShareController {
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
+
+    /**
+     * POST /planners/:id/confirm-join - Xác nhận tham gia (tạo link cọc)
+     */
+    static async confirmJoin(req, res) {
+        try {
+            const result = await PlannerShareService.createDepositPayment(req.user.id, req.params.id);
+
+            if (!result.deposit_required) {
+                return ResponseUtil.success(res, result, result.message);
+            }
+
+            return ResponseUtil.created(res, result, 'Tạo link thanh toán cọc thành công');
+        } catch (error) {
+            if (error.message.includes('chưa phải thành viên')) {
+                return ResponseUtil.forbidden(res, error.message);
+            }
+            if (error.message.includes('đã đóng cọc')) {
+                return ResponseUtil.badRequest(res, error.message);
+            }
+            if (error.message === 'Planner not found') {
+                return ResponseUtil.notFound(res, req.__('planner.not_found'));
+            }
+            return ResponseUtil.error(res, 'Lỗi khi tạo thanh toán cọc');
+        }
+    }
+
+    /**
+     * POST /planners/deposit-webhook - Webhook PayOS xác nhận cọc (public)
+     */
+    static async handleDepositWebhook(req, res) {
+        try {
+            const result = await PlannerShareService.handleDepositWebhook(req.body);
+
+            if (result.success) {
+                return res.status(200).json({ success: true, message: 'Deposit webhook processed' });
+            }
+
+            return res.status(200).json({ success: false, message: result.message });
+        } catch (error) {
+            console.error('Deposit webhook error:', error);
+            return res.status(400).json({ success: false, message: 'Invalid webhook' });
+        }
+    }
 }
 
 module.exports = PlannerShareController;

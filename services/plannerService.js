@@ -41,7 +41,10 @@ class PlannerService {
             if (start_date && end_date) {
                 // Get IDs of planners the user has joined
                 const memberPlanners = await PlannerMember.findAll({
-                    where: { user_id: userId },
+                    where: {
+                        user_id: userId,
+                        join_status: 'joined'
+                    },
                     attributes: ['planner_id']
                 });
                 const joinedPlannerIds = memberPlanners.map(m => m.planner_id);
@@ -92,19 +95,47 @@ class PlannerService {
                 throw new Error('Number of people must be at least 1');
             }
 
-            // Create planner
-            const planner = await Planner.create({
-                user_id: userId,
-                name: name.trim(),
-                start_date: start_date || null,
-                end_date: end_date || null,
-                number_of_people,
-                transportation: transportation || null,
-                status: 'planning'
-            });
+            // Support financial fields
+            const depositAmount = parseFloat(plannerData.deposit_amount) || 0;
+            const penaltyPercentage = parseInt(plannerData.penalty_percentage) || 0;
 
-            Logger.info(`Planner created by user ${userId}: ${planner.id}`);
-            return this.formatPlannerResponse(planner);
+            // Wrap in transaction for atomic creation + deposit lock
+            const t = await sequelize.transaction();
+
+            try {
+                // Create planner
+                const planner = await Planner.create({
+                    user_id: userId,
+                    name: name.trim(),
+                    start_date: start_date || null,
+                    end_date: end_date || null,
+                    number_of_people,
+                    transportation: transportation || null,
+                    deposit_amount: depositAmount,
+                    penalty_percentage: penaltyPercentage,
+                    status: 'planning'
+                }, { transaction: t });
+
+                // Owner is also tracked in PlannerMember for membership and finance flows
+                const memberData = {
+                    planner_id: planner.id,
+                    user_id: userId,
+                    role: 'viewer',
+                    join_status: 'joined'
+                };
+
+                // Owner không phải đóng tiền cam kết.
+                memberData.deposit_status = 'pending';
+
+                await PlannerMember.create(memberData, { transaction: t });
+
+                await t.commit();
+                Logger.info(`Planner created by user ${userId}: ${planner.id} (deposit: ${depositAmount})`);
+                return this.formatPlannerResponse(planner);
+            } catch (innerError) {
+                await t.rollback();
+                throw innerError;
+            }
         } catch (error) {
             Logger.error('Create planner error:', error);
             throw error;
@@ -122,7 +153,10 @@ class PlannerService {
 
             // Lấy danh sách ID của các planner mà người dùng là thành viên
             const memberPlanners = await PlannerMember.findAll({
-                where: { user_id: userId },
+                where: {
+                    user_id: userId,
+                    join_status: 'joined'
+                },
                 attributes: ['planner_id']
             });
             const joinedPlannerIds = memberPlanners.map(m => m.planner_id);
@@ -188,7 +222,8 @@ class PlannerService {
                 const isMember = await PlannerMember.findOne({
                     where: {
                         planner_id: plannerId,
-                        user_id: userId
+                        user_id: userId,
+                        join_status: 'joined'
                     }
                 });
 
@@ -1309,6 +1344,8 @@ class PlannerService {
             number_of_days: numberOfDays,
             number_of_people: planner.number_of_people,
             transportation: planner.transportation,
+            deposit_amount: planner.deposit_amount,
+            penalty_percentage: planner.penalty_percentage,
 
             status: planner.status,
             share_token: planner.share_token,
@@ -1390,8 +1427,12 @@ class PlannerService {
      * Mark planner as completed
      */
     static async completePlanner(plannerId, userId) {
+        const t = await sequelize.transaction();
         try {
-            const planner = await Planner.findByPk(plannerId);
+            const planner = await Planner.findByPk(plannerId, {
+                transaction: t,
+                lock: true
+            });
 
             if (!planner) {
                 throw new Error('Planner not found');
@@ -1420,11 +1461,17 @@ class PlannerService {
             await planner.update({
                 status: 'completed',
                 completed_at: new Date()
-            });
+            }, { transaction: t });
+
+            const PlannerAntiFraudService = require('./pilgrim/plannerAntiFraudService');
+            await PlannerAntiFraudService.verifyAndSettlePlanner(plannerId, t);
+
+            await t.commit();
 
             Logger.info(`Planner ${plannerId} marked as completed by user ${userId}`);
             return this.formatPlannerResponse(planner);
         } catch (error) {
+            await t.rollback();
             Logger.error('Complete planner error:', error);
             throw error;
         }
@@ -1450,11 +1497,27 @@ class PlannerService {
 
             let completedCount = 0;
             for (const planner of expiredPlanners) {
-                await planner.update({
-                    status: 'completed',
-                    completed_at: new Date()
-                });
-                completedCount++;
+                const t = await sequelize.transaction();
+                try {
+                    const currentPlanner = await Planner.findByPk(planner.id, {
+                        transaction: t,
+                        lock: true
+                    });
+
+                    await currentPlanner.update({
+                        status: 'completed',
+                        completed_at: new Date()
+                    }, { transaction: t });
+
+                    const PlannerAntiFraudService = require('./pilgrim/plannerAntiFraudService');
+                    await PlannerAntiFraudService.verifyAndSettlePlanner(currentPlanner.id, t);
+
+                    await t.commit();
+                    completedCount++;
+                } catch (plannerError) {
+                    await t.rollback();
+                    Logger.error(`Auto complete failed for planner ${planner.id}:`, plannerError);
+                }
             }
 
             Logger.info(`Auto-completed ${completedCount} expired planners`);
@@ -1520,3 +1583,4 @@ class PlannerService {
 }
 
 module.exports = PlannerService;
+

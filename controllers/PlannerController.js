@@ -358,6 +358,37 @@ class PlannerController {
     }
 
 
+    /**
+     * GET /planners/:id/transactions - Lấy sao kê quỹ nhóm
+     */
+    static async getPlannerTransactions(req, res) {
+        try {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
+            }
+
+            // Verify planner access first
+            const planner = await PlannerService.getPlannerById(req.params.id, req.user?.id);
+            if (!planner) {
+                return ResponseUtil.notFound(res, req.__('planner.not_found'));
+            }
+
+            // Lấy transaction từ WalletService
+            const WalletService = require('../services/pilgrim/walletService');
+            const result = await WalletService.getPlannerTransactions(req.params.id, req.query);
+            return ResponseUtil.success(res, result, 'Lấy sao kê quỹ nhóm thành công');
+        } catch (error) {
+            if (error.message === 'Planner not found') {
+                return ResponseUtil.notFound(res, req.__('planner.not_found'));
+            }
+            if (error.message === 'Forbidden') {
+                return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
+            }
+            return ResponseUtil.error(res, req.__('error.server_error'));
+        }
+    }
 }
 
 module.exports = PlannerController;
+

@@ -481,5 +481,28 @@
     "download_success": "Tải dữ liệu offline thành công",
     "sync_success": "Đồng bộ dữ liệu offline thành công",
     "no_actions": "Không có hành động nào để đồng bộ"
+  },
+  "wallet": {
+    "get_wallet_success": "Lấy thông tin ví thành công",
+    "get_transactions_success": "Lấy lịch sử giao dịch thành công",
+    "topup_created": "Tạo link nạp tiền thành công",
+    "topup_completed": "Nạp tiền thành công",
+    "withdrawal_requested": "Yêu cầu rút tiền thành công. Vui lòng chờ Admin duyệt.",
+    "withdrawal_approved": "Đã duyệt lệnh rút tiền",
+    "withdrawal_rejected": "Đã từ chối lệnh rút tiền",
+    "insufficient_balance": "Số dư không đủ",
+    "min_amount": "Số tiền tối thiểu là {{amount}} VND",
+    "max_amount": "Số tiền tối đa là {{amount}} VND",
+    "bank_info_required": "Vui lòng cung cấp thông tin ngân hàng",
+    "proof_required": "Vui lòng upload ảnh bill chuyển khoản",
+    "wallet_not_found": "Không tìm thấy ví",
+    "transaction_not_found": "Không tìm thấy giao dịch",
+    "invalid_transaction": "Giao dịch không hợp lệ",
+    "transaction_processed": "Giao dịch đã được xử lý",
+    "deposit_locked": "Đã khóa tiền cọc thành công",
+    "deposit_refunded": "Đã hoàn trả tiền cọc",
+    "penalty_applied": "Đã áp dụng phạt",
+    "penalty_released": "Đã giải ngân tiền phạt",
+    "penalty_refunded": "Đã hoàn trả tiền phạt"
   }
 }

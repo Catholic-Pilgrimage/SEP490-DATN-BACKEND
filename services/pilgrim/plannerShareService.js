@@ -1,9 +1,12 @@
-const { Planner, User, PlannerItem, Site, PlannerInvite, PlannerMember } = require('../../models');
+const { Planner, User, PlannerItem, Site, PlannerInvite, PlannerMember, Wallet, Transaction } = require('../../models');
+const { Op } = require('sequelize');
 const EmailService = require('../shared/emailService');
 const Logger = require('../../utils/logger.util');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 const PlannerService = require('../plannerService');
+const PayOSService = require('../shared/payosService');
+const sequelize = require('../../config/database');
 
 class PlannerShareService {
     /**
@@ -88,7 +91,15 @@ class PlannerShareService {
             const role = 'viewer';
 
             // Check current members count
-            const currentMemberCount = planner.members ? planner.members.length : 0;
+            const currentMemberCount = await PlannerMember.count({
+                where: {
+                    planner_id: plannerId,
+                    join_status: 'joined',
+                    user_id: {
+                        [Op.ne]: planner.user_id
+                    }
+                }
+            });
             const pendingInvites = await PlannerInvite.count({
                 where: {
                     planner_id: plannerId,
@@ -241,29 +252,50 @@ class PlannerShareService {
 
             if (action === 'accept') {
                 const planner = invite.planner;
+                const sequelize = require('../../config/database');
+                const t = await sequelize.transaction();
 
-                // Check if planner still has slots
-                const currentMemberCount = planner.members ? planner.members.length : 0;
-                const totalSlots = planner.number_of_people;
+                try {
+                    // Check if planner still has slots
+                    const currentMemberCount = await PlannerMember.count({
+                        where: {
+                            planner_id: planner.id,
+                            join_status: 'joined',
+                            user_id: {
+                                [Op.ne]: planner.user_id
+                            }
+                        },
+                        transaction: t
+                    });
+                    const totalSlots = planner.number_of_people;
 
-                // +1 for owner, +1 for the new member
-                if (currentMemberCount + 2 > totalSlots) {
-                    throw new Error(`Planner is full. Max participants: ${totalSlots}`);
+                    // +1 for owner, +1 for the new member
+                    if (currentMemberCount + 2 > totalSlots) {
+                        throw new Error(`Planner is full. Max participants: ${totalSlots}`);
+                    }
+
+                    const memberData = {
+                        planner_id: planner.id,
+                        user_id: userId,
+                        role: invite.role,
+                        join_status: 'joined',
+                        deposit_status: 'pending' // Luôn pending, thanh toán sau qua confirm-join
+                    };
+
+                    // Add user to planner members
+                    await PlannerMember.create(memberData, { transaction: t });
+
+                    // Update invite status
+                    await invite.update({ status: 'accepted' }, { transaction: t });
+
+                    await t.commit();
+
+                    Logger.info(`User ${userId} accepted invite for planner ${planner.id} (deposit pending)`);
+                    return PlannerService.formatPlannerResponse(planner);
+                } catch (innerError) {
+                    await t.rollback();
+                    throw innerError;
                 }
-
-                // Add user to planner members
-                await PlannerMember.create({
-                    planner_id: planner.id,
-                    user_id: userId,
-                    role: invite.role
-                });
-
-                // Update invite status
-                await invite.update({ status: 'accepted' });
-
-                Logger.info(`User ${userId} accepted invite for planner ${planner.id}`);
-
-                return PlannerService.formatPlannerResponse(planner);
             } else {
                 // Reject
                 await invite.update({ status: 'rejected' });
@@ -330,7 +362,7 @@ class PlannerShareService {
                     model: User,
                     as: 'members',
                     through: {
-                        attributes: ['role', 'joined_at']
+                        attributes: ['role', 'joined_at', 'deposit_status', 'join_status']
                     },
                     attributes: ['id', 'full_name', 'email', 'avatar_url']
                 }, {
@@ -346,11 +378,16 @@ class PlannerShareService {
 
             // Check if user has access (owner or member)
             const isOwner = planner.user_id === userId;
-            const isMember = planner.members?.some(m => m.id === userId);
+            const isMember = planner.members?.some(
+                m => m.id === userId && m.id !== planner.user_id && m.PlannerMember.join_status === 'joined'
+            );
 
             if (!isOwner && !isMember) {
                 throw new Error('Forbidden');
             }
+
+            const visibleMembers = (planner.members || []).filter(member => member.id !== planner.user_id);
+            const joinedMembers = visibleMembers.filter(member => member.PlannerMember.join_status === 'joined');
 
             const members = [
                 {
@@ -358,17 +395,19 @@ class PlannerShareService {
                     role: 'owner',
                     joined_at: planner.created_at
                 },
-                ...(planner.members || []).map(member => ({
+                ...visibleMembers.map(member => ({
                     ...member.toJSON(),
                     role: member.PlannerMember.role,
-                    joined_at: member.PlannerMember.joined_at
+                    joined_at: member.PlannerMember.joined_at,
+                    deposit_status: member.PlannerMember.deposit_status,
+                    join_status: member.PlannerMember.join_status
                 }))
             ];
 
             return {
                 total_slots: planner.number_of_people,
-                current_members: members.length,
-                available_slots: planner.number_of_people - members.length,
+                current_members: joinedMembers.length + 1,
+                available_slots: Math.max(planner.number_of_people - (joinedMembers.length + 1), 0),
                 members
             };
         } catch (error) {
@@ -379,10 +418,14 @@ class PlannerShareService {
 
     /**
      * Remove member from planner
+     * Owner kick -> hoàn 100% cọc, không phạt
+     * Member tự rời -> phạt n%, hoàn phần còn lại, penalty treo pending
      */
     static async removePlannerMember(plannerId, memberId, userId) {
+        const sequelize = require('../../config/database');
+        const t = await sequelize.transaction();
         try {
-            const planner = await Planner.findByPk(plannerId);
+            const planner = await Planner.findByPk(plannerId, { transaction: t });
 
             if (!planner) {
                 throw new Error('Planner not found');
@@ -395,7 +438,7 @@ class PlannerShareService {
 
             // Cannot remove during ongoing trip
             if (planner.status === 'ongoing') {
-                throw new Error('Cannot remove members during ongoing trip');
+                throw new Error('Không thể rời nhóm khi chuyến đi đang diễn ra');
             }
 
             // Cannot remove owner
@@ -403,22 +446,226 @@ class PlannerShareService {
                 throw new Error('Cannot remove owner');
             }
 
-            const deleted = await PlannerMember.destroy({
+            const member = await PlannerMember.findOne({
                 where: {
                     planner_id: plannerId,
                     user_id: memberId
-                }
+                },
+                transaction: t
             });
 
-            if (deleted === 0) {
+            if (!member) {
                 throw new Error('Member not found');
             }
 
-            Logger.info(`Member ${memberId} removed from planner ${plannerId}`);
+            const depositAmount = parseFloat(planner.deposit_amount) || 0;
+            const penaltyPercentage = parseInt(planner.penalty_percentage) || 0;
+            const isSelfLeave = (memberId === userId); // Tự rời nhóm
+            const isKicked = (planner.user_id === userId && memberId !== userId); // Bị owner kick
 
-            return { message: 'Member removed successfully' };
+            // Xử lý tài chính nếu member đã đóng cọc
+            if (depositAmount > 0 && member.deposit_status === 'paid') {
+                const WalletService = require('./walletService');
+
+                if (isKicked) {
+                    // BỊ KICK -> Hoàn 100%, không phạt
+                    await WalletService.refundOnKick(memberId, depositAmount, plannerId, planner.name, t);
+                    member.deposit_status = 'refunded';
+                    member.join_status = 'kicked';
+                } else if (isSelfLeave && penaltyPercentage > 0) {
+                    // TỰ RỜI + CÓ PHẠT -> Phạt n%, hoàn phần còn lại
+                    await WalletService.applyPenalty(
+                        memberId,
+                        planner.user_id, // Owner nhận penalty (pending)
+                        depositAmount,
+                        penaltyPercentage,
+                        plannerId,
+                        planner.name,
+                        t
+                    );
+                    member.deposit_status = 'penalized';
+                    member.join_status = 'dropped_out';
+                } else {
+                    // TỰ RỜI NHƯNG KHÔNG CÓ PHẠT -> Hoàn 100%
+                    await WalletService.refundDeposit(
+                        memberId,
+                        depositAmount,
+                        plannerId,
+                        `Hoàn 100% cọc do rời khỏi nhóm: ${planner.name}`,
+                        t
+                    );
+                    member.deposit_status = 'refunded';
+                    member.join_status = 'dropped_out';
+                }
+            } else {
+                // Không có tiền cọc
+                member.join_status = isKicked ? 'kicked' : 'dropped_out';
+            }
+
+            await member.save({ transaction: t });
+
+            await t.commit();
+
+            const action = isKicked ? 'kicked from' : 'left';
+            Logger.info(`Member ${memberId} ${action} planner ${plannerId}`);
+
+            return { message: isKicked ? 'Đã xóa thành viên khỏi nhóm' : 'Đã rời khỏi nhóm thành công' };
         } catch (error) {
+            await t.rollback();
             Logger.error('Remove planner member error:', error);
+            throw error;
+        }
+    }
+
+    // ===================== DEPOSIT PAYMENT (PayOS Thu) =====================
+
+    /**
+     * Tạo link thanh toán cọc qua PayOS khi member xác nhận tham gia
+     * @param {string} userId - ID user muốn confirm join
+     * @param {string} plannerId - ID planner
+     */
+    static async createDepositPayment(userId, plannerId) {
+        try {
+            const planner = await Planner.findByPk(plannerId);
+            if (!planner) throw new Error('Planner not found');
+
+            // Check user is a member with deposit pending
+            const member = await PlannerMember.findOne({
+                where: {
+                    planner_id: plannerId,
+                    user_id: userId,
+                    join_status: 'joined'
+                }
+            });
+
+            if (!member) throw new Error('Bạn chưa phải thành viên của planner này');
+            if (member.deposit_status === 'paid') throw new Error('Bạn đã đóng cọc rồi');
+
+            const depositAmount = parseFloat(planner.deposit_amount) || 0;
+
+            // Nếu không yêu cầu cọc → paid ngay
+            if (depositAmount <= 0) {
+                await member.update({ deposit_status: 'paid' });
+                Logger.info(`Deposit auto-paid (no deposit required): user=${userId}, planner=${plannerId}`);
+                return { deposit_required: false, message: 'Planner không yêu cầu cọc. Đã xác nhận tham gia.' };
+            }
+
+            // Tạo wallet nếu chưa có
+            const WalletService = require('./walletService');
+            const wallet = await WalletService.getOrCreateWallet(userId);
+
+            // Tạo order code và transaction pending
+            const orderCode = PayOSService.generateOrderCode();
+
+            const transaction = await Transaction.create({
+                wallet_id: wallet.id,
+                amount: depositAmount,
+                type: 'escrow_lock',
+                status: 'pending',
+                reference_type: 'planner_deposit',
+                reference_id: `${plannerId}:${userId}:${orderCode}`,
+                description: `Đặt cọc ${depositAmount.toLocaleString('vi-VN')} VND cho kế hoạch: ${planner.name}`
+            });
+
+            // Tạo link PayOS
+            const paymentLink = await PayOSService.createPaymentLink(
+                depositAmount,
+                orderCode,
+                `Coc ${planner.name}`.substring(0, 25)
+            );
+
+            Logger.info(`Deposit payment created: user=${userId}, planner=${plannerId}, amount=${depositAmount}, orderCode=${orderCode}`);
+
+            return {
+                deposit_required: true,
+                transaction_id: transaction.id,
+                order_code: orderCode,
+                checkout_url: paymentLink.checkoutUrl,
+                qr_code: paymentLink.qrCode,
+                amount: depositAmount,
+                planner_name: planner.name
+            };
+        } catch (error) {
+            Logger.error('Create deposit payment error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Xử lý webhook PayOS khi thanh toán cọc thành công
+     * @param {object} webhookData - Dữ liệu webhook từ PayOS
+     */
+    static async handleDepositWebhook(webhookData) {
+        const t = await sequelize.transaction();
+        try {
+            // Xác thực webhook signature
+            const verifiedData = await PayOSService.verifyWebhookData(webhookData);
+
+            if (!verifiedData || verifiedData.code !== '00') {
+                Logger.warn('Deposit webhook: payment not successful', { code: verifiedData?.code });
+                await t.rollback();
+                return { success: false, message: 'Payment not successful' };
+            }
+
+            const orderCode = String(verifiedData.data?.orderCode || verifiedData.orderCode);
+
+            // Tìm transaction tương ứng
+            const transaction = await Transaction.findOne({
+                where: {
+                    reference_type: 'planner_deposit',
+                    reference_id: { [Op.like]: `%:${orderCode}` },
+                    type: 'escrow_lock',
+                    status: 'pending'
+                },
+                transaction: t,
+                lock: true
+            });
+
+            if (!transaction) {
+                Logger.warn(`Deposit webhook: No pending deposit found for orderCode ${orderCode}`);
+                await t.rollback();
+                return { success: false, message: 'Transaction not found' };
+            }
+
+            // Parse reference_id: "plannerId:userId:orderCode"
+            const [plannerId, userId] = transaction.reference_id.split(':');
+
+            // 1. Cập nhật transaction completed
+            transaction.status = 'completed';
+            await transaction.save({ transaction: t });
+
+            // 2. Cộng locked_balance (escrow)
+            const wallet = await Wallet.findByPk(transaction.wallet_id, {
+                transaction: t,
+                lock: true
+            });
+
+            if (wallet) {
+                wallet.locked_balance = parseFloat(wallet.locked_balance) + parseFloat(transaction.amount);
+                await wallet.save({ transaction: t });
+            }
+
+            // 3. Cập nhật deposit_status = 'paid'
+            await PlannerMember.update(
+                { deposit_status: 'paid' },
+                {
+                    where: {
+                        planner_id: plannerId,
+                        user_id: userId,
+                        deposit_status: 'pending'
+                    },
+                    transaction: t
+                }
+            );
+
+            await t.commit();
+
+            Logger.info(`Deposit paid: user=${userId}, planner=${plannerId}, amount=${transaction.amount}, orderCode=${orderCode}`);
+
+            return { success: true, amount: parseFloat(transaction.amount) };
+        } catch (error) {
+            await t.rollback();
+            Logger.error('Handle deposit webhook error:', error);
             throw error;
         }
     }

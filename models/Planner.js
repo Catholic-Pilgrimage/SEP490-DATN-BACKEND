@@ -41,6 +41,22 @@ const Planner = sequelize.define('Planner', {
             isIn: [['motorbike', 'car', 'bus']]
         }
     },
+    deposit_amount: {
+        type: DataTypes.DECIMAL(15, 2),
+        defaultValue: null,
+        allowNull: true,
+        comment: 'Số tiền cọc mỗi thành viên phải đóng (null = không yêu cầu cọc)'
+    },
+    penalty_percentage: {
+        type: DataTypes.INTEGER,
+        defaultValue: null,
+        allowNull: true,
+        validate: {
+            min: 0,
+            max: 100
+        },
+        comment: 'Phần trăm phạt khi tự rời nhóm (null = không phạt, 0-100)'
+    },
     status: {
         type: DataTypes.STRING,
         defaultValue: 'planning',

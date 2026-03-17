@@ -1,5 +1,7 @@
 const sequelize = require('../config/database');
 const User = require('./User');
+const Wallet = require('./Wallet');
+const Transaction = require('./Transaction');
 const RefreshToken = require('./RefreshToken');
 const BlacklistedToken = require('./BlacklistedToken');
 const PasswordReset = require('./PasswordReset');
@@ -28,7 +30,15 @@ const PostComment = require('./PostComment');
 const Report = require('./Report');
 const OfflineSyncLog = require('./OfflineSyncLog');
 
+// ===================== WALLETS & TRANSACTIONS =====================
 
+// User - Wallet (One-to-One)
+User.hasOne(Wallet, { foreignKey: 'user_id', as: 'wallet' });
+Wallet.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+// Wallet - Transaction (One-to-Many)
+Wallet.hasMany(Transaction, { foreignKey: 'wallet_id', as: 'transactions' });
+Transaction.belongsTo(Wallet, { foreignKey: 'wallet_id', as: 'wallet' });
 
 // User - RefreshToken
 User.hasMany(RefreshToken, { foreignKey: 'user_id', as: 'refreshTokens' });
@@ -248,6 +258,8 @@ OfflineSyncLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 const db = {
   sequelize,
   User,
+  Wallet,
+  Transaction,
   RefreshToken,
   BlacklistedToken,
   PasswordReset,

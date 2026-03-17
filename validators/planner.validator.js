@@ -45,7 +45,15 @@ class PlannerValidator {
 
         body('transportation')
             .optional()
-            .isIn(['motorbike', 'car', 'bus']).withMessage('Phương tiện phải là motorbike, car hoặc bus')
+            .isIn(['motorbike', 'car', 'bus']).withMessage('Phương tiện phải là motorbike, car hoặc bus'),
+
+        body('deposit_amount')
+            .optional()
+            .isFloat({ min: 0, max: 50000000 }).withMessage('Số tiền đặt cọc phải từ 0 đến 50,000,000 VND'),
+
+        body('penalty_percentage')
+            .optional()
+            .isInt({ min: 0, max: 100 }).withMessage('Tỷ lệ phạt phải từ 0 đến 100%')
     ];
 
     // Validate update planner
@@ -374,7 +382,7 @@ class PlannerValidator {
 
         body('role')
             .notEmpty().withMessage('Role không được để trống')
-            .isIn(['viewer', 'editor']).withMessage('Role phải là viewer hoặc editor')
+            .isIn(['viewer']).withMessage('Role phải là viewer')
     ];
 
     // Validate invite user to planner
@@ -410,3 +418,4 @@ class PlannerValidator {
 }
 
 module.exports = PlannerValidator;
+

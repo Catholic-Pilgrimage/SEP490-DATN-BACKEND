@@ -233,3 +233,89 @@
  *       404:
  *         description: Không tìm thấy kế hoạch hoặc thành viên
  */
+
+/**
+ * @swagger
+ * /api/planners/{id}/confirm-join:
+ *   post:
+ *     summary: Xác nhận tham gia kế hoạch (tạo link thanh toán cọc)
+ *     description: Sau khi accept lời mời, member gọi API này để xác nhận tham gia. Nếu planner có deposit_amount > 0, trả về link PayOS để thanh toán cọc. Nếu không yêu cầu cọc, tự động xác nhận.
+ *     tags: [Pilgrim - Planner Share]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID kế hoạch
+ *     responses:
+ *       201:
+ *         description: Tạo link thanh toán cọc thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Tạo link thanh toán cọc thành công
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     deposit_required:
+ *                       type: boolean
+ *                       example: true
+ *                     transaction_id:
+ *                       type: string
+ *                       format: uuid
+ *                     order_code:
+ *                       type: number
+ *                       example: 1234567890
+ *                     checkout_url:
+ *                       type: string
+ *                       example: https://pay.payos.vn/web/abc123
+ *                     qr_code:
+ *                       type: string
+ *                       example: https://img.vietqr.io/image/...
+ *                     amount:
+ *                       type: number
+ *                       example: 50000
+ *                     planner_name:
+ *                       type: string
+ *                       example: Hành hương La Vang
+ *       200:
+ *         description: Planner không yêu cầu cọc, đã xác nhận tham gia ngay
+ *       400:
+ *         description: Đã đóng cọc rồi
+ *       403:
+ *         description: Chưa phải thành viên
+ *       404:
+ *         description: Không tìm thấy kế hoạch
+ */
+
+/**
+ * @swagger
+ * /api/planners/deposit-webhook:
+ *   post:
+ *     summary: Webhook PayOS xác nhận thanh toán cọc (Public endpoint)
+ *     description: Endpoint được PayOS gọi tự động khi thanh toán cọc thành công. Không cần authentication. Cập nhật deposit_status = paid và cộng locked_balance.
+ *     tags: [Pilgrim - Planner Share]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             description: Dữ liệu webhook từ PayOS
+ *     responses:
+ *       200:
+ *         description: Webhook processed successfully
+ *       400:
+ *         description: Invalid webhook signature
+ */
