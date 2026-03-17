@@ -210,6 +210,8 @@ router.post(
     '/shift-submissions',
     authMiddleware,
     authMiddleware.authorize('local_guide'),
+    LocalGuideValidator.createShiftSubmission,
+    handleValidationErrors,
     LocalGuideController.createSubmission
 );
 
@@ -226,6 +228,8 @@ router.get(
     '/shift-submissions/:id',
     authMiddleware,
     authMiddleware.authorize('local_guide'),
+    LocalGuideValidator.validateShiftSubmissionId,
+    handleValidationErrors,
     LocalGuideController.getSubmissionDetail
 );
 
@@ -234,6 +238,9 @@ router.put(
     '/shift-submissions/:id',
     authMiddleware,
     authMiddleware.authorize('local_guide'),
+    LocalGuideValidator.validateShiftSubmissionId,
+    LocalGuideValidator.updateShiftSubmission,
+    handleValidationErrors,
     LocalGuideController.updateSubmission
 );
 
@@ -242,6 +249,8 @@ router.delete(
     '/shift-submissions/:id',
     authMiddleware,
     authMiddleware.authorize('local_guide'),
+    LocalGuideValidator.validateShiftSubmissionId,
+    handleValidationErrors,
     LocalGuideController.deleteSubmission
 );
 

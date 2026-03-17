@@ -50,19 +50,28 @@ class PostService {
                 offset: parseInt(offset)
             });
 
-            // Check if user liked each post
+            // Check if user liked each post and count comments
             const postsWithLikeStatus = await Promise.all(
                 posts.map(async (post) => {
-                    const isLiked = await PostLike.findOne({
-                        where: {
-                            post_id: post.id,
-                            user_id: userId
-                        }
-                    });
+                    const [isLiked, commentsCount] = await Promise.all([
+                        PostLike.findOne({
+                            where: {
+                                post_id: post.id,
+                                user_id: userId
+                            }
+                        }),
+                        PostComment.count({
+                            where: {
+                                post_id: post.id,
+                                status: 'published'
+                            }
+                        })
+                    ]);
 
                     return {
                         ...post.toJSON(),
-                        is_liked: !!isLiked
+                        is_liked: !!isLiked,
+                        comments_count: commentsCount
                     };
                 })
             );
@@ -295,7 +304,7 @@ class PostService {
                     {
                         model: User,
                         as: 'author',
-                        attributes: ['id', 'full_name', 'avatar_url']
+                        attributes: ['id', 'full_name', 'avatar_url', 'role']
                     }
                 ]
             });
@@ -329,7 +338,7 @@ class PostService {
                     {
                         model: User,
                         as: 'author',
-                        attributes: ['id', 'full_name', 'avatar_url']
+                        attributes: ['id', 'full_name', 'avatar_url', 'role']
                     }
                 ],
                 order: [['created_at', 'ASC']],
@@ -379,7 +388,7 @@ class PostService {
                     {
                         model: User,
                         as: 'author',
-                        attributes: ['id', 'full_name', 'avatar_url']
+                        attributes: ['id', 'full_name', 'avatar_url', 'role']
                     }
                 ]
             });

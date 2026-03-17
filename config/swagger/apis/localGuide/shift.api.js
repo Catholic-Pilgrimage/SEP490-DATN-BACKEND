@@ -19,9 +19,13 @@
  *       3. Nếu muốn sửa lịch đã được approved, phải gửi submission mới với `previous_submission_id`
  *       
  *       **Validation rules:**
- *       - Mỗi ca làm việc tối đa 12 tiếng
+ *       - Mỗi ca làm việc: tối thiểu 2 giờ, tối đa 8 giờ
+ *       - Mỗi ngày: tối thiểu 1 ca, tối đa 3 ca
+ *       - Mỗi tuần: tối thiểu 3 ca, tối đa 21 ca
+ *       - Giữa các ca trong cùng ngày phải có ít nhất 30 phút nghỉ
  *       - Không được trùng ca trong cùng submission
  *       - Phải nằm trong giờ mở cửa của site (nếu có)
+ *       - Không được trùng với ca của Local Guide khác
  *     tags: [Local Guide - Shift Submissions]
  *     security:
  *       - bearerAuth: []
@@ -37,10 +41,10 @@
  *               - day_of_week: 1
  *                 start_time: "08:00"
  *                 end_time: "12:00"
- *               - day_of_week: 3
+ *               - day_of_week: 1
  *                 start_time: "14:00"
  *                 end_time: "18:00"
- *               - day_of_week: 5
+ *               - day_of_week: 3
  *                 start_time: "08:00"
  *                 end_time: "16:00"
  *     responses:
@@ -74,10 +78,13 @@
  *           - Đã có submission pending cho tuần này
  *           - Không có shifts hợp lệ
  *           - Change reason required (khi update)
+ *           - Vi phạm ràng buộc: số ca/ngày, thời lượng ca, thời gian nghỉ
  *       401:
  *         description: Chưa đăng nhập
  *       403:
  *         description: Không phải Local Guide
+ *       409:
+ *         description: Trùng lịch với Local Guide khác
  *
  *   get:
  *     summary: Xem danh sách submissions của tôi (Local Guide only)
