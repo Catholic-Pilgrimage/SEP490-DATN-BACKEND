@@ -33,6 +33,18 @@ exports.createSubmission = async (req, res) => {
         if (error.message.includes('already have an approved schedule')) {
             return ResponseUtil.badRequest(res, req.__('local_guide.approved_submission_exists'));
         }
+        if (error.message.includes('Validation errors')) {
+            let validationErrors = null;
+            try {
+                const jsonMatch = error.message.match(/\[.*\]/);
+                if (jsonMatch) {
+                    validationErrors = JSON.parse(jsonMatch[0]);
+                }
+            } catch (e) {
+                // If parsing fails, just use the raw message
+            }
+            return ResponseUtil.badRequest(res, req.__('local_guide.validation_errors') || 'Validation errors', validationErrors);
+        }
         if (error.message.includes('Shift conflicts detected') || error.message.includes('overlaps with another Local Guide')) {
             let conflictDetails = null;
             try {
@@ -100,6 +112,18 @@ exports.updateSubmission = async (req, res) => {
         }
         if (error.message === 'No valid shifts to update. All shifts are in the past.') {
             return ResponseUtil.badRequest(res, req.__('local_guide.all_shifts_past'));
+        }
+        if (error.message.includes('Validation errors')) {
+            let validationErrors = null;
+            try {
+                const jsonMatch = error.message.match(/\[.*\]/);
+                if (jsonMatch) {
+                    validationErrors = JSON.parse(jsonMatch[0]);
+                }
+            } catch (e) {
+                // If parsing fails, just use the raw message
+            }
+            return ResponseUtil.badRequest(res, req.__('local_guide.validation_errors') || 'Validation errors', validationErrors);
         }
         return ResponseUtil.error(res, req.__('error.server_error'));
     }

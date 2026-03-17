@@ -212,6 +212,180 @@ class LocalGuideValidator {
 
     // ===================== SHIFT VALIDATORS =====================
 
+    static createShiftSubmission = [
+        body('week_start_date')
+            .notEmpty().withMessage('Ngày đầu tuần không được để trống')
+            .isDate().withMessage('Ngày đầu tuần phải đúng định dạng YYYY-MM-DD'),
+
+        body('shifts')
+            .isArray({ min: 3, max: 21 }).withMessage('Phải đăng ký từ 3-21 ca mỗi tuần'),
+
+        body('shifts.*.day_of_week')
+            .isInt({ min: 0, max: 6 }).withMessage('Ngày trong tuần không hợp lệ (0-6)'),
+
+        body('shifts.*.start_time')
+            .notEmpty().withMessage('Giờ bắt đầu không được để trống')
+            .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/)
+            .withMessage('Giờ bắt đầu phải đúng định dạng HH:MM hoặc HH:MM:SS'),
+
+        body('shifts.*.end_time')
+            .notEmpty().withMessage('Giờ kết thúc không được để trống')
+            .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/)
+            .withMessage('Giờ kết thúc phải đúng định dạng HH:MM hoặc HH:MM:SS'),
+
+        body('previous_submission_id')
+            .optional()
+            .isUUID().withMessage('previous_submission_id không hợp lệ'),
+
+        body('change_reason')
+            .if(body('previous_submission_id').exists())
+            .notEmpty().withMessage('change_reason bắt buộc khi cập nhật lịch đã approved'),
+
+        // Validate shift duration and constraints
+        body('shifts').custom((shifts) => {
+            if (!Array.isArray(shifts)) return true;
+
+            const shiftsPerDay = {};
+            const MIN_DURATION = 2;
+            const MAX_DURATION = 8;
+            const MAX_SHIFTS_PER_DAY = 3;
+            const MIN_BREAK_MINUTES = 30;
+
+            for (let i = 0; i < shifts.length; i++) {
+                const { day_of_week, start_time, end_time } = shifts[i];
+
+                // Validate duration
+                const normalizeTime = (time) => time.length === 5 ? `${time}:00` : time;
+                const start = new Date(`1970-01-01T${normalizeTime(start_time)}`);
+                const end = new Date(`1970-01-01T${normalizeTime(end_time)}`);
+                let durationHours = (end - start) / (1000 * 60 * 60);
+                if (durationHours < 0) durationHours += 24;
+
+                if (durationHours < MIN_DURATION) {
+                    throw new Error(`Ca ${i + 1}: Mỗi ca phải ít nhất ${MIN_DURATION} giờ`);
+                }
+                if (durationHours > MAX_DURATION) {
+                    throw new Error(`Ca ${i + 1}: Mỗi ca không được quá ${MAX_DURATION} giờ`);
+                }
+
+                // Track shifts per day
+                if (!shiftsPerDay[day_of_week]) {
+                    shiftsPerDay[day_of_week] = [];
+                }
+                shiftsPerDay[day_of_week].push({
+                    start_time: normalizeTime(start_time),
+                    end_time: normalizeTime(end_time),
+                    index: i
+                });
+            }
+
+            // Validate shifts per day
+            for (const [day, dayShifts] of Object.entries(shiftsPerDay)) {
+                if (dayShifts.length > MAX_SHIFTS_PER_DAY) {
+                    throw new Error(`Ngày ${day}: Không được đăng ký quá ${MAX_SHIFTS_PER_DAY} ca mỗi ngày`);
+                }
+
+                // Validate break time between shifts
+                if (dayShifts.length > 1) {
+                    const sorted = dayShifts.sort((a, b) => a.start_time.localeCompare(b.start_time));
+                    for (let i = 0; i < sorted.length - 1; i++) {
+                        const currentEnd = new Date(`1970-01-01T${sorted[i].end_time}`);
+                        const nextStart = new Date(`1970-01-01T${sorted[i + 1].start_time}`);
+                        const breakMinutes = (nextStart - currentEnd) / (1000 * 60);
+
+                        if (breakMinutes < MIN_BREAK_MINUTES) {
+                            throw new Error(`Ngày ${day}: Phải có ít nhất ${MIN_BREAK_MINUTES} phút nghỉ giữa các ca`);
+                        }
+                    }
+                }
+            }
+
+            return true;
+        })
+    ];
+
+    static updateShiftSubmission = [
+        body('shifts')
+            .isArray({ min: 3, max: 21 }).withMessage('Phải đăng ký từ 3-21 ca mỗi tuần'),
+
+        body('shifts.*.day_of_week')
+            .isInt({ min: 0, max: 6 }).withMessage('Ngày trong tuần không hợp lệ (0-6)'),
+
+        body('shifts.*.start_time')
+            .notEmpty().withMessage('Giờ bắt đầu không được để trống')
+            .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/)
+            .withMessage('Giờ bắt đầu phải đúng định dạng HH:MM hoặc HH:MM:SS'),
+
+        body('shifts.*.end_time')
+            .notEmpty().withMessage('Giờ kết thúc không được để trống')
+            .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/)
+            .withMessage('Giờ kết thúc phải đúng định dạng HH:MM hoặc HH:MM:SS'),
+
+        // Validate shift duration and constraints (same as createShiftSubmission)
+        body('shifts').custom((shifts) => {
+            if (!Array.isArray(shifts)) return true;
+
+            const shiftsPerDay = {};
+            const MIN_DURATION = 2;
+            const MAX_DURATION = 8;
+            const MAX_SHIFTS_PER_DAY = 3;
+            const MIN_BREAK_MINUTES = 30;
+
+            for (let i = 0; i < shifts.length; i++) {
+                const { day_of_week, start_time, end_time } = shifts[i];
+
+                const normalizeTime = (time) => time.length === 5 ? `${time}:00` : time;
+                const start = new Date(`1970-01-01T${normalizeTime(start_time)}`);
+                const end = new Date(`1970-01-01T${normalizeTime(end_time)}`);
+                let durationHours = (end - start) / (1000 * 60 * 60);
+                if (durationHours < 0) durationHours += 24;
+
+                if (durationHours < MIN_DURATION) {
+                    throw new Error(`Ca ${i + 1}: Mỗi ca phải ít nhất ${MIN_DURATION} giờ`);
+                }
+                if (durationHours > MAX_DURATION) {
+                    throw new Error(`Ca ${i + 1}: Mỗi ca không được quá ${MAX_DURATION} giờ`);
+                }
+
+                if (!shiftsPerDay[day_of_week]) {
+                    shiftsPerDay[day_of_week] = [];
+                }
+                shiftsPerDay[day_of_week].push({
+                    start_time: normalizeTime(start_time),
+                    end_time: normalizeTime(end_time),
+                    index: i
+                });
+            }
+
+            for (const [day, dayShifts] of Object.entries(shiftsPerDay)) {
+                if (dayShifts.length > MAX_SHIFTS_PER_DAY) {
+                    throw new Error(`Ngày ${day}: Không được đăng ký quá ${MAX_SHIFTS_PER_DAY} ca mỗi ngày`);
+                }
+
+                if (dayShifts.length > 1) {
+                    const sorted = dayShifts.sort((a, b) => a.start_time.localeCompare(b.start_time));
+                    for (let i = 0; i < sorted.length - 1; i++) {
+                        const currentEnd = new Date(`1970-01-01T${sorted[i].end_time}`);
+                        const nextStart = new Date(`1970-01-01T${sorted[i + 1].start_time}`);
+                        const breakMinutes = (nextStart - currentEnd) / (1000 * 60);
+
+                        if (breakMinutes < MIN_BREAK_MINUTES) {
+                            throw new Error(`Ngày ${day}: Phải có ít nhất ${MIN_BREAK_MINUTES} phút nghỉ giữa các ca`);
+                        }
+                    }
+                }
+            }
+
+            return true;
+        })
+    ];
+
+    static validateShiftSubmissionId = [
+        param('id')
+            .isUUID()
+            .withMessage('ID submission không hợp lệ')
+    ];
+
     static createShift = [
         body('shifts')
             .isArray({ min: 1 }).withMessage('shifts phải là mảng có ít nhất 1 phần tử'),

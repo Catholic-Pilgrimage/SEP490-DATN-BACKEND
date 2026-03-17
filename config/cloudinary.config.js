@@ -73,6 +73,16 @@ const journalVideoStorage = new CloudinaryStorage({
     }
 });
 
+// Post image storage
+const postImageStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'catholic_pilgrimage/posts',
+        allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+        transformation: [{ width: 1200, height: 1200, crop: 'limit', quality: 'auto' }]
+    }
+});
+
 const upload = multer({ storage: imageStorage });
 const uploadDocument = multer({ storage: documentStorage });
 const uploadMedia = multer({
@@ -96,6 +106,12 @@ const uploadJournalVideo = multer({
     limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit for video
 });
 
+// Post images upload (max 10 images, 10MB each)
+const uploadPostImages = multer({
+    storage: postImageStorage,
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB max per image
+}).array('images', 10); // Max 10 images per post
+
 // Narrative audio storage (for 3D Model voiceover - uses memory storage for FPT AI pipeline)
 const uploadNarrativeAudio = multer({
     storage: multer.memoryStorage(),
@@ -118,5 +134,6 @@ module.exports = {
     uploadJournalImages,
     uploadJournalAudio,
     uploadJournalVideo,
+    uploadPostImages,
     uploadNarrativeAudio
 };
