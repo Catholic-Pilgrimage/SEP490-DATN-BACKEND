@@ -51,18 +51,29 @@ class PlannerService {
                         is_active: true,
                         [Op.or]: [
                             { user_id: userId },
-                            { id: {
-                                    [Op.in]: joinedPlannerIds } }
+                            {
+                                id: {
+                                    [Op.in]: joinedPlannerIds
+                                }
+                            }
                         ],
                         start_date: {
-                            [Op.ne]: null },
+                            [Op.ne]: null
+                        },
                         end_date: {
-                            [Op.ne]: null },
+                            [Op.ne]: null
+                        },
                         [Op.and]: [
-                            { start_date: {
-                                    [Op.lte]: end_date } },
-                            { end_date: {
-                                    [Op.gte]: start_date } }
+                            {
+                                start_date: {
+                                    [Op.lte]: end_date
+                                }
+                            },
+                            {
+                                end_date: {
+                                    [Op.gte]: start_date
+                                }
+                            }
                         ]
                     },
                     attributes: ['id', 'name', 'start_date', 'end_date']
@@ -137,8 +148,11 @@ class PlannerService {
                     is_active: true,
                     [Op.or]: [
                         { user_id: userId }, // Planner do user tạo
-                        { id: {
-                                [Op.in]: joinedPlannerIds } } // Planner mà user tham gia
+                        {
+                            id: {
+                                [Op.in]: joinedPlannerIds
+                            }
+                        } // Planner mà user tham gia
                     ]
                 },
                 include: [
@@ -293,16 +307,25 @@ class PlannerService {
                     where: {
                         user_id: userId,
                         id: {
-                            [Op.ne]: plannerId },
+                            [Op.ne]: plannerId
+                        },
                         start_date: {
-                            [Op.ne]: null },
+                            [Op.ne]: null
+                        },
                         end_date: {
-                            [Op.ne]: null },
+                            [Op.ne]: null
+                        },
                         [Op.and]: [
-                            { start_date: {
-                                    [Op.lte]: finalEndDate } },
-                            { end_date: {
-                                    [Op.gte]: finalStartDate } }
+                            {
+                                start_date: {
+                                    [Op.lte]: finalEndDate
+                                }
+                            },
+                            {
+                                end_date: {
+                                    [Op.gte]: finalStartDate
+                                }
+                            }
                         ]
                     },
                     attributes: ['id', 'name', 'start_date', 'end_date']
@@ -396,229 +419,253 @@ class PlannerService {
      * - If event spans multiple days, create items for each day
      */
     static async addPlannerItem(plannerId, userId = null, itemData) {
-            const transaction = await sequelize.transaction();
+        const transaction = await sequelize.transaction();
 
-            try {
-                let { site_id, day_number, note, nearby_amenity_ids, estimated_time, rest_duration, travel_time_minutes, event_id } = itemData;
+        try {
+            let { site_id, day_number, note, nearby_amenity_ids, estimated_time, rest_duration, travel_time_minutes, event_id } = itemData;
 
-                // ========== EVENT HANDLING ==========
-                let eventInfo = null;
-                let multiDayItems = null; // For multi-day events
+            // ========== EVENT HANDLING ==========
+            let eventInfo = null;
+            let multiDayItems = null; // For multi-day events
 
-                if (event_id) {
-                    const { Event } = require('../models');
-                    const event = await Event.findByPk(event_id);
+            if (event_id) {
+                const { Event } = require('../models');
+                const event = await Event.findByPk(event_id);
 
-                    if (!event) {
-                        throw new Error('Event not found');
-                    }
-
-                    if (event.status !== 'approved' || !event.is_active) {
-                        throw new Error('Event is not available');
-                    }
-
-                    eventInfo = event;
-
-                    // Get planner to calculate day_number
-                    const planner = await Planner.findByPk(plannerId);
-                    if (!planner) {
-                        throw new Error('Planner not found');
-                    }
-
-                    if (!planner.start_date || !planner.end_date) {
-                        throw new Error('Planner must have start_date and end_date to add events');
-                    }
-
-                    // Use event's site_id if not provided
-                    if (!site_id) {
-                        site_id = event.site_id;
-                    }
-
-                    // Calculate day_number from event.start_date
-                    const plannerStartDate = new Date(planner.start_date);
-                    const eventStartDate = new Date(event.start_date);
-                    const eventEndDate = event.end_date ? new Date(event.end_date) : eventStartDate;
-
-                    plannerStartDate.setHours(0, 0, 0, 0);
-                    eventStartDate.setHours(0, 0, 0, 0);
-                    eventEndDate.setHours(0, 0, 0, 0);
-
-                    const plannerEndDate = new Date(planner.end_date);
-                    plannerEndDate.setHours(0, 0, 0, 0);
-
-                    // Validate event dates are within planner range
-                    if (eventStartDate < plannerStartDate || eventStartDate > plannerEndDate) {
-                        throw new Error(`Sự kiện "${event.name}" bắt đầu ngày ${event.start_date} không nằm trong lịch trình (${planner.start_date} - ${planner.end_date}).`);
-                    }
-
-                    // Calculate day_number (1-based)
-                    const calculatedDayNumber = Math.ceil((eventStartDate - plannerStartDate) / (1000 * 60 * 60 * 24)) + 1;
-
-                    // Override day_number with calculated value
-                    day_number = calculatedDayNumber;
-                    Logger.info(`Event ${event.name}: auto-calculated day_number = ${day_number}`);
-
-                    // Calculate estimated_time from event.start_time
-                    if (event.start_time && !estimated_time) {
-                        estimated_time = event.start_time.substring(0, 5); // "HH:mm"
-                        Logger.info(`Event ${event.name}: auto-calculated estimated_time = ${estimated_time}`);
-                    }
-
-                    // Calculate rest_duration from start_time to end_time
-                    if (event.start_time && event.end_time && !rest_duration) {
-                        const [startHours, startMins] = event.start_time.split(':').map(Number);
-                        const [endHours, endMins] = event.end_time.split(':').map(Number);
-
-                        let eventStartMinutes = startHours * 60 + startMins;
-                        let eventEndMinutes = endHours * 60 + endMins;
-
-                        // Handle overnight events (e.g., 23:00 - 01:00)
-                        if (eventEndMinutes <= eventStartMinutes) {
-                            eventEndMinutes += 1440; // Add 24 hours
-                        }
-
-                        const durationMinutes = eventEndMinutes - eventStartMinutes;
-                        const hours = Math.floor(durationMinutes / 60);
-                        const mins = durationMinutes % 60;
-
-                        if (hours > 0 && mins > 0) {
-                            rest_duration = `${hours}h${mins}m`;
-                        } else if (hours > 0) {
-                            rest_duration = `${hours}h`;
-                        } else {
-                            rest_duration = `${mins}m`;
-                        }
-
-                        Logger.info(`Event ${event.name}: auto-calculated rest_duration = ${rest_duration}`);
-                    }
-
-                    // Check if event spans multiple days
-                    const eventDays = Math.ceil((eventEndDate - eventStartDate) / (1000 * 60 * 60 * 24)) + 1;
-
-                    if (eventDays > 1) {
-                        // Validate all event days are within planner range
-                        if (eventEndDate > plannerEndDate) {
-                            throw new Error(`Sự kiện "${event.name}" kết thúc ngày ${event.end_date} vượt quá lịch trình (kết thúc ${planner.end_date}).`);
-                        }
-
-                        // Prepare multi-day items
-                        multiDayItems = [];
-                        for (let i = 0; i < eventDays; i++) {
-                            multiDayItems.push({
-                                day_number: calculatedDayNumber + i,
-                                note: `${note || event.name} (Ngày ${i + 1}/${eventDays})`,
-                                estimated_time: estimated_time,
-                                rest_duration: rest_duration
-                            });
-                        }
-
-                        Logger.info(`Event ${event.name}: multi-day event (${eventDays} days), creating ${multiDayItems.length} items`);
-                    }
-
-                    // Set default note if not provided
-                    if (!note) {
-                        note = `Sự kiện: ${event.name}`;
-                    }
+                if (!event) {
+                    throw new Error('Event not found');
                 }
 
-                // Validate required fields
-                if (!rest_duration) {
-                    throw new Error('Rest duration is required');
+                if (event.status !== 'approved' || !event.is_active) {
+                    throw new Error('Event is not available');
                 }
 
-                // Remove duplicate nearby_amenity_ids and validate existence
-                let validatedNearbyAmenityIds = [];
-                if (nearby_amenity_ids && nearby_amenity_ids.length > 0) {
-                    // Remove duplicates
-                    const uniqueIds = [...new Set(nearby_amenity_ids)];
+                eventInfo = event;
 
-                    // Check if all NearbyPlace IDs exist and are approved/active
-                    const existingPlaces = await NearbyPlace.findAll({
-                        where: {
-                            id: {
-                                [Op.in]: uniqueIds },
-                            status: 'approved',
-                            is_active: true
-                        },
-                        attributes: ['id']
-                    });
-
-                    const existingIds = existingPlaces.map(p => p.id);
-                    const invalidIds = uniqueIds.filter(id => !existingIds.includes(id));
-
-                    if (invalidIds.length > 0) {
-                        Logger.warn(`Invalid nearby_amenity_ids: ${invalidIds.join(', ')}`);
-                    }
-
-                    validatedNearbyAmenityIds = existingIds;
-                }
-
-                // Check planner exists and user is owner (if userId provided)
+                // Get planner to calculate day_number
                 const planner = await Planner.findByPk(plannerId);
                 if (!planner) {
                     throw new Error('Planner not found');
                 }
 
-                if (userId && planner.user_id !== userId) {
-                    throw new Error('Forbidden');
+                if (!planner.start_date || !planner.end_date) {
+                    throw new Error('Planner must have start_date and end_date to add events');
                 }
 
-                // Check site exists
-                const site = await Site.findByPk(site_id);
-                if (!site) {
-                    throw new Error('Site not found');
+                // Use event's site_id if not provided
+                if (!site_id) {
+                    site_id = event.site_id;
                 }
 
-                // Validate day_number (if planner has date range)
-                if (planner.start_date && planner.end_date) {
-                    const startDate = new Date(planner.start_date);
-                    const endDate = new Date(planner.end_date);
-                    const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+                // Calculate day_number from event.start_date
+                const plannerStartDate = new Date(planner.start_date);
+                const eventStartDate = new Date(event.start_date);
+                const eventEndDate = event.end_date ? new Date(event.end_date) : eventStartDate;
 
-                    if (day_number < 1 || day_number > totalDays) {
-                        throw new Error(`Invalid day number. Must be between 1 and ${totalDays}`);
+                plannerStartDate.setHours(0, 0, 0, 0);
+                eventStartDate.setHours(0, 0, 0, 0);
+                eventEndDate.setHours(0, 0, 0, 0);
+
+                const plannerEndDate = new Date(planner.end_date);
+                plannerEndDate.setHours(0, 0, 0, 0);
+
+                // Validate event dates are within planner range
+                if (eventStartDate < plannerStartDate || eventStartDate > plannerEndDate) {
+                    throw new Error(`Sự kiện "${event.name}" bắt đầu ngày ${event.start_date} không nằm trong lịch trình (${planner.start_date} - ${planner.end_date}).`);
+                }
+
+                // Calculate day_number (1-based)
+                const calculatedDayNumber = Math.ceil((eventStartDate - plannerStartDate) / (1000 * 60 * 60 * 24)) + 1;
+
+                // Override day_number with calculated value
+                day_number = calculatedDayNumber;
+                Logger.info(`Event ${event.name}: auto-calculated day_number = ${day_number}`);
+
+                // Calculate estimated_time from event.start_time
+                if (event.start_time && !estimated_time) {
+                    estimated_time = event.start_time.substring(0, 5); // "HH:mm"
+                    Logger.info(`Event ${event.name}: auto-calculated estimated_time = ${estimated_time}`);
+                }
+
+                // Calculate rest_duration from start_time to end_time
+                if (event.start_time && event.end_time && !rest_duration) {
+                    const [startHours, startMins] = event.start_time.split(':').map(Number);
+                    const [endHours, endMins] = event.end_time.split(':').map(Number);
+
+                    let eventStartMinutes = startHours * 60 + startMins;
+                    let eventEndMinutes = endHours * 60 + endMins;
+
+                    // Handle overnight events (e.g., 23:00 - 01:00)
+                    if (eventEndMinutes <= eventStartMinutes) {
+                        eventEndMinutes += 1440; // Add 24 hours
                     }
-                } else if (day_number < 1) {
-                    throw new Error('Day number must be at least 1');
-                }
 
-                // ===== VALIDATION: Không được bỏ trống ngày trước đó =====
-                if (day_number > 1 && !multiDayItems) {
-                    // Lấy tất cả các ngày đã có items
-                    const existingDays = await PlannerItem.findAll({
-                        where: { planner_id: plannerId },
-                        attributes: [
-                            [sequelize.fn('DISTINCT', sequelize.col('day_number')), 'day_number']
-                        ],
-                        raw: true
-                    });
+                    const durationMinutes = eventEndMinutes - eventStartMinutes;
+                    const hours = Math.floor(durationMinutes / 60);
+                    const mins = durationMinutes % 60;
 
-                    const dayNumbersSet = new Set(existingDays.map(d => d.day_number));
-
-                    // Kiểm tra các ngày từ 1 đến day_number-1
-                    const missingDays = [];
-                    for (let i = 1; i < day_number; i++) {
-                        if (!dayNumbersSet.has(i)) {
-                            missingDays.push(i);
-                        }
+                    if (hours > 0 && mins > 0) {
+                        rest_duration = `${hours}h${mins}m`;
+                    } else if (hours > 0) {
+                        rest_duration = `${hours}h`;
+                    } else {
+                        rest_duration = `${mins}m`;
                     }
 
-                    if (missingDays.length > 0) {
-                        throw new Error(
-                            `Bạn không thể thêm địa điểm cho Ngày ${day_number} khi chưa có địa điểm cho ` +
-                            `Ngày ${missingDays.join(', ')}. Vui lòng thêm địa điểm theo thứ tự.`
-                        );
+                    Logger.info(`Event ${event.name}: auto-calculated rest_duration = ${rest_duration}`);
+                }
+
+                // Check if event spans multiple days
+                const eventDays = Math.ceil((eventEndDate - eventStartDate) / (1000 * 60 * 60 * 24)) + 1;
+
+                if (eventDays > 1) {
+                    // Validate all event days are within planner range
+                    if (eventEndDate > plannerEndDate) {
+                        throw new Error(`Sự kiện "${event.name}" kết thúc ngày ${event.end_date} vượt quá lịch trình (kết thúc ${planner.end_date}).`);
+                    }
+
+                    // Prepare multi-day items
+                    multiDayItems = [];
+                    for (let i = 0; i < eventDays; i++) {
+                        multiDayItems.push({
+                            day_number: calculatedDayNumber + i,
+                            note: `${note || event.name} (Ngày ${i + 1}/${eventDays})`,
+                            estimated_time: estimated_time,
+                            rest_duration: rest_duration
+                        });
+                    }
+
+                    Logger.info(`Event ${event.name}: multi-day event (${eventDays} days), creating ${multiDayItems.length} items`);
+                }
+
+                // Set default note if not provided
+                if (!note) {
+                    note = `Sự kiện: ${event.name}`;
+                }
+            }
+
+            // Validate required fields
+            if (!rest_duration) {
+                throw new Error('Rest duration is required');
+            }
+
+            // Remove duplicate nearby_amenity_ids and validate existence
+            let validatedNearbyAmenityIds = [];
+            if (nearby_amenity_ids && nearby_amenity_ids.length > 0) {
+                // Remove duplicates
+                const uniqueIds = [...new Set(nearby_amenity_ids)];
+
+                // Check if all NearbyPlace IDs exist and are approved/active
+                const existingPlaces = await NearbyPlace.findAll({
+                    where: {
+                        id: {
+                            [Op.in]: uniqueIds
+                        },
+                        status: 'approved',
+                        is_active: true
+                    },
+                    attributes: ['id']
+                });
+
+                const existingIds = existingPlaces.map(p => p.id);
+                const invalidIds = uniqueIds.filter(id => !existingIds.includes(id));
+
+                if (invalidIds.length > 0) {
+                    Logger.warn(`Invalid nearby_amenity_ids: ${invalidIds.join(', ')}`);
+                }
+
+                validatedNearbyAmenityIds = existingIds;
+            }
+
+            // Check planner exists and user is owner (if userId provided)
+            const planner = await Planner.findByPk(plannerId);
+            if (!planner) {
+                throw new Error('Planner not found');
+            }
+
+            if (userId && planner.user_id !== userId) {
+                throw new Error('Forbidden');
+            }
+
+            // Check site exists
+            const site = await Site.findByPk(site_id);
+            if (!site) {
+                throw new Error('Site not found');
+            }
+
+            // Validate day_number (if planner has date range)
+            if (planner.start_date && planner.end_date) {
+                const startDate = new Date(planner.start_date);
+                const endDate = new Date(planner.end_date);
+                const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+
+                if (day_number < 1 || day_number > totalDays) {
+                    throw new Error(`Invalid day number. Must be between 1 and ${totalDays}`);
+                }
+            } else if (day_number < 1) {
+                throw new Error('Day number must be at least 1');
+            }
+
+            // ===== VALIDATION: Không được bỏ trống ngày trước đó =====
+            if (day_number > 1 && !multiDayItems) {
+                // Lấy tất cả các ngày đã có items
+                const existingDays = await PlannerItem.findAll({
+                    where: { planner_id: plannerId },
+                    attributes: [
+                        [sequelize.fn('DISTINCT', sequelize.col('day_number')), 'day_number']
+                    ],
+                    raw: true
+                });
+
+                const dayNumbersSet = new Set(existingDays.map(d => d.day_number));
+
+                // Kiểm tra các ngày từ 1 đến day_number-1
+                const missingDays = [];
+                for (let i = 1; i < day_number; i++) {
+                    if (!dayNumbersSet.has(i)) {
+                        missingDays.push(i);
                     }
                 }
-                // ===== END: Validation =====
 
-                let travelTimeMinutes = 0;
+                if (missingDays.length > 0) {
+                    throw new Error(
+                        `Bạn không thể thêm địa điểm cho Ngày ${day_number} khi chưa có địa điểm cho ` +
+                        `Ngày ${missingDays.join(', ')}. Vui lòng thêm địa điểm theo thứ tự.`
+                    );
+                }
+            }
+            // ===== END: Validation =====
 
-                // Get previous site in same day (if exists)
-                const previousItem = await PlannerItem.findOne({
+            let travelTimeMinutes = 0;
+
+            // Get previous site in same day (if exists)
+            const previousItem = await PlannerItem.findOne({
+                where: {
+                    planner_id: plannerId,
+                    day_number: day_number
+                },
+                include: [
+                    { model: Site, as: 'site', attributes: ['id', 'name', 'latitude', 'longitude'] }
+                ],
+                order: [
+                    ['order_index', 'DESC']
+                ],
+                transaction
+            });
+
+            // Validation: Cannot add the same site consecutively
+            if (previousItem && previousItem.site_id === site_id) {
+                throw new Error('Cannot add the same site consecutively. Please add a different site or move to the next day.');
+            }
+
+            // ===== VALIDATION: Check travel time between days =====
+            // When adding to a new day, validate that arrival time from previous day is reasonable
+            if (day_number > 1 && travel_time_minutes && travel_time_minutes > 0) {
+                // Get last item of previous day
+                const lastItemPreviousDay = await PlannerItem.findOne({
                     where: {
                         planner_id: plannerId,
-                        day_number: day_number
+                        day_number: day_number - 1
                     },
                     include: [
                         { model: Site, as: 'site', attributes: ['id', 'name', 'latitude', 'longitude'] }
@@ -629,333 +676,311 @@ class PlannerService {
                     transaction
                 });
 
-                // Validation: Cannot add the same site consecutively
-                if (previousItem && previousItem.site_id === site_id) {
-                    throw new Error('Cannot add the same site consecutively. Please add a different site or move to the next day.');
+                if (lastItemPreviousDay && lastItemPreviousDay.estimated_time) {
+                    // Calculate arrival time to first item of new day
+                    // arrival = last_item.estimated_time + rest_duration + travel_time_minutes
+                    const [lastHours, lastMins] = lastItemPreviousDay.estimated_time.split(':').map(Number);
+                    const lastRestMinutes = parseDurationToMinutes(lastItemPreviousDay.rest_duration) || 0;
+
+                    // Calculate arrival minutes to new day (relative to 00:00 of new day)
+                    // If last item is at 23:00, rest 30min, travel 3h = 02:30 next day = 150 minutes after midnight
+                    const departureMinutes = lastHours * 60 + lastMins + lastRestMinutes; // minutes from midnight of previous day
+                    const arrivalMinutes = departureMinutes + travel_time_minutes; // minutes from midnight of previous day
+                    const arrivalMinutesInNewDay = arrivalMinutes - 1440; // minutes from midnight of new day (can be negative if before midnight)
+
+                    // Get user-provided estimated_time for first item of new day
+                    let newItemEstimatedMinutes = null;
+                    if (estimated_time) {
+                        const [newHours, newMins] = estimated_time.split(':').map(Number);
+                        newItemEstimatedMinutes = newHours * 60 + newMins;
+                    } else {
+                        // Default to 09:00 if not provided
+                        newItemEstimatedMinutes = 9 * 60; // 540 minutes = 09:00
+                    }
+
+                    // Check if new item time is before arrival time from previous day
+                    // arrivalMinutesInNewDay can be negative if travel doesn't cross midnight
+                    // e.g., 23:00 + 30min rest + 1h travel = 00:30 next day = 30 minutes in new day (positive)
+                    // e.g., 20:00 + 30min rest + 1h travel = 21:30 same day (negative, = -30)
+
+                    // If travel crosses midnight, arrivalMinutesInNewDay > 0
+                    // If new item time < arrival time, it's impossible
+                    if (arrivalMinutes > 1440 && newItemEstimatedMinutes < arrivalMinutesInNewDay) {
+                        const travelHours = Math.floor(travel_time_minutes / 60);
+                        const travelMinsPart = travel_time_minutes % 60;
+                        const travelStr = travelHours > 0 ? `${travelHours} giờ ${travelMinsPart} phút` : `${travelMinsPart} phút`;
+
+                        const arrivalHours = Math.floor(arrivalMinutesInNewDay / 60);
+                        const arrivalMins = arrivalMinutesInNewDay % 60;
+                        const arrivalTimeStr = `${String(arrivalHours).padStart(2, '0')}:${String(arrivalMins).padStart(2, '0')}`;
+
+                        throw new Error(`Thời gian di chuyển từ ngày ${day_number - 1} đến ngày ${day_number} là ${travelStr}. Bạn sẽ đến khoảng ${arrivalTimeStr} (ngày ${day_number}). Vui lòng chọn thời gian từ ${arrivalTimeStr} trở đi.`);
+                    }
+
+                    Logger.info(`Travel validation: arrivalMinutes=${arrivalMinutes}, arrivalMinutesInNewDay=${arrivalMinutesInNewDay}, newItemTime=${newItemEstimatedMinutes}`);
+                }
+            }
+            // ===== END: Validation =====
+
+            // Validation: Check if travel time causes arrival to next day
+            if (previousItem && previousItem.estimated_time && travel_time_minutes && travel_time_minutes > 0) {
+                const [prevHours, prevMins] = previousItem.estimated_time.split(':').map(Number);
+                const prevRestMinutes = parseDurationToMinutes(previousItem.rest_duration) || 0;
+
+                // Calculate arrival time = previous estimated_time + previous rest_duration + travel_time
+                const arrivalMinutes = prevHours * 60 + prevMins + prevRestMinutes + travel_time_minutes;
+
+                // If arrival time >= 24:00 (1440 minutes), it's next day
+                if (arrivalMinutes >= 1440) {
+                    throw new Error(`Thời gian di chuyển vượt quá ngày hiện tại (${Math.floor(travel_time_minutes / 60)} giờ ${travel_time_minutes % 60} phút). Không thể thêm địa điểm này vào lịch trình của ngày ${day_number}.`);
+                }
+            }
+
+            // Note: Travel time calculation is handled by mobile app
+
+            // Auto-calculate estimated_time based on previous item
+            // Map frontend provide final estimated time if valid 
+            let finalEstimatedTime;
+            const validTimeRegex = /^([01]\d|2[0-3]):?([0-5]\d)$/;
+
+            if (estimated_time && validTimeRegex.test(estimated_time)) {
+                finalEstimatedTime = estimated_time.replace(':', '');
+                finalEstimatedTime = `${finalEstimatedTime.substring(0, 2)}:${finalEstimatedTime.substring(2, 4)}`;
+                Logger.info(`Using user-provided estimated_time: ${finalEstimatedTime}`);
+
+                // Validation: Check if estimated_time is after previous item's departure time + travel time
+                if (previousItem && previousItem.estimated_time) {
+                    const [prevHours, prevMins] = previousItem.estimated_time.split(':').map(Number);
+                    const prevRestMinutes = parseDurationToMinutes(previousItem.rest_duration) || 0;
+                    const prevDepartureMinutes = prevHours * 60 + prevMins + prevRestMinutes;
+
+                    // Calculate minimum arrival time (departure + travel)
+                    const travelMins = travel_time_minutes || 0;
+                    const minimumArrivalMinutes = prevDepartureMinutes + travelMins;
+
+                    const [newHours, newMins] = finalEstimatedTime.split(':').map(Number);
+                    const newArrivalMinutes = newHours * 60 + newMins;
+
+                    // Format departure time
+                    const departureHours = Math.floor(prevDepartureMinutes / 60);
+                    const departureMins = prevDepartureMinutes % 60;
+                    const departureTimeStr = `${String(departureHours).padStart(2, '0')}:${String(departureMins).padStart(2, '0')}`;
+
+                    // Check if arrival time >= departure time
+                    if (newArrivalMinutes < prevDepartureMinutes) {
+                        throw new Error(`Thời gian đến ${finalEstimatedTime} không hợp lệ. Địa điểm trước đó rời đi lúc ${departureTimeStr}. Vui lòng chọn thời gian sau ${departureTimeStr}.`);
+                    }
+
+                    // Check if arrival time >= departure + travel (with 5 min tolerance)
+                    if (travelMins > 0 && newArrivalMinutes < minimumArrivalMinutes - 5) {
+                        const suggestedArrivalHours = Math.floor(minimumArrivalMinutes / 60) % 24;
+                        const suggestedArrivalMins = minimumArrivalMinutes % 60;
+                        const suggestedTimeStr = `${String(suggestedArrivalHours).padStart(2, '0')}:${String(suggestedArrivalMins).padStart(2, '0')}`;
+
+                        const travelHours = Math.floor(travelMins / 60);
+                        const travelMinsPart = travelMins % 60;
+                        const travelStr = travelHours > 0 ? `${travelHours} giờ ${travelMinsPart} phút` : `${travelMinsPart} phút`;
+
+                        // If minimum arrival crosses midnight, block it
+                        if (minimumArrivalMinutes >= 1440) {
+                            throw new Error(`Thời gian đến không hợp lệ. Rời lúc ${departureTimeStr} + ${travelStr} di chuyển = qua ngày hôm sau. Không thể thêm địa điểm này vào lịch trình của ngày ${day_number}.`);
+                        }
+
+                        throw new Error(`Thời gian đến ${finalEstimatedTime} không hợp lệ. Rời lúc ${departureTimeStr} + ${travelStr} di chuyển = đến khoảng ${suggestedTimeStr}. Vui lòng chọn thời gian từ ${suggestedTimeStr} trở đi.`);
+                    }
                 }
 
-                // ===== VALIDATION: Check travel time between days =====
-                // When adding to a new day, validate that arrival time from previous day is reasonable
-                if (day_number > 1 && travel_time_minutes && travel_time_minutes > 0) {
-                    // Get last item of previous day
-                    const lastItemPreviousDay = await PlannerItem.findOne({
+                // Validation: Check for duplicate estimated_time in the same day
+                const existingItemWithSameTime = await PlannerItem.findOne({
+                    where: {
+                        planner_id: plannerId,
+                        day_number: day_number,
+                        estimated_time: finalEstimatedTime
+                    },
+                    transaction
+                });
+
+                if (existingItemWithSameTime) {
+                    throw new Error(`Đã có địa điểm khác với giờ ${finalEstimatedTime} trong ngày ${day_number}. Vui lòng chọn thời gian khác.`);
+                }
+            } else if (previousItem && previousItem.estimated_time) {
+                // If there's a previous item but no user input, auto-calculate with 0 travel time
+                finalEstimatedTime = calculateEstimatedTime(previousItem, travelTimeMinutes, '09:00');
+                Logger.info(`Auto-calculated estimated_time: ${finalEstimatedTime} (from ${previousItem.estimated_time} + ${parseDurationToMinutes(previousItem.rest_duration)}min rest + ${travelTimeMinutes}min travel)`);
+            } else {
+                // First item in the day and NO user input
+                finalEstimatedTime = '09:00';
+            }
+
+            if (previousItem && previousItem.estimated_time) {
+                // Validation 2: Total time in a day should not exceed 24 hours
+                // Get the first item of the day to calculate total duration
+                const firstItem = await PlannerItem.findOne({
+                    where: {
+                        planner_id: plannerId,
+                        day_number: day_number
+                    },
+                    order: [
+                        ['order_index', 'ASC']
+                    ],
+                    transaction
+                });
+
+                if (firstItem && firstItem.estimated_time) {
+                    // Calculate time difference from first item to current item
+                    const [firstHours, firstMins] = firstItem.estimated_time.split(':').map(Number);
+                    const [currentHours, currentMins] = finalEstimatedTime.split(':').map(Number);
+
+                    const firstTotalMinutes = firstHours * 60 + firstMins;
+                    const currentTotalMinutes = currentHours * 60 + currentMins;
+
+                    let totalDayMinutes = currentTotalMinutes - firstTotalMinutes;
+
+                    // Handle case where time wraps to next day (e.g., 23:00 to 01:00)
+                    if (totalDayMinutes < 0) {
+                        totalDayMinutes += 1440; // Add 24 hours
+                    }
+
+                    if (totalDayMinutes > 1440) { // 1440 minutes = 24 hours
+                        throw new Error(`Total time for day ${day_number} exceeds 24 hours (${Math.floor(totalDayMinutes / 60)} hours). Please split into multiple days.`);
+                    }
+                }
+            }
+
+            // Validation 3: Check if estimated_time falls within site's opening hours (skip for events)
+            if (!event_id && site.opening_hours && planner.start_date) {
+                // Calculate the actual date for this day_number
+                const startDate = new Date(planner.start_date);
+                const actualDate = new Date(startDate);
+                actualDate.setDate(startDate.getDate() + (day_number - 1));
+
+                const openingCheck = isWithinOpeningHours(finalEstimatedTime, site.opening_hours, actualDate);
+                if (!openingCheck.isOpen) {
+                    Logger.warn(`Opening hours validation failed: ${openingCheck.message}`);
+                    throw new Error(openingCheck.message);
+                }
+            }
+
+            // ========== HANDLE MULTI-DAY EVENTS ==========
+            if (multiDayItems && multiDayItems.length > 1) {
+                const createdItems = [];
+
+                for (let i = 0; i < multiDayItems.length; i++) {
+                    const dayItem = multiDayItems[i];
+                    const itemDayNumber = dayItem.day_number;
+
+                    // Get previous item in this day
+                    const prevItemInDay = await PlannerItem.findOne({
                         where: {
                             planner_id: plannerId,
-                            day_number: day_number - 1
+                            day_number: itemDayNumber
                         },
-                        include: [
-                            { model: Site, as: 'site', attributes: ['id', 'name', 'latitude', 'longitude'] }
-                        ],
                         order: [
                             ['order_index', 'DESC']
                         ],
                         transaction
                     });
 
-                    if (lastItemPreviousDay && lastItemPreviousDay.estimated_time) {
-                        // Calculate arrival time to first item of new day
-                        // arrival = last_item.estimated_time + rest_duration + travel_time_minutes
-                        const [lastHours, lastMins] = lastItemPreviousDay.estimated_time.split(':').map(Number);
-                        const lastRestMinutes = parseDurationToMinutes(lastItemPreviousDay.rest_duration) || 0;
-                        
-                        // Calculate arrival minutes to new day (relative to 00:00 of new day)
-                        // If last item is at 23:00, rest 30min, travel 3h = 02:30 next day = 150 minutes after midnight
-                        const departureMinutes = lastHours * 60 + lastMins + lastRestMinutes; // minutes from midnight of previous day
-                        const arrivalMinutes = departureMinutes + travel_time_minutes; // minutes from midnight of previous day
-                        const arrivalMinutesInNewDay = arrivalMinutes - 1440; // minutes from midnight of new day (can be negative if before midnight)
-
-                        // Get user-provided estimated_time for first item of new day
-                        let newItemEstimatedMinutes = null;
-                        if (estimated_time) {
-                            const [newHours, newMins] = estimated_time.split(':').map(Number);
-                            newItemEstimatedMinutes = newHours * 60 + newMins;
-                        } else {
-                            // Default to 09:00 if not provided
-                            newItemEstimatedMinutes = 9 * 60; // 540 minutes = 09:00
-                        }
-
-                        // Check if new item time is before arrival time from previous day
-                        // arrivalMinutesInNewDay can be negative if travel doesn't cross midnight
-                        // e.g., 23:00 + 30min rest + 1h travel = 00:30 next day = 30 minutes in new day (positive)
-                        // e.g., 20:00 + 30min rest + 1h travel = 21:30 same day (negative, = -30)
-                        
-                        // If travel crosses midnight, arrivalMinutesInNewDay > 0
-                        // If new item time < arrival time, it's impossible
-                        if (arrivalMinutes > 1440 && newItemEstimatedMinutes < arrivalMinutesInNewDay) {
-                            const travelHours = Math.floor(travel_time_minutes / 60);
-                            const travelMinsPart = travel_time_minutes % 60;
-                            const travelStr = travelHours > 0 ? `${travelHours} giờ ${travelMinsPart} phút` : `${travelMinsPart} phút`;
-
-                            const arrivalHours = Math.floor(arrivalMinutesInNewDay / 60);
-                            const arrivalMins = arrivalMinutesInNewDay % 60;
-                            const arrivalTimeStr = `${String(arrivalHours).padStart(2, '0')}:${String(arrivalMins).padStart(2, '0')}`;
-
-                            throw new Error(`Thời gian di chuyển từ ngày ${day_number - 1} đến ngày ${day_number} là ${travelStr}. Bạn sẽ đến khoảng ${arrivalTimeStr} (ngày ${day_number}). Vui lòng chọn thời gian từ ${arrivalTimeStr} trở đi.`);
-                        }
-
-                        Logger.info(`Travel validation: arrivalMinutes=${arrivalMinutes}, arrivalMinutesInNewDay=${arrivalMinutesInNewDay}, newItemTime=${newItemEstimatedMinutes}`);
-                    }
-                }
-                // ===== END: Validation =====
-
-                // Validation: Check if travel time causes arrival to next day
-                if (previousItem && previousItem.estimated_time && travel_time_minutes && travel_time_minutes > 0) {
-                    const [prevHours, prevMins] = previousItem.estimated_time.split(':').map(Number);
-                    const prevRestMinutes = parseDurationToMinutes(previousItem.rest_duration) || 0;
-
-                    // Calculate arrival time = previous estimated_time + previous rest_duration + travel_time
-                    const arrivalMinutes = prevHours * 60 + prevMins + prevRestMinutes + travel_time_minutes;
-
-                    // If arrival time >= 24:00 (1440 minutes), it's next day
-                    if (arrivalMinutes >= 1440) {
-                        throw new Error(`Thời gian di chuyển vượt quá ngày hiện tại (${Math.floor(travel_time_minutes / 60)} giờ ${travel_time_minutes % 60} phút). Không thể thêm địa điểm này vào lịch trình của ngày ${day_number}.`);
-                    }
-                }
-
-                // Note: Travel time calculation is handled by mobile app
-
-                // Auto-calculate estimated_time based on previous item
-                // Map frontend provide final estimated time if valid 
-                let finalEstimatedTime;
-                const validTimeRegex = /^([01]\d|2[0-3]):?([0-5]\d)$/;
-
-                if (estimated_time && validTimeRegex.test(estimated_time)) {
-                    finalEstimatedTime = estimated_time.replace(':', '');
-                    finalEstimatedTime = `${finalEstimatedTime.substring(0, 2)}:${finalEstimatedTime.substring(2, 4)}`;
-                    Logger.info(`Using user-provided estimated_time: ${finalEstimatedTime}`);
-
-                    // Validation: Check if estimated_time is after previous item's departure time + travel time
-                    if (previousItem && previousItem.estimated_time) {
-                        const [prevHours, prevMins] = previousItem.estimated_time.split(':').map(Number);
-                        const prevRestMinutes = parseDurationToMinutes(previousItem.rest_duration) || 0;
-                        const prevDepartureMinutes = prevHours * 60 + prevMins + prevRestMinutes;
-
-                        // Calculate minimum arrival time (departure + travel)
-                        const travelMins = travel_time_minutes || 0;
-                        const minimumArrivalMinutes = prevDepartureMinutes + travelMins;
-
-                        const [newHours, newMins] = finalEstimatedTime.split(':').map(Number);
-                        const newArrivalMinutes = newHours * 60 + newMins;
-
-                        // Format departure time
-                        const departureHours = Math.floor(prevDepartureMinutes / 60);
-                        const departureMins = prevDepartureMinutes % 60;
-                        const departureTimeStr = `${String(departureHours).padStart(2, '0')}:${String(departureMins).padStart(2, '0')}`;
-
-                        // Check if arrival time >= departure time
-                        if (newArrivalMinutes < prevDepartureMinutes) {
-                            throw new Error(`Thời gian đến ${finalEstimatedTime} không hợp lệ. Địa điểm trước đó rời đi lúc ${departureTimeStr}. Vui lòng chọn thời gian sau ${departureTimeStr}.`);
-                        }
-
-                        // Check if arrival time >= departure + travel (with 5 min tolerance)
-                        if (travelMins > 0 && newArrivalMinutes < minimumArrivalMinutes - 5) {
-                            const suggestedArrivalHours = Math.floor(minimumArrivalMinutes / 60) % 24;
-                            const suggestedArrivalMins = minimumArrivalMinutes % 60;
-                            const suggestedTimeStr = `${String(suggestedArrivalHours).padStart(2, '0')}:${String(suggestedArrivalMins).padStart(2, '0')}`;
-
-                            const travelHours = Math.floor(travelMins / 60);
-                            const travelMinsPart = travelMins % 60;
-                            const travelStr = travelHours > 0 ? `${travelHours} giờ ${travelMinsPart} phút` : `${travelMinsPart} phút`;
-
-                            // If minimum arrival crosses midnight, block it
-                            if (minimumArrivalMinutes >= 1440) {
-                                throw new Error(`Thời gian đến không hợp lệ. Rời lúc ${departureTimeStr} + ${travelStr} di chuyển = qua ngày hôm sau. Không thể thêm địa điểm này vào lịch trình của ngày ${day_number}.`);
-                            }
-
-                            throw new Error(`Thời gian đến ${finalEstimatedTime} không hợp lệ. Rời lúc ${departureTimeStr} + ${travelStr} di chuyển = đến khoảng ${suggestedTimeStr}. Vui lòng chọn thời gian từ ${suggestedTimeStr} trở đi.`);
-                        }
+                    // Validate consecutive site
+                    if (prevItemInDay && prevItemInDay.site_id === site_id) {
+                        throw new Error(`Ngày ${itemDayNumber}: Không thể thêm cùng địa điểm liên tiếp.`);
                     }
 
-                    // Validation: Check for duplicate estimated_time in the same day
-                    const existingItemWithSameTime = await PlannerItem.findOne({
+                    // Get order_index for this day
+                    const maxIdx = await PlannerItem.max('order_index', {
                         where: {
                             planner_id: plannerId,
-                            day_number: day_number,
-                            estimated_time: finalEstimatedTime
+                            day_number: itemDayNumber
                         },
                         transaction
                     });
 
-                    if (existingItemWithSameTime) {
-                        throw new Error(`Đã có địa điểm khác với giờ ${finalEstimatedTime} trong ngày ${day_number}. Vui lòng chọn thời gian khác.`);
-                    }
-                } else if (previousItem && previousItem.estimated_time) {
-                    // If there's a previous item but no user input, auto-calculate with 0 travel time
-                    finalEstimatedTime = calculateEstimatedTime(previousItem, travelTimeMinutes, '09:00');
-                    Logger.info(`Auto-calculated estimated_time: ${finalEstimatedTime} (from ${previousItem.estimated_time} + ${parseDurationToMinutes(previousItem.rest_duration)}min rest + ${travelTimeMinutes}min travel)`);
-                } else {
-                    // First item in the day and NO user input
-                    finalEstimatedTime = '09:00';
-                }
-
-                if (previousItem && previousItem.estimated_time) {
-                    // Validation 2: Total time in a day should not exceed 24 hours
-                    // Get the first item of the day to calculate total duration
-                    const firstItem = await PlannerItem.findOne({
-                        where: {
-                            planner_id: plannerId,
-                            day_number: day_number
-                        },
-                        order: [
-                            ['order_index', 'ASC']
-                        ],
-                        transaction
-                    });
-
-                    if (firstItem && firstItem.estimated_time) {
-                        // Calculate time difference from first item to current item
-                        const [firstHours, firstMins] = firstItem.estimated_time.split(':').map(Number);
-                        const [currentHours, currentMins] = finalEstimatedTime.split(':').map(Number);
-
-                        const firstTotalMinutes = firstHours * 60 + firstMins;
-                        const currentTotalMinutes = currentHours * 60 + currentMins;
-
-                        let totalDayMinutes = currentTotalMinutes - firstTotalMinutes;
-
-                        // Handle case where time wraps to next day (e.g., 23:00 to 01:00)
-                        if (totalDayMinutes < 0) {
-                            totalDayMinutes += 1440; // Add 24 hours
-                        }
-
-                        if (totalDayMinutes > 1440) { // 1440 minutes = 24 hours
-                            throw new Error(`Total time for day ${day_number} exceeds 24 hours (${Math.floor(totalDayMinutes / 60)} hours). Please split into multiple days.`);
-                        }
-                    }
-                }
-
-                // Validation 3: Check if estimated_time falls within site's opening hours (skip for events)
-                if (!event_id && site.opening_hours && planner.start_date) {
-                    // Calculate the actual date for this day_number
-                    const startDate = new Date(planner.start_date);
-                    const actualDate = new Date(startDate);
-                    actualDate.setDate(startDate.getDate() + (day_number - 1));
-
-                    const openingCheck = isWithinOpeningHours(finalEstimatedTime, site.opening_hours, actualDate);
-                    if (!openingCheck.isOpen) {
-                        Logger.warn(`Opening hours validation failed: ${openingCheck.message}`);
-                        throw new Error(openingCheck.message);
-                    }
-                }
-
-                // ========== HANDLE MULTI-DAY EVENTS ==========
-                if (multiDayItems && multiDayItems.length > 1) {
-                    const createdItems = [];
-
-                    for (let i = 0; i < multiDayItems.length; i++) {
-                        const dayItem = multiDayItems[i];
-                        const itemDayNumber = dayItem.day_number;
-
-                        // Get previous item in this day
-                        const prevItemInDay = await PlannerItem.findOne({
-                            where: {
-                                planner_id: plannerId,
-                                day_number: itemDayNumber
-                            },
-                            order: [
-                                ['order_index', 'DESC']
-                            ],
-                            transaction
-                        });
-
-                        // Validate consecutive site
-                        if (prevItemInDay && prevItemInDay.site_id === site_id) {
-                            throw new Error(`Ngày ${itemDayNumber}: Không thể thêm cùng địa điểm liên tiếp.`);
-                        }
-
-                        // Get order_index for this day
-                        const maxIdx = await PlannerItem.max('order_index', {
-                            where: {
-                                planner_id: plannerId,
-                                day_number: itemDayNumber
-                            },
-                            transaction
-                        });
-
-                        // Create item for this day
-                        const newItem = await PlannerItem.create({
-                            planner_id: plannerId,
-                            site_id: site_id,
-                            day_number: itemDayNumber,
-                            event_id: event_id,
-                            order_index: (maxIdx || 0) + 1,
-                            status: planner.status === 'ongoing' ? 'in_progress' : 'planned',
-                            note: dayItem.note,
-                            nearby_amenity_ids: validatedNearbyAmenityIds,
-                            estimated_time: dayItem.estimated_time || finalEstimatedTime,
-                            rest_duration: dayItem.rest_duration || rest_duration,
-                            travel_time_minutes: travel_time_minutes || null
-                        }, { transaction });
-
-                        createdItems.push(newItem);
-                    }
-
-                    await transaction.commit();
-
-                    // Fetch all created items with site details
-                    const results = await PlannerItem.findAll({
-                        where: {
-                            id: {
-                                [Op.in]: createdItems.map(i => i.id) }
-                        },
-                        include: [
-                            { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image'] }
-                        ],
-                        order: [
-                            ['day_number', 'ASC'],
-                            ['order_index', 'ASC']
-                        ]
-                    });
-
-                    Logger.info(`Multi-day event ${event_id} added to planner ${plannerId} for ${multiDayItems.length} days by user ${userId}`);
-
-                    return {
-                        event_id: event_id,
-                        event_name: eventInfo ? eventInfo.name : null,
-                        total_days: multiDayItems.length,
-                        items: results.map(i => this.formatPlannerItemResponse(i))
-                    };
-                }
-
-                // ========== SINGLE ITEM CREATION ==========
-                // Get next order_index
-                const maxOrderIndex = await PlannerItem.max('order_index', {
-                    where: {
+                    // Create item for this day
+                    const newItem = await PlannerItem.create({
                         planner_id: plannerId,
-                        day_number: day_number
-                    },
-                    transaction
-                });
+                        site_id: site_id,
+                        day_number: itemDayNumber,
+                        event_id: event_id,
+                        order_index: (maxIdx || 0) + 1,
+                        status: planner.status === 'ongoing' ? 'in_progress' : 'planned',
+                        note: dayItem.note,
+                        nearby_amenity_ids: validatedNearbyAmenityIds,
+                        estimated_time: dayItem.estimated_time || finalEstimatedTime,
+                        rest_duration: dayItem.rest_duration || rest_duration,
+                        travel_time_minutes: travel_time_minutes || null
+                    }, { transaction });
 
-                const nextOrderIndex = (maxOrderIndex || 0) + 1;
-
-                // Determine item status based on planner status
-                const itemStatus = planner.status === 'ongoing' ? 'in_progress' : 'planned';
-
-                // Create planner item
-                const item = await PlannerItem.create({
-                    planner_id: plannerId,
-                    site_id: site_id,
-                    day_number: day_number,
-                    event_id: event_id || null,
-                    order_index: nextOrderIndex,
-                    status: itemStatus,
-                    note: note || null,
-                    nearby_amenity_ids: validatedNearbyAmenityIds,
-                    estimated_time: finalEstimatedTime,
-                    rest_duration: rest_duration,
-                    travel_time_minutes: travel_time_minutes || null
-                }, { transaction });
+                    createdItems.push(newItem);
+                }
 
                 await transaction.commit();
 
-                // Fetch item with site details
-                const result = await PlannerItem.findByPk(item.id, {
+                // Fetch all created items with site details
+                const results = await PlannerItem.findAll({
+                    where: {
+                        id: {
+                            [Op.in]: createdItems.map(i => i.id)
+                        }
+                    },
                     include: [
                         { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image'] }
+                    ],
+                    order: [
+                        ['day_number', 'ASC'],
+                        ['order_index', 'ASC']
                     ]
                 });
 
-                Logger.info(`Item added to planner ${plannerId} by user ${userId}${event_id ? ` (event: ${event_id})` : ''}`);
+                Logger.info(`Multi-day event ${event_id} added to planner ${plannerId} for ${multiDayItems.length} days by user ${userId}`);
+
+                return {
+                    event_id: event_id,
+                    event_name: eventInfo ? eventInfo.name : null,
+                    total_days: multiDayItems.length,
+                    items: results.map(i => this.formatPlannerItemResponse(i))
+                };
+            }
+
+            // ========== SINGLE ITEM CREATION ==========
+            // Get next order_index
+            const maxOrderIndex = await PlannerItem.max('order_index', {
+                where: {
+                    planner_id: plannerId,
+                    day_number: day_number
+                },
+                transaction
+            });
+
+            const nextOrderIndex = (maxOrderIndex || 0) + 1;
+
+            // Determine item status based on planner status
+            const itemStatus = planner.status === 'ongoing' ? 'in_progress' : 'planned';
+
+            // Create planner item
+            const item = await PlannerItem.create({
+                planner_id: plannerId,
+                site_id: site_id,
+                day_number: day_number,
+                event_id: event_id || null,
+                order_index: nextOrderIndex,
+                status: itemStatus,
+                note: note || null,
+                nearby_amenity_ids: validatedNearbyAmenityIds,
+                estimated_time: finalEstimatedTime,
+                rest_duration: rest_duration,
+                travel_time_minutes: travel_time_minutes || null
+            }, { transaction });
+
+            await transaction.commit();
+
+            // Fetch item with site details
+            const result = await PlannerItem.findByPk(item.id, {
+                include: [
+                    { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image'] }
+                ]
+            });
+
+            Logger.info(`Item added to planner ${plannerId} by user ${userId}${event_id ? ` (event: ${event_id})` : ''}`);
 
             const response = this.formatPlannerItemResponse(result);
 
@@ -1613,6 +1638,18 @@ class PlannerService {
                     throw new Error('Planner must have start_date and end_date to start');
                 }
 
+                // ===== VALIDATION: Planner phải có đủ items cho tất cả các ngày =====
+                const continuityCheck = await this.validatePlannerContinuity(plannerId);
+
+                if (!continuityCheck.isValid) {
+                    const missingDaysStr = continuityCheck.missingDays.join(', ');
+                    throw new Error(
+                        `Không thể bắt đầu kế hoạch! Lịch trình chưa đầy đủ. ` +
+                        `Bạn cần thêm địa điểm cho Ngày ${missingDaysStr} (Tổng ${continuityCheck.totalDays} ngày).`
+                    );
+                }
+                // ===== END: Validation =====
+
                 await planner.update({ status: 'ongoing' });
 
                 // Update all 'planned' items to 'in_progress'
@@ -1709,7 +1746,7 @@ class PlannerService {
 
         try {
             Logger.info(`[checkinItem] plannerId=${plannerId}, itemId=${itemId}, userId=${userId}`);
-            
+
             const { distance_meters, note } = checkinData;
 
             // Get planner
@@ -2017,6 +2054,18 @@ class PlannerService {
                 throw new Error('Planner must have start_date and end_date to start');
             }
 
+            // ===== VALIDATION: Planner phải có đủ items cho tất cả các ngày =====
+            const continuityCheck = await this.validatePlannerContinuity(plannerId);
+
+            if (!continuityCheck.isValid) {
+                const missingDaysStr = continuityCheck.missingDays.join(', ');
+                throw new Error(
+                    `Không thể bắt đầu kế hoạch! Lịch trình chưa đầy đủ. ` +
+                    `Bạn cần thêm địa điểm cho Ngày ${missingDaysStr} (Tổng ${continuityCheck.totalDays} ngày).`
+                );
+            }
+            // ===== END: Validation =====
+
             // Update planner status to ongoing
             await planner.update({ status: 'ongoing' });
 
@@ -2072,6 +2121,18 @@ class PlannerService {
                 if (!planner.start_date || !planner.end_date) {
                     throw new Error('Planner must have start_date and end_date to start');
                 }
+
+                // ===== VALIDATION: Planner phải có đủ items cho tất cả các ngày =====
+                const continuityCheck = await this.validatePlannerContinuity(plannerId);
+
+                if (!continuityCheck.isValid) {
+                    const missingDaysStr = continuityCheck.missingDays.join(', ');
+                    throw new Error(
+                        `Không thể bắt đầu kế hoạch! Lịch trình chưa đầy đủ. ` +
+                        `Bạn cần thêm địa điểm cho Ngày ${missingDaysStr} (Tổng ${continuityCheck.totalDays} ngày).`
+                    );
+                }
+                // ===== END: Validation =====
 
                 await planner.update({ status: 'ongoing' });
 
