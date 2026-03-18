@@ -37,9 +37,9 @@ DO $$ BEGIN
     
     -- Planner
     CREATE TYPE planner_status AS ENUM ('planning', 'ongoing', 'completed', 'expired');
-    CREATE TYPE planner_item_status AS ENUM ('planned', 'in_progress', 'checked_in', 'skipped', 'missed');
-    CREATE TYPE planner_role AS ENUM ('owner', 'editor', 'viewer');
-    CREATE TYPE checkin_status AS ENUM ('pending', 'checked_in', 'skipped', 'missed', 'absent');
+    CREATE TYPE planner_item_status AS ENUM ('planned', 'in_progress', 'checked_in', 'skipped');
+    CREATE TYPE planner_role AS ENUM ('owner', 'viewer');
+    CREATE TYPE checkin_status AS ENUM ('pending', 'checked_in', 'skipped');
 
     
     -- Journal & Community
@@ -534,15 +534,10 @@ CREATE TABLE IF NOT EXISTS planner_items (
     order_index INT DEFAULT 1,
     status planner_item_status DEFAULT 'planned',
     note TEXT,
-
     -- NEW: Enhanced planning features
     nearby_amenity_ids UUID[], -- Array of nearby_place IDs (optional)
     estimated_time TIME, -- Giờ dự kiến đến địa điểm
     rest_duration INTERVAL, -- Thời gian nghỉ ngơi (e.g., '1 hour', '30 minutes')
-
-    -- Checkin info
-    -- (đã xóa: checkin_latitude, checkin_longitude, checkin_distance_meters, checked_in_at)
-
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -604,7 +599,7 @@ CREATE TABLE IF NOT EXISTS user_checkins (
     distance_meters INT,
     is_valid BOOLEAN DEFAULT false,
     
-    status checkin_status DEFAULT 'pending', -- pending | checked_in | skipped | missed | absent
+    status checkin_status DEFAULT 'pending', -- pending | checked_in | skipped
     checkin_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     note TEXT,
     
