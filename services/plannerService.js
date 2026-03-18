@@ -14,11 +14,16 @@ class PlannerService {
      */
     static async createPlanner(userId, plannerData) {
         try {
-            const { name, start_date, end_date, number_of_people = 1, transportation } = plannerData;
+            const { name, estimated_days, number_of_people = 1, transportation, start_date, end_date } = plannerData;
 
             // Validate required fields
             if (!name || name.trim().length === 0) {
                 throw new Error('Name is required');
+            }
+
+            // Validate estimated_days (optional)
+            if (estimated_days !== undefined && estimated_days !== null && estimated_days < 1) {
+                throw new Error('Estimated days must be at least 1');
             }
 
             // Validate date range
@@ -166,7 +171,11 @@ class PlannerService {
                     is_active: true,
                     [Op.or]: [
                         { user_id: userId }, // Planner do user tạo
-                        { id: { [Op.in]: joinedPlannerIds } } // Planner mà user tham gia
+                        {
+                            id: {
+                                [Op.in]: joinedPlannerIds
+                            }
+                        } // Planner mà user tham gia
                     ]
                 },
                 include: [
@@ -174,7 +183,9 @@ class PlannerService {
                 ],
                 limit: parseInt(limit),
                 offset,
-                order: [['created_at', 'DESC']]
+                order: [
+                    ['created_at', 'DESC']
+                ]
             });
 
             return {
@@ -195,6 +206,7 @@ class PlannerService {
     /**
      * Get planner by ID with all items grouped by day
      * userId is optional - if not provided, skips ownership check (for token access)
+     * Auto-updates status to 'ongoing' if today >= start_date
      */
     static async getPlannerById(plannerId, userId = null) {
         try {
@@ -207,7 +219,10 @@ class PlannerService {
                         include: [
                             { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image'] }
                         ],
-                        order: [['day_number', 'ASC'], ['order_index', 'ASC']]
+                        order: [
+                            ['day_number', 'ASC'],
+                            ['order_index', 'ASC']
+                        ]
                     }
                 ]
             });
@@ -229,6 +244,29 @@ class PlannerService {
 
                 if (!isMember) {
                     throw new Error('Forbidden');
+                }
+            }
+
+            // Auto-update status to 'ongoing' if today >= start_date and status is 'planning'
+            if (planner.status === 'planning' && planner.start_date) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const startDate = new Date(planner.start_date);
+                startDate.setHours(0, 0, 0, 0);
+
+                if (today >= startDate) {
+                    await planner.update({ status: 'ongoing' });
+                    planner.status = 'ongoing';
+
+                    // Update all 'planned' items to 'in_progress'
+                    await PlannerItem.update({ status: 'in_progress' }, {
+                        where: {
+                            planner_id: plannerId,
+                            status: 'planned'
+                        }
+                    });
+
+                    Logger.info(`Planner ${plannerId} auto-updated status from 'planning' to 'ongoing' (today >= start_date), items updated to in_progress`);
                 }
             }
 
@@ -262,69 +300,21 @@ class PlannerService {
                 dataToUpdate.name = updateData.name.trim();
             }
 
-            if (updateData.start_date !== undefined) {
-                dataToUpdate.start_date = updateData.start_date;
+            // Thay thế start_date/end_date bằng estimated_days
+            if (updateData.estimated_days !== undefined) {
+                if (updateData.estimated_days < 1) {
+                    throw new Error('Estimated days must be at least 1');
+                }
+                dataToUpdate.estimated_days = updateData.estimated_days;
             }
 
-            if (updateData.end_date !== undefined) {
-                dataToUpdate.end_date = updateData.end_date;
-            }
-
-            // Validate date range if both dates are being updated
-            const finalStartDate = dataToUpdate.start_date !== undefined ? dataToUpdate.start_date : planner.start_date;
-            const finalEndDate = dataToUpdate.end_date !== undefined ? dataToUpdate.end_date : planner.end_date;
-
-            if (finalStartDate && finalEndDate) {
-                const startDateObj = new Date(finalStartDate);
-                const endDateObj = new Date(finalEndDate);
-                if (endDateObj < startDateObj) {
-                    throw new Error('End date must be after or equal to start date');
-                }
-
-                // Validate max 30 days
-                const diffTime = endDateObj.getTime() - startDateObj.getTime();
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // inclusive
-                if (diffDays > 30) {
-                    throw new Error('Planner exceeds 30 days');
-                }
-
-                // Check overlapping dates with existing planners (exclude current planner)
-                const overlappingPlanners = await Planner.findAll({
-                    where: {
-                        user_id: userId,
-                        id: { [Op.ne]: plannerId },
-                        start_date: { [Op.ne]: null },
-                        end_date: { [Op.ne]: null },
-                        [Op.and]: [
-                            { start_date: { [Op.lte]: finalEndDate } },
-                            { end_date: { [Op.gte]: finalStartDate } }
-                        ]
-                    },
-                    attributes: ['id', 'name', 'start_date', 'end_date']
-                });
-
-                if (overlappingPlanners.length > 0) {
-                    const conflictDates = new Set();
-                    const reqStart = new Date(finalStartDate);
-                    const reqEnd = new Date(finalEndDate);
-
-                    for (const p of overlappingPlanners) {
-                        const pStart = new Date(p.start_date);
-                        const pEnd = new Date(p.end_date);
-                        const overlapStart = pStart > reqStart ? pStart : reqStart;
-                        const overlapEnd = pEnd < reqEnd ? pEnd : reqEnd;
-
-                        for (let d = new Date(overlapStart); d <= overlapEnd; d.setDate(d.getDate() + 1)) {
-                            conflictDates.add(d.toISOString().split('T')[0]);
-                        }
-                    }
-
-                    const sortedDates = Array.from(conflictDates).sort();
-                    const error = new Error('Planner dates overlap');
-                    error.conflictDates = sortedDates;
-                    throw error;
-                }
-            }
+            // BỎ: start_date, end_date
+            // if (updateData.start_date !== undefined) {
+            //     dataToUpdate.start_date = updateData.start_date;
+            // }
+            // if (updateData.end_date !== undefined) {
+            //     dataToUpdate.end_date = updateData.end_date;
+            // }
 
             if (updateData.number_of_people !== undefined) {
                 if (updateData.number_of_people < 1) {
@@ -336,7 +326,6 @@ class PlannerService {
             if (updateData.transportation !== undefined) {
                 dataToUpdate.transportation = updateData.transportation;
             }
-
 
             if (updateData.status !== undefined) {
                 dataToUpdate.status = updateData.status;
@@ -420,34 +409,55 @@ class PlannerService {
                     throw new Error('Planner not found');
                 }
 
-                if (!planner.start_date || !planner.end_date) {
-                    throw new Error('Planner must have start_date and end_date to add events');
-                }
-
                 // Use event's site_id if not provided
                 if (!site_id) {
                     site_id = event.site_id;
                 }
 
-                // Calculate day_number from event.start_date
-                const plannerStartDate = new Date(planner.start_date);
-                const eventStartDate = new Date(event.start_date);
-                const eventEndDate = event.end_date ? new Date(event.end_date) : eventStartDate;
+                // Calculate day_number: use planner dates if available, otherwise use next available day
+                let calculatedDayNumber;
 
-                plannerStartDate.setHours(0, 0, 0, 0);
-                eventStartDate.setHours(0, 0, 0, 0);
-                eventEndDate.setHours(0, 0, 0, 0);
+                if (planner.start_date && planner.end_date) {
+                    // Calculate from planner dates (existing logic)
+                    const plannerStartDate = new Date(planner.start_date);
+                    const eventStartDate = new Date(event.start_date);
+                    const eventEndDate = event.end_date ? new Date(event.end_date) : eventStartDate;
 
-                const plannerEndDate = new Date(planner.end_date);
-                plannerEndDate.setHours(0, 0, 0, 0);
+                    plannerStartDate.setHours(0, 0, 0, 0);
+                    eventStartDate.setHours(0, 0, 0, 0);
+                    eventEndDate.setHours(0, 0, 0, 0);
 
-                // Validate event dates are within planner range
-                if (eventStartDate < plannerStartDate || eventStartDate > plannerEndDate) {
-                    throw new Error(`Sự kiện "${event.name}" bắt đầu ngày ${event.start_date} không nằm trong lịch trình (${planner.start_date} - ${planner.end_date}).`);
+                    const plannerEndDate = new Date(planner.end_date);
+                    plannerEndDate.setHours(0, 0, 0, 0);
+
+                    // Validate event dates are within planner range
+                    if (eventStartDate < plannerStartDate || eventStartDate > plannerEndDate) {
+                        throw new Error(`Sự kiện "${event.name}" bắt đầu ngày ${event.start_date} không nằm trong lịch trình (${planner.start_date} - ${planner.end_date}).`);
+                    }
+
+                    // Calculate day_number (1-based)
+                    calculatedDayNumber = Math.ceil((eventStartDate - plannerStartDate) / (1000 * 60 * 60 * 24)) + 1;
+                } else {
+                    // No planner dates - use next available day_number or estimated_days
+                    const existingItems = await PlannerItem.findAll({
+                        where: { planner_id: plannerId },
+                        attributes: ['day_number'],
+                        order: [
+                            ['day_number', 'DESC']
+                        ],
+                        limit: 1
+                    });
+
+                    if (existingItems.length > 0) {
+                        calculatedDayNumber = existingItems[0].day_number + 1;
+                    } else if (planner.estimated_days) {
+                        calculatedDayNumber = 1;
+                    } else {
+                        calculatedDayNumber = 1;
+                    }
+
+                    Logger.info(`Planner without dates: using calculated day_number = ${calculatedDayNumber} for event ${event.name}`);
                 }
-
-                // Calculate day_number (1-based)
-                const calculatedDayNumber = Math.ceil((eventStartDate - plannerStartDate) / (1000 * 60 * 60 * 24)) + 1;
 
                 // Override day_number with calculated value
                 day_number = calculatedDayNumber;
@@ -530,7 +540,9 @@ class PlannerService {
                 // Check if all NearbyPlace IDs exist and are approved/active
                 const existingPlaces = await NearbyPlace.findAll({
                     where: {
-                        id: { [Op.in]: uniqueIds },
+                        id: {
+                            [Op.in]: uniqueIds
+                        },
                         status: 'approved',
                         is_active: true
                     },
@@ -581,7 +593,9 @@ class PlannerService {
                 // Lấy tất cả các ngày đã có items
                 const existingDays = await PlannerItem.findAll({
                     where: { planner_id: plannerId },
-                    attributes: [[sequelize.fn('DISTINCT', sequelize.col('day_number')), 'day_number']],
+                    attributes: [
+                        [sequelize.fn('DISTINCT', sequelize.col('day_number')), 'day_number']
+                    ],
                     raw: true
                 });
 
@@ -615,7 +629,9 @@ class PlannerService {
                 include: [
                     { model: Site, as: 'site', attributes: ['id', 'name', 'latitude', 'longitude'] }
                 ],
-                order: [['order_index', 'DESC']],
+                order: [
+                    ['order_index', 'DESC']
+                ],
                 transaction
             });
 
@@ -623,6 +639,70 @@ class PlannerService {
             if (previousItem && previousItem.site_id === site_id) {
                 throw new Error('Cannot add the same site consecutively. Please add a different site or move to the next day.');
             }
+
+            // ===== VALIDATION: Check travel time between days =====
+            // When adding to a new day, validate that arrival time from previous day is reasonable
+            if (day_number > 1 && travel_time_minutes && travel_time_minutes > 0) {
+                // Get last item of previous day
+                const lastItemPreviousDay = await PlannerItem.findOne({
+                    where: {
+                        planner_id: plannerId,
+                        day_number: day_number - 1
+                    },
+                    include: [
+                        { model: Site, as: 'site', attributes: ['id', 'name', 'latitude', 'longitude'] }
+                    ],
+                    order: [
+                        ['order_index', 'DESC']
+                    ],
+                    transaction
+                });
+
+                if (lastItemPreviousDay && lastItemPreviousDay.estimated_time) {
+                    // Calculate arrival time to first item of new day
+                    // arrival = last_item.estimated_time + rest_duration + travel_time_minutes
+                    const [lastHours, lastMins] = lastItemPreviousDay.estimated_time.split(':').map(Number);
+                    const lastRestMinutes = parseDurationToMinutes(lastItemPreviousDay.rest_duration) || 0;
+
+                    // Calculate arrival minutes to new day (relative to 00:00 of new day)
+                    // If last item is at 23:00, rest 30min, travel 3h = 02:30 next day = 150 minutes after midnight
+                    const departureMinutes = lastHours * 60 + lastMins + lastRestMinutes; // minutes from midnight of previous day
+                    const arrivalMinutes = departureMinutes + travel_time_minutes; // minutes from midnight of previous day
+                    const arrivalMinutesInNewDay = arrivalMinutes - 1440; // minutes from midnight of new day (can be negative if before midnight)
+
+                    // Get user-provided estimated_time for first item of new day
+                    let newItemEstimatedMinutes = null;
+                    if (estimated_time) {
+                        const [newHours, newMins] = estimated_time.split(':').map(Number);
+                        newItemEstimatedMinutes = newHours * 60 + newMins;
+                    } else {
+                        // Default to 09:00 if not provided
+                        newItemEstimatedMinutes = 9 * 60; // 540 minutes = 09:00
+                    }
+
+                    // Check if new item time is before arrival time from previous day
+                    // arrivalMinutesInNewDay can be negative if travel doesn't cross midnight
+                    // e.g., 23:00 + 30min rest + 1h travel = 00:30 next day = 30 minutes in new day (positive)
+                    // e.g., 20:00 + 30min rest + 1h travel = 21:30 same day (negative, = -30)
+
+                    // If travel crosses midnight, arrivalMinutesInNewDay > 0
+                    // If new item time < arrival time, it's impossible
+                    if (arrivalMinutes > 1440 && newItemEstimatedMinutes < arrivalMinutesInNewDay) {
+                        const travelHours = Math.floor(travel_time_minutes / 60);
+                        const travelMinsPart = travel_time_minutes % 60;
+                        const travelStr = travelHours > 0 ? `${travelHours} giờ ${travelMinsPart} phút` : `${travelMinsPart} phút`;
+
+                        const arrivalHours = Math.floor(arrivalMinutesInNewDay / 60);
+                        const arrivalMins = arrivalMinutesInNewDay % 60;
+                        const arrivalTimeStr = `${String(arrivalHours).padStart(2, '0')}:${String(arrivalMins).padStart(2, '0')}`;
+
+                        throw new Error(`Thời gian di chuyển từ ngày ${day_number - 1} đến ngày ${day_number} là ${travelStr}. Bạn sẽ đến khoảng ${arrivalTimeStr} (ngày ${day_number}). Vui lòng chọn thời gian từ ${arrivalTimeStr} trở đi.`);
+                    }
+
+                    Logger.info(`Travel validation: arrivalMinutes=${arrivalMinutes}, arrivalMinutesInNewDay=${arrivalMinutesInNewDay}, newItemTime=${newItemEstimatedMinutes}`);
+                }
+            }
+            // ===== END: Validation =====
 
             // Validation: Check if travel time causes arrival to next day
             if (previousItem && previousItem.estimated_time && travel_time_minutes && travel_time_minutes > 0) {
@@ -722,7 +802,9 @@ class PlannerService {
                         planner_id: plannerId,
                         day_number: day_number
                     },
-                    order: [['order_index', 'ASC']],
+                    order: [
+                        ['order_index', 'ASC']
+                    ],
                     transaction
                 });
 
@@ -775,7 +857,9 @@ class PlannerService {
                             planner_id: plannerId,
                             day_number: itemDayNumber
                         },
-                        order: [['order_index', 'DESC']],
+                        order: [
+                            ['order_index', 'DESC']
+                        ],
                         transaction
                     });
 
@@ -800,6 +884,7 @@ class PlannerService {
                         day_number: itemDayNumber,
                         event_id: event_id,
                         order_index: (maxIdx || 0) + 1,
+                        status: planner.status === 'ongoing' ? 'in_progress' : 'planned',
                         note: dayItem.note,
                         nearby_amenity_ids: validatedNearbyAmenityIds,
                         estimated_time: dayItem.estimated_time || finalEstimatedTime,
@@ -815,19 +900,24 @@ class PlannerService {
                 // Fetch all created items with site details
                 const results = await PlannerItem.findAll({
                     where: {
-                        id: { [Op.in]: createdItems.map(i => i.id) }
+                        id: {
+                            [Op.in]: createdItems.map(i => i.id)
+                        }
                     },
                     include: [
                         { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image'] }
                     ],
-                    order: [['day_number', 'ASC'], ['order_index', 'ASC']]
+                    order: [
+                        ['day_number', 'ASC'],
+                        ['order_index', 'ASC']
+                    ]
                 });
 
                 Logger.info(`Multi-day event ${event_id} added to planner ${plannerId} for ${multiDayItems.length} days by user ${userId}`);
 
                 return {
                     event_id: event_id,
-                    event_name: eventInfo?.name,
+                    event_name: eventInfo ? eventInfo.name : null,
                     total_days: multiDayItems.length,
                     items: results.map(i => this.formatPlannerItemResponse(i))
                 };
@@ -845,6 +935,9 @@ class PlannerService {
 
             const nextOrderIndex = (maxOrderIndex || 0) + 1;
 
+            // Determine item status based on planner status
+            const itemStatus = planner.status === 'ongoing' ? 'in_progress' : 'planned';
+
             // Create planner item
             const item = await PlannerItem.create({
                 planner_id: plannerId,
@@ -852,6 +945,7 @@ class PlannerService {
                 day_number: day_number,
                 event_id: event_id || null,
                 order_index: nextOrderIndex,
+                status: itemStatus,
                 note: note || null,
                 nearby_amenity_ids: validatedNearbyAmenityIds,
                 estimated_time: finalEstimatedTime,
@@ -896,76 +990,7 @@ class PlannerService {
     }
 
     /**
-     * Reorder planner items within a day
-     * userId is optional - if not provided, skips ownership check (for token access)
-     */
-    static async reorderPlannerItems(plannerId, userId = null, dayNumber, itemIds) {
-        const transaction = await sequelize.transaction();
-
-        try {
-            // Check planner exists and user is owner (if userId provided)
-            const planner = await Planner.findByPk(plannerId);
-            if (!planner) {
-                throw new Error('Planner not found');
-            }
-
-            if (userId && planner.user_id !== userId) {
-                throw new Error('Forbidden');
-            }
-
-            // Validate day_number (if planner has date range)
-            if (planner.start_date && planner.end_date) {
-                const startDate = new Date(planner.start_date);
-                const endDate = new Date(planner.end_date);
-                const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-
-                if (dayNumber < 1 || dayNumber > totalDays) {
-                    throw new Error(`Invalid day number. Must be between 1 and ${totalDays}`);
-                }
-            } else if (dayNumber < 1) {
-                throw new Error('Day number must be at least 1');
-            }
-
-            // Get all items for this day
-            const items = await PlannerItem.findAll({
-                where: {
-                    planner_id: plannerId,
-                    day_number: dayNumber
-                },
-                transaction
-            });
-
-            // Validate all item IDs belong to this day
-            const itemIdSet = new Set(items.map(i => i.id));
-            for (const id of itemIds) {
-                if (!itemIdSet.has(id)) {
-                    throw new Error('Invalid item ID in reorder list');
-                }
-            }
-
-            // Step 1: Set all order_index to temporary negative values to avoid unique constraint conflict
-            for (let i = 0; i < itemIds.length; i++) {
-                await PlannerItem.update(
-                    { order_index: -(i + 1000) },
-                    {
-                        where: { id: itemIds[i] },
-                        transaction
-                    }
-                );
-            }
-
-            // Step 2: Update order_index to final values
-            for (let i = 0; i < itemIds.length; i++) {
-                await PlannerItem.update(
-                    { order_index: i + 1 },
-                    {
-                        where: { id: itemIds[i] },
-                        transaction
-                    }
-                );
-            }
-
-            await transaction.commit();
+     * Delete planner item by ID
 
             // Recalculate estimated times for all items after reorder
             Logger.info('Recalculating estimated times after reorder...');
@@ -1062,6 +1087,12 @@ class PlannerService {
             if (item.planner_id !== plannerId) {
                 throw new Error('Item does not belong to this planner');
             }
+
+            // ===== VALIDATION: Không được xóa item nếu đang in_progress =====
+            if (item.status === 'in_progress') {
+                throw new Error('Không thể xóa địa điểm đang trong quá trình thực hiện');
+            }
+            // ===== END: Validation =====
 
             const dayNumber = item.day_number;
             const deletedOrderIndex = item.order_index;
@@ -1327,20 +1358,14 @@ class PlannerService {
      * Format planner response
      */
     static formatPlannerResponse(planner) {
-        // Calculate number_of_days from date range
-        let numberOfDays = null;
-        if (planner.start_date && planner.end_date) {
-            const startDate = new Date(planner.start_date);
-            const endDate = new Date(planner.end_date);
-            numberOfDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-        }
+        // Tính number_of_days: ưu tiên estimated_days, nếu không có thì tính từ items
+        let numberOfDays = planner.estimated_days;
 
         return {
             id: planner.id,
             user_id: planner.user_id,
             name: planner.name,
-            start_date: planner.start_date,
-            end_date: planner.end_date,
+            estimated_days: planner.estimated_days,
             number_of_days: numberOfDays,
             number_of_people: planner.number_of_people,
             transportation: planner.transportation,
@@ -1404,12 +1429,18 @@ class PlannerService {
             event_id: item.event_id,
             day_number: item.day_number,
             order_index: item.order_index,
+            status: item.status,
             note: item.note,
             nearby_amenity_ids: item.nearby_amenity_ids || [],
             estimated_time: item.estimated_time,
             rest_duration: item.rest_duration,
             travel_time_minutes: item.travel_time_minutes,
             estimated_departure_time: estimatedDepartureTime,
+            // Checkin info
+            checkin_latitude: item.checkin_latitude,
+            checkin_longitude: item.checkin_longitude,
+            checkin_distance_meters: item.checkin_distance_meters,
+            checked_in_at: item.checked_in_at,
             site: item.site ? {
                 id: item.site.id,
                 name: item.site.name,
@@ -1458,17 +1489,27 @@ class PlannerService {
             }
             // ===== END: Validation =====
 
-            await planner.update({
-                status: 'completed',
-                completed_at: new Date()
-            }, { transaction: t });
+            // Check checkin percentage to decide completed vs expired
+            const checkinStats = await this.getCheckinStats(plannerId);
+            const checkinPercentage = checkinStats.percentage;
 
-            const PlannerAntiFraudService = require('./pilgrim/plannerAntiFraudService');
-            await PlannerAntiFraudService.verifyAndSettlePlanner(plannerId, t);
+            if (checkinPercentage >= 80) {
+                await planner.update({
+                    status: 'completed',
+                    completed_at: new Date()
+                }, { transaction: t });
+
+                const PlannerAntiFraudService = require('./pilgrim/plannerAntiFraudService');
+                await PlannerAntiFraudService.verifyAndSettlePlanner(plannerId, t);
+
+                Logger.info(`Planner ${plannerId} completed (${checkinPercentage}% checkin)`);
+            } else {
+                await planner.update({ status: 'expired' }, { transaction: t });
+                Logger.info(`Planner ${plannerId} expired (${checkinPercentage}% checkin, below 80%)`);
+            }
 
             await t.commit();
 
-            Logger.info(`Planner ${plannerId} marked as completed by user ${userId}`);
             return this.formatPlannerResponse(planner);
         } catch (error) {
             await t.rollback();
@@ -1478,8 +1519,592 @@ class PlannerService {
     }
 
     /**
-     * Auto complete ongoing planners that have passed their end_date
+     * Update planner status (gộp start và complete)
+     * @param {string} plannerId
+     * @param {string} userId
+     * @param {string} newStatus - 'ongoing' hoặc 'completed'
+     */
+    static async updatePlannerStatus(plannerId, userId, newStatus) {
+        try {
+            const planner = await Planner.findByPk(plannerId);
+
+            if (!planner) {
+                throw new Error('Planner not found');
+            }
+
+            if (planner.user_id !== userId) {
+                throw new Error('Forbidden');
+            }
+
+            const currentStatus = planner.status;
+
+            // Validate status transition
+            if (newStatus === 'ongoing') {
+                // Chuyển từ planning -> ongoing
+                if (currentStatus !== 'planning') {
+                    throw new Error('Planner is not in planning status');
+                }
+                // BỎ: Không cần bắt buộc start_date/end_date
+                // if (!planner.start_date || !planner.end_date) {
+                //     throw new Error('Planner must have start_date and end_date to start');
+                // }
+
+                // ===== VALIDATION: Planner phải có đủ items - BỎ vì không cần ngày cố định =====
+                // const continuityCheck = await this.validatePlannerContinuity(plannerId);
+                // if (!continuityCheck.isValid) {
+                //     const missingDaysStr = continuityCheck.missingDays.join(', ');
+                //     throw new Error(
+                //         `Không thể bắt đầu kế hoạch! Lịch trình chưa đầy đủ. ` +
+                //         `Bạn cần thêm địa điểm cho Ngày ${missingDaysStr} (Tổng ${continuityCheck.totalDays} ngày).`
+                //     );
+                // }
+                // ===== END: Validation =====
+
+                await planner.update({ status: 'ongoing' });
+
+                // Update all 'planned' items to 'in_progress'
+                await PlannerItem.update(
+                    { status: 'in_progress' },
+                    {
+                        where: {
+                            planner_id: plannerId,
+                            status: 'planned'
+                        }
+                    }
+                );
+
+                Logger.info(`Planner ${plannerId} started by user ${userId}`);
+            } else if (newStatus === 'completed') {
+                // Chuyển từ ongoing -> completed (hoặc expired)
+                if (currentStatus !== 'ongoing') {
+                    throw new Error('Planner is not ongoing');
+                }
+
+                // Validate continuity
+                const continuityCheck = await this.validatePlannerContinuity(plannerId);
+                if (!continuityCheck.isValid) {
+                    const missingDaysStr = continuityCheck.missingDays.join(', ');
+                    throw new Error(
+                        `Không thể hoàn thành kế hoạch! Lịch trình chưa đầy đủ. ` +
+                        `Bạn cần thêm địa điểm cho Ngày ${missingDaysStr} (Tổng ${continuityCheck.totalDays} ngày).`
+                    );
+                }
+
+                // Check checkin percentage
+                const checkinStats = await this.getCheckinStats(plannerId);
+                const checkinPercentage = checkinStats.percentage;
+
+                if (checkinPercentage >= 80) {
+                    await planner.update({
+                        status: 'completed',
+                        completed_at: new Date()
+                    });
+                    Logger.info(`Planner ${plannerId} completed by user ${userId} (${checkinPercentage}% checkin)`);
+                } else {
+                    await planner.update({ status: 'expired' });
+                    Logger.info(`Planner ${plannerId} expired by user ${userId} (${checkinPercentage}% checkin)`);
+                }
+            } else {
+                throw new Error('Invalid status. Use "ongoing" or "completed"');
+            }
+
+            return this.formatPlannerResponse(planner);
+        } catch (error) {
+            Logger.error('Update planner status error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get checkin statistics for a planner
+     * @returns {Promise<{totalItems: number, checkedInItems: number, percentage: number}>}
+     */
+    static async getCheckinStats(plannerId) {
+        const { PlannerItem } = require('../models');
+
+        // Get total items in planner
+        const totalItems = await PlannerItem.count({
+            where: { planner_id: plannerId }
+        });
+
+        if (totalItems === 0) {
+            return { totalItems: 0, checkedInItems: 0, percentage: 0 };
+        }
+
+        // Get items with status 'checked_in' (or 'skipped' also counts as completed)
+        const checkedInItems = await PlannerItem.count({
+            where: {
+                planner_id: plannerId,
+                status: {
+                    [Op.in]: ['checked_in', 'skipped']
+                }
+            }
+        });
+
+        const percentage = Math.round((checkedInItems / totalItems) * 100);
+
+        return { totalItems, checkedInItems, percentage };
+    }
+
+    /**
+     * Checkin to a planner item
+     * - Must checkin in order (previous items must be checked_in or skipped)
+     * - User can skip items to proceed to next item
+     */
+    static async checkinItem(plannerId, itemId, userId, checkinData) {
+        const transaction = await sequelize.transaction();
+
+        try {
+            Logger.info(`[checkinItem] plannerId=${plannerId}, itemId=${itemId}, userId=${userId}`);
+
+            const { distance_meters, note } = checkinData;
+
+            // Get planner
+            const planner = await Planner.findByPk(plannerId, { transaction });
+            if (!planner) {
+                throw new Error('Planner not found');
+            }
+
+            Logger.info(`[checkinItem] planner.user_id=${planner.user_id}, requested userId=${userId}`);
+
+            // Check if user is owner or member
+            if (planner.user_id !== userId) {
+                const isMember = await PlannerMember.findOne({
+                    where: { planner_id: plannerId, user_id: userId }
+                });
+                Logger.info(`[checkinItem] isMember=${!!isMember}`);
+                if (!isMember) {
+                    throw new Error('Forbidden');
+                }
+            }
+
+            // Planner must be ongoing
+            if (planner.status !== 'ongoing') {
+                throw new Error('Planner is not ongoing');
+            }
+
+            // Get item
+            const item = await PlannerItem.findByPk(itemId, { transaction });
+            if (!item) {
+                throw new Error('Item not found');
+            }
+
+            // Item must belong to this planner
+            if (item.planner_id !== plannerId) {
+                throw new Error('Item does not belong to this planner');
+            }
+
+            // Item must be in_progress
+            if (item.status !== 'in_progress') {
+                throw new Error('Item is not ready for checkin');
+            }
+
+            // ===== VALIDATION: Check order =====
+            // All previous items (in previous days or same day with lower order_index) must be checked_in or skipped
+            const previousItems = await PlannerItem.findAll({
+                where: {
+                    planner_id: plannerId,
+                    [Op.or]: [
+                        { day_number: { [Op.lt]: item.day_number } },
+                        {
+                            day_number: item.day_number,
+                            order_index: { [Op.lt]: item.order_index }
+                        }
+                    ]
+                },
+                transaction
+            });
+
+            // Check if all previous items are checked_in or skipped
+            const incompleteItems = previousItems.filter(i => !['checked_in', 'skipped'].includes(i.status));
+            if (incompleteItems.length > 0) {
+                const firstIncomplete = incompleteItems[0];
+                throw new Error(`Bạn phải hoàn thành Ngày ${firstIncomplete.day_number} - Địa điểm thứ ${firstIncomplete.order_index} trước`);
+            }
+            // ===== END: Validation =====
+
+            // Update item to checked_in
+            await item.update({
+                status: 'checked_in',
+                checked_in_at: new Date(),
+                checkin_distance_meters: distance_meters || null,
+                note: note || item.note
+            }, { transaction });
+
+            // Auto-update next item to in_progress (if exists and is planned)
+            const nextItem = await PlannerItem.findOne({
+                where: {
+                    planner_id: plannerId,
+                    [Op.or]: [
+                        { day_number: { [Op.gt]: item.day_number } },
+                        {
+                            day_number: item.day_number,
+                            order_index: { [Op.gt]: item.order_index }
+                        }
+                    ]
+                },
+                order: [
+                    ['day_number', 'ASC'],
+                    ['order_index', 'ASC']
+                ],
+                transaction
+            });
+
+            if (nextItem && nextItem.status === 'planned') {
+                await nextItem.update({ status: 'in_progress' }, { transaction });
+            }
+
+            await transaction.commit();
+
+            Logger.info(`Item ${itemId} checked in by user ${userId}`);
+
+            // Fetch updated item with site details
+            const updatedItem = await PlannerItem.findByPk(itemId, {
+                include: [
+                    { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image'] }
+                ]
+            });
+
+            return this.formatPlannerItemResponse(updatedItem);
+        } catch (error) {
+            if (transaction && !transaction.finished) {
+                await transaction.rollback();
+            }
+            Logger.error('Checkin item error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Skip a planner item
+     * - Must skip in order (previous items must be checked_in or skipped)
+     * - After skip, next item becomes in_progress
+     */
+    static async skipItem(plannerId, itemId, userId) {
+        const transaction = await sequelize.transaction();
+
+        try {
+            // Get planner
+            const planner = await Planner.findByPk(plannerId, { transaction });
+            if (!planner) {
+                throw new Error('Planner not found');
+            }
+
+            // Check if user is owner or member
+            if (planner.user_id !== userId) {
+                const isMember = await PlannerMember.findOne({
+                    where: { planner_id: plannerId, user_id: userId }
+                });
+                if (!isMember) {
+                    throw new Error('Forbidden');
+                }
+            }
+
+            // Planner must be ongoing
+            if (planner.status !== 'ongoing') {
+                throw new Error('Planner is not ongoing');
+            }
+
+            // Get item
+            const item = await PlannerItem.findByPk(itemId, { transaction });
+            if (!item) {
+                throw new Error('Item not found');
+            }
+
+            // Item must belong to this planner
+            if (item.planner_id !== plannerId) {
+                throw new Error('Item does not belong to this planner');
+            }
+
+            // Item must be in_progress
+            if (item.status !== 'in_progress') {
+                throw new Error('Item is not ready to skip');
+            }
+
+            // ===== VALIDATION: Check order =====
+            const previousItems = await PlannerItem.findAll({
+                where: {
+                    planner_id: plannerId,
+                    [Op.or]: [
+                        { day_number: { [Op.lt]: item.day_number } },
+                        {
+                            day_number: item.day_number,
+                            order_index: { [Op.lt]: item.order_index }
+                        }
+                    ]
+                },
+                transaction
+            });
+
+            const incompleteItems = previousItems.filter(i => !['checked_in', 'skipped'].includes(i.status));
+            if (incompleteItems.length > 0) {
+                const firstIncomplete = incompleteItems[0];
+                throw new Error(`Bạn phải hoàn thành Ngày ${firstIncomplete.day_number} - Địa điểm thứ ${firstIncomplete.order_index} trước`);
+            }
+            // ===== END: Validation =====
+
+            // Update item to skipped
+            await item.update({
+                status: 'skipped'
+            }, { transaction });
+
+            // Auto-update next item to in_progress (if exists and is planned)
+            const nextItem = await PlannerItem.findOne({
+                where: {
+                    planner_id: plannerId,
+                    [Op.or]: [
+                        { day_number: { [Op.gt]: item.day_number } },
+                        {
+                            day_number: item.day_number,
+                            order_index: { [Op.gt]: item.order_index }
+                        }
+                    ]
+                },
+                order: [
+                    ['day_number', 'ASC'],
+                    ['order_index', 'ASC']
+                ],
+                transaction
+            });
+
+            if (nextItem && nextItem.status === 'planned') {
+                await nextItem.update({ status: 'in_progress' }, { transaction });
+            }
+
+            await transaction.commit();
+
+            Logger.info(`Item ${itemId} skipped by user ${userId}`);
+
+            // Fetch updated item with site details
+            const updatedItem = await PlannerItem.findByPk(itemId, {
+                include: [
+                    { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image'] }
+                ]
+            });
+
+            return this.formatPlannerItemResponse(updatedItem);
+        } catch (error) {
+            if (transaction && !transaction.finished) {
+                await transaction.rollback();
+            }
+            Logger.error('Skip item error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Auto-expire ongoing planners that have passed their end_date
      * Called by cron job
+     */
+    static async autoExpireExpiredPlanners() {
+        try {
+            const now = new Date();
+            now.setHours(0, 0, 0, 0); // Start of today
+
+            // Find ongoing planners whose end_date has passed
+            const expiredPlanners = await Planner.findAll({
+                where: {
+                    status: 'ongoing',
+                    end_date: {
+                        [Op.lt]: now
+                    }
+                }
+            });
+
+            let expiredCount = 0;
+            for (const planner of expiredPlanners) {
+                // Check checkin percentage
+                const stats = await this.getCheckinStats(planner.id);
+
+                if (stats.percentage < 80) {
+                    // < 80% checkin → expire
+                    await planner.update({ status: 'expired' });
+                    expiredCount++;
+                    Logger.info(`Planner ${planner.id} auto-expired (end_date: ${planner.end_date}, checkin: ${stats.percentage}%)`);
+                } else {
+                    // >= 80% checkin → complete
+                    await planner.update({
+                        status: 'completed',
+                        completed_at: new Date()
+                    });
+                    Logger.info(`Planner ${planner.id} auto-completed (end_date: ${planner.end_date}, checkin: ${stats.percentage}%)`);
+                }
+            }
+
+            Logger.info(`Auto-processed ${expiredCount} expired planners`);
+            return expiredCount;
+        } catch (error) {
+            Logger.error('Auto expire expired planners error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Start planner - manually change status from 'planning' to 'ongoing'
+     * No checkin required - user can start anytime
+     */
+    static async startPlanner(plannerId, userId) {
+        try {
+            const planner = await Planner.findByPk(plannerId);
+
+            if (!planner) {
+                throw new Error('Planner not found');
+            }
+
+            if (planner.user_id !== userId) {
+                throw new Error('Forbidden');
+            }
+
+            if (planner.status !== 'planning') {
+                throw new Error('Planner is not in planning status');
+            }
+
+            // BỎ: Không cần bắt buộc start_date/end_date
+            // if (!planner.start_date || !planner.end_date) {
+            //     throw new Error('Planner must have start_date and end_date to start');
+            // }
+
+            // BỎ: Validation đủ items cho tất cả các ngày - không cần ngày cố định
+            // const continuityCheck = await this.validatePlannerContinuity(plannerId);
+            // if (!continuityCheck.isValid) {
+            //     const missingDaysStr = continuityCheck.missingDays.join(', ');
+            //     throw new Error(
+            //         `Không thể bắt đầu kế hoạch! Lịch trình chưa đầy đủ. ` +
+            //         `Bạn cần thêm địa điểm cho Ngày ${missingDaysStr} (Tổng ${continuityCheck.totalDays} ngày).`
+            //     );
+            // }
+
+            // Update planner status to ongoing
+            await planner.update({ status: 'ongoing' });
+
+            // Update all 'planned' items to 'in_progress'
+            await PlannerItem.update(
+                { status: 'in_progress' },
+                {
+                    where: {
+                        planner_id: plannerId,
+                        status: 'planned'
+                    }
+                }
+            );
+
+            Logger.info(`Planner ${plannerId} started by user ${userId} (planning -> ongoing), items updated to in_progress`);
+            return this.formatPlannerResponse(planner);
+        } catch (error) {
+            Logger.error('Start planner error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Update planner status (unified endpoint for start/complete)
+     * @param {string} plannerId - Planner ID
+     * @param {string} userId - User ID
+     * @param {string} status - New status: 'ongoing' | 'completed' | 'expired'
+     */
+    static async updatePlannerStatus(plannerId, userId, status) {
+        try {
+            const planner = await Planner.findByPk(plannerId);
+
+            if (!planner) {
+                throw new Error('Planner not found');
+            }
+
+            if (planner.user_id !== userId) {
+                throw new Error('Forbidden');
+            }
+
+            // Validate status transitions
+            const validTransitions = {
+                'planning': ['ongoing'],
+                'ongoing': ['completed', 'expired']
+            };
+
+            if (!validTransitions[planner.status] || !validTransitions[planner.status].includes(status)) {
+                throw new Error(`Không thể chuyển trạng thái từ '${planner.status}' sang '${status}'`);
+            }
+
+            // Handle 'ongoing' status (start planner)
+            if (status === 'ongoing') {
+                if (!planner.start_date || !planner.end_date) {
+                    throw new Error('Planner must have start_date and end_date to start');
+                }
+
+                // ===== VALIDATION: Planner phải có đủ items cho tất cả các ngày =====
+                const continuityCheck = await this.validatePlannerContinuity(plannerId);
+
+                if (!continuityCheck.isValid) {
+                    const missingDaysStr = continuityCheck.missingDays.join(', ');
+                    throw new Error(
+                        `Không thể bắt đầu kế hoạch! Lịch trình chưa đầy đủ. ` +
+                        `Bạn cần thêm địa điểm cho Ngày ${missingDaysStr} (Tổng ${continuityCheck.totalDays} ngày).`
+                    );
+                }
+                // ===== END: Validation =====
+
+                await planner.update({ status: 'ongoing' });
+
+                // Update all 'planned' items to 'in_progress'
+                await PlannerItem.update(
+                    { status: 'in_progress' },
+                    {
+                        where: {
+                            planner_id: plannerId,
+                            status: 'planned'
+                        }
+                    }
+                );
+
+                Logger.info(`Planner ${plannerId} started by user ${userId} (planning -> ongoing)`);
+            }
+            // Handle 'completed' or 'expired' status (complete planner)
+            else if (status === 'completed' || status === 'expired') {
+                // ===== VALIDATION: Planner phải có đủ items cho tất cả các ngày =====
+                const continuityCheck = await this.validatePlannerContinuity(plannerId);
+
+                if (!continuityCheck.isValid) {
+                    const missingDaysStr = continuityCheck.missingDays.join(', ');
+                    throw new Error(
+                        `Không thể hoàn thành kế hoạch! Lịch trình chưa đầy đủ. ` +
+                        `Bạn cần thêm địa điểm cho Ngày ${missingDaysStr} (Tổng ${continuityCheck.totalDays} ngày).`
+                    );
+                }
+                // ===== END: Validation =====
+
+                // ===== VALIDATION: Check checkin percentage =====
+                const checkinStats = await this.getCheckinStats(plannerId);
+                const checkinPercentage = checkinStats.percentage;
+
+                if (status === 'completed' && checkinPercentage < 80) {
+                    throw new Error(`Chỉ có thể hoàn thành kế hoạch khi đã check-in ít nhất 80% địa điểm (hiện tại: ${checkinPercentage}%)`);
+                }
+
+                // Determine final status based on checkin percentage
+                const finalStatus = checkinPercentage >= 80 ? 'completed' : 'expired';
+
+                const updateData = { status: finalStatus };
+                if (finalStatus === 'completed') {
+                    updateData.completed_at = new Date();
+                }
+
+                await planner.update(updateData);
+
+                Logger.info(`Planner ${plannerId} status updated to ${finalStatus} by user ${userId} (${checkinPercentage}% checkin)`);
+            }
+
+            return this.formatPlannerResponse(planner);
+        } catch (error) {
+            Logger.error('Update planner status error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Auto complete or expire ongoing planners that have passed their end_date
+     * Called by cron job
+     * Logic:
+     * - checkin >= 80% → status = 'completed'
+     * - checkin < 80% → status = 'expired'
      */
     static async autoCompleteExpiredPlanners() {
         try {
@@ -1496,6 +2121,8 @@ class PlannerService {
             });
 
             let completedCount = 0;
+            let expiredCount = 0;
+
             for (const planner of expiredPlanners) {
                 const t = await sequelize.transaction();
                 try {
@@ -1504,24 +2131,34 @@ class PlannerService {
                         lock: true
                     });
 
-                    await currentPlanner.update({
-                        status: 'completed',
-                        completed_at: new Date()
-                    }, { transaction: t });
+                    // Check checkin percentage
+                    const stats = await this.getCheckinStats(planner.id);
 
-                    const PlannerAntiFraudService = require('./pilgrim/plannerAntiFraudService');
-                    await PlannerAntiFraudService.verifyAndSettlePlanner(currentPlanner.id, t);
+                    if (stats.percentage >= 80) {
+                        await currentPlanner.update({
+                            status: 'completed',
+                            completed_at: new Date()
+                        }, { transaction: t });
+
+                        const PlannerAntiFraudService = require('./pilgrim/plannerAntiFraudService');
+                        await PlannerAntiFraudService.verifyAndSettlePlanner(currentPlanner.id, t);
+                        completedCount++;
+                        Logger.info(`Planner ${planner.id} auto-completed (checkin: ${stats.percentage}%)`);
+                    } else {
+                        await currentPlanner.update({ status: 'expired' }, { transaction: t });
+                        expiredCount++;
+                        Logger.info(`Planner ${planner.id} auto-expired (checkin: ${stats.percentage}%, below 80%)`);
+                    }
 
                     await t.commit();
-                    completedCount++;
                 } catch (plannerError) {
                     await t.rollback();
                     Logger.error(`Auto complete failed for planner ${planner.id}:`, plannerError);
                 }
             }
 
-            Logger.info(`Auto-completed ${completedCount} expired planners`);
-            return completedCount;
+            Logger.info(`Auto-processed: ${completedCount} completed, ${expiredCount} expired`);
+            return { completed: completedCount, expired: expiredCount };
         } catch (error) {
             Logger.error('Auto complete expired planners error:', error);
             throw error;
@@ -1580,7 +2217,88 @@ class PlannerService {
             throw error;
         }
     }
+
+    /**
+     * Checkin vào một địa điểm trong planner
+     * Yêu cầu: checkin theo thứ tự (item trước đó phải checked_in hoặc skipped)
+     */
+    static async checkinItem(plannerId, userId, itemId, checkinData) {
+        try {
+            const { distance_meters, latitude, longitude, note } = checkinData;
+
+            // Get planner
+            const planner = await Planner.findByPk(plannerId);
+            if (!planner) {
+                throw new Error('Planner not found');
+            }
+
+            // Check access
+            if (planner.user_id !== userId) {
+                const isMember = await PlannerMember.findOne({
+                    where: { planner_id: plannerId, user_id: userId }
+                });
+                if (!isMember) {
+                    throw new Error('Forbidden');
+                }
+            }
+
+            // Planner must be ongoing
+            if (planner.status !== 'ongoing') {
+                throw new Error('Planner is not ongoing');
+            }
+
+            // Get item
+            const item = await PlannerItem.findByPk(itemId);
+            if (!item) {
+                throw new Error('Item not found');
+            }
+
+            // Item must belong to this planner
+            if (item.planner_id !== plannerId) {
+                throw new Error('Item does not belong to this planner');
+            }
+
+            // Item must be in_progress or skipped (can re-checkin after skip)
+            if (!['in_progress', 'skipped'].includes(item.status)) {
+                throw new Error('Item is not available for checkin');
+            }
+
+            // Check previous item: must be checked_in or skipped
+            const previousItem = await PlannerItem.findOne({
+                where: {
+                    planner_id: plannerId,
+                    day_number: item.day_number,
+                    order_index: { [Op.lt]: item.order_index }
+                },
+                order: [['order_index', 'DESC']]
+            });
+
+            if (previousItem && !['checked_in', 'skipped'].includes(previousItem.status)) {
+                throw new Error(`Vui lòng hoàn thành địa điểm "${previousItem.site?.name || 'trước đó'}" trước khi checkin địa điểm này`);
+            }
+
+            // Update item with checkin info
+            await item.update({
+                status: 'checked_in',
+                checked_in_at: new Date(),
+                checkin_latitude: latitude || null,
+                checkin_longitude: longitude || null,
+                checkin_distance_meters: distance_meters || null
+            });
+
+            Logger.info(`Item ${itemId} checked in by user ${userId} at planner ${plannerId}`);
+
+            // Return updated item with site info
+            const updatedItem = await PlannerItem.findByPk(itemId, {
+                include: [{ model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province'] }]
+            });
+
+            return this.formatPlannerItemResponse(updatedItem);
+        } catch (error) {
+            Logger.error('Checkin item error:', error);
+            throw error;
+        }
+    }
 }
 
 module.exports = PlannerService;
-

@@ -168,26 +168,6 @@ class PlannerValidator {
             })
     ];
 
-    // Validate reorder items
-    static reorderItems = [
-        param('id')
-            .isUUID().withMessage('Planner ID không hợp lệ'),
-
-        body('day_number')
-            .notEmpty().withMessage('Số ngày không được để trống')
-            .isInt({ min: 1 }).withMessage('Số ngày phải lớn hơn hoặc bằng 1'),
-
-        body('item_ids')
-            .notEmpty().withMessage('Danh sách item IDs không được để trống')
-            .isArray({ min: 1 }).withMessage('Danh sách item IDs phải là mảng và không rỗng')
-            .custom((value) => {
-                if (!value.every(id => typeof id === 'string')) {
-                    throw new Error('Tất cả item IDs phải là chuỗi UUID');
-                }
-                return true;
-            })
-    ];
-
     // Validate delete item
     static deleteItem = [
         param('id')

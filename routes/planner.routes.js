@@ -62,13 +62,6 @@ router.post(
     PlannerController.addPlannerItem
 );
 
-router.patch(
-    '/:id/items/reorder',
-    authenticate,
-    PlannerValidator.reorderItems,
-    PlannerController.reorderPlannerItems
-);
-
 router.delete(
     '/:id/items/:itemId',
     authenticate,
@@ -84,11 +77,24 @@ router.put(
 );
 
 
-router.post(
-    '/:id/complete',
+// PATCH /:id/status - Update planner status (unified endpoint for start/complete)
+router.patch(
+    '/:id/status',
     authenticate,
     PlannerValidator.validatePlannerId,
-    PlannerController.completePlanner
+    PlannerController.updatePlannerStatus
+);
+
+router.post(
+    '/:id/items/:itemId/checkin',
+    authenticate,
+    PlannerController.checkinItem
+);
+
+router.post(
+    '/:id/items/:itemId/skip',
+    authenticate,
+    PlannerController.skipItem
 );
 
 router.get(
@@ -152,6 +158,14 @@ router.delete(
     authenticate,
     PlannerValidator.removeMember,
     PilgrimPlannerShareController.removeMember
+);
+
+
+router.get(
+    '/:id/progress',
+    authenticate,
+    PlannerValidator.validatePlannerId,
+    PlannerController.getPlannerProgress
 );
 
 // Offline Mode Routes

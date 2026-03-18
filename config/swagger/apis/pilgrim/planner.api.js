@@ -121,6 +121,9 @@
  * /api/planners/{id}:
  *   get:
  *     summary: Lấy kế hoạch theo ID
+ *     description: |
+ *       Lấy thông tin chi tiết kế hoạch.
+ *       Tự động chuyển trạng thái từ 'planning' sang 'ongoing' khi today >= start_date.
  *     tags: [Planners - Pilgrim]
  *     security:
  *       - bearerAuth: []
@@ -152,6 +155,105 @@
  *         description: Không có quyền - không phải chủ sở hữu
  *       404:
  *         description: Không tìm thấy kế hoạch
+ */
+
+/**
+ * @swagger
+ * /api/planners/{id}/items/{itemId}/checkin:
+ *   post:
+ *     summary: Checkin vào một địa điểm trong kế hoạch
+ *     description: |
+ *       - Phải checkin theo thứ tự (các item trước phải checked_in hoặc skipped)
+ *       - Khi checkin thành công, item tiếp theo sẽ tự động chuyển sang in_progress
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của kế hoạch
+ *       - in: path
+ *         name: itemId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của item
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               distance_meters:
+ *                 type: integer
+ *                 description: Khoảng cách đến địa điểm (mét)
+ *               note:
+ *                 type: string
+ *                 description: Ghi chú khi checkin
+ *     responses:
+ *       200:
+ *         description: Checkin thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PlannerItem'
+ *       400:
+ *         description: Lỗi validation - chưa checkin item trước đó
+ *       401:
+ *         description: Chưa xác thực
+ *       403:
+ *         description: Không có quyền
+ *       404:
+ *         description: Không tìm thấy kế hoạch hoặc item
+ */
+
+/**
+ * @swagger
+ * /api/planners/{id}/items/{itemId}/skip:
+ *   post:
+ *     summary: Bỏ qua một địa điểm trong kế hoạch
+ *     description: |
+ *       - Phải skip theo thứ tự (các item trước phải checked_in hoặc skipped)
+ *       - Khi skip thành công, item tiếp theo sẽ tự động chuyển sang in_progress
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của kế hoạch
+ *       - in: path
+ *         name: itemId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của item
+ *     responses:
+ *       200:
+ *         description: Skip thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PlannerItem'
+ *       400:
+ *         description: Lỗi validation - chưa hoàn thành item trước đó
+ *       401:
+ *         description: Chưa xác thực
+ *       403:
+ *         description: Không có quyền
+ *       404:
+ *         description: Không tìm thấy kế hoạch hoặc item
  */
 
 /**
@@ -298,57 +400,6 @@
 
 /**
  * @swagger
- * /api/planners/{id}/items/reorder:
- *   patch:
- *     summary: Sắp xếp lại các địa điểm trong cùng một ngày
- *     tags: [Planners - Pilgrim]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: Planner ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/ReorderItemsRequest'
- *     responses:
- *       200:
- *         description: Items reordered successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 message:
- *                   type: string
- *                 data:
- *                   type: object
- *                   properties:
- *                     items:
- *                       type: array
- *                       items:
- *                         $ref: '#/components/schemas/PlannerItem'
- *       400:
- *         description: Validation error
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden - not the owner
- *       404:
- *         description: Planner not found
- */
-
-/**
- * @swagger
  * /api/planners/{id}/items/{itemId}:
  *   delete:
  *     summary: Xóa một địa điểm khỏi kế hoạch
@@ -444,9 +495,16 @@
 
 /**
  * @swagger
- * /api/planners/{id}/complete:
- *   post:
- *     summary: Đánh dấu kế hoạch hoàn thành
+ * /api/planners/{id}/status:
+ *   patch:
+ *     summary: Cập nhật trạng thái kế hoạch (API gộp - start/complete)
+ *     description: |
+ *       Cập nhật trạng thái kế hoạch với các giá trị:
+ *       - **ongoing**: Bắt đầu kế hoạch (từ 'planning' → 'ongoing')
+ *         - Yêu cầu kế hoạch phải có start_date và end_date
+ *       - **completed**: Hoàn thành kế hoạch (từ 'ongoing' → 'completed')
+ *         - Yêu cầu checkin >= 80% địa điểm
+ *         - Nếu checkin < 80% → tự động chuyển sang 'expired'
  *     tags: [Planners - Pilgrim]
  *     security:
  *       - bearerAuth: []
@@ -458,11 +516,42 @@
  *           type: string
  *           format: uuid
  *         description: ID của kế hoạch
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [ongoing, completed]
+ *                 description: |
+ *                   - 'ongoing': Bắt đầu kế hoạch (planning → ongoing)
+ *                   - 'completed': Hoàn thành kế hoạch (ongoing → completed)
+ *           example:
+ *             status: "ongoing"
  *     responses:
  *       200:
- *         description: Đánh dấu hoàn thành thành công
+ *         description: Cập nhật trạng thái thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/PlannerResponse'
  *       400:
- *         description: Kế hoạch không ở trạng thái ongoing
+ *         description: |
+ *           - Kế hoạch không ở trạng thái hợp lệ
+ *           - Thiếu start_date/end_date khi chuyển sang ongoing
+ *           - Checkin dưới 80% khi hoàn thành
  *       401:
  *         description: Chưa xác thực
  *       403:
@@ -471,5 +560,27 @@
  *         description: Không tìm thấy kế hoạch
  */
 
+/**
+ * @swagger
+ * /api/planners/{id}/progress:
+ *   get:
+ *     summary: Lấy tiến độ của tất cả thành viên trong planner
+ *     description: |
+ *       Trả về thông tin tiến độ check-in của tất cả thành viên.
+ *       Chỉ owner hoặc member mới xem được.
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Thông tin tiến độ
+ */
 
 module.exports = {};
