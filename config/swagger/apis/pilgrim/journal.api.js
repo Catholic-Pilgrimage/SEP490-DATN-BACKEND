@@ -1,10 +1,16 @@
 /**
  * @swagger
+ * tags:
+ *   name: Journals - Pilgrim
+ *   description: Nhật ký tâm linh
+ */
+
+/**
+ * @swagger
  * /api/journals:
  *   post:
- *     tags: [Pilgrim - Journals]
- *     summary: Tạo nhật ký mới
- *     description: Tạo nhật ký với tiêu đề, nội dung, ảnh (tối đa 10), audio, video và liên kết địa điểm
+ *     summary: Tạo nhật ký tâm linh mới (yêu cầu check-in trước)
+ *     tags: [Journals - Pilgrim]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -12,24 +18,61 @@
  *       content:
  *         multipart/form-data:
  *           schema:
- *             $ref: '#/components/schemas/CreateJournalRequest'
+ *             type: object
+ *             required:
+ *               - title
+ *               - content
+ *               - planner_item_id
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 maxLength: 500
+ *                 description: Tiêu đề nhật ký
+ *                 example: "Chuyến hành hương đến Nhà thờ Đức Bà"
+ *               content:
+ *                 type: string
+ *                 description: Nội dung nhật ký
+ *                 example: "Hôm nay tôi đã có một chuyến hành hương ý nghĩa..."
+ *               planner_item_id:
+ *                 type: string
+ *                 format: uuid
+ *                 description: ID của planner item đã check-in (bắt buộc)
+ *                 example: "abc-123-def-456"
+ *               privacy:
+ *                 type: string
+ *                 enum: [private, public]
+ *                 default: private
+ *                 description: Chế độ riêng tư
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 maxItems: 10
+ *                 description: Tối đa 10 ảnh (jpg, png, jpeg, webp), mỗi ảnh max 10MB
+ *               audio:
+ *                 type: string
+ *                 format: binary
+ *                 description: File audio (mp3, wav, m4a, ogg, aac), max 100MB
+ *               video:
+ *                 type: string
+ *                 format: binary
+ *                 description: File video, max 100MB
  *     responses:
  *       201:
  *         description: Tạo nhật ký thành công
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/JournalResponse'
  *       400:
- *         description: Lỗi validation hoặc vượt quá số ảnh cho phép
+ *         description: Dữ liệu không hợp lệ hoặc chưa check-in
  *       401:
- *         description: Chưa xác thực
- *
+ *         description: Chưa đăng nhập
+ */
+
+/**
+ * @swagger
  * /api/journals/me:
  *   get:
- *     tags: [Pilgrim - Journals]
- *     summary: Lấy nhật ký của tôi
- *     description: Lấy tất cả nhật ký (riêng tư và công khai) của người dùng đã đăng nhập
+ *     summary: Lấy danh sách nhật ký của tôi
+ *     tags: [Journals - Pilgrim]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -38,72 +81,46 @@
  *         schema:
  *           type: integer
  *           default: 1
- *         description: Số trang
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
  *           default: 10
- *         description: Số lượng mỗi trang
  *     responses:
  *       200:
- *         description: Lấy danh sách nhật ký thành công
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/JournalListResponse'
+ *         description: Lấy danh sách thành công
  *       401:
- *         description: Chưa xác thực
- *
+ *         description: Chưa đăng nhập
+ */
+
+/**
+ * @swagger
  * /api/journals/public:
  *   get:
- *     tags: [Pilgrim - Journals]
- *     summary: Lấy nhật ký công khai
- *     description: Lấy tất cả nhật ký công khai với các bộ lọc tùy chọn
+ *     summary: Lấy danh sách nhật ký công khai
+ *     tags: [Journals - Pilgrim]
  *     parameters:
  *       - in: query
  *         name: page
  *         schema:
  *           type: integer
  *           default: 1
- *         description: Số trang
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
  *           default: 10
- *         description: Số lượng mỗi trang
- *       - in: query
- *         name: site_id
- *         schema:
- *           type: string
- *           format: uuid
- *         description: Lọc theo ID địa điểm
- *       - in: query
- *         name: keyword
- *         schema:
- *           type: string
- *         description: Tìm kiếm trong tiêu đề và nội dung
- *       - in: query
- *         name: date
- *         schema:
- *           type: string
- *           format: date
- *           example: "2026-01-17"
- *         description: Lọc theo ngày (YYYY-MM-DD)
  *     responses:
  *       200:
- *         description: Lấy danh sách nhật ký công khai thành công
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/JournalListResponse'
- *
+ *         description: Lấy danh sách thành công
+ */
+
+/**
+ * @swagger
  * /api/journals/{id}:
  *   get:
- *     tags: [Pilgrim - Journals]
- *     summary: Lấy nhật ký theo ID
- *     description: Lấy một nhật ký cụ thể. Nhật ký công khai ai cũng xem được, nhật ký riêng tư chỉ chủ sở hữu mới xem được
+ *     summary: Lấy chi tiết nhật ký
+ *     tags: [Journals - Pilgrim]
  *     parameters:
  *       - in: path
  *         name: id
@@ -111,23 +128,15 @@
  *         schema:
  *           type: string
  *           format: uuid
- *         description: ID nhật ký
  *     responses:
  *       200:
- *         description: Lấy nhật ký thành công
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/JournalResponse'
- *       403:
- *         description: Không có quyền - Nhật ký riêng tư, không phải chủ sở hữu
+ *         description: Lấy chi tiết thành công
  *       404:
  *         description: Không tìm thấy nhật ký
  *
  *   patch:
- *     tags: [Pilgrim - Journals]
  *     summary: Cập nhật nhật ký
- *     description: Cập nhật nhật ký (chỉ chủ sở hữu). Tất cả các trường đều tùy chọn
+ *     tags: [Journals - Pilgrim]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -137,33 +146,30 @@
  *         schema:
  *           type: string
  *           format: uuid
- *         description: ID nhật ký
  *     requestBody:
- *       required: true
  *       content:
  *         multipart/form-data:
  *           schema:
- *             $ref: '#/components/schemas/UpdateJournalRequest'
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               content:
+ *                 type: string
+ *               privacy:
+ *                 type: string
+ *                 enum: [private, public]
  *     responses:
  *       200:
- *         description: Cập nhật nhật ký thành công
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/JournalResponse'
- *       400:
- *         description: Lỗi validation hoặc vượt quá số ảnh cho phép
- *       401:
- *         description: Chưa xác thực
+ *         description: Cập nhật thành công
  *       403:
- *         description: Không có quyền - Không phải chủ sở hữu
+ *         description: Không có quyền
  *       404:
  *         description: Không tìm thấy nhật ký
  *
  *   delete:
- *     tags: [Pilgrim - Journals]
  *     summary: Xóa nhật ký
- *     description: Xóa nhật ký (chỉ chủ sở hữu)
+ *     tags: [Journals - Pilgrim]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -173,14 +179,11 @@
  *         schema:
  *           type: string
  *           format: uuid
- *         description: ID nhật ký
  *     responses:
  *       200:
- *         description: Xóa nhật ký thành công
- *       401:
- *         description: Chưa xác thực
+ *         description: Xóa thành công
  *       403:
- *         description: Không có quyền - Không phải chủ sở hữu
+ *         description: Không có quyền
  *       404:
  *         description: Không tìm thấy nhật ký
  */

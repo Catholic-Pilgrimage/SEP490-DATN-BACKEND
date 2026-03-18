@@ -487,6 +487,7 @@ CREATE TABLE IF NOT EXISTS planners (
     name VARCHAR(255) NOT NULL,
     start_date DATE,
     end_date DATE, -- NEW: Explicit end date for easier validation
+    estimated_days INT, -- Số ngày dự kiến cho chuyến đi (thay thế cho start_date/end_date bắt buộc)
     number_of_days INT DEFAULT 1,
     number_of_people INT DEFAULT 1,
     transportation VARCHAR(100),

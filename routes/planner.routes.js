@@ -62,13 +62,6 @@ router.post(
     PlannerController.addPlannerItem
 );
 
-router.patch(
-    '/:id/items/reorder',
-    authenticate,
-    PlannerValidator.reorderItems,
-    PlannerController.reorderPlannerItems
-);
-
 router.delete(
     '/:id/items/:itemId',
     authenticate,

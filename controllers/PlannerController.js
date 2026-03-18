@@ -240,52 +240,6 @@ class PlannerController {
     }
 
     /**
-     * PATCH /planners/:id/items/reorder - Reorder items
-     */
-    static async reorderPlannerItems(req, res) {
-        try {
-            const errors = validationResult(req);
-            if (!errors.isEmpty()) {
-                return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
-            }
-
-            const result = await PlannerService.reorderPlannerItems(
-                req.params.id,
-                req.user?.id,
-                req.body.day_number,
-                req.body.item_ids
-            );
-
-            return ResponseUtil.success(res, result, req.__('planner.reorder_success'));
-        } catch (error) {
-            if (error.message === 'Planner not found') {
-                return ResponseUtil.notFound(res, req.__('planner.not_found'));
-            }
-            if (error.message === 'Forbidden') {
-                return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
-            }
-            if (error.message.startsWith('Invalid day number')) {
-                return ResponseUtil.badRequest(res, req.__('planner.invalid_day_number'));
-            }
-            if (error.message === 'Day number must be at least 1') {
-                return ResponseUtil.badRequest(res, error.message);
-            }
-            if (error.message === 'Invalid item ID in reorder list') {
-                return ResponseUtil.badRequest(res, req.__('planner.invalid_item_id'));
-            }
-            if (error.message.includes('missing coordinates')) {
-                const siteName = error.message.match(/"([^"]+)"/)?.[1] || '';
-                return ResponseUtil.badRequest(res, req.__('planner.site_missing_coordinates', { siteName }));
-            }
-            if (error.message.includes('Cannot calculate travel time')) {
-                const sites = error.message.match(/"([^"]+)"/g)?.map(s => s.replace(/"/g, '')) || [];
-                return ResponseUtil.badRequest(res, req.__('planner.travel_time_calc_failed', { fromSite: sites[0] || '', toSite: sites[1] || '' }));
-            }
-            return ResponseUtil.error(res, req.__('error.server_error'));
-        }
-    }
-
-    /**
      * DELETE /planners/:id/items/:itemId - Delete item
      */
     static async deletePlannerItem(req, res) {

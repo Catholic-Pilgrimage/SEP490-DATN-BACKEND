@@ -14,82 +14,16 @@ class PlannerService {
      */
     static async createPlanner(userId, plannerData) {
         try {
-            const { name, start_date, end_date, number_of_people = 1, transportation } = plannerData;
+            const { name, estimated_days, number_of_people = 1, transportation } = plannerData;
 
             // Validate required fields
             if (!name || name.trim().length === 0) {
                 throw new Error('Name is required');
             }
 
-            // Validate date range
-            if (start_date && end_date) {
-                const startDateObj = new Date(start_date);
-                const endDateObj = new Date(end_date);
-                if (endDateObj < startDateObj) {
-                    throw new Error('End date must be after or equal to start date');
-                }
-
-                // Validate max 30 days
-                const diffTime = endDateObj.getTime() - startDateObj.getTime();
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // inclusive
-                if (diffDays > 30) {
-                    throw new Error('Planner exceeds 30 days');
-                }
-            }
-
-            // Check overlapping dates with existing planners (both owned and joined)
-            if (start_date && end_date) {
-                // Get IDs of planners the user has joined
-                const memberPlanners = await PlannerMember.findAll({
-                    where: { user_id: userId },
-                    attributes: ['planner_id']
-                });
-                const joinedPlannerIds = memberPlanners.map(m => m.planner_id);
-
-                const overlappingPlanners = await Planner.findAll({
-                    where: {
-                        is_active: true,
-                        [Op.or]: [
-                            { user_id: userId },
-                            { id: {
-                                    [Op.in]: joinedPlannerIds } }
-                        ],
-                        start_date: {
-                            [Op.ne]: null },
-                        end_date: {
-                            [Op.ne]: null },
-                        [Op.and]: [
-                            { start_date: {
-                                    [Op.lte]: end_date } },
-                            { end_date: {
-                                    [Op.gte]: start_date } }
-                        ]
-                    },
-                    attributes: ['id', 'name', 'start_date', 'end_date']
-                });
-
-                if (overlappingPlanners.length > 0) {
-                    // Collect all conflicting dates
-                    const conflictDates = new Set();
-                    const reqStart = new Date(start_date);
-                    const reqEnd = new Date(end_date);
-
-                    for (const p of overlappingPlanners) {
-                        const pStart = new Date(p.start_date);
-                        const pEnd = new Date(p.end_date);
-                        const overlapStart = pStart > reqStart ? pStart : reqStart;
-                        const overlapEnd = pEnd < reqEnd ? pEnd : reqEnd;
-
-                        for (let d = new Date(overlapStart); d <= overlapEnd; d.setDate(d.getDate() + 1)) {
-                            conflictDates.add(d.toISOString().split('T')[0]);
-                        }
-                    }
-
-                    const sortedDates = Array.from(conflictDates).sort();
-                    const error = new Error('Planner dates overlap');
-                    error.conflictDates = sortedDates;
-                    throw error;
-                }
+            // Validate estimated_days (optional)
+            if (estimated_days !== undefined && estimated_days < 1) {
+                throw new Error('Estimated days must be at least 1');
             }
 
             // Validate number_of_people
@@ -101,8 +35,7 @@ class PlannerService {
             const planner = await Planner.create({
                 user_id: userId,
                 name: name.trim(),
-                start_date: start_date || null,
-                end_date: end_date || null,
+                estimated_days: estimated_days || null,
                 number_of_people,
                 transportation: transportation || null,
                 status: 'planning'
@@ -137,8 +70,11 @@ class PlannerService {
                     is_active: true,
                     [Op.or]: [
                         { user_id: userId }, // Planner do user tạo
-                        { id: {
-                                [Op.in]: joinedPlannerIds } } // Planner mà user tham gia
+                        {
+                            id: {
+                                [Op.in]: joinedPlannerIds
+                            }
+                        } // Planner mà user tham gia
                     ]
                 },
                 include: [
@@ -262,74 +198,21 @@ class PlannerService {
                 dataToUpdate.name = updateData.name.trim();
             }
 
-            if (updateData.start_date !== undefined) {
-                dataToUpdate.start_date = updateData.start_date;
+            // Thay thế start_date/end_date bằng estimated_days
+            if (updateData.estimated_days !== undefined) {
+                if (updateData.estimated_days < 1) {
+                    throw new Error('Estimated days must be at least 1');
+                }
+                dataToUpdate.estimated_days = updateData.estimated_days;
             }
 
-            if (updateData.end_date !== undefined) {
-                dataToUpdate.end_date = updateData.end_date;
-            }
-
-            // Validate date range if both dates are being updated
-            const finalStartDate = dataToUpdate.start_date !== undefined ? dataToUpdate.start_date : planner.start_date;
-            const finalEndDate = dataToUpdate.end_date !== undefined ? dataToUpdate.end_date : planner.end_date;
-
-            if (finalStartDate && finalEndDate) {
-                const startDateObj = new Date(finalStartDate);
-                const endDateObj = new Date(finalEndDate);
-                if (endDateObj < startDateObj) {
-                    throw new Error('End date must be after or equal to start date');
-                }
-
-                // Validate max 30 days
-                const diffTime = endDateObj.getTime() - startDateObj.getTime();
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // inclusive
-                if (diffDays > 30) {
-                    throw new Error('Planner exceeds 30 days');
-                }
-
-                // Check overlapping dates with existing planners (exclude current planner)
-                const overlappingPlanners = await Planner.findAll({
-                    where: {
-                        user_id: userId,
-                        id: {
-                            [Op.ne]: plannerId },
-                        start_date: {
-                            [Op.ne]: null },
-                        end_date: {
-                            [Op.ne]: null },
-                        [Op.and]: [
-                            { start_date: {
-                                    [Op.lte]: finalEndDate } },
-                            { end_date: {
-                                    [Op.gte]: finalStartDate } }
-                        ]
-                    },
-                    attributes: ['id', 'name', 'start_date', 'end_date']
-                });
-
-                if (overlappingPlanners.length > 0) {
-                    const conflictDates = new Set();
-                    const reqStart = new Date(finalStartDate);
-                    const reqEnd = new Date(finalEndDate);
-
-                    for (const p of overlappingPlanners) {
-                        const pStart = new Date(p.start_date);
-                        const pEnd = new Date(p.end_date);
-                        const overlapStart = pStart > reqStart ? pStart : reqStart;
-                        const overlapEnd = pEnd < reqEnd ? pEnd : reqEnd;
-
-                        for (let d = new Date(overlapStart); d <= overlapEnd; d.setDate(d.getDate() + 1)) {
-                            conflictDates.add(d.toISOString().split('T')[0]);
-                        }
-                    }
-
-                    const sortedDates = Array.from(conflictDates).sort();
-                    const error = new Error('Planner dates overlap');
-                    error.conflictDates = sortedDates;
-                    throw error;
-                }
-            }
+            // BỎ: start_date, end_date
+            // if (updateData.start_date !== undefined) {
+            //     dataToUpdate.start_date = updateData.start_date;
+            // }
+            // if (updateData.end_date !== undefined) {
+            //     dataToUpdate.end_date = updateData.end_date;
+            // }
 
             if (updateData.number_of_people !== undefined) {
                 if (updateData.number_of_people < 1) {
@@ -341,7 +224,6 @@ class PlannerService {
             if (updateData.transportation !== undefined) {
                 dataToUpdate.transportation = updateData.transportation;
             }
-
 
             if (updateData.status !== undefined) {
                 dataToUpdate.status = updateData.status;
@@ -425,34 +307,55 @@ class PlannerService {
                         throw new Error('Planner not found');
                     }
 
-                    if (!planner.start_date || !planner.end_date) {
-                        throw new Error('Planner must have start_date and end_date to add events');
-                    }
-
                     // Use event's site_id if not provided
                     if (!site_id) {
                         site_id = event.site_id;
                     }
 
-                    // Calculate day_number from event.start_date
-                    const plannerStartDate = new Date(planner.start_date);
-                    const eventStartDate = new Date(event.start_date);
-                    const eventEndDate = event.end_date ? new Date(event.end_date) : eventStartDate;
+                    // Calculate day_number: use planner dates if available, otherwise use next available day
+                    let calculatedDayNumber;
 
-                    plannerStartDate.setHours(0, 0, 0, 0);
-                    eventStartDate.setHours(0, 0, 0, 0);
-                    eventEndDate.setHours(0, 0, 0, 0);
+                    if (planner.start_date && planner.end_date) {
+                        // Calculate from planner dates (existing logic)
+                        const plannerStartDate = new Date(planner.start_date);
+                        const eventStartDate = new Date(event.start_date);
+                        const eventEndDate = event.end_date ? new Date(event.end_date) : eventStartDate;
 
-                    const plannerEndDate = new Date(planner.end_date);
-                    plannerEndDate.setHours(0, 0, 0, 0);
+                        plannerStartDate.setHours(0, 0, 0, 0);
+                        eventStartDate.setHours(0, 0, 0, 0);
+                        eventEndDate.setHours(0, 0, 0, 0);
 
-                    // Validate event dates are within planner range
-                    if (eventStartDate < plannerStartDate || eventStartDate > plannerEndDate) {
-                        throw new Error(`Sự kiện "${event.name}" bắt đầu ngày ${event.start_date} không nằm trong lịch trình (${planner.start_date} - ${planner.end_date}).`);
+                        const plannerEndDate = new Date(planner.end_date);
+                        plannerEndDate.setHours(0, 0, 0, 0);
+
+                        // Validate event dates are within planner range
+                        if (eventStartDate < plannerStartDate || eventStartDate > plannerEndDate) {
+                            throw new Error(`Sự kiện "${event.name}" bắt đầu ngày ${event.start_date} không nằm trong lịch trình (${planner.start_date} - ${planner.end_date}).`);
+                        }
+
+                        // Calculate day_number (1-based)
+                        calculatedDayNumber = Math.ceil((eventStartDate - plannerStartDate) / (1000 * 60 * 60 * 24)) + 1;
+                    } else {
+                        // No planner dates - use next available day_number or estimated_days
+                        const existingItems = await PlannerItem.findAll({
+                            where: { planner_id: plannerId },
+                            attributes: ['day_number'],
+                            order: [
+                                ['day_number', 'DESC']
+                            ],
+                            limit: 1
+                        });
+
+                        if (existingItems.length > 0) {
+                            calculatedDayNumber = existingItems[0].day_number + 1;
+                        } else if (planner.estimated_days) {
+                            calculatedDayNumber = 1;
+                        } else {
+                            calculatedDayNumber = 1;
+                        }
+
+                        Logger.info(`Planner without dates: using calculated day_number = ${calculatedDayNumber} for event ${event.name}`);
                     }
-
-                    // Calculate day_number (1-based)
-                    const calculatedDayNumber = Math.ceil((eventStartDate - plannerStartDate) / (1000 * 60 * 60 * 24)) + 1;
 
                     // Override day_number with calculated value
                     day_number = calculatedDayNumber;
@@ -536,7 +439,8 @@ class PlannerService {
                     const existingPlaces = await NearbyPlace.findAll({
                         where: {
                             id: {
-                                [Op.in]: uniqueIds },
+                                [Op.in]: uniqueIds
+                            },
                             status: 'approved',
                             is_active: true
                         },
@@ -657,7 +561,7 @@ class PlannerService {
                         // arrival = last_item.estimated_time + rest_duration + travel_time_minutes
                         const [lastHours, lastMins] = lastItemPreviousDay.estimated_time.split(':').map(Number);
                         const lastRestMinutes = parseDurationToMinutes(lastItemPreviousDay.rest_duration) || 0;
-                        
+
                         // Calculate arrival minutes to new day (relative to 00:00 of new day)
                         // If last item is at 23:00, rest 30min, travel 3h = 02:30 next day = 150 minutes after midnight
                         const departureMinutes = lastHours * 60 + lastMins + lastRestMinutes; // minutes from midnight of previous day
@@ -678,7 +582,7 @@ class PlannerService {
                         // arrivalMinutesInNewDay can be negative if travel doesn't cross midnight
                         // e.g., 23:00 + 30min rest + 1h travel = 00:30 next day = 30 minutes in new day (positive)
                         // e.g., 20:00 + 30min rest + 1h travel = 21:30 same day (negative, = -30)
-                        
+
                         // If travel crosses midnight, arrivalMinutesInNewDay > 0
                         // If new item time < arrival time, it's impossible
                         if (arrivalMinutes > 1440 && newItemEstimatedMinutes < arrivalMinutesInNewDay) {
@@ -895,7 +799,8 @@ class PlannerService {
                     const results = await PlannerItem.findAll({
                         where: {
                             id: {
-                                [Op.in]: createdItems.map(i => i.id) }
+                                [Op.in]: createdItems.map(i => i.id)
+                            }
                         },
                         include: [
                             { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image'] }
@@ -983,81 +888,7 @@ class PlannerService {
     }
 
     /**
-     * Reorder planner items within a day
-     * userId is optional - if not provided, skips ownership check (for token access)
-     */
-    static async reorderPlannerItems(plannerId, userId = null, dayNumber, itemIds) {
-        const transaction = await sequelize.transaction();
-
-        try {
-            // Check planner exists and user is owner (if userId provided)
-            const planner = await Planner.findByPk(plannerId);
-            if (!planner) {
-                throw new Error('Planner not found');
-            }
-
-            if (userId && planner.user_id !== userId) {
-                throw new Error('Forbidden');
-            }
-
-            // Validate day_number (if planner has date range)
-            if (planner.start_date && planner.end_date) {
-                const startDate = new Date(planner.start_date);
-                const endDate = new Date(planner.end_date);
-                const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-
-                if (dayNumber < 1 || dayNumber > totalDays) {
-                    throw new Error(`Invalid day number. Must be between 1 and ${totalDays}`);
-                }
-            } else if (dayNumber < 1) {
-                throw new Error('Day number must be at least 1');
-            }
-
-            // Get all items for this day
-            const items = await PlannerItem.findAll({
-                where: {
-                    planner_id: plannerId,
-                    day_number: dayNumber
-                },
-                transaction
-            });
-
-            // If no items exist for this day, cannot reorder
-            if (!items || items.length === 0) {
-                throw new Error(`Ngày ${dayNumber} chưa có địa điểm nào để sắp xếp lại`);
-            }
-
-            // Validate all item IDs belong to this day
-            const itemIdSet = new Set(items.map(i => i.id));
-            for (const id of itemIds) {
-                if (!itemIdSet.has(id)) {
-                    throw new Error('Invalid item ID in reorder list');
-                }
-            }
-
-            // Step 1: Set all order_index to temporary negative values to avoid unique constraint conflict
-            for (let i = 0; i < itemIds.length; i++) {
-                await PlannerItem.update(
-                    { order_index: -(i + 1000) },
-                    {
-                        where: { id: itemIds[i] },
-                        transaction
-                    }
-                );
-            }
-
-            // Step 2: Update order_index to final values
-            for (let i = 0; i < itemIds.length; i++) {
-                await PlannerItem.update(
-                    { order_index: i + 1 },
-                    {
-                        where: { id: itemIds[i] },
-                        transaction
-                    }
-                );
-            }
-
-            await transaction.commit();
+     * Delete planner item by ID
 
             // Recalculate estimated times for all items after reorder
             Logger.info('Recalculating estimated times after reorder...');
@@ -1425,20 +1256,14 @@ class PlannerService {
      * Format planner response
      */
     static formatPlannerResponse(planner) {
-        // Calculate number_of_days from date range
-        let numberOfDays = null;
-        if (planner.start_date && planner.end_date) {
-            const startDate = new Date(planner.start_date);
-            const endDate = new Date(planner.end_date);
-            numberOfDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-        }
+        // Tính number_of_days: ưu tiên estimated_days, nếu không có thì tính từ items
+        let numberOfDays = planner.estimated_days;
 
         return {
             id: planner.id,
             user_id: planner.user_id,
             name: planner.name,
-            start_date: planner.start_date,
-            end_date: planner.end_date,
+            estimated_days: planner.estimated_days,
             number_of_days: numberOfDays,
             number_of_people: planner.number_of_people,
             transportation: planner.transportation,
@@ -1609,9 +1434,21 @@ class PlannerService {
                 if (currentStatus !== 'planning') {
                     throw new Error('Planner is not in planning status');
                 }
-                if (!planner.start_date || !planner.end_date) {
-                    throw new Error('Planner must have start_date and end_date to start');
-                }
+                // BỎ: Không cần bắt buộc start_date/end_date
+                // if (!planner.start_date || !planner.end_date) {
+                //     throw new Error('Planner must have start_date and end_date to start');
+                // }
+
+                // ===== VALIDATION: Planner phải có đủ items - BỎ vì không cần ngày cố định =====
+                // const continuityCheck = await this.validatePlannerContinuity(plannerId);
+                // if (!continuityCheck.isValid) {
+                //     const missingDaysStr = continuityCheck.missingDays.join(', ');
+                //     throw new Error(
+                //         `Không thể bắt đầu kế hoạch! Lịch trình chưa đầy đủ. ` +
+                //         `Bạn cần thêm địa điểm cho Ngày ${missingDaysStr} (Tổng ${continuityCheck.totalDays} ngày).`
+                //     );
+                // }
+                // ===== END: Validation =====
 
                 await planner.update({ status: 'ongoing' });
 
@@ -1709,7 +1546,7 @@ class PlannerService {
 
         try {
             Logger.info(`[checkinItem] plannerId=${plannerId}, itemId=${itemId}, userId=${userId}`);
-            
+
             const { distance_meters, note } = checkinData;
 
             // Get planner
@@ -2012,10 +1849,20 @@ class PlannerService {
                 throw new Error('Planner is not in planning status');
             }
 
-            // Validate planner has start_date and end_date
-            if (!planner.start_date || !planner.end_date) {
-                throw new Error('Planner must have start_date and end_date to start');
-            }
+            // BỎ: Không cần bắt buộc start_date/end_date
+            // if (!planner.start_date || !planner.end_date) {
+            //     throw new Error('Planner must have start_date and end_date to start');
+            // }
+
+            // BỎ: Validation đủ items cho tất cả các ngày - không cần ngày cố định
+            // const continuityCheck = await this.validatePlannerContinuity(plannerId);
+            // if (!continuityCheck.isValid) {
+            //     const missingDaysStr = continuityCheck.missingDays.join(', ');
+            //     throw new Error(
+            //         `Không thể bắt đầu kế hoạch! Lịch trình chưa đầy đủ. ` +
+            //         `Bạn cần thêm địa điểm cho Ngày ${missingDaysStr} (Tổng ${continuityCheck.totalDays} ngày).`
+            //     );
+            // }
 
             // Update planner status to ongoing
             await planner.update({ status: 'ongoing' });
@@ -2072,6 +1919,18 @@ class PlannerService {
                 if (!planner.start_date || !planner.end_date) {
                     throw new Error('Planner must have start_date and end_date to start');
                 }
+
+                // ===== VALIDATION: Planner phải có đủ items cho tất cả các ngày =====
+                const continuityCheck = await this.validatePlannerContinuity(plannerId);
+
+                if (!continuityCheck.isValid) {
+                    const missingDaysStr = continuityCheck.missingDays.join(', ');
+                    throw new Error(
+                        `Không thể bắt đầu kế hoạch! Lịch trình chưa đầy đủ. ` +
+                        `Bạn cần thêm địa điểm cho Ngày ${missingDaysStr} (Tổng ${continuityCheck.totalDays} ngày).`
+                    );
+                }
+                // ===== END: Validation =====
 
                 await planner.update({ status: 'ongoing' });
 
