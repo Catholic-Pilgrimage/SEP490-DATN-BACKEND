@@ -78,11 +78,24 @@ router.put(
 );
 
 
-router.post(
-    '/:id/complete',
+// PATCH /:id/status - Update planner status (unified endpoint for start/complete)
+router.patch(
+    '/:id/status',
     authenticate,
     PlannerValidator.validatePlannerId,
-    PlannerController.completePlanner
+    PlannerController.updatePlannerStatus
+);
+
+router.post(
+    '/:id/items/:itemId/checkin',
+    authenticate,
+    PlannerController.checkinItem
+);
+
+router.post(
+    '/:id/items/:itemId/skip',
+    authenticate,
+    PlannerController.skipItem
 );
 
 router.post(
@@ -118,6 +131,35 @@ router.delete(
     authenticate,
     PlannerValidator.removeMember,
     PilgrimPlannerShareController.removeMember
+);
+
+/**
+ * @swagger
+ * /api/planners/{id}/progress:
+ *   get:
+ *     summary: Lấy tiến độ của tất cả thành viên trong planner
+ *     description: |
+ *       Trả về thông tin tiến độ check-in của tất cả thành viên.
+ *       Chỉ owner hoặc member mới xem được.
+ *     tags: [Planner - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Thông tin tiến độ
+ */
+router.get(
+    '/:id/progress',
+    authenticate,
+    PlannerValidator.validatePlannerId,
+    PlannerController.getPlannerProgress
 );
 
 module.exports = router;
