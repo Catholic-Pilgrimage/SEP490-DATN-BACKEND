@@ -175,7 +175,14 @@ class PlannerShareController {
      */
     static async handleDepositWebhook(req, res) {
         try {
-            const result = await PlannerShareService.handleDepositWebhook(req.body);
+            // PayOS sends a confirmation request when registering webhook URL
+            // Handle it gracefully — return 200 so PayOS accepts the URL
+            const body = req.body;
+            if (!body || (!body.data && !body.code)) {
+                return res.status(200).json({ success: true, message: 'Webhook URL confirmed' });
+            }
+
+            const result = await PlannerShareService.handleDepositWebhook(body);
 
             if (result.success) {
                 return res.status(200).json({ success: true, message: 'Deposit webhook processed' });
@@ -184,7 +191,8 @@ class PlannerShareController {
             return res.status(200).json({ success: false, message: result.message });
         } catch (error) {
             console.error('Deposit webhook error:', error);
-            return res.status(400).json({ success: false, message: 'Invalid webhook' });
+            // IMPORTANT: Always return 200 for PayOS webhooks to avoid retries
+            return res.status(200).json({ success: false, message: 'Webhook processing failed' });
         }
     }
     /**
