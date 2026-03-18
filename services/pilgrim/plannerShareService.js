@@ -91,36 +91,75 @@ class PlannerShareService {
             // Role is always viewer (owner = null in DB, viewer for all invitees)
             const role = 'viewer';
 
-            // Check current members count
+            // Sweep ALL expired active invites (pending + awaiting_payment) before counting slots
+            // Prevents stale invites from falsely blocking available slots or re-inviting same email
+            const now = new Date();
+            const expiredActiveInvites = await PlannerInvite.findAll({
+                where: {
+                    planner_id: plannerId,
+                    status: { [Op.in]: ['pending', 'awaiting_payment'] },
+                    expires_at: { [Op.lt]: now }
+                }
+            });
+            for (const expiredInvite of expiredActiveInvites) {
+                if (expiredInvite.status === 'awaiting_payment') {
+                    // Cancel pending transaction precisely by invitee userId
+                    const invitee = await User.findOne({ where: { email: expiredInvite.email }, attributes: ['id'] });
+                    if (invitee) {
+                        const staleTx = await Transaction.findOne({
+                            where: {
+                                reference_type: 'planner_deposit',
+                                reference_id: { [Op.like]: `${plannerId}:${invitee.id}:%` },
+                                type: 'escrow_lock',
+                                status: 'pending'
+                            }
+                        });
+                        if (staleTx) {
+                            try { await PayOSService.cancelPaymentLink(staleTx.reference_id.split(':')[2]); } catch { }  // best-effort
+                            await staleTx.update({ status: 'cancelled' });
+                        }
+                    }
+                }
+                await expiredInvite.update({ status: 'expired' });
+                Logger.info(`Slot sweep: expired ${expiredInvite.status} invite ${expiredInvite.id} for planner ${plannerId}`);
+            }
+
+            // Slot counting: joined members (excluding owner) + active non-expired invites
             const currentMemberCount = await PlannerMember.count({
                 where: {
                     planner_id: plannerId,
                     join_status: 'joined',
-                    user_id: {
-                        [Op.ne]: planner.user_id
-                    }
+                    user_id: { [Op.ne]: planner.user_id }
                 }
             });
-            const pendingInvites = await PlannerInvite.count({
+            const activeInviteCount = await PlannerInvite.count({
                 where: {
                     planner_id: plannerId,
-                    status: 'pending'
+                    status: { [Op.in]: ['pending', 'awaiting_payment'] },
+                    [Op.or]: [
+                        { expires_at: null },
+                        { expires_at: { [Op.gte]: now } }
+                    ]
                 }
             });
 
             const totalSlots = planner.number_of_people;
-            const availableSlots = totalSlots - currentMemberCount - pendingInvites - 1; // -1 for owner
+            const usedSlots = currentMemberCount + activeInviteCount + 1; // +1 for owner
 
-            if (availableSlots <= 0) {
+            if (usedSlots >= totalSlots) {
                 throw new Error(`Planner is full. Max participants: ${totalSlots}`);
             }
 
-            // Check if email has already been invited
+            // Prevent duplicate active invite for same email (only non-expired)
             const existingInvite = await PlannerInvite.findOne({
                 where: {
                     planner_id: plannerId,
                     email,
-                    status: 'pending'
+                    status: { [Op.in]: ['pending', 'awaiting_payment'] },
+                    [Op.or]: [
+                        { expires_at: null },
+                        { expires_at: { [Op.gte]: now } }
+                    ]
                 }
             });
 
@@ -128,7 +167,7 @@ class PlannerShareService {
                 throw new Error('User already invited');
             }
 
-            // If user exists, check if they are already a member
+            // If user exists, check if they are already an active member
             const existingUser = await User.findOne({ where: { email } });
             if (existingUser) {
                 const existingMember = await PlannerMember.findOne({
@@ -137,7 +176,8 @@ class PlannerShareService {
                         user_id: existingUser.id
                     }
                 });
-                if (existingMember) {
+                // Only block if member is currently joined — allow re-invite for dropped_out/kicked
+                if (existingMember && existingMember.join_status === 'joined') {
                     throw new Error('User is already a member');
                 }
             }
@@ -145,7 +185,7 @@ class PlannerShareService {
             // Create invite token
             const token = crypto.randomBytes(32).toString('hex');
             const expiresAt = new Date();
-            expiresAt.setDate(expiresAt.getDate() + 7); // Expires in 7 days
+            expiresAt.setDate(expiresAt.getDate() + 7);
 
             const invite = await PlannerInvite.create({
                 planner_id: plannerId,
@@ -229,6 +269,72 @@ class PlannerShareService {
                 throw new Error('Invite not found');
             }
 
+            if (invite.status === 'awaiting_payment') {
+                // Lazy cleanup: if this invite is stuck in awaiting_payment and has expired,
+                // cancel the pending transaction for the CORRECT user and reset invite to expired
+                const isExpired = invite.expires_at && new Date() > new Date(invite.expires_at);
+                if (isExpired) {
+                    // Resolve the invitee by email to get their userId for a precise transaction match
+                    const invitee = await User.findOne({ where: { email: invite.email }, attributes: ['id'] });
+                    if (invitee) {
+                        const staleTransaction = await Transaction.findOne({
+                            where: {
+                                reference_type: 'planner_deposit',
+                                reference_id: { [Op.like]: `${invite.planner_id}:${invitee.id}:%` },
+                                type: 'escrow_lock',
+                                status: 'pending'
+                            }
+                        });
+                        if (staleTransaction) {
+                            try {
+                                const orderCode = staleTransaction.reference_id.split(':')[2];
+                                await PayOSService.cancelPaymentLink(orderCode);
+                            } catch (e) {
+                                Logger.warn(`Could not cancel stale PayOS order during expiry cleanup: ${e.message}`);
+                            }
+                            await staleTransaction.update({ status: 'cancelled' });
+                        }
+                    }
+                    await invite.update({ status: 'expired' });
+                    throw new Error('Invite has expired');
+                }
+
+                // Not expired — user is re-requesting the payment link
+                // Since PayOS getPaymentInfo() doesn't return checkoutUrl,
+                // cancel old order + tx and fall through to create a fresh link
+                if (action === 'accept') {
+                    const existingTx = await Transaction.findOne({
+                        where: {
+                            reference_type: 'planner_deposit',
+                            reference_id: { [Op.like]: `${invite.planner_id}:${userId}:%` },
+                            type: 'escrow_lock',
+                            status: 'pending'
+                        },
+                        include: [{ model: require('../../models').Wallet, as: 'wallet', where: { user_id: userId }, required: true }]
+                    });
+
+                    if (existingTx) {
+                        const existingOrderCode = Number(existingTx.reference_id.split(':')[2]);
+                        try {
+                            await PayOSService.cancelPaymentLink(existingOrderCode);
+                        } catch (e) {
+                            Logger.warn(`Could not cancel old PayOS order ${existingOrderCode}: ${e.message}`);
+                        }
+                        await existingTx.update({ status: 'cancelled' });
+                    }
+
+                    // Reset invite to pending so the main accept flow below creates a fresh link
+                    await invite.update({ status: 'pending' });
+                    Logger.info(`Re-accept: cancelled old payment, reset invite to pending for user=${userId}`);
+                    // Fall through to the main accept flow below (invite.status is now 'pending')
+                }
+
+                if (invite.status === 'awaiting_payment') {
+                    // Only reach here if action was 'reject' on an awaiting_payment invite
+                    throw new Error('Invite already processed');
+                }
+            }
+
             if (invite.status !== 'pending') {
                 throw new Error('Invite already processed');
             }
@@ -240,7 +346,7 @@ class PlannerShareService {
             }
 
             // Check if invite has expired
-            if (new Date() > new Date(invite.expires_at)) {
+            if (invite.expires_at && new Date() > new Date(invite.expires_at)) {
                 await invite.update({ status: 'expired' });
                 throw new Error('Invite has expired');
             }
@@ -253,48 +359,176 @@ class PlannerShareService {
 
             if (action === 'accept') {
                 const planner = invite.planner;
-                const sequelize = require('../../config/database');
-                const t = await sequelize.transaction();
 
                 try {
-                    // Check if planner still has slots
+                    // Check slots again using invite-based counting
                     const currentMemberCount = await PlannerMember.count({
                         where: {
                             planner_id: planner.id,
                             join_status: 'joined',
-                            user_id: {
-                                [Op.ne]: planner.user_id
-                            }
-                        },
-                        transaction: t
+                            user_id: { [Op.ne]: planner.user_id }
+                        }
                     });
-                    const totalSlots = planner.number_of_people;
+                    const activeInviteCount = await PlannerInvite.count({
+                        where: {
+                            planner_id: planner.id,
+                            status: { [Op.in]: ['pending', 'awaiting_payment'] },
+                            id: { [Op.ne]: invite.id } // exclude this invite
+                        }
+                    });
 
-                    // +1 for owner, +1 for the new member
-                    if (currentMemberCount + 2 > totalSlots) {
+                    const totalSlots = planner.number_of_people;
+                    if (currentMemberCount + activeInviteCount + 1 >= totalSlots) {
                         throw new Error(`Planner is full. Max participants: ${totalSlots}`);
                     }
 
-                    const memberData = {
-                        planner_id: planner.id,
-                        user_id: userId,
-                        role: invite.role,
-                        join_status: 'joined',
-                        deposit_status: 'pending' // Luôn pending, thanh toán sau qua confirm-join
+                    // Move invite to awaiting_payment — NOT creating PlannerMember yet
+                    await invite.update({ status: 'awaiting_payment' });
+
+                    const depositAmount = parseFloat(planner.deposit_amount) || 0;
+
+                    // Business rule: share planners MUST have deposit_amount > 0
+                    // If deposit = 0 on a share planner, it's a data inconsistency — reject
+                    if (depositAmount <= 0) {
+                        await invite.update({ status: 'pending' }); // roll back
+                        throw new Error('Share planner must have a deposit amount configured. Contact the planner owner.');
+                    }
+
+                    // Solo planner guard (should not reach here, but belt-and-suspenders)
+                    if (parseInt(planner.number_of_people) <= 1) {
+                        await invite.update({ status: 'pending' });
+                        throw new Error('Solo planner does not support invites.');
+                    }
+
+                    // Check wallet balance first — if sufficient, auto-deduct (no PayOS needed)
+                    const WalletService = require('./walletService');
+                    const wallet = await WalletService.getOrCreateWallet(userId);
+                    let walletBalance = parseFloat(wallet.balance) || 0;
+
+                    if (walletBalance >= depositAmount) {
+                        // AUTO-DEDUCT from wallet — atomic transaction with row lock
+                        const t = await sequelize.transaction();
+                        try {
+                            // Lock wallet row to prevent double-spend
+                            const lockedWallet = await Wallet.findByPk(wallet.id, { transaction: t, lock: true });
+                            const confirmedBalance = parseFloat(lockedWallet.balance) || 0;
+                            walletBalance = confirmedBalance; // sync for PayOS fallback
+
+                            // Re-check balance inside transaction (could have changed)
+                            if (confirmedBalance < depositAmount) {
+                                await t.rollback();
+                                // Fall through to PayOS path below
+                            } else {
+                                const walletTx = await Transaction.create({
+                                    wallet_id: lockedWallet.id,
+                                    amount: depositAmount,
+                                    type: 'escrow_lock',
+                                    status: 'completed',
+                                    reference_type: 'planner_deposit',
+                                    reference_id: `${planner.id}:${userId}:wallet`,
+                                    description: `Cọc ${depositAmount.toLocaleString('vi-VN')} VND từ ví cho kế hoạch: ${planner.name}`,
+                                    code: WalletService.generateTxnCode()
+                                }, { transaction: t });
+
+                                // Deduct from balance, add to locked_balance
+                                lockedWallet.balance = confirmedBalance - depositAmount;
+                                lockedWallet.locked_balance = parseFloat(lockedWallet.locked_balance) + depositAmount;
+                                await lockedWallet.save({ transaction: t });
+
+                                // Create or reactivate PlannerMember immediately
+                                const existingMember = await PlannerMember.findOne({
+                                    where: { planner_id: planner.id, user_id: userId },
+                                    transaction: t
+                                });
+                                if (existingMember) {
+                                    existingMember.join_status = 'joined';
+                                    existingMember.deposit_status = 'paid';
+                                    existingMember.role = invite.role;
+                                    existingMember.joined_at = new Date();
+                                    await existingMember.save({ transaction: t });
+                                } else {
+                                    await PlannerMember.create({
+                                        planner_id: planner.id,
+                                        user_id: userId,
+                                        role: invite.role,
+                                        join_status: 'joined',
+                                        deposit_status: 'paid'
+                                    }, { transaction: t });
+                                }
+
+                                await invite.update({ status: 'accepted' }, { transaction: t });
+                                await t.commit();
+
+                                Logger.info(`User ${userId} auto-paid deposit from wallet for planner ${planner.id}`);
+
+                                // System chat message (fire-and-forget)
+                                const memberUser = await User.findByPk(userId, { attributes: ['full_name'] });
+                                const PlannerChatService = require('./plannerChatService');
+                                PlannerChatService.sendSystemMessage(planner.id,
+                                    `💰 ${memberUser?.full_name || 'Thành viên'} đã đóng cọc ${depositAmount.toLocaleString('vi-VN')} VND từ ví và tham gia nhóm`
+                                ).catch(() => { });
+
+                                return {
+                                    deposit_required: false,
+                                    paid_from_wallet: true,
+                                    transaction_id: walletTx.id,
+                                    amount: depositAmount,
+                                    wallet_balance_after: confirmedBalance - depositAmount,
+                                    planner_name: planner.name,
+                                    message: 'Đã trừ tiền cọc từ ví và tham gia thành công'
+                                };
+                            }
+                        } catch (txError) {
+                            await t.rollback();
+                            Logger.error(`Wallet auto-deduct failed for user=${userId}:`, txError);
+                            // Fall through to PayOS path
+                        }
+                    }
+
+                    // WALLET INSUFFICIENT — create PayOS link
+                    // Wrap in try/catch: if PayOS fails, roll back invite to 'pending'
+                    let paymentLink;
+                    let orderCode;
+                    let pendingTx;
+                    try {
+                        orderCode = PayOSService.generateOrderCode();
+
+                        pendingTx = await Transaction.create({
+                            wallet_id: wallet.id,
+                            amount: depositAmount,
+                            type: 'escrow_lock',
+                            status: 'pending',
+                            reference_type: 'planner_deposit',
+                            reference_id: `${planner.id}:${userId}:${orderCode}`,
+                            description: `Deposit ${depositAmount.toLocaleString('vi-VN')} VND for planner: ${planner.name}`,
+                            code: WalletService.generateTxnCode()
+                        });
+
+                        paymentLink = await PayOSService.createPaymentLink(
+                            depositAmount,
+                            orderCode,
+                            `Coc ${planner.name}`.substring(0, 25)
+                        );
+                    } catch (payosError) {
+                        // Roll back invite to 'pending' so user can try again
+                        await invite.update({ status: 'pending' });
+                        if (pendingTx) await pendingTx.update({ status: 'cancelled' });
+                        Logger.error(`Payment link creation failed for user=${userId}, planner=${planner.id}:`, payosError);
+                        throw new Error('Failed to create payment link. Please try again.');
+                    }
+
+                    Logger.info(`User ${userId} accepted invite, awaiting payment for planner ${planner.id}`);
+
+                    return {
+                        deposit_required: true,
+                        order_code: orderCode,
+                        checkout_url: paymentLink.checkoutUrl,
+                        qr_code: paymentLink.qrCode,
+                        amount: depositAmount,
+                        wallet_balance: walletBalance,
+                        planner_name: planner.name
                     };
-
-                    // Add user to planner members
-                    await PlannerMember.create(memberData, { transaction: t });
-
-                    // Update invite status
-                    await invite.update({ status: 'accepted' }, { transaction: t });
-
-                    await t.commit();
-
-                    Logger.info(`User ${userId} accepted invite for planner ${planner.id} (deposit pending)`);
-                    return PlannerService.formatPlannerResponse(planner);
                 } catch (innerError) {
-                    await t.rollback();
                     throw innerError;
                 }
             } else {
@@ -396,13 +630,16 @@ class PlannerShareService {
                     role: 'owner',
                     joined_at: planner.created_at
                 },
-                ...visibleMembers.map(member => ({
-                    ...member.toJSON(),
-                    role: member.PlannerMember.role,
-                    joined_at: member.PlannerMember.joined_at,
-                    deposit_status: member.PlannerMember.deposit_status,
-                    join_status: member.PlannerMember.join_status
-                }))
+                ...visibleMembers.map(member => {
+                    const { PlannerMember: pm, ...userData } = member.toJSON();
+                    return {
+                        ...userData,
+                        role: pm.role,
+                        joined_at: pm.joined_at,
+                        deposit_status: pm.deposit_status,
+                        join_status: pm.join_status
+                    };
+                })
             ];
 
             return {
@@ -459,6 +696,11 @@ class PlannerShareService {
                 throw new Error('Member not found');
             }
 
+            // Guard: cannot remove a member who already left or was kicked
+            if (member.join_status !== 'joined') {
+                throw new Error('Thành viên này đã rời nhóm hoặc đã bị xóa trước đó');
+            }
+
             const depositAmount = parseFloat(planner.deposit_amount) || 0;
             const penaltyPercentage = parseInt(planner.penalty_percentage) || 0;
             const isSelfLeave = (memberId === userId); // Tự rời nhóm
@@ -510,7 +752,86 @@ class PlannerShareService {
             const action = isKicked ? 'kicked from' : 'left';
             Logger.info(`Member ${memberId} ${action} planner ${plannerId}`);
 
-            return { message: isKicked ? 'Đã xóa thành viên khỏi nhóm' : 'Đã rời khỏi nhóm thành công' };
+            // System chat message (fire-and-forget)
+            const chatMemberUser = await User.findByPk(memberId, { attributes: ['full_name'] });
+            const PlannerChatService = require('./plannerChatService');
+            if (isKicked) {
+                const chatMsg = member.deposit_status === 'refunded' && depositAmount > 0
+                    ? `🚫 ${chatMemberUser?.full_name || 'Thành viên'} đã bị xóa khỏi nhóm. Hoàn ${depositAmount.toLocaleString('vi-VN')} VND tiền cọc`
+                    : `🚫 ${chatMemberUser?.full_name || 'Thành viên'} đã bị xóa khỏi nhóm`;
+                PlannerChatService.sendSystemMessage(plannerId, chatMsg).catch(() => { });
+            } else {
+                const chatMsg = member.deposit_status === 'penalized'
+                    ? `👋 ${chatMemberUser?.full_name || 'Thành viên'} đã rời khỏi nhóm. Phạt ${penaltyPercentage}% tiền cọc`
+                    : member.deposit_status === 'refunded' && depositAmount > 0
+                        ? `👋 ${chatMemberUser?.full_name || 'Thành viên'} đã rời khỏi nhóm. Hoàn ${depositAmount.toLocaleString('vi-VN')} VND tiền cọc`
+                        : `👋 ${chatMemberUser?.full_name || 'Thành viên'} đã rời khỏi nhóm`;
+                PlannerChatService.sendSystemMessage(plannerId, chatMsg).catch(() => { });
+            }
+
+            // Send notifications (fire-and-forget, don't block response)
+            const NotificationService = require('../shared/notificationService');
+            if (isKicked) {
+                NotificationService.createNotification('planner_kicked', memberId, {
+                    plannerName: planner.name
+                }).catch(e => Logger.warn(`Failed to send kicked notification: ${e.message}`));
+
+                if (member.deposit_status === 'refunded' && depositAmount > 0) {
+                    NotificationService.createNotification('planner_deposit_refunded', memberId, {
+                        plannerName: planner.name,
+                        amount: depositAmount.toLocaleString('vi-VN')
+                    }).catch(e => Logger.warn(`Failed to send refund notification: ${e.message}`));
+                }
+            } else if (isSelfLeave) {
+                // Notify owner that member left
+                const memberUser = await User.findByPk(memberId, { attributes: ['full_name'] });
+                NotificationService.createNotification('planner_member_left', planner.user_id, {
+                    memberName: memberUser?.full_name || 'Thành viên',
+                    plannerName: planner.name
+                }).catch(e => Logger.warn(`Failed to send member-left notification: ${e.message}`));
+
+                // Notify member about refund/penalty
+                if (member.deposit_status === 'refunded' && depositAmount > 0) {
+                    NotificationService.createNotification('planner_deposit_refunded', memberId, {
+                        plannerName: planner.name,
+                        amount: depositAmount.toLocaleString('vi-VN')
+                    }).catch(e => Logger.warn(`Failed to send refund notification: ${e.message}`));
+                }
+            }
+
+            // Build detailed response
+            const response = {
+                planner_name: planner.name,
+                member_id: memberId,
+                action: isKicked ? 'kicked' : 'left',
+                deposit_status: member.deposit_status,
+                join_status: member.join_status
+            };
+
+            if (depositAmount > 0 && (member.deposit_status === 'refunded' || member.deposit_status === 'penalized')) {
+                response.deposit_amount = depositAmount;
+
+                if (isKicked) {
+                    response.refund_amount = depositAmount;
+                    response.message = `Đã xóa thành viên khỏi nhóm "${planner.name}". Hoàn ${depositAmount.toLocaleString('vi-VN')} VND tiền cọc vào ví thành viên`;
+                } else if (member.deposit_status === 'penalized') {
+                    const penaltyAmount = Math.round(depositAmount * penaltyPercentage / 100);
+                    const refundAmount = depositAmount - penaltyAmount;
+                    response.penalty_percentage = penaltyPercentage;
+                    response.penalty_amount = penaltyAmount;
+                    response.refund_amount = refundAmount;
+                    response.message = `Đã rời khỏi nhóm "${planner.name}". Phạt ${penaltyPercentage}% (${penaltyAmount.toLocaleString('vi-VN')} VND), hoàn lại ${refundAmount.toLocaleString('vi-VN')} VND`;
+                } else {
+                    response.refund_amount = depositAmount;
+                    response.message = `Đã rời khỏi nhóm "${planner.name}". Hoàn ${depositAmount.toLocaleString('vi-VN')} VND tiền cọc vào ví`;
+                }
+            } else {
+                response.message = isKicked
+                    ? `Đã xóa thành viên khỏi nhóm "${planner.name}"`
+                    : `Đã rời khỏi nhóm "${planner.name}" thành công`;
+            }
+
+            return response;
         } catch (error) {
             await t.rollback();
             Logger.error('Remove planner member error:', error);
@@ -518,89 +839,17 @@ class PlannerShareService {
         }
     }
 
-    // ===================== DEPOSIT PAYMENT (PayOS Thu) =====================
+
+
 
     /**
-     * Tạo link thanh toán cọc qua PayOS khi member xác nhận tham gia
-     * @param {string} userId - ID user muốn confirm join
-     * @param {string} plannerId - ID planner
-     */
-    static async createDepositPayment(userId, plannerId) {
-        try {
-            const planner = await Planner.findByPk(plannerId);
-            if (!planner) throw new Error('Planner not found');
-
-            // Check user is a member with deposit pending
-            const member = await PlannerMember.findOne({
-                where: {
-                    planner_id: plannerId,
-                    user_id: userId,
-                    join_status: 'joined'
-                }
-            });
-
-            if (!member) throw new Error('Bạn chưa phải thành viên của planner này');
-            if (member.deposit_status === 'paid') throw new Error('Bạn đã đóng cọc rồi');
-
-            const depositAmount = parseFloat(planner.deposit_amount) || 0;
-
-            // Nếu không yêu cầu cọc → paid ngay
-            if (depositAmount <= 0) {
-                await member.update({ deposit_status: 'paid' });
-                Logger.info(`Deposit auto-paid (no deposit required): user=${userId}, planner=${plannerId}`);
-                return { deposit_required: false, message: 'Planner không yêu cầu cọc. Đã xác nhận tham gia.' };
-            }
-
-            // Tạo wallet nếu chưa có
-            const WalletService = require('./walletService');
-            const wallet = await WalletService.getOrCreateWallet(userId);
-
-            // Tạo order code và transaction pending
-            const orderCode = PayOSService.generateOrderCode();
-
-            const transaction = await Transaction.create({
-                wallet_id: wallet.id,
-                amount: depositAmount,
-                type: 'escrow_lock',
-                status: 'pending',
-                reference_type: 'planner_deposit',
-                reference_id: `${plannerId}:${userId}:${orderCode}`,
-                description: `Đặt cọc ${depositAmount.toLocaleString('vi-VN')} VND cho kế hoạch: ${planner.name}`,
-                code: WalletService.generateTxnCode()
-            });
-
-            // Tạo link PayOS
-            const paymentLink = await PayOSService.createPaymentLink(
-                depositAmount,
-                orderCode,
-                `Coc ${planner.name}`.substring(0, 25)
-            );
-
-            Logger.info(`Deposit payment created: user=${userId}, planner=${plannerId}, amount=${depositAmount}, orderCode=${orderCode}`);
-
-            return {
-                deposit_required: true,
-                transaction_id: transaction.id,
-                order_code: orderCode,
-                checkout_url: paymentLink.checkoutUrl,
-                qr_code: paymentLink.qrCode,
-                amount: depositAmount,
-                planner_name: planner.name
-            };
-        } catch (error) {
-            Logger.error('Create deposit payment error:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Xử lý webhook PayOS khi thanh toán cọc thành công
-     * @param {object} webhookData - Dữ liệu webhook từ PayOS
+     * Handle PayOS webhook for deposit payment
+     * Fully idempotent — safe to call multiple times for the same orderCode
      */
     static async handleDepositWebhook(webhookData) {
         const t = await sequelize.transaction();
         try {
-            // Xác thực webhook signature
+            // Verify webhook signature
             const verifiedData = await PayOSService.verifyWebhookData(webhookData);
 
             if (!verifiedData || verifiedData.code !== '00') {
@@ -611,63 +860,187 @@ class PlannerShareService {
 
             const orderCode = String(verifiedData.data?.orderCode || verifiedData.orderCode);
 
-            // Tìm transaction tương ứng
+            // Lock the transaction row first
             const transaction = await Transaction.findOne({
                 where: {
                     reference_type: 'planner_deposit',
                     reference_id: { [Op.like]: `%:${orderCode}` },
-                    type: 'escrow_lock',
-                    status: 'pending'
+                    type: 'escrow_lock'
                 },
                 transaction: t,
                 lock: true
             });
 
             if (!transaction) {
-                Logger.warn(`Deposit webhook: No pending deposit found for orderCode ${orderCode}`);
+                Logger.warn(`Deposit webhook: No deposit transaction found for orderCode ${orderCode}`);
                 await t.rollback();
                 return { success: false, message: 'Transaction not found' };
+            }
+
+            // Idempotency: if already completed, return success immediately
+            if (transaction.status === 'completed') {
+                Logger.info(`Deposit webhook: already processed for orderCode ${orderCode} — no-op`);
+                await t.rollback();
+                return { success: true, message: 'Already processed' };
+            }
+
+            // Block cancelled transactions — prevent resurrection of intentionally cancelled payments
+            if (transaction.status === 'cancelled') {
+                Logger.warn(`Deposit webhook: orderCode ${orderCode} was cancelled — ignoring late webhook`);
+                await t.rollback();
+                return { success: false, message: 'Transaction was cancelled' };
             }
 
             // Parse reference_id: "plannerId:userId:orderCode"
             const [plannerId, userId] = transaction.reference_id.split(':');
 
-            // 1. Cập nhật transaction completed
+            // 1. Mark transaction completed
             transaction.status = 'completed';
             await transaction.save({ transaction: t });
 
-            // 2. Cộng locked_balance (escrow)
+            // 2. Add to wallet locked_balance (escrow)
             const wallet = await Wallet.findByPk(transaction.wallet_id, {
                 transaction: t,
                 lock: true
             });
-
             if (wallet) {
                 wallet.locked_balance = parseFloat(wallet.locked_balance) + parseFloat(transaction.amount);
                 await wallet.save({ transaction: t });
             }
 
-            // 3. Cập nhật deposit_status = 'paid'
-            await PlannerMember.update(
-                { deposit_status: 'paid' },
-                {
-                    where: {
-                        planner_id: plannerId,
-                        user_id: userId,
-                        deposit_status: 'pending'
-                    },
-                    transaction: t
+            // 3. Create PlannerMember if not already exists (idempotent)
+            const existingMember = await PlannerMember.findOne({
+                where: { planner_id: plannerId, user_id: userId },
+                transaction: t
+            });
+
+            if (!existingMember) {
+                // Find invite via email match — must still be awaiting_payment
+                const user = await User.findByPk(userId);
+                const inviteByEmail = user
+                    ? await PlannerInvite.findOne({
+                        where: { planner_id: plannerId, email: user.email, status: 'awaiting_payment' },
+                        transaction: t
+                    })
+                    : null;
+
+                // Guard: do not create member if no valid invite found
+                // This prevents ghost members from late/replayed webhooks after invite expired
+                if (!inviteByEmail) {
+                    Logger.warn(`Webhook: No awaiting_payment invite found for user=${userId}, planner=${plannerId}. Member NOT created — possible late/replayed webhook after expiry.`);
+                    await t.rollback();
+                    return { success: false, message: 'No valid invite found for this payment' };
                 }
-            );
+
+                await PlannerMember.create({
+                    planner_id: plannerId,
+                    user_id: userId,
+                    role: inviteByEmail.role,
+                    join_status: 'joined',
+                    deposit_status: 'paid'
+                }, { transaction: t });
+
+                // Mark invite as accepted
+                await inviteByEmail.update({ status: 'accepted' }, { transaction: t });
+            } else if (existingMember.join_status !== 'joined') {
+                // Re-invite flow: member was kicked/dropped_out, re-activate them
+                const user = await User.findByPk(userId);
+                const inviteByEmail = user
+                    ? await PlannerInvite.findOne({
+                        where: { planner_id: plannerId, email: user.email, status: 'awaiting_payment' },
+                        transaction: t
+                    })
+                    : null;
+
+                if (!inviteByEmail) {
+                    Logger.warn(`Webhook re-invite: No awaiting_payment invite for user=${userId}, planner=${plannerId}`);
+                    await t.rollback();
+                    return { success: false, message: 'No valid invite found for this payment' };
+                }
+
+                existingMember.join_status = 'joined';
+                existingMember.deposit_status = 'paid';
+                existingMember.role = inviteByEmail.role;
+                existingMember.joined_at = new Date();
+                await existingMember.save({ transaction: t });
+
+                await inviteByEmail.update({ status: 'accepted' }, { transaction: t });
+                Logger.info(`Re-invite: reactivated member ${userId} in planner ${plannerId}`);
+            }
 
             await t.commit();
 
             Logger.info(`Deposit paid: user=${userId}, planner=${plannerId}, amount=${transaction.amount}, orderCode=${orderCode}`);
 
+            // System chat message (fire-and-forget)
+            const paidUser = await User.findByPk(userId, { attributes: ['full_name'] });
+            const PlannerChatService = require('./plannerChatService');
+            PlannerChatService.sendSystemMessage(plannerId,
+                `💰 ${paidUser?.full_name || 'Thành viên'} đã thanh toán cọc ${parseFloat(transaction.amount).toLocaleString('vi-VN')} VND và tham gia nhóm`
+            ).catch(() => { });
+
             return { success: true, amount: parseFloat(transaction.amount) };
         } catch (error) {
             await t.rollback();
             Logger.error('Handle deposit webhook error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Cancel a pending deposit payment
+     * @param {string} userId - User requesting the cancel
+     * @param {string} plannerId - Planner ID
+     * @param {boolean} reject - If true, reject the invite permanently; if false, reset to pending for retry
+     */
+    static async cancelDeposit(userId, plannerId, reject = false) {
+        try {
+            const user = await User.findByPk(userId);
+            if (!user) throw new Error('User not found');
+
+            // Find invite in awaiting_payment for this user (match by email)
+            const invite = await PlannerInvite.findOne({
+                where: {
+                    planner_id: plannerId,
+                    email: user.email,
+                    status: 'awaiting_payment'
+                }
+            });
+
+            if (!invite) throw new Error('No pending deposit found for this invite');
+
+            // Find and cancel the pending escrow_lock transaction
+            const pendingTx = await Transaction.findOne({
+                where: {
+                    reference_type: 'planner_deposit',
+                    reference_id: { [Op.like]: `${plannerId}:${userId}:%` },
+                    type: 'escrow_lock',
+                    status: 'pending'
+                },
+                include: [{ model: require('../../models').Wallet, as: 'wallet', where: { user_id: userId }, required: true }]
+            });
+
+            if (pendingTx) {
+                try {
+                    const orderCode = pendingTx.reference_id.split(':')[2];
+                    await PayOSService.cancelPaymentLink(orderCode);
+                } catch (e) {
+                    Logger.warn(`Could not cancel PayOS order: ${e.message}`);
+                }
+                await pendingTx.update({ status: 'cancelled' });
+            }
+
+            // Reset or reject invite
+            const newStatus = reject ? 'rejected' : 'pending';
+            await invite.update({ status: newStatus });
+
+            Logger.info(`Deposit cancelled: user=${userId}, planner=${plannerId}, invite=${newStatus}`);
+
+            return {
+                messageKey: reject ? 'invite_rejected' : 'deposit_cancelled'
+            };
+        } catch (error) {
+            Logger.error('Cancel deposit error:', error);
             throw error;
         }
     }

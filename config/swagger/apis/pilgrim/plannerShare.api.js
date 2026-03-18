@@ -104,7 +104,12 @@
  * /api/planners/invite/{token}:
  *   post:
  *     summary: Phản hồi lời mời (Chấp nhận/Từ chối)
- *     description: Người được mời phản hồi (accept hoặc reject) lời mời tham gia kế hoạch bằng token.
+ *     description: |
+ *       Người được mời phản hồi lời mời bằng token.
+ *       - **accept**: invite chuyển sang `awaiting_payment`. Nếu planner có `deposit_amount > 0`, trả về link PayOS để thanh toán cọc ngay. Nếu không yêu cầu cọc, user được join ngay.
+ *       - **reject**: invite chuyển sang `rejected`.
+ *       
+ *       **Lưu ý:** Trong giai đoạn `pending` và `awaiting_payment`, người được mời vẫn có thể vào chat thảo luận trước khi thanh toán.
  *     tags: [Pilgrim - Planner Share]
  *     security:
  *       - bearerAuth: []
@@ -131,6 +136,45 @@
  *     responses:
  *       200:
  *         description: Phản hồi lời mời thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     deposit_required:
+ *                       type: boolean
+ *                       description: |
+ *                         - `false`: Đã trừ cọc từ ví thành công (xem paid_from_wallet) hoặc không yêu cầu cọc
+ *                         - `true`: Cần thanh toán qua PayOS
+ *                     paid_from_wallet:
+ *                       type: boolean
+ *                       description: true nếu đã trừ tiền từ ví (chỉ có khi deposit_required = false)
+ *                     transaction_id:
+ *                       type: string
+ *                       format: uuid
+ *                       description: ID giao dịch (khi paid_from_wallet = true)
+ *                     wallet_balance_after:
+ *                       type: number
+ *                       description: Số dư ví sau khi trừ (khi paid_from_wallet = true)
+ *                     checkout_url:
+ *                       type: string
+ *                       description: Link PayOS (chỉ có khi deposit_required = true)
+ *                     order_code:
+ *                       type: number
+ *                     qr_code:
+ *                       type: string
+ *                     wallet_balance:
+ *                       type: number
+ *                       description: Số dư ví hiện tại (khi deposit_required = true, để FE hiển thị)
+ *                     amount:
+ *                       type: number
+ *                     planner_name:
+ *                       type: string
+ *                     message:
+ *                       type: string
  *       400:
  *         description: Hành động không hợp lệ, lời mời đã xử lý hoặc hết hạn
  *       401:
@@ -223,7 +267,44 @@
  *         description: ID của thành viên cần xóa
  *     responses:
  *       200:
- *         description: Đã xóa thành viên thành công
+ *         description: Xóa thành viên / Rời nhóm thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     planner_name:
+ *                       type: string
+ *                     member_id:
+ *                       type: string
+ *                       format: uuid
+ *                     action:
+ *                       type: string
+ *                       enum: [kicked, left]
+ *                       description: kicked = bị owner xóa, left = tự rời
+ *                     deposit_status:
+ *                       type: string
+ *                       enum: [paid, refunded, penalized, unpaid]
+ *                     join_status:
+ *                       type: string
+ *                       enum: [kicked, dropped_out]
+ *                     deposit_amount:
+ *                       type: number
+ *                       description: Số tiền cọc (nếu có)
+ *                     refund_amount:
+ *                       type: number
+ *                       description: Số tiền hoàn (nếu có)
+ *                     penalty_percentage:
+ *                       type: number
+ *                       description: Phần trăm phạt (nếu tự rời + có phạt)
+ *                     penalty_amount:
+ *                       type: number
+ *                       description: Số tiền phạt (nếu có)
+ *                     message:
+ *                       type: string
  *       400:
  *         description: Không thể xóa chủ sở hữu hoặc không thể xóa khi chuyến đi đang diễn ra
  *       401:
@@ -234,12 +315,17 @@
  *         description: Không tìm thấy kế hoạch hoặc thành viên
  */
 
+
+
 /**
  * @swagger
- * /api/planners/{id}/confirm-join:
+ * /api/planners/{id}/cancel-deposit:
  *   post:
- *     summary: Xác nhận tham gia kế hoạch (tạo link thanh toán cọc)
- *     description: Sau khi accept lời mời, member gọi API này để xác nhận tham gia. Nếu planner có deposit_amount > 0, trả về link PayOS để thanh toán cọc. Nếu không yêu cầu cọc, tự động xác nhận.
+ *     summary: Huỷ thanh toán cọc đang chờ
+ *     description: |
+ *       Huỷ link PayOS đang chờ và đặt lại trạng thái invite.
+ *       - `reject: false` (mặc định): invite về lại `pending`, user có thể thử lại sau.
+ *       - `reject: true`: invite chuyển thành `rejected`, không thể join nữa.
  *     tags: [Pilgrim - Planner Share]
  *     security:
  *       - bearerAuth: []
@@ -251,50 +337,23 @@
  *           type: string
  *           format: uuid
  *         description: ID kế hoạch
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reject:
+ *                 type: boolean
+ *                 default: false
+ *                 description: true = huỷ hẳn (rejected), false = thử lại sau (về pending)
  *     responses:
- *       201:
- *         description: Tạo link thanh toán cọc thành công
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: Tạo link thanh toán cọc thành công
- *                 data:
- *                   type: object
- *                   properties:
- *                     deposit_required:
- *                       type: boolean
- *                       example: true
- *                     transaction_id:
- *                       type: string
- *                       format: uuid
- *                     order_code:
- *                       type: number
- *                       example: 1234567890
- *                     checkout_url:
- *                       type: string
- *                       example: https://pay.payos.vn/web/abc123
- *                     qr_code:
- *                       type: string
- *                       example: https://img.vietqr.io/image/...
- *                     amount:
- *                       type: number
- *                       example: 50000
- *                     planner_name:
- *                       type: string
- *                       example: Hành hương La Vang
  *       200:
- *         description: Planner không yêu cầu cọc, đã xác nhận tham gia ngay
+ *         description: Huỷ thành công
  *       400:
- *         description: Đã đóng cọc rồi
- *       403:
- *         description: Chưa phải thành viên
+ *         description: Không có thanh toán đang chờ
+ *       401:
+ *         description: Chưa xác thực
  *       404:
  *         description: Không tìm thấy kế hoạch
  */

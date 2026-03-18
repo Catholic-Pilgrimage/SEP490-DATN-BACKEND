@@ -100,9 +100,10 @@ class PlannerService {
                 throw new Error('Number of people must be at least 1');
             }
 
-            // Support financial fields
-            const depositAmount = parseFloat(plannerData.deposit_amount) || 0;
-            const penaltyPercentage = parseInt(plannerData.penalty_percentage) || 0;
+            // Financial fields — solo planners (number_of_people = 1) cannot have deposit or penalty
+            const numPeople = parseInt(plannerData.number_of_people) || 1;
+            const depositAmount = numPeople > 1 ? (parseFloat(plannerData.deposit_amount) || 0) : 0;
+            const penaltyPercentage = numPeople > 1 ? (parseInt(plannerData.penalty_percentage) || 0) : 0;
 
             // Wrap in transaction for atomic creation + deposit lock
             const t = await sequelize.transaction();
@@ -126,11 +127,9 @@ class PlannerService {
                     planner_id: planner.id,
                     user_id: userId,
                     role: 'viewer',
-                    join_status: 'joined'
+                    join_status: 'joined',
+                    deposit_status: null   // Owner does not pay a deposit
                 };
-
-                // Owner không phải đóng tiền cam kết.
-                memberData.deposit_status = 'pending';
 
                 await PlannerMember.create(memberData, { transaction: t });
 
@@ -331,6 +330,30 @@ class PlannerService {
                 dataToUpdate.status = updateData.status;
             }
 
+            // Update deposit/penalty — only allowed when planner has > 1 person
+            // Use current DB value if request does not include number_of_people
+            const effectiveNumPeople = dataToUpdate.number_of_people ?? planner.number_of_people ?? 1;
+
+            if (updateData.deposit_amount !== undefined) {
+                if (effectiveNumPeople <= 1 && parseFloat(updateData.deposit_amount) > 0) {
+                    throw new Error('Solo planner cannot have a deposit amount');
+                }
+                dataToUpdate.deposit_amount = parseFloat(updateData.deposit_amount) || 0;
+            }
+
+            if (updateData.penalty_percentage !== undefined) {
+                if (effectiveNumPeople <= 1 && parseInt(updateData.penalty_percentage) > 0) {
+                    throw new Error('Solo planner cannot have a penalty percentage');
+                }
+                dataToUpdate.penalty_percentage = parseInt(updateData.penalty_percentage) || 0;
+            }
+
+            // Edge case: downgrade to solo → clear existing deposit/penalty automatically
+            if (effectiveNumPeople <= 1) {
+                dataToUpdate.deposit_amount = 0;
+                dataToUpdate.penalty_percentage = 0;
+            }
+
             // Update planner
             await planner.update(dataToUpdate);
 
@@ -346,8 +369,10 @@ class PlannerService {
      * Delete planner (soft delete - set is_active to false)
      */
     static async deletePlanner(plannerId, userId) {
+        const sequelize = require('../config/database');
+        const t = await sequelize.transaction();
         try {
-            const planner = await Planner.findByPk(plannerId);
+            const planner = await Planner.findByPk(plannerId, { transaction: t });
 
             if (!planner) {
                 throw new Error('Planner not found');
@@ -358,12 +383,132 @@ class PlannerService {
                 throw new Error('Forbidden');
             }
 
-            // Soft delete - set is_active to false
-            await planner.update({ is_active: false });
+            // Only allow deletion during planning phase
+            if (planner.status === 'ongoing') {
+                throw new Error('Không thể xóa kế hoạch khi chuyến đi đang diễn ra');
+            }
+            if (planner.status === 'completed') {
+                throw new Error('Không thể xóa kế hoạch đã hoàn thành');
+            }
 
-            Logger.info(`Planner soft deleted by user ${userId}: ${plannerId}`);
-            return { id: plannerId, message: 'Planner deleted successfully' };
+            const depositAmount = parseFloat(planner.deposit_amount) || 0;
+            const refundResults = [];
+
+            // Refund all joined members who paid deposit
+            if (depositAmount > 0) {
+                const { PlannerMember, Transaction, Wallet } = require('../models');
+                const WalletService = require('./pilgrim/walletService');
+
+                const paidMembers = await PlannerMember.findAll({
+                    where: {
+                        planner_id: plannerId,
+                        deposit_status: 'paid',
+                        join_status: 'joined',
+                        user_id: { [Op.ne]: planner.user_id } // exclude owner
+                    },
+                    transaction: t
+                });
+
+                // Fail-fast: if any refund fails, rollback entire deletion
+                for (const member of paidMembers) {
+                    await WalletService.refundOnKick(
+                        member.user_id, depositAmount, plannerId, planner.name, t
+                    );
+                    member.deposit_status = 'refunded';
+                    member.join_status = 'kicked';
+                    await member.save({ transaction: t });
+                    refundResults.push({ user_id: member.user_id, refunded: true });
+                }
+
+                // Cancel any pending deposit transactions (awaiting payment)
+                const { PlannerInvite } = require('../models');
+                const PayOSService = require('./shared/payosService');
+
+                const pendingTxs = await Transaction.findAll({
+                    where: {
+                        reference_type: 'planner_deposit',
+                        reference_id: { [Op.like]: `${plannerId}:%` },
+                        type: 'escrow_lock',
+                        status: 'pending'
+                    },
+                    transaction: t
+                });
+
+                for (const tx of pendingTxs) {
+                    try {
+                        const orderCode = tx.reference_id.split(':')[2];
+                        if (orderCode !== 'wallet') {
+                            await PayOSService.cancelPaymentLink(orderCode);
+                        }
+                    } catch (e) {
+                        Logger.warn(`Could not cancel PayOS order on planner delete: ${e.message}`);
+                    }
+                    await tx.update({ status: 'cancelled' }, { transaction: t });
+                }
+
+                // Cancel pending/awaiting_payment invites
+                await PlannerInvite.update(
+                    { status: 'expired' },
+                    {
+                        where: {
+                            planner_id: plannerId,
+                            status: { [Op.in]: ['pending', 'awaiting_payment'] }
+                        },
+                        transaction: t
+                    }
+                );
+            }
+
+            // Kick any remaining joined members (including those without deposit)
+            const allJoinedMembers = await PlannerMember.findAll({
+                where: {
+                    planner_id: plannerId,
+                    join_status: 'joined',
+                    user_id: { [Op.ne]: planner.user_id }
+                },
+                transaction: t
+            });
+            const allKickedUserIds = refundResults.map(r => r.user_id);
+            for (const member of allJoinedMembers) {
+                member.join_status = 'kicked';
+                await member.save({ transaction: t });
+                if (!allKickedUserIds.includes(member.user_id)) {
+                    allKickedUserIds.push(member.user_id);
+                }
+            }
+
+            // Soft delete
+            await planner.update({ is_active: false }, { transaction: t });
+
+            await t.commit();
+
+            Logger.info(`Planner soft deleted by user ${userId}: ${plannerId}, refunded ${refundResults.length} members, kicked ${allKickedUserIds.length} total`);
+
+            // Send notifications (fire-and-forget)
+            const NotificationService = require('./shared/notificationService');
+            for (const memberId of allKickedUserIds) {
+                NotificationService.createNotification('planner_kicked', memberId, {
+                    plannerName: planner.name
+                }).catch(e => Logger.warn(`Failed to send kicked notification: ${e.message}`));
+
+                const wasRefunded = refundResults.find(r => r.user_id === memberId);
+                if (wasRefunded) {
+                    NotificationService.createNotification('planner_deposit_refunded', memberId, {
+                        plannerName: planner.name,
+                        amount: depositAmount.toLocaleString('vi-VN')
+                    }).catch(e => Logger.warn(`Failed to send refund notification: ${e.message}`));
+                }
+            }
+
+            return {
+                id: plannerId,
+                message: `Đã xóa kế hoạch "${planner.name}"`,
+                members_refunded: refundResults.length,
+                members_kicked: allKickedUserIds.length,
+                refund_amount_each: depositAmount > 0 ? depositAmount : undefined
+            };
         } catch (error) {
+            await t.rollback();
             Logger.error('Delete planner error:', error);
             throw error;
         }

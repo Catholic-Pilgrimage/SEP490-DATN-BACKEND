@@ -46,7 +46,7 @@ const PlannerInvite = sequelize.define('PlannerInvite', {
         type: DataTypes.STRING(20),
         defaultValue: 'pending',
         validate: {
-            isIn: [['pending', 'accepted', 'rejected', 'expired']]
+            isIn: [['pending', 'awaiting_payment', 'rejected', 'expired', 'accepted']]
         }
     },
     expires_at: {

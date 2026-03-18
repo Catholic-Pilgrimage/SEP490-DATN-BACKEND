@@ -10,8 +10,14 @@ class PayOSService {
                 throw new Error('PayOS RECEIVE is not configured. Please check environment variables.');
             }
 
+            // Normalize orderCode to integer — callers may pass string from DB reference_id
+            const normalizedOrderCode = Number(orderCode);
+            if (!Number.isSafeInteger(normalizedOrderCode) || normalizedOrderCode <= 0) {
+                throw new Error(`Invalid PayOS orderCode: ${orderCode}`);
+            }
+
             const paymentLink = await payosReceive.paymentRequests.create({
-                orderCode,
+                orderCode: normalizedOrderCode,
                 amount: Math.round(amount),
                 description: description.substring(0, 25),
                 returnUrl: returnUrl || config.returnUrl,

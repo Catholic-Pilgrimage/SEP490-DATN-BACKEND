@@ -49,11 +49,25 @@ class PlannerValidator {
 
         body('deposit_amount')
             .optional()
-            .isFloat({ min: 0, max: 50000000 }).withMessage('Số tiền đặt cọc phải từ 0 đến 50,000,000 VND'),
+            .isFloat({ min: 0, max: 50000000 }).withMessage('Số tiền đặt cọc phải từ 0 đến 50,000,000 VND')
+            .custom((value, { req }) => {
+                const numPeople = parseInt(req.body.number_of_people) || 1;
+                if (numPeople === 1 && parseFloat(value) > 0) {
+                    throw new Error('Không thể đặt tiền cọc khi đi một mình (số người = 1)');
+                }
+                return true;
+            }),
 
         body('penalty_percentage')
             .optional()
             .isInt({ min: 0, max: 100 }).withMessage('Tỷ lệ phạt phải từ 0 đến 100%')
+            .custom((value, { req }) => {
+                const numPeople = parseInt(req.body.number_of_people) || 1;
+                if (numPeople === 1 && parseInt(value) > 0) {
+                    throw new Error('Không thể đặt tỷ lệ phạt khi đi một mình (số người = 1)');
+                }
+                return true;
+            })
     ];
 
     // Validate update planner
@@ -94,7 +108,35 @@ class PlannerValidator {
 
         body('status')
             .optional()
-            .isIn(['planning', 'ongoing', 'completed']).withMessage('Trạng thái phải là planning, ongoing hoặc completed')
+            .isIn(['planning', 'ongoing', 'completed']).withMessage('Trạng thái phải là planning, ongoing hoặc completed'),
+
+        body('deposit_amount')
+            .optional()
+            .isFloat({ min: 0, max: 50000000 }).withMessage('Số tiền đặt cọc phải từ 0 đến 50,000,000 VND')
+            .custom((value, { req }) => {
+                // Only block if request explicitly sends number_of_people = 1
+                // If number_of_people is omitted, service will use the DB value
+                const numPeople = req.body.number_of_people !== undefined
+                    ? parseInt(req.body.number_of_people)
+                    : null;
+                if (numPeople === 1 && parseFloat(value) > 0) {
+                    throw new Error('Solo planner cannot have a deposit amount');
+                }
+                return true;
+            }),
+
+        body('penalty_percentage')
+            .optional()
+            .isInt({ min: 0, max: 100 }).withMessage('Tỷ lệ phạt phải từ 0 đến 100%')
+            .custom((value, { req }) => {
+                const numPeople = req.body.number_of_people !== undefined
+                    ? parseInt(req.body.number_of_people)
+                    : null;
+                if (numPeople === 1 && parseInt(value) > 0) {
+                    throw new Error('Solo planner cannot have a penalty percentage');
+                }
+                return true;
+            })
     ];
 
     // Validate add planner item

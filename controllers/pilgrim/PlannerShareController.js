@@ -168,31 +168,7 @@ class PlannerShareController {
         }
     }
 
-    /**
-     * POST /planners/:id/confirm-join - Xác nhận tham gia (tạo link cọc)
-     */
-    static async confirmJoin(req, res) {
-        try {
-            const result = await PlannerShareService.createDepositPayment(req.user.id, req.params.id);
 
-            if (!result.deposit_required) {
-                return ResponseUtil.success(res, result, result.message);
-            }
-
-            return ResponseUtil.created(res, result, 'Tạo link thanh toán cọc thành công');
-        } catch (error) {
-            if (error.message.includes('chưa phải thành viên')) {
-                return ResponseUtil.forbidden(res, error.message);
-            }
-            if (error.message.includes('đã đóng cọc')) {
-                return ResponseUtil.badRequest(res, error.message);
-            }
-            if (error.message === 'Planner not found') {
-                return ResponseUtil.notFound(res, req.__('planner.not_found'));
-            }
-            return ResponseUtil.error(res, 'Lỗi khi tạo thanh toán cọc');
-        }
-    }
 
     /**
      * POST /planners/deposit-webhook - Webhook PayOS xác nhận cọc (public)
@@ -209,6 +185,26 @@ class PlannerShareController {
         } catch (error) {
             console.error('Deposit webhook error:', error);
             return res.status(400).json({ success: false, message: 'Invalid webhook' });
+        }
+    }
+    /**
+     * POST /planners/:id/cancel-deposit - Cancel (or reset) a pending deposit
+     * Body: { reject: boolean } — if true, invite is rejected permanently; if false, reset to pending for retry
+     */
+    static async cancelDeposit(req, res) {
+        try {
+            const doReject = req.body?.reject === true;
+            const result = await PlannerShareService.cancelDeposit(req.user.id, req.params.id, doReject);
+            const message = req.__(`wallet.${result.messageKey}`);
+            return ResponseUtil.success(res, { message }, message);
+        } catch (error) {
+            if (error.message === 'No pending deposit found for this invite') {
+                return ResponseUtil.badRequest(res, 'Không có yêu cầu đặt cọc đang chờ xử lý');
+            }
+            if (error.message === 'Planner not found') {
+                return ResponseUtil.notFound(res, req.__('planner.not_found'));
+            }
+            return ResponseUtil.error(res, 'Lỗi khi huỷ thanh toán cọc');
         }
     }
 }

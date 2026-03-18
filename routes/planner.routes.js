@@ -125,12 +125,13 @@ router.post(
     PilgrimPlannerShareController.respondToInvite
 );
 
-// Xác nhận tham gia (tạo link thanh toán cọc)
+
+// Huỷ / đặt lại thanh toán cọc đang chờ
 router.post(
-    '/:id/confirm-join',
+    '/:id/cancel-deposit',
     authenticate,
     PlannerValidator.validatePlannerId,
-    PilgrimPlannerShareController.confirmJoin
+    PilgrimPlannerShareController.cancelDeposit
 );
 
 // Webhook PayOS cho thanh toán cọc (public - không cần auth)

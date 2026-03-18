@@ -509,6 +509,8 @@
     "transaction_processed": "Transaction already processed",
     "deposit_locked": "Deposit locked successfully",
     "deposit_refunded": "Deposit refunded successfully",
+    "deposit_cancelled": "Deposit cancelled. You can retry the payment later.",
+    "invite_rejected": "Invite rejected. You will not be able to join this planner.",
     "penalty_applied": "Penalty applied successfully",
     "penalty_released": "Penalty released successfully",
     "penalty_refunded": "Penalty refunded successfully"

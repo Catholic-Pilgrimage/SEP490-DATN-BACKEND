@@ -43,7 +43,13 @@ const Notification = sequelize.define('Notification', {
                 'sos_resolved',
                 'planner_invite',
                 'planner_joined',
+                'planner_kicked',
+                'planner_deposit_refunded',
+                'planner_member_left',
                 'favorite_site_update',
+                'sos_planner_alert',
+                'narrative_approved',
+                'narrative_rejected',
                 // Admin notifications
                 'verification_submitted',
                 'site_registration_submitted',

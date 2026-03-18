@@ -17,7 +17,8 @@
  *           format: uuid
  *         message_type:
  *           type: string
- *           enum: [text, image]
+ *           enum: [text, image, system]
+ *           description: Loại tin nhắn (system = tin hệ thống tự động)
  *         content:
  *           type: string
  *           description: Nội dung tin nhắn (nếu là text)
@@ -26,6 +27,8 @@
  *           description: URL ảnh (nếu là image)
  *         sender:
  *           type: object
+ *           nullable: true
+ *           description: Null nếu message_type = system
  *           properties:
  *             id:
  *               type: string

@@ -29,11 +29,12 @@ const PlannerMember = sequelize.define('PlannerMember', {
     },
     deposit_status: {
         type: DataTypes.STRING(20),
-        defaultValue: 'pending',
+        allowNull: true,
+        defaultValue: null,
         validate: {
-            isIn: [['pending', 'paid', 'refunded', 'penalized']]
+            isIn: [['paid', 'refunded', 'penalized']]
         },
-        comment: 'pending: chưa đóng, paid: đã đóng cọc (escrow), refunded: đã hoàn, penalized: đã bị phạt'
+        comment: 'null: owner (no deposit), paid: deposit paid (in escrow), refunded: refunded, penalized: penalized for leaving'
     },
     join_status: {
         type: DataTypes.STRING(20),

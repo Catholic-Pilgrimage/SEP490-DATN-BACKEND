@@ -56,7 +56,7 @@ DO $$ BEGIN
     CREATE TYPE report_reason AS ENUM ('spam', 'inappropriate', 'harassment', 'other');
     CREATE TYPE report_status AS ENUM ('pending', 'resolved', 'dismissed');
     CREATE TYPE sos_status AS ENUM ('pending', 'accepted', 'resolved', 'cancelled');
-    CREATE TYPE invite_status AS ENUM ('pending', 'accepted', 'rejected', 'expired');
+    CREATE TYPE invite_status AS ENUM ('pending', 'awaiting_payment', 'accepted', 'rejected', 'expired');
     CREATE TYPE participant_status AS ENUM ('going', 'interested');
     
     -- Verification (Manager Application)
@@ -610,7 +610,7 @@ CREATE TABLE IF NOT EXISTS planner_members (
     planner_id UUID REFERENCES planners(id) ON DELETE CASCADE,
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     role planner_role DEFAULT 'viewer',
-    deposit_status VARCHAR(20) DEFAULT 'pending' NOT NULL CHECK (deposit_status IN ('pending', 'paid', 'refunded', 'penalized')),
+    deposit_status VARCHAR(20) DEFAULT NULL CHECK (deposit_status IS NULL OR deposit_status IN ('paid', 'refunded', 'penalized')),
     join_status VARCHAR(20) DEFAULT 'joined' NOT NULL CHECK (join_status IN ('joined', 'dropped_out', 'kicked')),
     joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (planner_id, user_id)
@@ -624,13 +624,14 @@ CREATE TABLE IF NOT EXISTS planner_messages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     planner_id UUID NOT NULL REFERENCES planners(id) ON DELETE CASCADE,
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    message_type VARCHAR(20) DEFAULT 'text' CHECK (message_type IN ('text', 'image')),
+    message_type VARCHAR(20) DEFAULT 'text' CHECK (message_type IN ('text', 'image', 'system')),
     content TEXT,
     image_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT check_message_content CHECK (
         (message_type = 'text' AND content IS NOT NULL) OR
-        (message_type = 'image' AND image_url IS NOT NULL)
+        (message_type = 'image' AND image_url IS NOT NULL) OR
+        (message_type = 'system' AND content IS NOT NULL)
     )
 );
 

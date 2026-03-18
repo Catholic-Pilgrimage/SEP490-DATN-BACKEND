@@ -508,6 +508,8 @@
     "transaction_processed": "Giao dịch đã được xử lý",
     "deposit_locked": "Đã khóa tiền cọc thành công",
     "deposit_refunded": "Đã hoàn trả tiền cọc",
+    "deposit_cancelled": "Đã hủy thanh toán cọc. Bạn có thể thử lại sau.",
+    "invite_rejected": "Đã từ chối lời mời. Bạn sẽ không thể tham gia kế hoạch này.",
     "penalty_applied": "Đã áp dụng phạt",
     "penalty_released": "Đã giải ngân tiền phạt",
     "penalty_refunded": "Đã hoàn trả tiền phạt"
