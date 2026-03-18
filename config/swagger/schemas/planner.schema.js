@@ -11,16 +11,11 @@
  *           type: string
  *           example: "Hành hương miền Bắc"
  *           description: "Tên kế hoạch (tối đa 255 ký tự)"
- *         start_date:
- *           type: string
- *           format: date
- *           example: "2026-02-01"
- *           description: "Ngày bắt đầu (YYYY-MM-DD)"
- *         end_date:
- *           type: string
- *           format: date
- *           example: "2026-02-05"
- *           description: "Ngày kết thúc (YYYY-MM-DD)"
+ *         estimated_days:
+ *           type: integer
+ *           minimum: 1
+ *           example: 3
+ *           description: "Số ngày dự kiến cho chuyến đi"
  *         number_of_people:
  *           type: integer
  *           minimum: 1
@@ -39,14 +34,11 @@
  *         name:
  *           type: string
  *           example: "Hành hương miền Bắc - Updated"
- *         start_date:
- *           type: string
- *           format: date
- *           example: "2026-02-01"
- *         end_date:
- *           type: string
- *           format: date
- *           example: "2026-02-10"
+ *         estimated_days:
+ *           type: integer
+ *           minimum: 1
+ *           example: 5
+ *           description: "Số ngày dự kiến cho chuyến đi"
  *         number_of_people:
  *           type: integer
  *           minimum: 1
@@ -94,25 +86,6 @@
  *           pattern: '^\d+\s+(hour|hours|minute|minutes|min|mins)$'
  *           example: "2 hours"
  *           description: "Thời gian nghỉ ngơi/tham quan tại địa điểm (ví dụ: '1 hour', '30 minutes', '2 hours')"
- *
- *     ReorderItemsRequest:
- *       type: object
- *       required:
- *         - day_number
- *         - item_ids
- *       properties:
- *         day_number:
- *           type: integer
- *           minimum: 1
- *           example: 1
- *           description: "Ngày cần sắp xếp lại"
- *         item_ids:
- *           type: array
- *           items:
- *             type: string
- *             format: uuid
- *           example: ["item-uuid-3", "item-uuid-1", "item-uuid-2"]
- *           description: "Danh sách ID theo thứ tự mới"
  *
  *     PlannerItem:
  *       type: object
@@ -197,9 +170,9 @@
  *           format: uuid
  *         name:
  *           type: string
- *         start_date:
- *           type: string
- *           format: date
+ *         estimated_days:
+ *           type: integer
+ *           description: "Số ngày dự kiến cho chuyến đi"
  *         number_of_people:
  *           type: integer
  *         transportation:

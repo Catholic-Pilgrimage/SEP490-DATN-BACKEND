@@ -70,30 +70,30 @@ class CheckinService {
             throw new Error('Bạn đã check-in địa điểm này rồi');
         }
 
-        // Kiểm tra planner đã hết hạn chưa
-        if (planner.end_date) {
-            const now = new Date();
-            const endDate = new Date(planner.end_date);
-            endDate.setHours(23, 59, 59, 999);
-            
-            if (now > endDate) {
-                throw new Error('Kế hoạch đã kết thúc, không thể check-in');
-            }
-        }
+        // Kiểm tra planner đã hết hạn chưa - BỎ vì không cần ngày cố định
+        // if (planner.end_date) {
+        //     const now = new Date();
+        //     const endDate = new Date(planner.end_date);
+        //     endDate.setHours(23, 59, 59, 999);
+        //     
+        //     if (now > endDate) {
+        //         throw new Error('Kế hoạch đã kết thúc, không thể check-in');
+        //     }
+        // }
 
-        // ===== VALIDATION: Planner phải có địa điểm cho TẤT CẢ các ngày =====
-        if (planner.status === 'planning') {
-            const PlannerService = require('./plannerService');
-            const continuityCheck = await PlannerService.validatePlannerContinuity(planner.id);
-            
-            if (!continuityCheck.isValid) {
-                const missingDaysStr = continuityCheck.missingDays.join(', ');
-                throw new Error(
-                    `Lịch trình chưa đầy đủ! Bạn phải thêm địa điểm cho tất cả ${continuityCheck.totalDays} ngày. ` +
-                    `Hiện đang thiếu: Ngày ${missingDaysStr}. Vui lòng hoàn thiện lịch trình trước khi check-in.`
-                );
-            }
-        }
+        // ===== VALIDATION: Planner phải có địa điểm cho TẤT CẢ các ngày - BỎ vì không cần ngày cố định =====
+        // if (planner.status === 'planning') {
+        //     const PlannerService = require('./plannerService');
+        //     const continuityCheck = await PlannerService.validatePlannerContinuity(planner.id);
+        //     
+        //     if (!continuityCheck.isValid) {
+        //         const missingDaysStr = continuityCheck.missingDays.join(', ');
+        //         throw new Error(
+        //             `Lịch trình chưa đầy đủ! Bạn phải thêm địa điểm cho tất cả ${continuityCheck.totalDays} ngày. ` +
+        //             `Hiện đang thiếu: Ngày ${missingDaysStr}. Vui lòng hoàn thiện lịch trình trước khi check-in.`
+        //         );
+        //     }
+        // }
 
         // ===== VALIDATION: Check-in phải theo thứ tự =====
         const allPlannerItems = await PlannerItem.findAll({

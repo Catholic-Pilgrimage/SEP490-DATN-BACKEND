@@ -400,57 +400,6 @@
 
 /**
  * @swagger
- * /api/planners/{id}/items/reorder:
- *   patch:
- *     summary: Sắp xếp lại các địa điểm trong cùng một ngày
- *     tags: [Planners - Pilgrim]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: Planner ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/ReorderItemsRequest'
- *     responses:
- *       200:
- *         description: Items reordered successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 message:
- *                   type: string
- *                 data:
- *                   type: object
- *                   properties:
- *                     items:
- *                       type: array
- *                       items:
- *                         $ref: '#/components/schemas/PlannerItem'
- *       400:
- *         description: Validation error
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden - not the owner
- *       404:
- *         description: Planner not found
- */
-
-/**
- * @swagger
  * /api/planners/{id}/items/{itemId}:
  *   delete:
  *     summary: Xóa một địa điểm khỏi kế hoạch
