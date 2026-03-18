@@ -242,6 +242,16 @@ const NOTIFICATION_TEMPLATES = {
             message: 'New SOS request at {{siteName}}'
         }
     },
+    sos_planner_alert: {
+        vi: {
+            title: '🚨 THÔNG BÁO KHẨN CẤP TỪ THÀNH VIÊN',
+            message: 'Thành viên {{pilgrimName}} trong đoàn vừa gửi tín hiệu SOS cần hỗ trợ ngay lập tức!'
+        },
+        en: {
+            title: '🚨 URGENT: MEMBER NEEDS HELP',
+            message: 'Group member {{pilgrimName}} just triggered an SOS and needs immediate assistance!'
+        }
+    },
     sos_assigned: {
         vi: {
             title: 'SOS được tiếp nhận',
@@ -601,7 +611,7 @@ class NotificationService {
     static async deleteReadNotifications(userId) {
         try {
             const deletedCount = await Notification.destroy({
-                where: { 
+                where: {
                     receiver_id: userId,
                     is_read: true
                 }

@@ -6,19 +6,19 @@ class AdminValidator {
     query('page')
       .optional()
       .isInt({ min: 1 }).withMessage('Trang phải là số nguyên dương'),
-    
+
     query('limit')
       .optional()
       .isInt({ min: 1, max: 100 }).withMessage('Giới hạn phải từ 1 đến 100'),
-    
+
     query('role')
       .optional()
-      .isIn(['admin', 'pilgrim', 'local_guide']).withMessage('Role phải là admin, pilgrim hoặc local_guide'),
-    
+      .isIn(['admin', 'pilgrim', 'local_guide', 'manager']).withMessage('Role phải là admin, pilgrim, local_guide hoặc manager'),
+
     query('status')
       .optional()
       .isIn(['active', 'banned']).withMessage('Status phải là active hoặc banned'),
-    
+
     query('search')
       .optional()
       .isString().withMessage('Từ khóa tìm kiếm phải là chuỗi')
@@ -35,7 +35,7 @@ class AdminValidator {
   static updateUserStatus = [
     param('id')
       .isUUID().withMessage('ID người dùng không hợp lệ'),
-    
+
     body('status')
       .notEmpty().withMessage('Status không được để trống')
       .isIn(['active', 'banned']).withMessage('Status phải là active hoặc banned')
@@ -45,16 +45,16 @@ class AdminValidator {
   static updateUser = [
     param('id')
       .isUUID().withMessage('ID người dùng không hợp lệ'),
-    
+
     body('full_name')
       .optional()
       .isLength({ min: 2, max: 100 }).withMessage('Họ tên phải từ 2-100 ký tự')
       .trim(),
-    
+
     body('phone')
       .optional()
       .matches(/^(0|\+84)[0-9]{9,10}$/).withMessage('Số điện thoại không hợp lệ'),
-    
+
     body('date_of_birth')
       .optional()
       .isDate().withMessage('Ngày sinh không hợp lệ')
@@ -62,7 +62,7 @@ class AdminValidator {
         const birthDate = new Date(value);
         const today = new Date();
         const age = today.getFullYear() - birthDate.getFullYear();
-        
+
         if (birthDate > today) {
           throw new Error('Ngày sinh không được ở tương lai');
         }
@@ -74,11 +74,11 @@ class AdminValidator {
         }
         return true;
       }),
-    
+
     body('role')
       .optional()
       .isIn(['pilgrim', 'local_guide', 'manager']).withMessage('Role phải là pilgrim, local_guide hoặc manager (không thể đặt admin)'),
-    
+
     body('site_id')
       .optional()
       .isUUID().withMessage('Site ID phải là UUID hợp lệ')

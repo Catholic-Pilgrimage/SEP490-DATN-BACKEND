@@ -1,8 +1,9 @@
-const { SOSRequest, User, Site, GuideShiftSubmission, GuideShift } = require('../../models');
+const { SOSRequest, User, Site, GuideShiftSubmission, GuideShift, Planner, PlannerMember, PlannerMessage } = require('../../models');
 const { Op } = require('sequelize');
 const Logger = require('../../utils/logger.util');
 const NotificationService = require('../shared/notificationService');
 const appConfig = require('../../config/app.config');
+const PlannerChatService = require('./plannerChatService');
 
 class PilgrimSOSService {
     /**
@@ -162,6 +163,80 @@ class PilgrimSOSService {
                 }
             }
 
+            // GFind if the user is currently in an ongoing Planner trip
+            // If they are, broadcast this SOS to their planner chat group
+            const currentTrips = await PlannerMember.findAll({
+                where: { user_id: userId },
+                include: [{
+                    model: Planner,
+                    as: 'planner',
+                    where: { status: 'ongoing' }
+                }]
+            });
+
+            // Also check if the user is the owner of an ongoing planner
+            const ownedTrips = await Planner.findAll({
+                where: { user_id: userId, status: 'ongoing' }
+            });
+
+            // Combine all unique ongoing planner IDs
+            const activePlannerIds = new Set();
+            currentTrips.forEach(member => activePlannerIds.add(member.planner.id));
+            ownedTrips.forEach(planner => activePlannerIds.add(planner.id));
+
+            // Broadcast SOS message to all active planner group chats
+            for (const plannerId of activePlannerIds) {
+                try {
+                    // Send an automated system message to the chat
+                    const sosMessageContent = JSON.stringify({
+                        code: sos.code,
+                        sender_name: user.full_name || 'N/A',
+                        message: message || null,
+                        default_message: {
+                            vi: 'Tôi cần hỗ trợ khẩn cấp, xin hãy giúp đỡ!',
+                            en: 'I need urgent help, please assist me!'
+                        },
+                        latitude,
+                        longitude,
+                        contact_phone: contact_phone || user.phone
+                    });
+
+
+                    await PlannerMessage.create({
+                        planner_id: plannerId,
+                        user_id: userId,
+                        message_type: 'sos_alert',
+                        content: sosMessageContent,
+                    });
+
+                    Logger.info(`SOS alert broadcasted to planner: ${plannerId}`);
+
+                    // Optionally notify planner members via push notification here
+                    const plannerMembers = await PlannerMember.findAll({
+                        where: { planner_id: plannerId }
+                    });
+
+                    const planner = await Planner.findByPk(plannerId);
+                    const memberIdsToNotify = new Set();
+                    if (planner.user_id !== userId) memberIdsToNotify.add(planner.user_id);
+                    plannerMembers.forEach(m => {
+                        if (m.user_id !== userId) memberIdsToNotify.add(m.user_id);
+                    });
+
+                    const memberNotificationPromises = Array.from(memberIdsToNotify).map(memberId =>
+                        NotificationService.createNotification('sos_planner_alert', memberId, {
+                            sosCode: sos.code,
+                            pilgrimName: user.full_name || 'Đồng đội',
+                            message: message || 'Đang chờ giải cứu!'
+                        })
+                    );
+                    await Promise.all(memberNotificationPromises);
+
+                } catch (chatError) {
+                    Logger.error(`Failed to broadcast SOS to planner ${plannerId}:`, chatError);
+                }
+            }
+
             // Return with site info
             const result = await SOSRequest.findByPk(sos.id, {
                 include: [{
@@ -279,6 +354,46 @@ class PilgrimSOSService {
             await sos.update({ status: 'cancelled' });
 
             Logger.info(`SOS ${sos.code} cancelled by user ${userId}`);
+
+            // Quick broadcast to planner chat to let them know it's cancelled
+            try {
+                const currentTrips = await PlannerMember.findAll({
+                    where: { user_id: userId },
+                    include: [{ model: Planner, as: 'planner', where: { status: 'ongoing' } }]
+                });
+                const ownedTrips = await Planner.findAll({
+                    where: { user_id: userId, status: 'ongoing' }
+                });
+
+                const activePlannerIds = new Set();
+                currentTrips.forEach(member => activePlannerIds.add(member.planner.id));
+                ownedTrips.forEach(planner => activePlannerIds.add(planner.id));
+
+                const { PlannerMessage, User } = require('../../models');
+                const user = await User.findByPk(userId);
+
+                const cancelMessage = JSON.stringify({
+                    message_key: 'sos.sos_cancelled_message',
+                    params: {
+                        pilgrimName: user?.full_name || 'N/A'
+                    },
+                    default_message: {
+                        vi: `Tín hiệu SOS từ ${user?.full_name} đã được hủy.`,
+                        en: `SOS signal from ${user?.full_name} has been cancelled.`
+                    }
+                });
+
+                for (const plannerId of activePlannerIds) {
+                    await PlannerMessage.create({
+                        planner_id: plannerId,
+                        user_id: userId,
+                        message_type: 'text',
+                        content: cancelMessage
+                    });
+                }
+            } catch (chatError) {
+                Logger.error('Failed to broadcast cancel message to planner chat:', chatError);
+            }
 
             return sos;
         } catch (error) {

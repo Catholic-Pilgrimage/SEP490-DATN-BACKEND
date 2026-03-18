@@ -79,6 +79,57 @@
 
 /**
  * @swagger
+ * /api/auth/google:
+ *   post:
+ *     summary: Đăng nhập / Đăng ký ẩn bằng Google (Firebase)
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - firebaseIdToken
+ *             properties:
+ *               firebaseIdToken:
+ *                 type: string
+ *                 description: ID Token nhận được từ Firebase Authentication SDK trên Mobile App
+ *     responses:
+ *       200:
+ *         description: Đăng nhập / Đăng ký thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/LoginResponse'
+ *       400:
+ *         description: Thiếu thông tin token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Token Google không hợp lệ hoặc đã hết hạn
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       403:
+ *         description: Tài khoản bị khóa
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Lỗi server
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+
+/**
+ * @swagger
  * /api/auth/refresh-token:
  *   post:
  *     summary: Làm mới access token

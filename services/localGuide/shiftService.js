@@ -134,21 +134,6 @@ class LocalGuideShiftService {
                 const normalizedStart = normalizeTime(start_time);
                 const normalizedEnd = normalizeTime(end_time);
 
-                const start = new Date(`1970-01-01T${normalizedStart}`);
-                const end = new Date(`1970-01-01T${normalizedEnd}`);
-                let durationHours = (end - start) / (1000 * 60 * 60);
-                if (durationHours < 0) durationHours += 24;
-
-                if (durationHours > 12) {
-                    errors.push({ index: i, day_of_week, error: 'Shift duration cannot exceed 12 hours' });
-                    continue;
-                }
-
-                if (durationHours <= 0) {
-                    errors.push({ index: i, day_of_week, error: 'Shift duration must be greater than 0' });
-                    continue;
-                }
-
                 // Validate opening hours if set
                 if (site.opening_hours) {
                     const siteOpen = site.opening_hours.open;
@@ -192,6 +177,10 @@ class LocalGuideShiftService {
 
         if (validatedShifts.length === 0) {
             throw new Error('No valid shifts provided');
+        }
+
+        if (errors.length > 0) {
+            throw new Error(`Validation errors: ${JSON.stringify(errors)}`);
         }
 
         // Check for overlaps with other guides
@@ -395,23 +384,7 @@ class LocalGuideShiftService {
             const normalizedStart = normalizeTime(shift.start_time);
             const normalizedEnd = normalizeTime(shift.end_time);
 
-            // Validate duration
-            const start = new Date(`1970-01-01T${normalizedStart}`);
-            const end = new Date(`1970-01-01T${normalizedEnd}`);
-            let durationHours = (end - start) / (1000 * 60 * 60);
-            if (durationHours < 0) durationHours += 24;
-
-            if (durationHours > 12) {
-                errors.push({ day_of_week: shift.day_of_week, error: 'Shift duration cannot exceed 12 hours' });
-                continue;
-            }
-
-            if (durationHours <= 0) {
-                errors.push({ day_of_week: shift.day_of_week, error: 'Shift duration must be greater than 0' });
-                continue;
-            }
-
-        
+            // Validate opening hours if set
             if (site.opening_hours) {
                 const siteOpen = site.opening_hours.open;
                 const siteClose = site.opening_hours.close;
@@ -450,6 +423,10 @@ class LocalGuideShiftService {
 
         if (validatedShifts.length === 0) {
             throw new Error('No valid shifts to update. All shifts are in the past.');
+        }
+
+        if (errors.length > 0) {
+            throw new Error(`Validation errors: ${JSON.stringify(errors)}`);
         }
 
         // Delete old shifts

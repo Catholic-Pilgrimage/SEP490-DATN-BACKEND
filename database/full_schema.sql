@@ -894,3 +894,20 @@ CREATE INDEX IF NOT EXISTS idx_nearby_places_category ON nearby_places(category)
 ALTER TABLE nearby_places
 ADD CONSTRAINT chk_nearby_distance
 CHECK (distance_meters IS NULL OR distance_meters <= 5000);
+
+-- ============================================
+-- 15. OFFLINE SYNC LOGS (Idempotency Tracking)
+-- ============================================
+CREATE TABLE IF NOT EXISTS offline_sync_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    client_action_id VARCHAR(255) NOT NULL UNIQUE,
+    action_type VARCHAR(50) NOT NULL CHECK (action_type IN ('CHECK_IN', 'CREATE_JOURNAL')),
+    status VARCHAR(20) NOT NULL DEFAULT 'synced' CHECK (status IN ('synced', 'failed', 'skipped')),
+    error_message TEXT,
+    synced_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_offline_sync_logs_user ON offline_sync_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_offline_sync_logs_client_action ON offline_sync_logs(client_action_id);
+CREATE INDEX IF NOT EXISTS idx_offline_sync_logs_synced_at ON offline_sync_logs(synced_at);

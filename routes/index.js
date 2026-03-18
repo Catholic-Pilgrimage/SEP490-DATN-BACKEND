@@ -5,7 +5,10 @@ const adminRoutes = require('./admin.routes');
 const { adminRouter: adminSiteRoutes, managerRouter: managerSiteRoutes, publicRouter: publicSiteRoutes } = require('./site.routes');
 const { publicRouter: publicVerificationRoutes, pilgrimRouter: verificationRoutes, adminRouter: adminVerificationRoutes } = require('./verification.routes');
 const managerLocalGuideRoutes = require('./managerLocalGuide.routes');
+const managerDashboardRoutes = require('./managerDashboard.routes');
 const localGuideRoutes = require('./localGuide.routes');
+const localGuideDashboardRoutes = require('./localGuideDashboard.routes');
+const pilgrimDashboardRoutes = require('./pilgrimDashboard.routes');
 const managerContentRoutes = require('./managerContent.routes');
 const publicRoutes = require('./public.routes');
 const journalRoutes = require('./journal.routes');
@@ -30,8 +33,11 @@ router.get('/', (req, res) => {
       adminSites: '/api/admin/sites',
       managerSites: '/api/manager/sites',
       managerLocalGuides: '/api/manager/local-guides',
+      managerDashboard: '/api/manager/dashboard',
       managerContent: '/api/manager/content',
       localGuide: '/api/local-guide',
+      localGuideDashboard: '/api/local-guide/dashboard',
+      pilgrimDashboard: '/api/pilgrim/dashboard',
       verification: '/api/verification-requests',
       adminVerification: '/api/admin/verification-requests',
       sitesAvailable: '/api/sites/available',
@@ -69,11 +75,20 @@ router.use('/sites', publicSiteRoutes);
 // Manager Local Guide routes
 router.use('/manager/local-guides', managerLocalGuideRoutes);
 
+// Manager Dashboard routes
+router.use('/manager/dashboard', managerDashboardRoutes);
+
 // Manager Content routes (Media, Schedule, Event approval)
 router.use('/manager/content', managerContentRoutes);
 
 // Local Guide self routes
 router.use('/local-guide', localGuideRoutes);
+
+// Local Guide Dashboard routes
+router.use('/local-guide/dashboard', localGuideDashboardRoutes);
+
+// Pilgrim Dashboard routes
+router.use('/pilgrim/dashboard', pilgrimDashboardRoutes);
 
 // Verification routes (Pilgrim only)
 router.use('/verification-requests', verificationRoutes);

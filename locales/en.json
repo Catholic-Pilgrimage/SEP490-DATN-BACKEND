@@ -44,7 +44,18 @@
     "cannot_change_site": "Cannot change user site. Please use verification process or contact Manager.",
     "user_updated": "User information updated successfully",
     "manager_must_have_site": "Manager and Local Guide must be assigned to a site",
-    "pilgrim_cannot_have_site": "Pilgrim cannot be assigned to a site"
+    "pilgrim_cannot_have_site": "Pilgrim cannot be assigned to a site",
+    "dashboard_success": "Dashboard statistics retrieved successfully",
+    "analytics_success": "Analytics data retrieved successfully",
+    "no_site_assigned": "Manager not assigned to any site",
+    "get_reports_success": "Reports retrieved successfully",
+    "get_report_success": "Report details retrieved successfully",
+    "report_not_found": "Report not found",
+    "report_already_processed": "Report already processed",
+    "invalid_action": "Invalid action",
+    "resolve_report_success": "Report resolved successfully",
+    "dismiss_report_success": "Report dismissed successfully",
+    "delete_report_success": "Report deleted successfully"
   },
   "site": {
     "create_success": "Site created successfully",
@@ -169,11 +180,13 @@
     "delete_shift_success": "Shift deleted successfully",
     "shift_not_found": "Shift not found",
     "shift_overlap": "Shift overlaps with an existing shift",
-    "shift_duration_exceeded": "Shift duration cannot exceed 12 hours",
+    "shift_duration_exceeded": "Shift duration cannot exceed 8 hours",
     "shift_duration_invalid": "Shift duration must be greater than 0",
+    "shift_duration_too_short": "Shift duration must be at least 2 hours",
     "shift_update_time_restriction": "Cannot update shift within 24 hours of start time",
     "shift_delete_time_restriction": "Cannot delete shift within 24 hours of start time",
     "invalid_time_range": "Start time must be before end time",
+    "validation_errors": "Validation errors occurred",
     "create_submission_success": "Shift submission created successfully",
     "create_submission_partial": "Some shifts could not be validated",
     "get_submissions_success": "Submissions retrieved successfully",
@@ -202,9 +215,14 @@
     "delete_approved_nearby_place_error": "Cannot delete approved nearby place",
     "restore_approved_nearby_place_error": "Cannot restore approved nearby place",
     "nearby_place_already_active": "Nearby place is already active",
-    "remove_success": "Local Guide removed successfully"
+    "remove_success": "Local Guide removed successfully",
+    "dashboard_success": "Dashboard statistics retrieved successfully",
+    "no_site_assigned": "Local Guide has no assigned site"
   },
   "manager": {
+    "dashboard_success": "Dashboard statistics retrieved successfully",
+    "analytics_success": "Analytics data retrieved successfully",
+    "no_site_assigned": "Manager not assigned to any site",
     "upload_3d_model_success": "3D model uploaded successfully",
     "file_required": "Please select a file to upload",
     "no_site": "Manager has no assigned site",
@@ -249,6 +267,9 @@
     "nearby_place_restored": "Nearby place restored successfully",
     "nearby_place_deactivated": "Nearby place deactivated successfully",
     "only_approved_nearby_place_toggle": "Only approved nearby place can be toggled"
+  },
+  "pilgrim": {
+    "dashboard_success": "Journey statistics retrieved successfully"
   },
   "validation": {
     "failed": "Validation failed",
@@ -350,6 +371,11 @@
       "image_url_required": "Image URL is required",
       "image_required": "Please select an image to upload",
       "cannot_send_completed": "Cannot send messages to completed planner"
+    },
+    "calendar_sync": {
+      "success": "Calendar sync data retrieved successfully",
+      "missing_dates": "Planner must have start date and end date for calendar sync",
+      "no_items": "Planner has no items to sync"
     }
   },
   "error": {
@@ -393,8 +419,12 @@
       "sos_assigned_title": "SOS is being handled",
       "sos_assigned_body": "{{guideName}} is coming to help you. Phone: {{guidePhone}}",
       "sos_resolved_title": "SOS resolved",
-      "sos_resolved_body": "SOS request {{sosCode}} has been resolved"
-    }
+      "sos_resolved_body": "SOS request {{sosCode}} has been resolved",
+      "sos_planner_alert_title": "URGENT: MEMBER NEEDS HELP",
+      "sos_planner_alert_body": "Group member {{pilgrimName}} just sent an SOS and needs immediate assistance!"
+    },
+    "default_sos_message": "I need urgent help, please assist me!",
+    "sos_cancelled_message": "SOS signal from {{pilgrimName}} has been cancelled."
   },
   "post": {
     "created": "Post created successfully",
@@ -449,5 +479,10 @@
     "cannot_delete_approved": "Cannot delete approved narrative. Please contact Manager if you need to remove it",
     "no_narrative_to_delete": "No narrative to delete",
     "delete_success": "Narrative deleted successfully"
+  },
+  "offline": {
+    "download_success": "Offline data downloaded successfully",
+    "sync_success": "Offline data synced successfully",
+    "no_actions": "No actions to sync"
   }
 }

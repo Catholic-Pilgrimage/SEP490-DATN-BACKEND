@@ -13,6 +13,7 @@ const AuthController = require('../controllers/shared/AuthController');
 // Routes
 router.post('/register', AuthValidator.register, AuthController.register);
 router.post('/login', AuthValidator.login, AuthController.login);
+router.post('/google', AuthController.loginWithGoogle);
 router.post('/refresh-token', AuthController.refreshToken);
 router.post('/forgot-password', AuthValidator.forgotPassword, AuthController.forgotPassword);
 router.post('/verify-otp', AuthValidator.verifyOtp, AuthController.verifyOtp);
