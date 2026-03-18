@@ -130,6 +130,10 @@
  *           type: integer
  *         order_index:
  *           type: integer
+ *         status:
+ *           type: string
+ *           enum: [planned, in_progress, checked_in, skipped, missed]
+ *           description: "Trạng thái của item"
  *         note:
  *           type: string
  *         nearby_amenity_ids:
@@ -146,10 +150,20 @@
  *           type: string
  *           example: "2 hours"
  *           description: "Thời gian nghỉ ngơi/tham quan tại địa điểm"
+ *         travel_time_minutes:
+ *           type: integer
+ *           description: "Thời gian di chuyển từ địa điểm trước (phút)"
  *         estimated_departure_time:
  *           type: string
  *           example: "11:00"
  *           description: "Giờ dự kiến rời khỏi địa điểm (tự động tính = estimated_time + rest_duration)"
+ *         checkin_distance_meters:
+ *           type: integer
+ *           description: "Khoảng cách khi checkin (mét)"
+ *         checked_in_at:
+ *           type: string
+ *           format: date-time
+ *           description: "Thời điểm checkin"
  *         site:
  *           type: object
  *           properties:

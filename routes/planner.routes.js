@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const PlannerController = require('../controllers/PlannerController');
-const { 
-    PilgrimPlannerShareController, 
+const {
+    PilgrimPlannerShareController,
     PilgrimPlannerCalendarController,
     PilgrimPlannerOfflineController,
-    PilgrimOfflineSyncController 
+    PilgrimOfflineSyncController
 } = require('../controllers/pilgrim');
 const PlannerValidator = require('../validators/planner.validator');
 const OfflineValidator = require('../validators/offline.validator');
@@ -84,11 +84,24 @@ router.put(
 );
 
 
-router.post(
-    '/:id/complete',
+// PATCH /:id/status - Update planner status (unified endpoint for start/complete)
+router.patch(
+    '/:id/status',
     authenticate,
     PlannerValidator.validatePlannerId,
-    PlannerController.completePlanner
+    PlannerController.updatePlannerStatus
+);
+
+router.post(
+    '/:id/items/:itemId/checkin',
+    authenticate,
+    PlannerController.checkinItem
+);
+
+router.post(
+    '/:id/items/:itemId/skip',
+    authenticate,
+    PlannerController.skipItem
 );
 
 router.get(
@@ -131,6 +144,14 @@ router.delete(
     authenticate,
     PlannerValidator.removeMember,
     PilgrimPlannerShareController.removeMember
+);
+
+
+router.get(
+    '/:id/progress',
+    authenticate,
+    PlannerValidator.validatePlannerId,
+    PlannerController.getPlannerProgress
 );
 
 // Offline Mode Routes

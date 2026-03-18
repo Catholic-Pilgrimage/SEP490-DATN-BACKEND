@@ -40,9 +40,17 @@ const PlannerItem = sequelize.define('PlannerItem', {
     },
     order_index: {
         type: DataTypes.INTEGER,
-        defaultValue: 1,
+        defaultValue: 1
+            // Note: Removed validate { min: 1 } because reorder uses negative values temporarily
+    },
+    status: {
+        type: DataTypes.STRING,
+        defaultValue: 'planned',
+        field: 'planner_item_status',
         validate: {
-            min: 1
+            isIn: [
+                ['planned', 'in_progress', 'checked_in', 'skipped', 'missed']
+            ]
         }
     },
     note: {
@@ -68,8 +76,8 @@ const PlannerItem = sequelize.define('PlannerItem', {
         allowNull: true,
         defaultValue: null,
         comment: 'Travel time from previous site in minutes'
-    }
-}, {
+    },
+
     tableName: 'planner_items',
     timestamps: true,
     createdAt: 'created_at',

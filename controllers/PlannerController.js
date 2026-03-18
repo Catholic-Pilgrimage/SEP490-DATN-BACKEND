@@ -174,9 +174,6 @@ class PlannerController {
                 return ResponseUtil.badRequest(res, req.__('planner.invalid_day_number_range', { max: error.message.match(/\d+/)?.[0] || '?' }));
             }
             if (error.message.includes('Cannot add the same site consecutively')) {
-                return ResponseUtil.badRequest(res, req.__('planner.consecutive_site_not_allowed'));
-            }
-            if (error.message.includes('closed on') || error.message.includes('Site is closed at')) {
                 return ResponseUtil.badRequest(res, error.message);
             }
             if (error.message.includes('Quãng đường quá xa')) {
@@ -208,6 +205,36 @@ class PlannerController {
             if (error.message.includes('Thời gian di chuyển quá dài')) {
                 return ResponseUtil.badRequest(res, error.message);
             }
+            if (error.message.includes('Thời gian di chuyển từ ngày')) {
+                return ResponseUtil.badRequest(res, error.message);
+            }
+            if (error.message.includes('Thời gian đến')) {
+                return ResponseUtil.badRequest(res, error.message);
+            }
+            if (error.message.includes('Bạn sẽ đến khoảng')) {
+                return ResponseUtil.badRequest(res, error.message);
+            }
+            if (error.message.includes('không hợp lệ')) {
+                return ResponseUtil.badRequest(res, error.message);
+            }
+            if (error.message.includes('Vượt quá ngày hiện tại')) {
+                return ResponseUtil.badRequest(res, error.message);
+            }
+            if (error.message.includes('Bạn không thể thêm địa điểm cho Ngày')) {
+                return ResponseUtil.badRequest(res, error.message);
+            }
+            if (error.message.includes('Ngày')) {
+                return ResponseUtil.badRequest(res, error.message);
+            }
+            if (error.message.includes('Sự kiện')) {
+                return ResponseUtil.badRequest(res, error.message);
+            }
+            if (error.message.includes('Đã có địa điểm khác với giờ')) {
+                return ResponseUtil.badRequest(res, error.message);
+            }
+            if (error.message.includes('closed on') || error.message.includes('Site is closed at')) {
+                return ResponseUtil.badRequest(res, error.message);
+            }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
@@ -237,8 +264,11 @@ class PlannerController {
             if (error.message === 'Forbidden') {
                 return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
             }
-            if (error.message === 'Invalid day number') {
+            if (error.message.startsWith('Invalid day number')) {
                 return ResponseUtil.badRequest(res, req.__('planner.invalid_day_number'));
+            }
+            if (error.message === 'Day number must be at least 1') {
+                return ResponseUtil.badRequest(res, error.message);
             }
             if (error.message === 'Invalid item ID in reorder list') {
                 return ResponseUtil.badRequest(res, req.__('planner.invalid_item_id'));
@@ -284,6 +314,15 @@ class PlannerController {
             }
             if (error.message === 'Item does not belong to this planner') {
                 return ResponseUtil.badRequest(res, req.__('planner.item_not_belong'));
+            }
+            if (error.message === 'Không thể xóa địa điểm đang trong quá trình thực hiện') {
+                return ResponseUtil.badRequest(res, error.message);
+            }
+            if (error.message.startsWith('Invalid day number')) {
+                return ResponseUtil.badRequest(res, error.message);
+            }
+            if (error.message === 'Day number must be at least 1') {
+                return ResponseUtil.badRequest(res, error.message);
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
@@ -342,7 +381,14 @@ class PlannerController {
     static async completePlanner(req, res) {
         try {
             const result = await PlannerService.completePlanner(req.params.id, req.user.id);
-            return ResponseUtil.success(res, result, 'Đã hoàn thành kế hoạch hành hương');
+
+            // Customize message based on final status
+            let message = 'Đã hoàn thành kế hoạch hành hương';
+            if (result.status === 'expir') {
+                message = 'Kế hoạch đã hết hạn (checkin dưới 80%)';
+            }
+
+            return ResponseUtil.success(res, result, message);
         } catch (error) {
             if (error.message === 'Planner not found') {
                 return ResponseUtil.notFound(res, req.__('planner.not_found'));
@@ -357,6 +403,182 @@ class PlannerController {
         }
     }
 
+    /**
+     * POST /planners/:id/start - Start planner (change status from planning to ongoing)
+     */
+    static async startPlanner(req, res) {
+        try {
+            const result = await PlannerService.startPlanner(req.params.id, req.user.id);
+            return ResponseUtil.success(res, result, 'Đã bắt đầu kế hoạch hành hương');
+        } catch (error) {
+            if (error.message === 'Planner not found') {
+                return ResponseUtil.notFound(res, req.__('planner.not_found'));
+            }
+            if (error.message === 'Forbidden') {
+                return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
+            }
+            if (error.message === 'Planner is not in planning status') {
+                return ResponseUtil.badRequest(res, 'Chỉ có thể bắt đầu kế hoạch đang trong trạng thái lập kế hoạch');
+            }
+            if (error.message === 'Planner must have start_date and end_date to start') {
+                return ResponseUtil.badRequest(res, 'Kế hoạch phải có ngày bắt đầu và ngày kết thúc để bắt đầu');
+            }
+            return ResponseUtil.error(res, req.__('error.server_error'));
+        }
+    }
+
+    /**
+     * PATCH /planners/:id/status - Update planner status (start/complete)
+     * Body: { status: 'ongoing' | 'completed' | 'expired' }
+     */
+    static async updatePlannerStatus(req, res) {
+        try {
+            const { status } = req.body;
+
+            // Validate status
+            const validStatuses = ['ongoing', 'completed', 'expired'];
+            if (!status || !validStatuses.includes(status)) {
+                return ResponseUtil.badRequest(res, `Status không hợp lệ. Chọn: ${validStatuses.join(', ')}`);
+            }
+
+            const result = await PlannerService.updatePlannerStatus(req.params.id, req.user.id, status);
+
+            // Customize message based on status
+            let message = 'Cập nhật trạng thái thành công';
+            if (status === 'ongoing') {
+                message = 'Đã bắt đầu kế hoạch hành hương';
+            } else if (status === 'completed') {
+                message = 'Đã hoàn thành kế hoạch hành hương';
+            } else if (status === 'expired') {
+                message = 'Kế hoạch đã hết hạn (checkin dưới 80%)';
+            }
+
+            return ResponseUtil.success(res, result, message);
+        } catch (error) {
+            if (error.message === 'Planner not found') {
+                return ResponseUtil.notFound(res, req.__('planner.not_found'));
+            }
+            if (error.message === 'Forbidden') {
+                return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
+            }
+            if (error.message.startsWith('Không thể chuyển trạng thái')) {
+                return ResponseUtil.badRequest(res, error.message);
+            }
+            if (error.message === 'Planner must have start_date and end_date to start') {
+                return ResponseUtil.badRequest(res, 'Kế hoạch phải có ngày bắt đầu và ngày kết thúc để bắt đầu');
+            }
+            if (error.message.startsWith('Không thể hoàn thành kế hoạch')) {
+                return ResponseUtil.badRequest(res, error.message);
+            }
+            if (error.message.startsWith('Chỉ có thể hoàn thành kế hoạch')) {
+                return ResponseUtil.badRequest(res, error.message);
+            }
+            return ResponseUtil.error(res, req.__('error.server_error'));
+        }
+    }
+
+    /**
+     * POST /planners/:id/items/:itemId/checkin - Checkin to an item
+     */
+    static async checkinItem(req, res) {
+        try {
+            const { distance_meters, note, checkin_latitude, checkin_longitude } = req.body;
+            const result = await PlannerService.checkinItem(
+                req.params.id,
+                req.params.itemId,
+                req.user.id,
+                { 
+                    distance_meters, 
+                    note,
+                    latitude: checkin_latitude,
+                    longitude: checkin_longitude
+                }
+            );
+            return ResponseUtil.success(res, result, 'Checkin thành công');
+        } catch (error) {
+            if (error.message === 'Planner not found') {
+                return ResponseUtil.notFound(res, req.__('planner.not_found'));
+            }
+            if (error.message === 'Forbidden') {
+                return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
+            }
+            if (error.message === 'Item not found') {
+                return ResponseUtil.notFound(res, req.__('planner.item_not_found'));
+            }
+            if (error.message === 'Item does not belong to this planner') {
+                return ResponseUtil.badRequest(res, req.__('planner.item_not_belong'));
+            }
+            if (error.message === 'Planner is not ongoing') {
+                return ResponseUtil.badRequest(res, 'Kế hoạch chưa bắt đầu');
+            }
+            if (error.message === 'Item is not ready for checkin') {
+                return ResponseUtil.badRequest(res, 'Địa điểm này chưa thể checkin');
+            }
+            if (error.message.startsWith('Bạn phải hoàn thành')) {
+                return ResponseUtil.badRequest(res, error.message);
+            }
+            return ResponseUtil.error(res, req.__('error.server_error'));
+        }
+    }
+
+    /**
+     * POST /planners/:id/items/:itemId/skip - Skip an item
+     */
+    static async skipItem(req, res) {
+        try {
+            const result = await PlannerService.skipItem(
+                req.params.id,
+                req.params.itemId,
+                req.user.id
+            );
+            return ResponseUtil.success(res, result, 'Đã bỏ qua địa điểm');
+        } catch (error) {
+            if (error.message === 'Planner not found') {
+                return ResponseUtil.notFound(res, req.__('planner.not_found'));
+            }
+            if (error.message === 'Forbidden') {
+                return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
+            }
+            if (error.message === 'Item not found') {
+                return ResponseUtil.notFound(res, req.__('planner.item_not_found'));
+            }
+            if (error.message === 'Item does not belong to this planner') {
+                return ResponseUtil.badRequest(res, req.__('planner.item_not_belong'));
+            }
+            if (error.message === 'Planner is not ongoing') {
+                return ResponseUtil.badRequest(res, 'Kế hoạch chưa bắt đầu');
+            }
+            if (error.message === 'Item is not ready to skip') {
+                return ResponseUtil.badRequest(res, 'Địa điểm này không thể bỏ qua');
+            }
+            if (error.message.startsWith('Bạn phải hoàn thành')) {
+                return ResponseUtil.badRequest(res, error.message);
+            }
+            return ResponseUtil.error(res, req.__('error.server_error'));
+        }
+    }
+
+    /**
+     * GET /planners/:id/progress - Lấy tiến độ của tất cả thành viên
+     */
+    static async getPlannerProgress(req, res) {
+        try {
+            const CheckinService = require('../services/checkinService');
+            const result = await CheckinService.getPlannerProgress(
+                req.params.id,
+                req.user.id
+            );
+            return ResponseUtil.success(res, result, 'Lấy tiến độ thành công');
+        } catch (error) {
+            if (error.message === 'Planner not found') {
+                return ResponseUtil.notFound(res, req.__('planner.not_found'));
+            }
+            if (error.message.includes('Không có quyền')) {
+                return ResponseUtil.forbidden(res, error.message);
+            }
+            return ResponseUtil.error(res, error.message || req.__('error.server_error'));
+        }
+    }
 
 }
 

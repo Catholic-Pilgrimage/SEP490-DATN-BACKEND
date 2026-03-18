@@ -17,17 +17,21 @@ const authMiddleware = require('../middlewares/auth.middleware');
  *   post:
  *     summary: Check-in tại một điểm trong kế hoạch
  *     description: |
- *       Cho phép người dùng check-in tại một điểm trong kế hoạch của họ.
- *       
- *       **Quy tắc GPS:**
- *       - Hệ thống tính khoảng cách đi bộ thực tế (theo đường đi) bằng VietMap API
- *       - Check-in hợp lệ nếu khoảng cách đi bộ ≤ 100m
- *       - Mỗi điểm chỉ được check-in 1 lần
- *       
- *       **Lưu ý:**
- *       - Không cần gửi user_id (lấy từ JWT)
- *       - Không cần gửi site_id (backend tự suy ra từ planner item)
- *       - Khoảng cách được tính theo đường đi bộ, không phải đường chim bay
+ *       Cho phép người dùng check-in tại một điểm trong kế hoạch của họ hoặc nhóm.
+ *
+ *       **Quy tắc:**
+ *       - User phải là owner HOẶC member của planner
+ *       - Hệ thống tính khoảng cách đi bộ thực tế bằng VietMap API
+ *       - Check-in hợp lệ nếu khoảng cách đi bộ ≤ 500m
+ *       - Mỗi user chỉ được check-in 1 lần mỗi điểm
+ *       - Check-in phải theo thứ tự
+ *
+ *       **Status của user_checkins:**
+ *       - `pending` - chưa check-in
+ *       - `checked_in` - đã check-in
+ *       - `skipped` - chủ động bỏ qua
+ *       - `missed` - quá thời gian không check-in
+ *       - `absent` - không tham gia
  *     tags: [Check-ins - Pilgrim]
  *     security:
  *       - bearerAuth: []
@@ -55,62 +59,24 @@ const authMiddleware = require('../middlewares/auth.middleware');
  *                 minimum: -90
  *                 maximum: 90
  *                 example: 10.371395
- *                 description: Vĩ độ hiện tại của người dùng
  *               longitude:
  *                 type: number
  *                 format: float
  *                 minimum: -180
  *                 maximum: 180
  *                 example: 107.062612
- *                 description: Kinh độ hiện tại của người dùng
  *               note:
  *                 type: string
  *                 maxLength: 500
- *                 example: "Đã đến nơi"
- *                 description: Ghi chú tùy chọn
  *     responses:
  *       200:
  *         description: Check-in thành công
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Check-in thành công"
- *                 data:
- *                   type: object
- *                   properties:
- *                     distance:
- *                       type: integer
- *                       example: 45
- *                       description: Khoảng cách tính bằng mét
- *                     is_valid:
- *                       type: boolean
- *                       example: true
- *                       description: true nếu khoảng cách ≤ 100m
  *       400:
  *         description: Lỗi xác thực hoặc đã check-in rồi
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 error:
- *                   type: object
- *                   properties:
- *                     message:
- *                       type: string
- *                       example: "Bạn đã check-in điểm này rồi"
  *       401:
  *         description: Chưa xác thực
+ *       403:
+ *         description: Không phải thành viên nhóm
  *       404:
  *         description: Không tìm thấy planner item
  */
@@ -119,6 +85,44 @@ router.post(
     authMiddleware,
     CheckinValidator.checkin,
     CheckinController.checkin
+);
+
+/**
+ * @swagger
+ * /api/planner-items/{id}/skip:
+ *   post:
+ *     summary: Bỏ qua một điểm trong kế hoạch
+ *     description: |
+ *       User chủ động đánh dấu không đi điểm này.
+ *       - Cập nhật user_checkins.status = 'skipped'
+ *       - Tính toán lại planner_items.status
+ *     tags: [Check-ins - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 example: "Không có thời gian"
+ *     responses:
+ *       200:
+ *         description: Đã đánh dấu bỏ qua
+ */
+router.post(
+    '/:id/skip',
+    authMiddleware,
+    CheckinController.skipItem
 );
 
 module.exports = router;
