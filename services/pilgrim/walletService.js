@@ -1,8 +1,18 @@
 const { Wallet, Transaction, User } = require('../../models');
+const { Op } = require('sequelize');
 const Logger = require('../../utils/logger.util');
 const sequelize = require('../../config/database');
 
 class WalletService {
+    /**
+     * Tạo mã giao dịch dạng TXN-YYYYMMDD-XXXXXX
+     */
+    static generateTxnCode() {
+        const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+        return `TXN${date}${rand}`;
+    }
+
     /**
      * Lấy hoặc tạo ví cho user
      */
@@ -81,8 +91,23 @@ class WalletService {
                 offset
             });
 
+            const transactions = rows.map(t => {
+                const json = t.toJSON();
+                let bankInfo = null;
+                try {
+                    bankInfo = typeof json.bank_info === 'string'
+                        ? JSON.parse(json.bank_info)
+                        : (json.bank_info || null);
+                } catch (_) { bankInfo = null; }
+                return {
+                    ...json,
+                    amount: parseFloat(json.amount),
+                    bank_info: bankInfo
+                };
+            });
+
             return {
-                transactions: rows,
+                transactions,
                 total: count,
                 totalPages: Math.ceil(count / limit),
                 currentPage: page
@@ -93,6 +118,7 @@ class WalletService {
         }
     }
 
+
     /**
      * Lấy lịch sử giao dịch quỹ nhóm của một planner (Sao kê)
      */
@@ -102,20 +128,41 @@ class WalletService {
             const page = parseInt(filters.page) || 1;
             const offset = (page - 1) * limit;
 
-            const where = {
-                reference_type: 'planner',
-                reference_id: plannerId
+            // Gom tất cả transaction liên quan đến planner:
+            // - 'planner' reference_id = plannerId (exact)
+            // - 'planner_deposit' reference_id = 'plannerId:userId:orderCode'
+            // - 'planner_penalty' reference_id = 'plannerId:userId'
+            const plannerWhere = {
+                [Op.or]: [
+                    {
+                        reference_type: 'planner',
+                        reference_id: plannerId
+                    },
+                    {
+                        reference_type: 'planner_deposit',
+                        reference_id: { [Op.like]: `${plannerId}:%` }
+                    },
+                    {
+                        reference_type: 'planner_penalty',
+                        reference_id: { [Op.like]: `${plannerId}:%` }
+                    }
+                ],
+                type: {
+                    [Op.in]: [
+                        'escrow_lock',
+                        'escrow_refund',
+                        'penalty_applied',
+                        'penalty_received',
+                        'penalty_refunded'
+                    ]
+                }
             };
 
-            if (filters.type) {
-                where.type = filters.type;
-            }
-            if (filters.status) {
-                where.status = filters.status;
-            }
+            if (filters.type) plannerWhere.type = filters.type;
+            if (filters.status) plannerWhere.status = filters.status;
 
             const { rows, count } = await Transaction.findAndCountAll({
-                where,
+                where: plannerWhere,
                 include: [{
                     model: Wallet,
                     as: 'wallet',
@@ -130,31 +177,107 @@ class WalletService {
                 offset
             });
 
-            // Calculate total fund (có thể nạp/rút phức tạp, nhưng đơn giản là lấy những cái đã lock/applied/refunded)
-            // Lấy tổng số dư đã cọc đang khóa
-            const totalEscrowLocked = await Transaction.sum('amount', {
-                where: {
-                    reference_type: 'planner',
-                    reference_id: plannerId,
-                    type: 'escrow_lock',
-                    status: 'completed'
-                }
-            }) || 0;
 
-            const totalEscrowRefunded = await Transaction.sum('amount', {
-                where: {
-                    reference_type: 'planner',
-                    reference_id: plannerId,
-                    type: 'escrow_refund',
-                    status: 'completed'
+            const labelMap = {
+                escrow_lock: 'Đóng tiền cam kết',
+                escrow_refund: 'Hoàn cọc',
+                penalty_applied: 'Bị trừ tiền phạt',
+                penalty_received: 'Owner nhận tiền phạt',
+                penalty_refunded: 'Hoàn trả tiền phạt'
+            };
+
+            // Parse reference_id ra metadata rõ ràng để FE không cần tự cắt chuỗi
+            const parseRefId = (refType, refId) => {
+                if (refType === 'planner_deposit') {
+                    // format: plannerId:userId:orderCode
+                    const parts = refId.split(':');
+                    return {
+                        planner_id: parts[0] || null,
+                        target_user_id: parts[1] || null,
+                        order_code: parts[2] || null
+                    };
                 }
-            }) || 0;
+                if (refType === 'planner_penalty') {
+                    // format: plannerId:userId
+                    const parts = refId.split(':');
+                    return {
+                        planner_id: parts[0] || null,
+                        target_user_id: parts[1] || null,
+                        order_code: null
+                    };
+                }
+                return {
+                    planner_id: refId,
+                    target_user_id: null,
+                    order_code: null
+                };
+            };
+
+            const transactions = rows.map(t => {
+                const json = t.toJSON();
+                const meta = parseRefId(json.reference_type, json.reference_id);
+                return {
+                    ...json,
+                    amount: parseFloat(json.amount),   // DECIMAL từ DB ra dạng string → parse number
+                    label: labelMap[json.type] || json.type,
+                    meta  // { planner_id, target_user_id, order_code }
+                };
+            });
+
+            // ===== Summary =====
+            // sumWhere dùng LIKE để kéo cả deposit/penalty có reference_id dạng ghép
+            const sumWhere = (type, status = 'completed') => Transaction.sum('amount', {
+                where: {
+                    [Op.or]: [
+                        {
+                            reference_type: 'planner',
+                            reference_id: plannerId
+                        },
+                        {
+                            reference_type: 'planner_deposit',
+                            reference_id: { [Op.like]: `${plannerId}:%` }
+                        },
+                        {
+                            reference_type: 'planner_penalty',
+                            reference_id: { [Op.like]: `${plannerId}:%` }
+                        }
+                    ],
+                    type,
+                    status
+                }
+            });
+
+            const [
+                totalLocked,
+                totalEscrowRefunded,
+                totalPenaltyApplied,
+                totalPenaltyReceived,
+                totalPenaltyRefunded
+            ] = await Promise.all([
+                sumWhere('escrow_lock'),
+                sumWhere('escrow_refund'),
+                sumWhere('penalty_applied'),
+                sumWhere('penalty_received'),
+                sumWhere('penalty_refunded')
+            ]);
+
+            const locked = parseFloat(totalLocked || 0);
+            const escrowRefund = parseFloat(totalEscrowRefunded || 0);
+            const penApplied = parseFloat(totalPenaltyApplied || 0);
+            const penRecvd = parseFloat(totalPenaltyReceived || 0);
+            const penRestored = parseFloat(totalPenaltyRefunded || 0);
+
+            // total_refunded = tiền hoàn cọc + tiền hoàn phạt
+            const totalRefunded = escrowRefund + penRestored;
 
             return {
                 summary: {
-                    total_fund_locked: totalEscrowLocked - totalEscrowRefunded
+                    total_fund_locked: Math.max(0, locked - escrowRefund - penApplied),
+                    total_penalty_pending: Math.max(0, penApplied - penRecvd - penRestored),
+                    total_penalty_received: penRecvd,
+                    total_refunded: totalRefunded
                 },
-                transactions: rows,
+                transactions,
                 total: count,
                 totalPages: Math.ceil(count / limit),
                 currentPage: page
@@ -164,6 +287,7 @@ class WalletService {
             throw error;
         }
     }
+
 
     // ===================== RÚT TIỀN (PayOS Chi - Tự động) =====================
 
@@ -207,7 +331,8 @@ class WalletService {
                 reference_type: 'payos_payout',
                 reference_id: payoutId,
                 description: `Rút ${amount.toLocaleString('vi-VN')} VND → ${bankInfo.bank_code} - ${bankInfo.account_number}`,
-                bank_info: JSON.stringify(bankInfo)
+                bank_info: JSON.stringify(bankInfo),
+                code: WalletService.generateTxnCode()
             }, { transaction: t });
 
             // Gọi PayOS Chi để chuyển tiền
@@ -230,6 +355,7 @@ class WalletService {
                 Logger.info(`Withdrawal completed via PayOS Chi: user=${userId}, amount=${amount}, payoutId=${payoutId}`);
                 return {
                     transaction_id: transaction.id,
+                    transaction_code: transaction.code,
                     amount,
                     bank_info: bankInfo,
                     payout_status: payoutResult.status || 'completed',
@@ -290,7 +416,8 @@ class WalletService {
                 status: 'completed',
                 reference_type: 'planner',
                 reference_id: plannerId,
-                description: `Đặt cọc ${amount.toLocaleString('vi-VN')} VND cho kế hoạch: ${plannerName}`
+                description: `Đặt cọc ${amount.toLocaleString('vi-VN')} VND cho kế hoạch: ${plannerName}`,
+                code: WalletService.generateTxnCode()
             }, { transaction: dbTransaction });
 
             Logger.info(`Deposit locked: user=${userId}, amount=${amount}, planner=${plannerId}`);
@@ -326,7 +453,8 @@ class WalletService {
                 status: 'completed',
                 reference_type: 'planner',
                 reference_id: plannerId,
-                description: description
+                description: description,
+                code: WalletService.generateTxnCode()
             }, { transaction: dbTransaction });
 
             Logger.info(`Deposit refunded: user=${userId}, amount=${amount}, planner=${plannerId}`);
@@ -371,7 +499,8 @@ class WalletService {
                 status: 'completed',
                 reference_type: 'planner_penalty',
                 reference_id: `${plannerId}:${memberUserId}`,
-                description: `Phạt ${penaltyPercentage}% (${penaltyAmount.toLocaleString('vi-VN')} VND) vì tự rời kế hoạch: ${plannerName}`
+                description: `Phạt ${penaltyPercentage}% (${penaltyAmount.toLocaleString('vi-VN')} VND) vì tự rời kế hoạch: ${plannerName}`,
+                code: WalletService.generateTxnCode()
             }, { transaction: dbTransaction });
 
             // Transaction: Hoàn phần còn lại cho member
@@ -383,7 +512,8 @@ class WalletService {
                     status: 'completed',
                     reference_type: 'planner',
                     reference_id: plannerId,
-                    description: `Hoàn lại ${refundAmount.toLocaleString('vi-VN')} VND sau khi trừ phạt`
+                    description: `Hoàn lại ${refundAmount.toLocaleString('vi-VN')} VND sau khi trừ phạt`,
+                    code: WalletService.generateTxnCode()
                 }, { transaction: dbTransaction });
             }
 
@@ -395,10 +525,11 @@ class WalletService {
                 wallet_id: ownerWallet.id,
                 amount: penaltyAmount,
                 type: 'penalty_received',
-                status: 'pending', // QUAN TRỌNG: PENDING cho đến khi chốt sổ anti-fraud
+                status: 'pending',
                 reference_type: 'planner_penalty',
                 reference_id: `${plannerId}:${memberUserId}`,
-                description: `Tiền phạt từ thành viên rời nhóm (chờ xác minh chuyến đi): ${plannerName}`
+                description: `Tiền phạt từ thành viên rời nhóm (chờ xác minh chuyến đi): ${plannerName}`,
+                code: WalletService.generateTxnCode()
             }, { transaction: dbTransaction });
 
             Logger.info(`Penalty applied: member=${memberUserId}, owner=${ownerUserId}, penalty=${penaltyAmount}, refund=${refundAmount}`);

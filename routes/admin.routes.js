@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { AdminUserController, AdminDashboardController } = require('../controllers/admin');
+const { AdminUserController, AdminDashboardController, AdminFinanceController } = require('../controllers/admin');
 const ReportController = require('../controllers/ReportController');
 const AdminValidator = require('../validators/admin.validator');
 const authMiddleware = require('../middlewares/auth.middleware');
@@ -24,9 +24,16 @@ router.get('/dashboard/analytics/checkins', AdminDashboardController.getCheckins
 router.get('/dashboard/analytics/popular-sites', AdminDashboardController.getPopularSites);
 router.get('/dashboard/analytics/sos-by-site', AdminDashboardController.getSOSBySite);
 
+// Finance routes
+router.get('/dashboard/finance', AdminFinanceController.getFinanceDashboard);
+router.get('/wallet/transactions', AdminFinanceController.getAllTransactions);
+router.get('/wallet/escrow', AdminFinanceController.getEscrowSummary);
+router.get('/wallet/withdrawals', AdminFinanceController.getWithdrawals);
+
 // Report routes (using existing ReportController)
 router.get('/reports', ReportController.getReports);
 router.get('/reports/:id', ReportController.getReportById);
 router.put('/reports/:id/resolve', ReportController.resolveReport);
 
 module.exports = router;
+

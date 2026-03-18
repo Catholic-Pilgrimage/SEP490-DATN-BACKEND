@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const QRCode = require('qrcode');
 const PlannerService = require('../plannerService');
 const PayOSService = require('../shared/payosService');
+const WalletService = require('./walletService');
 const sequelize = require('../../config/database');
 
 class PlannerShareService {
@@ -564,7 +565,8 @@ class PlannerShareService {
                 status: 'pending',
                 reference_type: 'planner_deposit',
                 reference_id: `${plannerId}:${userId}:${orderCode}`,
-                description: `Đặt cọc ${depositAmount.toLocaleString('vi-VN')} VND cho kế hoạch: ${planner.name}`
+                description: `Đặt cọc ${depositAmount.toLocaleString('vi-VN')} VND cho kế hoạch: ${planner.name}`,
+                code: WalletService.generateTxnCode()
             });
 
             // Tạo link PayOS

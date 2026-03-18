@@ -319,3 +319,127 @@
  *       400:
  *         description: Invalid webhook signature
  */
+
+/**
+ * @swagger
+ * /api/planners/{id}/transactions:
+ *   get:
+ *     summary: Xem sao kê quỹ nhóm (minh bạch tài chính)
+ *     description: Công khai toàn bộ giao dịch tài chính liên quan đến planner cho các thành viên trong nhóm. Bao gồm đóng cọc, hoàn tiền, phạt, và nhận phạt.
+ *     tags: [Pilgrim - Planner Share]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Planner ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [escrow_lock, escrow_refund, penalty_applied, penalty_received, penalty_refunded]
+ *         description: Lọc theo loại giao dịch
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, completed, failed]
+ *         description: Lọc theo trạng thái
+ *     responses:
+ *       200:
+ *         description: Lấy sao kê thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     summary:
+ *                       type: object
+ *                       description: Tổng hợp quỹ nhóm
+ *                       properties:
+ *                         total_fund_locked:
+ *                           type: number
+ *                           description: Tiền cọc đang giữ (chưa giải ngân)
+ *                           example: 400000
+ *                         total_penalty_pending:
+ *                           type: number
+ *                           description: Tiền phạt chờ giải ngân cho owner
+ *                           example: 50000
+ *                         total_penalty_received:
+ *                           type: number
+ *                           description: Tiền phạt owner đã nhận
+ *                           example: 30000
+ *                         total_refunded:
+ *                           type: number
+ *                           description: Tổng tiền đã hoàn cho thành viên
+ *                           example: 100000
+ *                     transactions:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           type:
+ *                             type: string
+ *                             enum: [escrow_lock, escrow_refund, penalty_applied, penalty_received, penalty_refunded]
+ *                           label:
+ *                             type: string
+ *                             description: Nhãn dễ đọc cho FE
+ *                             example: "Đóng tiền cam kết"
+ *                           amount:
+ *                             type: number
+ *                           status:
+ *                             type: string
+ *                           created_at:
+ *                             type: string
+ *                             format: date-time
+ *                           wallet:
+ *                             type: object
+ *                             properties:
+ *                               user:
+ *                                 type: object
+ *                                 properties:
+ *                                   id:
+ *                                     type: string
+ *                                   full_name:
+ *                                     type: string
+ *                                   avatar_url:
+ *                                     type: string
+ *                     total:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                     currentPage:
+ *                       type: integer
+ *       401:
+ *         description: Chưa xác thực
+ *       403:
+ *         description: Không có quyền (không phải thành viên)
+ *       404:
+ *         description: Không tìm thấy kế hoạch
+ */
+

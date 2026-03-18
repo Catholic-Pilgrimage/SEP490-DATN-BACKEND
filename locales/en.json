@@ -55,7 +55,12 @@
     "invalid_action": "Invalid action",
     "resolve_report_success": "Report resolved successfully",
     "dismiss_report_success": "Report dismissed successfully",
-    "delete_report_success": "Report deleted successfully"
+    "delete_report_success": "Report deleted successfully",
+    "finance_dashboard_success": "Finance overview retrieved successfully",
+    "get_transactions_success": "Transactions retrieved successfully",
+    "get_escrow_success": "Escrow list retrieved successfully",
+    "get_withdrawals_success": "Withdrawal history retrieved successfully",
+    "finance_error": "Error retrieving finance data"
   },
   "site": {
     "create_success": "Site created successfully",

@@ -2,6 +2,7 @@ const { Planner, PlannerMember, UserCheckin, Wallet, Transaction, User } = requi
 const { Op } = require('sequelize');
 const Logger = require('../../utils/logger.util');
 const sequelize = require('../../config/database');
+const WalletService = require('./walletService');
 
 class PlannerAntiFraudService {
     static async verifyAndSettlePlanner(plannerId, existingTransaction = null) {
@@ -218,7 +219,8 @@ class PlannerAntiFraudService {
                     status: 'completed',
                     reference_type: 'planner_penalty',
                     reference_id: penaltyTxn.reference_id,
-                    description: `Hoàn tiền phạt ${penaltyAmount.toLocaleString('vi-VN')} VND do chuyến đi không diễn ra: ${planner.name}`
+                    description: `Hoàn tiền phạt ${penaltyAmount.toLocaleString('vi-VN')} VND do chuyến đi không diễn ra: ${planner.name}`,
+                    code: WalletService.generateTxnCode()
                 }, { transaction: t });
 
                 Logger.info(`Penalty refunded: user=${memberWallet.user_id}, amount=${penaltyAmount}`);
@@ -266,7 +268,8 @@ class PlannerAntiFraudService {
             status: 'completed',
             reference_type: 'planner',
             reference_id: plannerId,
-            description
+            description,
+            code: WalletService.generateTxnCode()
         }, { transaction: dbTransaction });
 
         Logger.info(`Deposit refunded: user=${userId}, amount=${amount}`);

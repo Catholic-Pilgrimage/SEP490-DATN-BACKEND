@@ -303,6 +303,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     description TEXT,
     proof_image_url VARCHAR(1000),
     bank_info VARCHAR(500),
+    code VARCHAR(20) UNIQUE,    -- Mã GD dạng TXNYYYYMMDDXXXXXX (vd: TXN20260318A3F7K2)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -311,6 +312,7 @@ CREATE INDEX IF NOT EXISTS idx_transactions_wallet ON transactions(wallet_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
 CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
 CREATE INDEX IF NOT EXISTS idx_transactions_reference ON transactions(reference_type, reference_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_code ON transactions(code);
 CREATE INDEX IF NOT EXISTS idx_transactions_created ON transactions(created_at DESC);
 
 -- Trigger for transactions

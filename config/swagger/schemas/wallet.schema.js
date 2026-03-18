@@ -85,11 +85,25 @@
  *           nullable: true
  *           example: https://cloudinary.com/image/proof123.jpg
  *           description: URL ảnh bill chuyển khoản (dùng cho withdraw)
- *         bank_info:
+ *         code:
  *           type: string
  *           nullable: true
- *           example: Vietcombank - 1234567890 - Nguyen Van A
- *           description: Thông tin ngân hàng (dùng cho withdraw)
+ *           example: TXN202603184F7K
+ *           description: Mã giao dịch (TXNYYYYMMDDXXXX) — dùng để tra cứu, hiển thị cho user
+ *         bank_info:
+ *           type: object
+ *           nullable: true
+ *           description: Thông tin ngân hàng (chỉ có với loại withdraw)
+ *           properties:
+ *             account_number:
+ *               type: string
+ *               example: "0927174002"
+ *             account_name:
+ *               type: string
+ *               example: "NGO HUYNH TUAN"
+ *             bank_code:
+ *               type: string
+ *               example: "970423"
  *         created_at:
  *           type: string
  *           format: date-time

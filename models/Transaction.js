@@ -64,6 +64,12 @@ const Transaction = sequelize.define('Transaction', {
         type: DataTypes.STRING(500),
         allowNull: true,
         comment: 'Thông tin ngân hàng người nhận (STK, tên NH) - dùng cho withdraw'
+    },
+    code: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+        unique: true,
+        comment: 'Mã giao dịch dạng TXNYYYYMMDDXXXXXX, dùng để tra cứu và hiển thị cho user'
     }
 }, {
     tableName: 'transactions',

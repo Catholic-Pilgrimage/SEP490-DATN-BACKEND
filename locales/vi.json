@@ -55,7 +55,12 @@
     "invalid_action": "Hành động không hợp lệ",
     "resolve_report_success": "Xử lý báo cáo thành công",
     "dismiss_report_success": "Bỏ qua báo cáo thành công",
-    "delete_report_success": "Xóa báo cáo thành công"
+    "delete_report_success": "Xóa báo cáo thành công",
+    "finance_dashboard_success": "Lấy tổng quan tài chính thành công",
+    "get_transactions_success": "Lấy danh sách giao dịch thành công",
+    "get_escrow_success": "Lấy danh sách escrow thành công",
+    "get_withdrawals_success": "Lấy lịch sử rút tiền thành công",
+    "finance_error": "Lỗi lấy dữ liệu tài chính"
   },
   "site": {
     "create_success": "Tạo địa điểm thành công",

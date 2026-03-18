@@ -158,6 +158,10 @@
  *                     transaction_id:
  *                       type: string
  *                       format: uuid
+ *                     transaction_code:
+ *                       type: string
+ *                       example: TXN202603184F7K
+ *                       description: Mã giao dịch ngắn để tra cứu
  *                     amount:
  *                       type: number
  *                       example: 50000
