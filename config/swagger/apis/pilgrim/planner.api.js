@@ -610,3 +610,26 @@
  *       404:
  *         description: Không tìm thấy kế hoạch
  */
+
+/**
+ * @swagger
+ * /api/planners/{id}/progress:
+ *   get:
+ *     summary: Lấy tiến độ của tất cả thành viên trong planner
+ *     description: |
+ *       Trả về thông tin tiến độ check-in của tất cả thành viên.
+ *       Chỉ owner hoặc member mới xem được.
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Thông tin tiến độ
+ */
