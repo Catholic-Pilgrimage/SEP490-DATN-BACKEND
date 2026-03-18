@@ -49,7 +49,7 @@ const PlannerItem = sequelize.define('PlannerItem', {
         field: 'planner_item_status',
         validate: {
             isIn: [
-                ['planned', 'in_progress', 'checked_in', 'skipped', 'missed']
+                ['planned', 'in_progress', 'checked_in', 'skipped']
             ]
         }
     },
