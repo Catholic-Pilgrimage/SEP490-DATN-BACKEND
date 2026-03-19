@@ -55,7 +55,12 @@
     "invalid_action": "Invalid action",
     "resolve_report_success": "Report resolved successfully",
     "dismiss_report_success": "Report dismissed successfully",
-    "delete_report_success": "Report deleted successfully"
+    "delete_report_success": "Report deleted successfully",
+    "finance_dashboard_success": "Finance overview retrieved successfully",
+    "get_transactions_success": "Transactions retrieved successfully",
+    "get_escrow_success": "Escrow list retrieved successfully",
+    "get_withdrawals_success": "Withdrawal history retrieved successfully",
+    "finance_error": "Error retrieving finance data"
   },
   "site": {
     "create_success": "Site created successfully",
@@ -484,5 +489,30 @@
     "download_success": "Offline data downloaded successfully",
     "sync_success": "Offline data synced successfully",
     "no_actions": "No actions to sync"
+  },
+  "wallet": {
+    "get_wallet_success": "Get wallet information successfully",
+    "get_transactions_success": "Get transaction history successfully",
+    "topup_created": "Topup payment link created successfully",
+    "topup_completed": "Topup completed successfully",
+    "withdrawal_requested": "Withdrawal request submitted successfully. Please wait for Admin approval.",
+    "withdrawal_approved": "Withdrawal approved successfully",
+    "withdrawal_rejected": "Withdrawal rejected",
+    "insufficient_balance": "Insufficient balance",
+    "min_amount": "Minimum amount is {{amount}} VND",
+    "max_amount": "Maximum amount is {{amount}} VND",
+    "bank_info_required": "Please provide bank information",
+    "proof_required": "Please upload proof of transfer",
+    "wallet_not_found": "Wallet not found",
+    "transaction_not_found": "Transaction not found",
+    "invalid_transaction": "Invalid transaction",
+    "transaction_processed": "Transaction already processed",
+    "deposit_locked": "Deposit locked successfully",
+    "deposit_refunded": "Deposit refunded successfully",
+    "deposit_cancelled": "Deposit cancelled. You can retry the payment later.",
+    "invite_rejected": "Invite rejected. You will not be able to join this planner.",
+    "penalty_applied": "Penalty applied successfully",
+    "penalty_released": "Penalty released successfully",
+    "penalty_refunded": "Penalty refunded successfully"
   }
 }

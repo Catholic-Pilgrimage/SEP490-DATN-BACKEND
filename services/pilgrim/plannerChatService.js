@@ -1,9 +1,47 @@
-const { Planner, PlannerMember, PlannerMessage, User } = require('../../models');
+const { Planner, PlannerMember, PlannerMessage, PlannerInvite, User } = require('../../models');
 const Logger = require('../../utils/logger.util');
 
 /**
- * Check if user can access planner chat (owner or member)
- * Chat is only available when planner has at least 1 member (not just owner)
+ * Send a system message to planner chat (fire-and-forget)
+ * Used for financial events, member join/leave, etc.
+ * @param {string} plannerId
+ * @param {string} content - Message text
+ */
+exports.sendSystemMessage = async (plannerId, content) => {
+    try {
+        const message = await PlannerMessage.create({
+            planner_id: plannerId,
+            user_id: null,
+            message_type: 'system',
+            content
+        });
+
+        // Emit via WebSocket
+        try {
+            const { emitPlannerChatMessage } = require('../../websockets/socket');
+            emitPlannerChatMessage(plannerId, {
+                id: message.id,
+                message_type: 'system',
+                content,
+                sender: null,
+                created_at: message.created_at
+            });
+        } catch (wsError) {
+            Logger.warn(`WebSocket emit failed for system message: ${wsError.message}`);
+        }
+
+        return message;
+    } catch (error) {
+        Logger.warn(`Failed to send system message to planner ${plannerId}: ${error.message}`);
+    }
+};
+/**
+ * Check if user can access planner chat.
+ * Access is granted to:
+ *  - Owner
+ *  - PlannerMember with join_status = 'joined'
+ *  - Users whose email matches a PlannerInvite with status 'pending' or 'awaiting_payment'
+ * Access is denied for dropped_out / kicked members.
  * @returns {Object} { canAccess: boolean, reason: string }
  */
 exports.canAccessChat = async (plannerId, userId) => {
@@ -12,33 +50,41 @@ exports.canAccessChat = async (plannerId, userId) => {
         return { canAccess: false, reason: 'PLANNER_NOT_FOUND' };
     }
 
-    // Check if user is owner or member
-    const isOwner = planner.user_id === userId;
+    // Owner always has access
+    if (planner.user_id === userId) {
+        return { canAccess: true, reason: null };
+    }
+
+    // Joined member
     const member = await PlannerMember.findOne({
         where: { planner_id: plannerId, user_id: userId }
     });
-    const isMember = !!member;
 
-    if (!isOwner && !isMember) {
+    if (member) {
+        if (member.join_status === 'joined') {
+            return { canAccess: true, reason: null };
+        }
+        // Dropped out or kicked — no access
         return { canAccess: false, reason: 'NO_ACCESS' };
     }
 
-    // Chat is only available when planner has at least 1 member
-    const memberCount = await PlannerMember.count({
-        where: { planner_id: plannerId }
+    // Check if user has an active invite (pending or awaiting_payment) — matched by email
+    const user = await User.findByPk(userId, { attributes: ['email'] });
+    if (!user) return { canAccess: false, reason: 'NO_ACCESS' };
+
+    const activeInvite = await PlannerInvite.findOne({
+        where: {
+            planner_id: plannerId,
+            email: user.email,
+            status: ['pending', 'awaiting_payment']
+        }
     });
 
-    if (memberCount === 0) {
-        const messageCount = await PlannerMessage.count({
-            where: { planner_id: plannerId }
-        });
-
-        if (messageCount === 0) {
-            return { canAccess: false, reason: 'NO_MEMBERS' };
-        }
+    if (activeInvite) {
+        return { canAccess: true, reason: null };
     }
 
-    return { canAccess: true, reason: null };
+    return { canAccess: false, reason: 'NO_ACCESS' };
 };
 
 /**
@@ -101,12 +147,6 @@ exports.sendMessage = async (plannerId, userId, messageData) => {
         const { canAccess, reason } = await exports.canAccessChat(plannerId, userId);
         if (!canAccess) {
             throw new Error(reason || 'Forbidden');
-        }
-
-        // Feature: Cannot send new messages if no members are in the planner (even if history is viewable)
-        const memberCount = await PlannerMember.count({ where: { planner_id: plannerId } });
-        if (memberCount === 0) {
-            throw new Error('NO_MEMBERS');
         }
 
         const planner = await Planner.findByPk(plannerId);

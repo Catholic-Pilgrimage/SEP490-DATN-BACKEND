@@ -27,6 +27,17 @@
  *           enum: [motorbike, car, bus]
  *           example: "car"
  *           description: "Phương tiện di chuyển"
+ *         deposit_amount:
+ *           type: number
+ *           minimum: 0
+ *           example: 50000
+ *           description: "Số tiền cọc cho planner nhóm (VND). Bắt buộc > 0 nếu number_of_people >= 2"
+ *         penalty_percentage:
+ *           type: number
+ *           minimum: 0
+ *           maximum: 100
+ *           example: 10
+ *           description: "Phần trăm phạt khi rút khỏi nhóm (0-100)"
  *
  *     UpdatePlannerRequest:
  *       type: object
@@ -47,7 +58,17 @@
  *           type: string
  *           enum: [motorbike, car, bus]
  *           example: "bus"
-
+ *         deposit_amount:
+ *           type: number
+ *           minimum: 0
+ *           example: 50000
+ *           description: "Số tiền cọc cho planner nhóm (VND)"
+ *         penalty_percentage:
+ *           type: number
+ *           minimum: 0
+ *           maximum: 100
+ *           example: 10
+ *           description: "Phần trăm phạt khi rút khỏi nhóm (0-100)"
  *
  *     AddPlannerItemRequest:
  *       type: object
@@ -177,7 +198,14 @@
  *           type: integer
  *         transportation:
  *           type: string
-
+ *         deposit_amount:
+ *           type: number
+ *           example: 50000
+ *           description: "Số tiền cọc cho planner nhóm (VND)"
+ *         penalty_percentage:
+ *           type: integer
+ *           example: 10
+ *           description: "Phần trăm phạt khi rút khỏi nhóm (0-100)"
  *         status:
  *           type: string
  *         share_token:

@@ -167,6 +167,54 @@ class PlannerShareController {
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
+
+
+
+    /**
+     * POST /planners/deposit-webhook - Webhook PayOS xác nhận cọc (public)
+     */
+    static async handleDepositWebhook(req, res) {
+        try {
+            // PayOS sends a confirmation request when registering webhook URL
+            // Handle it gracefully — return 200 so PayOS accepts the URL
+            const body = req.body;
+            if (!body || (!body.data && !body.code)) {
+                return res.status(200).json({ success: true, message: 'Webhook URL confirmed' });
+            }
+
+            const result = await PlannerShareService.handleDepositWebhook(body);
+
+            if (result.success) {
+                return res.status(200).json({ success: true, message: 'Deposit webhook processed' });
+            }
+
+            return res.status(200).json({ success: false, message: result.message });
+        } catch (error) {
+            console.error('Deposit webhook error:', error);
+            // IMPORTANT: Always return 200 for PayOS webhooks to avoid retries
+            return res.status(200).json({ success: false, message: 'Webhook processing failed' });
+        }
+    }
+    /**
+     * POST /planners/:id/cancel-deposit - Cancel (or reset) a pending deposit
+     * Body: { reject: boolean } — if true, invite is rejected permanently; if false, reset to pending for retry
+     */
+    static async cancelDeposit(req, res) {
+        try {
+            const doReject = req.body?.reject === true;
+            const result = await PlannerShareService.cancelDeposit(req.user.id, req.params.id, doReject);
+            const message = req.__(`wallet.${result.messageKey}`);
+            return ResponseUtil.success(res, { message }, message);
+        } catch (error) {
+            if (error.message === 'No pending deposit found for this invite') {
+                return ResponseUtil.badRequest(res, 'Không có yêu cầu đặt cọc đang chờ xử lý');
+            }
+            if (error.message === 'Planner not found') {
+                return ResponseUtil.notFound(res, req.__('planner.not_found'));
+            }
+            return ResponseUtil.error(res, 'Lỗi khi huỷ thanh toán cọc');
+        }
+    }
 }
 
 module.exports = PlannerShareController;

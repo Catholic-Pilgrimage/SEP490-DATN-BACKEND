@@ -104,6 +104,13 @@ router.get(
     PilgrimPlannerCalendarController.getCalendarSync
 );
 
+router.get(
+    '/:id/transactions',
+    authenticate,
+    PlannerValidator.validatePlannerId,
+    PlannerController.getPlannerTransactions
+);
+
 router.post(
     '/:id/invite',
     authenticate,
@@ -116,6 +123,21 @@ router.post(
     authenticate,
     PlannerValidator.respondToInvite,
     PilgrimPlannerShareController.respondToInvite
+);
+
+
+// Huỷ / đặt lại thanh toán cọc đang chờ
+router.post(
+    '/:id/cancel-deposit',
+    authenticate,
+    PlannerValidator.validatePlannerId,
+    PilgrimPlannerShareController.cancelDeposit
+);
+
+// Webhook PayOS cho thanh toán cọc (public - không cần auth)
+router.post(
+    '/deposit-webhook',
+    PilgrimPlannerShareController.handleDepositWebhook
 );
 
 router.get(

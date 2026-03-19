@@ -1,4 +1,4 @@
-              const { DataTypes } = require('sequelize');
+const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
 const PlannerMessage = sequelize.define('PlannerMessage', {
@@ -27,7 +27,7 @@ const PlannerMessage = sequelize.define('PlannerMessage', {
         type: DataTypes.STRING(20),
         defaultValue: 'text',
         validate: {
-            isIn: [['text', 'image']]
+            isIn: [['text', 'image', 'system']]
         }
     },
     content: {

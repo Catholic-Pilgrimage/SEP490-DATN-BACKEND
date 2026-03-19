@@ -20,6 +20,7 @@ const notificationRoutes = require('./notification.routes');
 const sosRoutes = require('./sos.routes');
 const postRoutes = require('./post.routes');
 const reportRoutes = require('./report.routes');
+const walletRoutes = require('./wallet.routes');
 
 router.get('/', (req, res) => {
   res.json({
@@ -49,7 +50,8 @@ router.get('/', (req, res) => {
       notifications: '/api/notifications',
       sos: '/api/sos',
       posts: '/api/posts',
-      reports: '/api/reports'
+      reports: '/api/reports',
+      wallet: '/api/wallet'
     }
   });
 });
@@ -130,6 +132,9 @@ router.use('/posts', postRoutes);
 
 // Report routes
 router.use('/reports', reportRoutes);
+
+// Wallet routes (shared - all authenticated users)
+router.use('/wallet', walletRoutes);
 
 
 module.exports = router;

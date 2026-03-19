@@ -582,3 +582,5 @@
  *       200:
  *         description: Thông tin tiến độ
  */
+
+module.exports = {};

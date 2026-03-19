@@ -230,6 +230,36 @@ const NOTIFICATION_TEMPLATES = {
             message: '{{memberName}} joined planner "{{plannerName}}"'
         }
     },
+    planner_kicked: {
+        vi: {
+            title: 'Bạn đã bị xóa khỏi nhóm',
+            message: 'Bạn đã bị xóa khỏi kế hoạch "{{plannerName}}" bởi chủ nhóm'
+        },
+        en: {
+            title: 'Removed from planner',
+            message: 'You have been removed from planner "{{plannerName}}" by the owner'
+        }
+    },
+    planner_deposit_refunded: {
+        vi: {
+            title: 'Hoàn tiền cọc',
+            message: 'Tiền cọc {{amount}} VND cho kế hoạch "{{plannerName}}" đã được hoàn vào ví của bạn'
+        },
+        en: {
+            title: 'Deposit refunded',
+            message: 'Your deposit of {{amount}} VND for planner "{{plannerName}}" has been refunded to your wallet'
+        }
+    },
+    planner_member_left: {
+        vi: {
+            title: 'Thành viên rời nhóm',
+            message: '{{memberName}} đã rời khỏi kế hoạch "{{plannerName}}"'
+        },
+        en: {
+            title: 'Member left',
+            message: '{{memberName}} has left planner "{{plannerName}}"'
+        }
+    },
 
     // SOS notifications
     sos_created: {

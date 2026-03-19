@@ -11,7 +11,7 @@
  *   post:
  *     summary: Tạo Local Guide mới (Manager only)
  *     description: Tạo tài khoản Local Guide cho site của Manager. Password sẽ được auto-generate và gửi qua email.
- *     tags: [Manager Local Guides]
+ *     tags: [Manager - Local Guides]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -46,7 +46,7 @@
  *   get:
  *     summary: Danh sách Local Guide (Manager only)
  *     description: Lấy danh sách Local Guide với filter và pagination
- *     tags: [Manager Local Guides]
+ *     tags: [Manager - Local Guides]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -142,7 +142,7 @@
  *       - Reject tất cả pending content (media, event, schedule, nearby place)
  *       - Deactivate tất cả shift submissions trong tương lai
  *       - Gửi thông báo cho Local Guide
- *     tags: [Manager Local Guides]
+ *     tags: [Manager - Local Guides]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -206,7 +206,7 @@
  *   get:
  *     summary: Xem danh sách submissions lịch làm việc (Manager only)
  *     description: Manager xem tất cả submissions của các Local Guide trong site.
- *     tags: [Manager Local Guides]
+ *     tags: [Manager - Local Guides]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -271,7 +271,7 @@
  *     description: |
  *       Manager xem chi tiết submission, bao gồm thông tin thay đổi (diff) nếu là update.
  *       Response sẽ có thêm field `changes` chứa danh sách các thay đổi so với lịch cũ.
- *     tags: [Manager Local Guides]
+ *     tags: [Manager - Local Guides]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -306,7 +306,7 @@
  *     description: |
  *       Manager approve hoặc reject submission lịch làm việc.
  *       Khi approved, lịch cũ (nếu có) sẽ bị deactivate.
- *     tags: [Manager Local Guides]
+ *     tags: [Manager - Local Guides]
  *     security:
  *       - bearerAuth: []
  *     parameters:

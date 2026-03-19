@@ -441,8 +441,8 @@ class PlannerController {
                 req.params.id,
                 req.params.itemId,
                 req.user.id,
-                { 
-                    distance_meters, 
+                {
+                    distance_meters,
                     note,
                     latitude: checkin_latitude,
                     longitude: checkin_longitude
@@ -534,6 +534,45 @@ class PlannerController {
         }
     }
 
+    /**
+     * GET /planners/:id/transactions - Lấy sao kê quỹ nhóm
+     * Cho phép owner + tất cả members (kể cả kicked/dropped_out) xem
+     */
+    static async getPlannerTransactions(req, res) {
+        try {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
+            }
+
+            const { Planner, PlannerMember } = require('../models');
+            const plannerId = req.params.id;
+            const userId = req.user?.id;
+
+            const planner = await Planner.findByPk(plannerId);
+            if (!planner) {
+                return ResponseUtil.notFound(res, req.__('planner.not_found'));
+            }
+
+            // Access check: owner OR active joined member only
+            if (planner.user_id !== userId) {
+                const memberRecord = await PlannerMember.findOne({
+                    where: { planner_id: plannerId, user_id: userId, join_status: 'joined' }
+                });
+                if (!memberRecord) {
+                    return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
+                }
+            }
+
+            // Lấy transaction từ WalletService
+            const WalletService = require('../services/pilgrim/walletService');
+            const result = await WalletService.getPlannerTransactions(plannerId, req.query);
+            return ResponseUtil.success(res, result, 'Lấy sao kê quỹ nhóm thành công');
+        } catch (error) {
+            return ResponseUtil.error(res, req.__('error.server_error'));
+        }
+    }
 }
 
 module.exports = PlannerController;
+

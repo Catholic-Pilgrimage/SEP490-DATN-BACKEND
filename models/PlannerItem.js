@@ -76,8 +76,8 @@ const PlannerItem = sequelize.define('PlannerItem', {
         allowNull: true,
         defaultValue: null,
         comment: 'Travel time from previous site in minutes'
-    },
-
+    }
+}, {
     tableName: 'planner_items',
     timestamps: true,
     createdAt: 'created_at',

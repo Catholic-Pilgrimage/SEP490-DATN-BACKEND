@@ -56,7 +56,7 @@ DO $$ BEGIN
     CREATE TYPE report_reason AS ENUM ('spam', 'inappropriate', 'harassment', 'other');
     CREATE TYPE report_status AS ENUM ('pending', 'resolved', 'dismissed');
     CREATE TYPE sos_status AS ENUM ('pending', 'accepted', 'resolved', 'cancelled');
-    CREATE TYPE invite_status AS ENUM ('pending', 'accepted', 'rejected', 'expired');
+    CREATE TYPE invite_status AS ENUM ('pending', 'awaiting_payment', 'accepted', 'rejected', 'expired');
     CREATE TYPE participant_status AS ENUM ('going', 'interested');
     
     -- Verification (Manager Application)
@@ -264,7 +264,68 @@ CREATE TRIGGER update_user_push_tokens_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
--- 3.5 VERIFICATION REQUESTS (Manager Application)
+-- 3.5 WALLETS & TRANSACTIONS
+-- ============================================
+CREATE TABLE IF NOT EXISTS wallets (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    balance DECIMAL(15, 2) DEFAULT 0 NOT NULL CHECK (balance >= 0),
+    locked_balance DECIMAL(15, 2) DEFAULT 0 NOT NULL CHECK (locked_balance >= 0),
+    status VARCHAR(20) DEFAULT 'active' NOT NULL CHECK (status IN ('active', 'locked')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_wallets_user ON wallets(user_id);
+CREATE INDEX IF NOT EXISTS idx_wallets_status ON wallets(status);
+
+-- Trigger for wallets
+DROP TRIGGER IF EXISTS update_wallets_updated_at ON wallets;
+CREATE TRIGGER update_wallets_updated_at
+    BEFORE UPDATE ON wallets
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TABLE IF NOT EXISTS transactions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    wallet_id UUID NOT NULL REFERENCES wallets(id) ON DELETE CASCADE,
+    amount DECIMAL(15, 2) NOT NULL CHECK (amount > 0),
+    type VARCHAR(30) NOT NULL CHECK (type IN (
+        'topup',
+        'withdraw',
+        'escrow_lock',
+        'escrow_refund',
+        'penalty_applied',
+        'penalty_received',
+        'penalty_refunded'
+    )),
+    status VARCHAR(20) DEFAULT 'pending' NOT NULL CHECK (status IN ('pending', 'completed', 'failed', 'cancelled')),
+    reference_type VARCHAR(50),
+    reference_id VARCHAR(255),
+    description TEXT,
+    proof_image_url VARCHAR(1000),
+    bank_info VARCHAR(500),
+    code VARCHAR(20) UNIQUE,    -- Mã GD dạng TXNYYYYMMDDXXXXXX (vd: TXN20260318A3F7K2)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_transactions_wallet ON transactions(wallet_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
+CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
+CREATE INDEX IF NOT EXISTS idx_transactions_reference ON transactions(reference_type, reference_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_code ON transactions(code);
+CREATE INDEX IF NOT EXISTS idx_transactions_created ON transactions(created_at DESC);
+
+-- Trigger for transactions
+DROP TRIGGER IF EXISTS update_transactions_updated_at ON transactions;
+CREATE TRIGGER update_transactions_updated_at
+    BEFORE UPDATE ON transactions
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================
+-- 3.6 VERIFICATION REQUESTS (Manager Application)
 -- ============================================
 CREATE TABLE IF NOT EXISTS verification_requests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -489,6 +550,8 @@ CREATE TABLE IF NOT EXISTS planners (
     number_of_days INT DEFAULT 1,
     number_of_people INT DEFAULT 1,
     transportation VARCHAR(100),
+    deposit_amount DECIMAL(15, 2) DEFAULT NULL CHECK (deposit_amount IS NULL OR deposit_amount >= 0),
+    penalty_percentage INTEGER DEFAULT NULL CHECK (penalty_percentage IS NULL OR (penalty_percentage >= 0 AND penalty_percentage <= 100)),
     status planner_status DEFAULT 'planning',
     started_at TIMESTAMP WITH TIME ZONE, -- NEW: When first check-in happened
     completed_at TIMESTAMP WITH TIME ZONE, -- NEW: When marked as completed
@@ -544,22 +607,28 @@ CREATE TABLE IF NOT EXISTS planner_members (
     planner_id UUID REFERENCES planners(id) ON DELETE CASCADE,
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     role planner_role DEFAULT 'viewer',
+    deposit_status VARCHAR(20) DEFAULT NULL CHECK (deposit_status IS NULL OR deposit_status IN ('paid', 'refunded', 'penalized')),
+    join_status VARCHAR(20) DEFAULT 'joined' NOT NULL CHECK (join_status IN ('joined', 'dropped_out', 'kicked')),
     joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (planner_id, user_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_planner_members_deposit_status ON planner_members(deposit_status);
+CREATE INDEX IF NOT EXISTS idx_planner_members_join_status ON planner_members(join_status);
 
 -- 7.4 Planner Messages (Mini Chat)
 CREATE TABLE IF NOT EXISTS planner_messages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     planner_id UUID NOT NULL REFERENCES planners(id) ON DELETE CASCADE,
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    message_type VARCHAR(20) DEFAULT 'text' CHECK (message_type IN ('text', 'image')),
+    message_type VARCHAR(20) DEFAULT 'text' CHECK (message_type IN ('text', 'image', 'system')),
     content TEXT,
     image_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT check_message_content CHECK (
         (message_type = 'text' AND content IS NOT NULL) OR
-        (message_type = 'image' AND image_url IS NOT NULL)
+        (message_type = 'image' AND image_url IS NOT NULL) OR
+        (message_type = 'system' AND content IS NOT NULL)
     )
 );
 

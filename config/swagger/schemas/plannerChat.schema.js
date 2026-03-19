@@ -43,7 +43,7 @@
  *           format: uuid
  *         message_type:
  *           type: string
- *           enum: [text, image]
+ *           enum: [text, image, system]
  *           example: "text"
  *         content:
  *           type: string
@@ -53,6 +53,8 @@
  *           format: uri
  *         user:
  *           type: object
+ *           nullable: true
+ *           description: Null nếu message_type = system
  *           properties:
  *             id:
  *               type: string
