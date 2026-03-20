@@ -55,11 +55,6 @@ const Transaction = sequelize.define('Transaction', {
         type: DataTypes.TEXT,
         allowNull: true
     },
-    proof_image_url: {
-        type: DataTypes.STRING(1000),
-        allowNull: true,
-        comment: 'URL ảnh bill chuyển khoản của Admin (dùng cho withdraw)'
-    },
     bank_info: {
         type: DataTypes.STRING(500),
         allowNull: true,

@@ -79,12 +79,6 @@
  *           type: string
  *           example: Đặt cọc 100,000 VND cho kế hoạch "Hành hương Thánh địa"
  *           description: Mô tả giao dịch
- *         proof_image_url:
- *           type: string
- *           format: uri
- *           nullable: true
- *           example: https://cloudinary.com/image/proof123.jpg
- *           description: URL ảnh bill chuyển khoản (dùng cho withdraw)
  *         code:
  *           type: string
  *           nullable: true

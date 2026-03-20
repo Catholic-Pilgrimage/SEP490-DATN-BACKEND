@@ -29,9 +29,6 @@ class AdminFinanceService {
                 Transaction.sum('amount', {
                     where: { type: 'escrow_lock', status: 'completed' }
                 }),
-
-                // (penalty_applied đã bị xóa ra khỏi đây để tránh double-count)
-
                 // Tổng tiền rút hôm nay (thành công)
                 Transaction.sum('amount', {
                     where: {
@@ -41,14 +38,13 @@ class AdminFinanceService {
                     }
                 }),
 
-                // Số giao dịch hôm nay
+
                 Transaction.count({
                     where: {
                         created_at: { [Op.between]: [todayStart, todayEnd] }
                     }
                 }),
 
-                // Số lệnh rút thất bại hôm nay
                 Transaction.count({
                     where: {
                         type: 'withdraw',
@@ -57,10 +53,8 @@ class AdminFinanceService {
                     }
                 }),
 
-                // Tổng số dư ví user toàn hệ thống
                 Wallet.sum('balance'),
 
-                // Tổng số tiền rút thất bại (toàn thời gian)
                 Transaction.sum('amount', {
                     where: { type: 'withdraw', status: 'failed' }
                 }),
@@ -92,14 +86,9 @@ class AdminFinanceService {
                 ).then(rows => parseInt(rows[0]?.cnt || 0, 10)).catch(() => 0)
             ]);
 
-            // total_pending_payouts = penalty_received còn pending (chưa giải ngân cho owner)
-            // Dùng penalty_received pending — không dùng penalty_applied để tránh double-count
             const totalPendingPayouts = parseFloat(
                 await Transaction.sum('amount', { where: { type: 'penalty_received', status: 'pending' } }) || 0
             );
-
-            // Tính escrow còn giữ = locked - refunded - penalty_applied
-            // penalty_applied: tiền đã rời locked_balance (một phần thành escrow_refund, một phần thành penalty)
             const [totalEscrowRefunded, totalPenaltyApplied] = await Promise.all([
                 Transaction.sum('amount', { where: { type: 'escrow_refund', status: 'completed' } }),
                 Transaction.sum('amount', { where: { type: 'penalty_applied', status: 'completed' } })
@@ -199,8 +188,8 @@ class AdminFinanceService {
             const page = parseInt(filters.page) || 1;
             const offset = (page - 1) * limit;
 
-            // Bầt đầu lấy planner có net_locked > 0
-            // net = escrow_lock - escrow_refund - penalty_applied (tất cả đều làm tiền rời khỏi locked_balance)
+
+
             const escrowGroupsRaw = await sequelize.query(
                 `SELECT pid AS planner_id,
                         SUM(CASE WHEN type = 'escrow_lock'     THEN amount ELSE 0 END) AS total_locked,
@@ -237,10 +226,6 @@ class AdminFinanceService {
             const plannerIds = escrowGroups.map(r => r.reference_id);
             if (plannerIds.length === 0) return { escrow: [], total: 0, totalPages: 0, currentPage: page };
 
-            // refundMap + penaltyAppliedMap đã có trong escrowGroups rồi — không cần map riêng
-
-            // Penalty pending = penalty_received còn status pending (chưa được giải ngân cho owner)
-            // Khi plan ma thì bị cancelled và penalty_refunded được tạo
             const penaltyGroupsRaw = await sequelize.query(
                 `SELECT SPLIT_PART(reference_id, ':', 1) AS planner_id,
                         SUM(amount) AS penalty_pending
@@ -378,7 +363,6 @@ class AdminFinanceService {
 
             const withdrawals = rows.map(t => {
                 const json = t.toJSON();
-                // bank_info được lưu dạng JSON.stringify — parse ra object cho FE
                 let bankInfo = null;
                 try {
                     bankInfo = typeof json.bank_info === 'string'
