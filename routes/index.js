@@ -21,6 +21,7 @@ const sosRoutes = require('./sos.routes');
 const postRoutes = require('./post.routes');
 const reportRoutes = require('./report.routes');
 const walletRoutes = require('./wallet.routes');
+const webhookRoutes = require('./webhook.routes');
 
 router.get('/', (req, res) => {
   res.json({
@@ -135,6 +136,9 @@ router.use('/reports', reportRoutes);
 
 // Wallet routes (shared - all authenticated users)
 router.use('/wallet', walletRoutes);
+
+// Webhook routes (no auth - called by external services)
+router.use('/webhooks', webhookRoutes);
 
 
 module.exports = router;
