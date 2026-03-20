@@ -554,12 +554,9 @@ CREATE TABLE IF NOT EXISTS planners (
     status planner_status DEFAULT 'planning',
     started_at TIMESTAMP WITH TIME ZONE, -- NEW: When first check-in happened
     completed_at TIMESTAMP WITH TIME ZONE, -- NEW: When marked as completed
-    
     is_active BOOLEAN DEFAULT TRUE NOT NULL, -- Soft delete flag (false = hidden from user)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    
-    -- Constraint: end_date must be after start_date
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,    -- Constraint: end_date must be after start_date
     CONSTRAINT chk_planner_dates CHECK (end_date IS NULL OR end_date >= start_date)
 );
 

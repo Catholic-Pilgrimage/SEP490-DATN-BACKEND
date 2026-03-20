@@ -7,48 +7,54 @@ const Logger = require('../utils/logger.util');
  */
 
 const VBEE_API_URL = 'https://vbee.vn/api/v1/tts';
-const VBEE_API_KEY = process.env.VBEE_API_KEY;
 
-if (!VBEE_API_KEY) {
-    console.warn('⚠️  VBEE_API_KEY not found in .env');
+// Lazy read: đọc khi function được gọi, không phải lúc module load
+function getApiKey() {
+    return process.env.VBEE_API_KEY;
+}
+function getAppId() {
+    return process.env.VBEE_APP_ID || process.env.VBEE_API_KEY;
 }
 
 /**
  * Map Site region to VBee voice identifier (default voices)
  */
 const REGION_VOICE_MAP = {
-    'Bac': 'hn_female_thutrang_full_48k-fhg',      // Nữ miền Bắc - Thu Trang
-    'Trung': 'hue_female_thutrang_full_48k-fhg',   // Nữ miền Trung - Thu Trang
-    'Nam': 'sg_female_thutrang_full_48k-fhg'        // Nữ miền Nam - Thu Trang
+    'Bac': 'hn_female_ngochuyen_full_48k-fhg',      // Nữ miền Bắc - Ngọc Huyền
+    'Trung': 'hue_female_huonggiang_full_48k-fhg',  // Nữ miền Trung - Hương Giang
+    'Nam': 'sg_female_tuongvy_call_44k-fhg'         // Nữ miền Nam - Tường Vy
 };
 
 /**
- * All available VBee voices (popular ones)
+ * All available VBee voices (from user account)
  */
 const AVAILABLE_VOICES = [
     // Miền Bắc
-    { id: 'hn_female_thutrang_full_48k-fhg', name: 'Thu Trang', gender: 'female', region: 'Bắc', quality: 'high' },
-    { id: 'hn_male_xuantin_full_48k-fhg', name: 'Xuân Tín', gender: 'male', region: 'Bắc', quality: 'high' },
-    { id: 'hn_female_ngoclam_full_48k-fhg', name: 'Ngọc Lam', gender: 'female', region: 'Bắc', quality: 'high' },
+    { id: 'hn_female_ngochuyen_full_48k-fhg', name: 'Ngọc Huyền', gender: 'female', region: 'Bắc', quality: 'high' },
+    { id: 'hn_male_minhquan_yt-stable', name: 'Minh Quân', gender: 'male', region: 'Bắc', quality: 'high' },
+    { id: 'hn_female_hachi_book_22k-vc', name: 'Hà Chi', gender: 'female', region: 'Bắc', quality: 'high' },
     
     // Miền Trung
-    { id: 'hue_female_thutrang_full_48k-fhg', name: 'Thu Trang', gender: 'female', region: 'Trung', quality: 'high' },
-    { id: 'hue_male_xuantin_full_48k-fhg', name: 'Xuân Tín', gender: 'male', region: 'Trung', quality: 'high' },
+    { id: 'hue_female_huonggiang_full_48k-fhg', name: 'Hương Giang', gender: 'female', region: 'Trung', quality: 'high' },
+    { id: 'hue_male_duyphuong_full_48k-fhg', name: 'Duy Phương', gender: 'male', region: 'Trung', quality: 'high' },
     
     // Miền Nam
-    { id: 'sg_female_thutrang_full_48k-fhg', name: 'Thu Trang', gender: 'female', region: 'Nam', quality: 'high' },
-    { id: 'sg_male_xuantin_full_48k-fhg', name: 'Xuân Tín', gender: 'male', region: 'Nam', quality: 'high' },
-    { id: 'sg_female_ngoclam_full_48k-fhg', name: 'Ngọc Lam', gender: 'female', region: 'Nam', quality: 'high' }
+    { id: 'sg_female_tuongvy_call_44k-fhg', name: 'Tường Vy', gender: 'female', region: 'Nam', quality: 'high' },
+    { id: 'sg_male_chidat_ebook_48k-phg', name: 'Chí Đạt', gender: 'male', region: 'Nam', quality: 'high' },
+    { id: 'sg_female_thaotrinh_full_48k-fhg', name: 'Thảo Trinh', gender: 'female', region: 'Nam', quality: 'high' }
 ];
 
 /**
- * Send text to VBee TTS API and get audio URL
+ * Send text to VBee TTS API (async - VBee will POST audio to callback_url)
  * @param {string} text - Text to convert (max 5000 characters)
- * @param {string} voice - Voice identifier (e.g. 'hn_female_thutrang_full_48k-fhg')
+ * @param {string} voice - Voice identifier
  * @param {number} speed - Speed adjustment (0.8 to 1.5, default 1.0)
- * @returns {Promise<string>} - Direct audio URL (mp3)
+ * @param {string} callbackUrl - URL VBee will POST the audio result to
+ * @returns {Promise<{request_id: string}>} - VBee request ID
  */
-async function requestTTS(text, voice = 'hn_female_thutrang_full_48k-fhg', speed = 1.0) {
+async function requestTTS(text, voice = 'hn_female_thutrang_full_48k-fhg', speed = 1.0, callbackUrl = null) {
+    const VBEE_API_KEY = getApiKey();
+    const VBEE_APP_ID = getAppId();
     if (!VBEE_API_KEY) {
         throw new Error('VBEE_API_KEY is not configured');
     }
@@ -61,16 +67,19 @@ async function requestTTS(text, voice = 'hn_female_thutrang_full_48k-fhg', speed
         throw new Error('Text must have at least 3 characters');
     }
 
-    Logger.info(`VBee TTS: Sending request - voice=${voice}, speed=${speed}, textLength=${text.length}`);
+    const effectiveCallback = callbackUrl || process.env.VBEE_CALLBACK_URL;
+    if (!effectiveCallback) {
+        throw new Error('VBEE_CALLBACK_URL is not configured');
+    }
+
+    Logger.info(`VBee TTS: Sending request - voice=${voice}, speed=${speed}, textLength=${text.length}, callback=${effectiveCallback}`);
 
     try {
         const response = await axios.post(VBEE_API_URL, {
+            app_id: VBEE_APP_ID,
             input_text: text,
             voice_code: voice,
-            speed: speed,
-            bit_rate: 128000,
-            format: 'mp3',
-            sample_rate: 48000
+            callback_url: effectiveCallback
         }, {
             headers: {
                 'Authorization': `Bearer ${VBEE_API_KEY}`,
@@ -79,29 +88,28 @@ async function requestTTS(text, voice = 'hn_female_thutrang_full_48k-fhg', speed
             timeout: 30000
         });
 
-        Logger.info(`VBee TTS: Response - code=${response.data.code}, message=${response.data.message}`);
+        Logger.info(`VBee TTS: Response - ${JSON.stringify(response.data)}`);
 
-        if (response.data.code !== 0) {
-            throw new Error(`VBee TTS Error: ${response.data.message || 'Unknown error'}`);
+        // VBee success: status=1 or code=0
+        const isSuccess = response.data?.status === 1 || response.data?.code === 0;
+        if (!isSuccess) {
+            throw new Error(`VBee TTS Error: ${response.data?.error_message || response.data?.message || 'Unknown error'}`);
         }
 
-        if (!response.data.data || !response.data.data.audio_url) {
-            throw new Error('VBee TTS: No audio URL returned');
-        }
+        const requestId = response.data?.data?.request_id || response.data?.request_id || response.data?.data?.id;
+        Logger.info(`VBee TTS: ✓ Request accepted. request_id=${requestId}`);
 
-        const audioUrl = response.data.data.audio_url;
-        Logger.info(`VBee TTS: ✓ Audio generated successfully: ${audioUrl}`);
-        
-        return audioUrl;
+        return { request_id: requestId };
 
     } catch (error) {
         if (error.response) {
             Logger.error(`VBee TTS: API Error - Status ${error.response.status}: ${JSON.stringify(error.response.data)}`);
-            throw new Error(`VBee TTS API Error: ${error.response.data.message || error.message}`);
+            throw new Error(`VBee TTS API Error: ${error.response.data?.error_message || error.response.data?.message || error.message}`);
         }
         throw error;
     }
 }
+
 
 /**
  * Download audio from VBee URL
@@ -154,7 +162,7 @@ async function generateTTS(text, voice = 'hn_female_thutrang_full_48k-fhg', spee
 
 module.exports = {
     VBEE_API_URL,
-    VBEE_API_KEY,
+    get VBEE_API_KEY() { return getApiKey(); },  // lazy getter
     REGION_VOICE_MAP,
     AVAILABLE_VOICES,
     VOICES: AVAILABLE_VOICES, // Alias for controller

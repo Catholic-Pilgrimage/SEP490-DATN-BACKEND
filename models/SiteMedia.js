@@ -65,9 +65,9 @@ const SiteMedia = sequelize.define('SiteMedia', {
         defaultValue: null,
         allowNull: true,
         validate: {
-            isIn: [['pending', 'approved', 'rejected']]
+            isIn: [['pending', 'approved', 'rejected', 'processing']]
         },
-        comment: 'Approval status of narrative: NULL (no narrative), pending, approved, rejected'
+        comment: 'Approval status of narrative: NULL (no narrative), processing (TTS in progress), pending, approved, rejected'
     },
     narrative_rejection_reason: {
         type: DataTypes.TEXT,
