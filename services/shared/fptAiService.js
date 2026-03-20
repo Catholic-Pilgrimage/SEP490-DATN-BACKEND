@@ -1,4 +1,4 @@
-const { requestTTS, downloadAudio, getVoiceForRegion, AVAILABLE_VOICES } = require('../../config/vbee.config');
+const { requestTTS, downloadAudio, getVoiceForRegion, AVAILABLE_VOICES, getAvailableVoicesAsync } = require('../../config/vbee.config');
 const { cloudinary } = require('../../config/cloudinary.config');
 const { SiteMedia, Site } = require('../../models');
 const Logger = require('../../utils/logger.util');
@@ -79,10 +79,13 @@ class FptAiService {
     }
 
     /**
-     * Get available voices list
-     * @returns {Array}
+     * Get available voices list from VBee dynamically
+     * @returns {Promise<Array>}
      */
-    static getAvailableVoices() {
+    static async getAvailableVoices() {
+        if (typeof getAvailableVoicesAsync === 'function') {
+            return await getAvailableVoicesAsync();
+        }
         return AVAILABLE_VOICES;
     }
 }
