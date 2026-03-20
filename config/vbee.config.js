@@ -29,19 +29,32 @@ const REGION_VOICE_MAP = {
  * All available VBee voices (from user account)
  */
 const AVAILABLE_VOICES = [
+    // --- Tiếng Việt (vi) ---
     // Miền Bắc
-    { id: 'hn_female_ngochuyen_full_48k-fhg', name: 'Ngọc Huyền', gender: 'female', region: 'Bắc', quality: 'high' },
-    { id: 'hn_male_minhquan_yt-stable', name: 'Minh Quân', gender: 'male', region: 'Bắc', quality: 'high' },
-    { id: 'hn_female_hachi_book_22k-vc', name: 'Hà Chi', gender: 'female', region: 'Bắc', quality: 'high' },
+    { id: 'hn_female_ngochuyen_full_48k-fhg', name: 'Ngọc Huyền', gender: 'female', region: 'Bắc', language: 'vi', quality: 'high' },
+    { id: 'hn_male_minhquan_yt-stable', name: 'Minh Quân', gender: 'male', region: 'Bắc', language: 'vi', quality: 'high' },
+    { id: 'hn_female_hachi_book_22k-vc', name: 'Hà Chi', gender: 'female', region: 'Bắc', language: 'vi', quality: 'high' },
+    { id: 'hn_male_vietbach_child_22k-vc', name: 'Việt Bách (Bé trai)', gender: 'male', region: 'Bắc', language: 'vi', quality: 'high' },
+    { id: 'hn_female_nganha_child_22k-vc', name: 'Ngân Hà (Bé gái)', gender: 'female', region: 'Bắc', language: 'vi', quality: 'high' },
+    { id: 'hn_male_phuthang_stor80dt_48k-fhg', name: 'Anh Khôi (Giọng trầm kể chuyện)', gender: 'male', region: 'Bắc', language: 'vi', quality: 'high' },
+    { id: 'hn_female_maiphuong_vdts_48k-fhg', name: 'Mai Phương', gender: 'female', region: 'Bắc', language: 'vi', quality: 'high' },
     
     // Miền Trung
-    { id: 'hue_female_huonggiang_full_48k-fhg', name: 'Hương Giang', gender: 'female', region: 'Trung', quality: 'high' },
-    { id: 'hue_male_duyphuong_full_48k-fhg', name: 'Duy Phương', gender: 'male', region: 'Trung', quality: 'high' },
+    { id: 'hue_female_huonggiang_full_48k-fhg', name: 'Hương Giang', gender: 'female', region: 'Trung', language: 'vi', quality: 'high' },
+    { id: 'hue_male_duyphuong_full_48k-fhg', name: 'Duy Phương', gender: 'male', region: 'Trung', language: 'vi', quality: 'high' },
     
     // Miền Nam
-    { id: 'sg_female_tuongvy_call_44k-fhg', name: 'Tường Vy', gender: 'female', region: 'Nam', quality: 'high' },
-    { id: 'sg_male_chidat_ebook_48k-phg', name: 'Chí Đạt', gender: 'male', region: 'Nam', quality: 'high' },
-    { id: 'sg_female_thaotrinh_full_48k-fhg', name: 'Thảo Trinh', gender: 'female', region: 'Nam', quality: 'high' }
+    { id: 'sg_female_tuongvy_call_44k-fhg', name: 'Tường Vy', gender: 'female', region: 'Nam', language: 'vi', quality: 'high' },
+    { id: 'sg_male_chidat_ebook_48k-phg', name: 'Chí Đạt', gender: 'male', region: 'Nam', language: 'vi', quality: 'high' },
+    { id: 'sg_female_thaotrinh_full_48k-fhg', name: 'Thảo Trinh', gender: 'female', region: 'Nam', language: 'vi', quality: 'high' },
+    { id: 'sg_female_lantrinh_vdts_48k-fhg', name: 'Lan Trinh', gender: 'female', region: 'Nam', language: 'vi', quality: 'high' },
+    { id: 'sg_male_trungkien_vdts_48k-fhg', name: 'Trung Kiên', gender: 'male', region: 'Nam', language: 'vi', quality: 'high' },
+
+    // --- Tiếng Anh (en) ---
+    { id: 'en-US-Wavenet-D-Premium', name: 'Lucas (Premium US)', gender: 'male', region: 'US', language: 'en', quality: 'high' },
+    { id: 'en-GB-Standard-F', name: 'Sarah (British)', gender: 'female', region: 'UK', language: 'en', quality: 'high' },
+    { id: 'en-AU-Standard-B', name: 'Taylor (Australian)', gender: 'male', region: 'AU', language: 'en', quality: 'high' },
+    { id: 'en-IN-Standard-B', name: 'Rohan (Indian English)', gender: 'male', region: 'IN', language: 'en', quality: 'high' }
 ];
 
 /**
@@ -160,6 +173,56 @@ async function generateTTS(text, voice = 'hn_female_thutrang_full_48k-fhg', spee
     return audioBuffer;
 }
 
+let dynamicVoices = [];
+let isVoicesLoaded = false;
+
+async function getAvailableVoicesAsync() {
+    if (isVoicesLoaded && dynamicVoices.length > 0) return dynamicVoices;
+    try {
+        const apiKey = getApiKey();
+        if (!apiKey) return AVAILABLE_VOICES;
+
+        const response = await axios.get('https://vbee.vn/api/v1/voices', {
+            headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        
+        const rawVoices = response.data.result?.voices || [];
+        dynamicVoices = rawVoices
+            .filter(v => v.active !== false)
+            .map(v => {
+                let language = 'unknown';
+                if (v.language_code) language = v.language_code.split('-')[0];
+                else if (v.language && v.language.code) language = v.language.code.split('-')[0];
+                
+                let region = 'unknown';
+                if (v.locale) {
+                    const loc = v.locale.toLowerCase();
+                    if (loc.includes('northern')) region = 'Bắc';
+                    else if (loc.includes('central')) region = 'Trung';
+                    else if (loc.includes('southern')) region = 'Nam';
+                    else region = loc;
+                }
+                
+                return {
+                    id: v.code, // VBee TTS endpoints require 'code'
+                    name: v.name,
+                    gender: v.gender,
+                    region,
+                    language,
+                    quality: v.level ? v.level.toLowerCase() : 'standard',
+                    demo: v.demo || null
+                };
+            });
+            
+        isVoicesLoaded = true;
+        Logger.info(`Successfully fetched ${dynamicVoices.length} voices from VBee API.`);
+        return dynamicVoices;
+    } catch (error) {
+        Logger.error('Failed to load VBee voices dynamically', error);
+        return AVAILABLE_VOICES;
+    }
+}
+
 module.exports = {
     VBEE_API_URL,
     get VBEE_API_KEY() { return getApiKey(); },  // lazy getter
@@ -169,5 +232,6 @@ module.exports = {
     requestTTS,
     downloadAudio,
     getVoiceForRegion,
-    generateTTS
+    generateTTS,
+    getAvailableVoicesAsync
 };

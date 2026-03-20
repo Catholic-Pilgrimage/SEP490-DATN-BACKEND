@@ -140,7 +140,14 @@ exports.updateNarrative = async (req, res) => {
  */
 exports.getVoices = async (req, res) => {
     try {
-        const voices = FptAiService.getAvailableVoices();
+        const { language } = req.query;
+        let voices = await FptAiService.getAvailableVoices();
+
+        // Lọc theo ngôn ngữ nếu có truyền query param ?language=...
+        if (language) {
+            voices = voices.filter(v => v.language === language);
+        }
+
         return ResponseUtil.success(res, voices, req.__('narrative.get_voices_success'));
     } catch (error) {
         return ResponseUtil.error(res, req.__('error.server_error'));

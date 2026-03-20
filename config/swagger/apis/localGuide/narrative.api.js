@@ -13,10 +13,17 @@
  *     description: |
  *       Trả về danh sách các giọng đọc AI có sẵn từ VBee Text-to-Speech.
  *       Mỗi giọng bao gồm: id, tên, giới tính, vùng miền, chất lượng.
- *       Dùng để hiển thị dropdown cho Local Guide chọn giọng đọc.
+ *       Dùng để hiển thị dropdown cho Local Guide chọn giọng đọc. Có thể lọc theo Tiếng Việt (vi) hoặc Tiếng Anh (en).
  *     tags: [Local Guide - Narrative]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: language
+ *         schema:
+ *           type: string
+ *           enum: [vi, en]
+ *         description: Trả về danh sách giọng đọc theo ngôn ngữ được chỉ định. Nếu bỏ trống sẽ lấy tất cả.
  *     responses:
  *       200:
  *         description: Lấy danh sách giọng đọc thành công
@@ -52,6 +59,9 @@
  *                       quality:
  *                         type: string
  *                         example: "high"
+ *                       demo:
+ *                         type: string
+ *                         example: "https://vbee.s3.ap-southeast-1.amazonaws.com/audios/demo/vbee/hn_female_ngochuyen_fast_news_48k-thg.mp3"
  *       401:
  *         description: Chưa đăng nhập
  *       403:
