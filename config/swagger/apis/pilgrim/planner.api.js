@@ -35,7 +35,7 @@
  *           items:
  *             type: object
  *             properties:
- *               day_number:
+ *               leg_number:
  *                 type: integer
  *               estimated_time:
  *                 type: string
@@ -161,11 +161,13 @@
  * @swagger
  * /api/planners/{id}/items/{itemId}/checkin:
  *   post:
- *     summary: Checkin vào một địa điểm trong kế hoạch
+ *     summary: Thành viên check-in vào một địa điểm
  *     description: |
- *       - Phải checkin theo thứ tự (các item trước phải checked_in hoặc skipped)
- *       - Khi checkin thành công, item tiếp theo sẽ tự động chuyển sang in_progress
- *     tags: [Planners - Pilgrim]
+ *       - Điểm đến phải đang ở trạng thái **in_progress**
+ *       - Các điểm trước trong lịch trình phải là **visited** hoặc **skipped** thì mới được check-in điểm này
+ *       - Ghi nhận thông tin GPS để xác thực có mặt
+ *       - Ai check-in sẽ có bản ghi `checked_in` trong bảng `user_checkins`
+ *     tags: [Check-in History - Pilgrim]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -190,38 +192,44 @@
  *           schema:
  *             type: object
  *             properties:
- *               distance_meters:
- *                 type: integer
- *                 description: Khoảng cách đến địa điểm (mét)
+ *               checkin_latitude:
+ *                 type: number
+ *                 description: Vĩ độ GPS của người check-in
+ *                 example: 10.7769
+ *               checkin_longitude:
+ *                 type: number
+ *                 description: Kinh độ GPS của người check-in
+ *                 example: 106.7009
  *               note:
  *                 type: string
- *                 description: Ghi chú khi checkin
+ *                 description: Ghi chú khi check-in
  *     responses:
  *       200:
- *         description: Checkin thành công
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/PlannerItem'
+ *         description: Check-in thành công
  *       400:
- *         description: Lỗi validation - chưa checkin item trước đó
+ *         description: |
+ *           - Điểm đến không đang ở trạng thái in_progress
+ *           - Điểm trước chưa được visited/skipped
+ *           - Đã check-in điểm này rồi
  *       401:
  *         description: Chưa xác thực
  *       403:
- *         description: Không có quyền
+ *         description: Không phải thành viên của chuyến đi
  *       404:
  *         description: Không tìm thấy kế hoạch hoặc item
  */
 
 /**
  * @swagger
- * /api/planners/{id}/items/{itemId}/skip:
- *   post:
- *     summary: Bỏ qua một địa điểm trong kế hoạch
+ * /api/planners/{id}/items/{itemId}/status:
+ *   patch:
+ *     summary: "[Trưởng đoàn] Cập nhật trạng thái điểm đến (visited/skipped)"
  *     description: |
- *       - Phải skip theo thứ tự (các item trước phải checked_in hoặc skipped)
- *       - Khi skip thành công, item tiếp theo sẽ tự động chuyển sang in_progress
- *     tags: [Planners - Pilgrim]
+ *       **Chỉ dành cho Trưởng đoàn (Owner)**.
+ *       
+ *       - Truyền `status: "visited"` (Chốt sổ): Ai chưa check-in sẽ bị hệ thống tự động ghi **missed**. Nếu là điểm cuối thì chuyến đi chuyển sang **completed**.
+ *       - Truyền `status: "skipped"` (Bỏ qua): Hệ thống tự ghi **skipped** cho tất cả người chưa check-in. **Không bị phạt**.
+ *     tags: [Check-in History - Pilgrim]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -238,23 +246,41 @@
  *         schema:
  *           type: string
  *           format: uuid
- *         description: ID của item
+ *         description: ID của điểm đến
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [visited, skipped]
+ *                 description: "Trạng thái mới muốn đổi"
  *     responses:
  *       200:
- *         description: Skip thành công
+ *         description: Cập nhật trạng thái thành công
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/PlannerItem'
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
  *       400:
- *         description: Lỗi validation - chưa hoàn thành item trước đó
+ *         description: Điểm đến đã được chốt sổ rồi hoặc Status không hợp lệ
  *       401:
  *         description: Chưa xác thực
  *       403:
- *         description: Không có quyền
+ *         description: Không phải Trưởng đoàn
  *       404:
  *         description: Không tìm thấy kế hoạch hoặc item
  */
+
+
 
 /**
  * @swagger
@@ -294,41 +320,7 @@
  *         description: Không có quyền - không phải chủ sở hữu
  *       404:
  *         description: Không tìm thấy kế hoạch
- *   patch:
- *     summary: Cập nhật một phần kế hoạch
- *     description: Cập nhật một hoặc nhiều trường của kế hoạch (partial update)
- *     tags: [Planners - Pilgrim]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: ID kế hoạch
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/UpdatePlannerRequest'
- *     responses:
- *       200:
- *         description: Cập nhật kế hoạch thành công
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/PlannerResponse'
- *       400:
- *         description: Lỗi xác thực
- *       401:
- *         description: Chưa xác thực
- *       403:
- *         description: Không có quyền - không phải chủ sở hữu
- *       404:
- *         description: Không tìm thấy kế hoạch
+
  */
 
 /**

@@ -37,9 +37,9 @@ DO $$ BEGIN
     
     -- Planner
     CREATE TYPE planner_status AS ENUM ('planning', 'ongoing', 'completed', 'expired');
-    CREATE TYPE planner_item_status AS ENUM ('planned', 'in_progress', 'checked_in', 'skipped');
-    CREATE TYPE planner_role AS ENUM ('owner', 'viewer');
-    CREATE TYPE checkin_status AS ENUM ('pending', 'checked_in', 'skipped');
+    CREATE TYPE planner_item_status AS ENUM ('planned', 'in_progress', 'visited', 'skipped');
+
+    CREATE TYPE checkin_status AS ENUM ('checked_in', 'missed', 'pending');
 
     
     -- Journal & Community
@@ -546,21 +546,18 @@ CREATE TABLE IF NOT EXISTS planners (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
-    estimated_days INT, -- Số ngày dự kiến cho chuyến đi (thay thế cho start_date/end_date bắt buộc)
-    number_of_days INT DEFAULT 1,
+    start_date DATE,                             -- Ngày bắt đầu
+    end_date DATE,                               -- Ngày kết thúc
     number_of_people INT DEFAULT 1,
     transportation VARCHAR(100),
     deposit_amount DECIMAL(15, 2) DEFAULT NULL CHECK (deposit_amount IS NULL OR deposit_amount >= 0),
     penalty_percentage INTEGER DEFAULT NULL CHECK (penalty_percentage IS NULL OR (penalty_percentage >= 0 AND penalty_percentage <= 100)),
     status planner_status DEFAULT 'planning',
-    started_at TIMESTAMP WITH TIME ZONE, -- NEW: When first check-in happened
-    completed_at TIMESTAMP WITH TIME ZONE, -- NEW: When marked as completed
-    
-    is_active BOOLEAN DEFAULT TRUE NOT NULL, -- Soft delete flag (false = hidden from user)
+    started_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    is_active BOOLEAN DEFAULT TRUE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    
-    -- Constraint: end_date must be after start_date
     CONSTRAINT chk_planner_dates CHECK (end_date IS NULL OR end_date >= start_date)
 );
 
@@ -579,7 +576,7 @@ CREATE TABLE IF NOT EXISTS planner_invites (
     inviter_id UUID REFERENCES users(id) ON DELETE CASCADE,
     email VARCHAR(255) NOT NULL,
     token VARCHAR(100) NOT NULL,
-    role planner_role DEFAULT 'viewer',
+
     status invite_status DEFAULT 'pending',
     expires_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -591,7 +588,7 @@ CREATE TABLE IF NOT EXISTS planner_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     planner_id UUID NOT NULL REFERENCES planners(id) ON DELETE CASCADE,
     site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
-    day_number INT DEFAULT 1,
+    leg_number INT DEFAULT 1,
     order_index INT DEFAULT 1,
     status planner_item_status DEFAULT 'planned',
     note TEXT,
@@ -604,12 +601,11 @@ CREATE TABLE IF NOT EXISTS planner_items (
 
 CREATE INDEX IF NOT EXISTS idx_planner_items_planner ON planner_items(planner_id);
 ALTER TABLE planner_items
-ADD CONSTRAINT uq_planner_items_order UNIQUE (planner_id, day_number, order_index);
+ADD CONSTRAINT uq_planner_items_order UNIQUE (planner_id, leg_number, order_index);
 
 CREATE TABLE IF NOT EXISTS planner_members (
     planner_id UUID REFERENCES planners(id) ON DELETE CASCADE,
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    role planner_role DEFAULT 'viewer',
     deposit_status VARCHAR(20) DEFAULT NULL CHECK (deposit_status IS NULL OR deposit_status IN ('paid', 'refunded', 'penalized')),
     join_status VARCHAR(20) DEFAULT 'joined' NOT NULL CHECK (join_status IN ('joined', 'dropped_out', 'kicked')),
     joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -666,7 +662,7 @@ CREATE TABLE IF NOT EXISTS user_checkins (
     distance_meters INT,
     is_valid BOOLEAN DEFAULT false,
     
-    status checkin_status DEFAULT 'pending', -- pending | checked_in | skipped
+    status checkin_status DEFAULT 'checked_in', -- checked_in | skipped | missed
     checkin_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     note TEXT,
     

@@ -61,7 +61,7 @@ exports.updateNarrative = async (req, res) => {
             audioUrl = await VbeeService.uploadAudioFile(audioFile);
 
         } else if (narration_text) {
-            // Path A: Text-to-Speech via FPT AI
+            // Path A: Text-to-Speech via VBee (async - will update via webhook callback)
             Logger.info(`Narrative: Local Guide ${req.user.id} generating TTS for media ${id}`);
             const result = await VbeeService.generateAndUploadNarration(
                 id,
@@ -69,29 +69,51 @@ exports.updateNarrative = async (req, res) => {
                 media.site.region,
                 voice || null
             );
-            audioUrl = result.audio_url;
-            narrationText = narration_text;
+
+            // TTS is async: set status to 'processing' until VBee calls back
+            await media.update({
+                narration_text: narration_text,
+                narrative_status: 'processing',
+                narrative_rejection_reason: null
+            });
+
+            Logger.info(`Narrative: Media ${id} TTS submitted (request_id=${result.request_id}), status=processing`);
+
+            return ResponseUtil.success(res, {
+                id: media.id,
+                audio_url: null,
+                narration_text: narration_text,
+                status: media.status,
+                narrative_status: 'processing',
+                is_active: media.is_active,
+                message: 'TTS đang được xử lý, audio sẽ sẵn sàng trong vài giây'
+            }, req.__('narrative.update_success'));
         }
 
-        // Update the SiteMedia record
-        await media.update({
-            audio_url: audioUrl,
-            narration_text: narrationText,
-            narrative_status: 'pending',  // Only narrative needs approval, not the 3D model
-            narrative_rejection_reason: null  // Clear any previous rejection reason
-            // Note: status and is_active remain unchanged
-        });
+        // Path B audio file: update record here
+        if (audioFile) {
+            await media.update({
+                audio_url: audioUrl,
+                narration_text: narrationText,
+                narrative_status: 'pending',
+                narrative_rejection_reason: null
+            });
 
-        Logger.info(`Narrative: Media ${id} narrative updated by Local Guide ${req.user.id}, narrative_status set to pending`);
+            Logger.info(`Narrative: Media ${id} audio uploaded, narrative_status set to pending`);
 
-        return ResponseUtil.success(res, {
-            id: media.id,
-            audio_url: media.audio_url,
-            narration_text: media.narration_text,
-            status: media.status,  // 3D model status unchanged
-            narrative_status: media.narrative_status,  // Narrative status = pending
-            is_active: media.is_active
-        }, req.__('narrative.update_success'));
+            return ResponseUtil.success(res, {
+                id: media.id,
+                audio_url: media.audio_url,
+                narration_text: media.narration_text,
+                status: media.status,
+                narrative_status: media.narrative_status,
+                is_active: media.is_active
+            }, req.__('narrative.update_success'));
+        }
+
+        // Fallback (should not reach here)
+        return ResponseUtil.badRequest(res, req.__('narrative.text_or_audio_required'));
+
 
     } catch (error) {
         Logger.error('Narrative update error:', error);
@@ -118,7 +140,14 @@ exports.updateNarrative = async (req, res) => {
  */
 exports.getVoices = async (req, res) => {
     try {
-        const voices = VbeeService.getAvailableVoices();
+        const { language } = req.query;
+        let voices = await VbeeService.getAvailableVoices();
+
+        // Lọc theo ngôn ngữ nếu có truyền query param ?language=...
+        if (language) {
+            voices = voices.filter(v => v.language === language);
+        }
+
         return ResponseUtil.success(res, voices, req.__('narrative.get_voices_success'));
     } catch (error) {
         return ResponseUtil.error(res, req.__('error.server_error'));

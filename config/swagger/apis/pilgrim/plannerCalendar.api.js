@@ -17,7 +17,7 @@
  *       **Response bao gồm:**
  *       - Thông tin planner (tên, ngày, số người, phương tiện)
  *       - Danh sách events với startDate, endDate, location, notes đã format
- *       - Metadata cho mỗi event (site_id, coordinates, day_number)
+ *       - Metadata cho mỗi event (site_id, coordinates, leg_number)
  *       - Alarms mặc định (-30 phút và -60 phút trước event)
  *       
  *       **Mobile app workflow:**

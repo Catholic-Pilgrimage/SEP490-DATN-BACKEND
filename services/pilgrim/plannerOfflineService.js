@@ -32,8 +32,8 @@ class PlannerOfflineService {
             // 3. Get all planner items
             const items = await PlannerItem.findAll({
                 where: { planner_id: plannerId },
-                order: [['day_number', 'ASC'], ['order_index', 'ASC']],
-                attributes: ['id', 'site_id', 'day_number', 'order_index', 'note',
+                order: [['leg_number', 'ASC'], ['order_index', 'ASC']],
+                attributes: ['id', 'site_id', 'leg_number', 'order_index', 'note',
                     'estimated_time', 'rest_duration', 'travel_time_minutes', 'nearby_amenity_ids']
             });
 

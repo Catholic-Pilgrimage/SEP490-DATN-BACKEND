@@ -23,8 +23,22 @@ const autoCompletePlanners = () => {
  */
 const startCronJobs = () => {
     Logger.info('Starting cron jobs...');
-    autoCompletePlanners();
-    Logger.info('Cron jobs started successfully');
+    
+    // Cron chạy lúc 00:01 mỗi ngày
+    cron.schedule('1 0 * * *', async () => {
+        try {
+            Logger.info('Running daily planners cron jobs...');
+            // 1. Tự động chuyển planner sang ongoing nếu đến ngày
+            await PlannerService.autoStartPlanners();
+            
+            // 2. Tự động complete/expire planners nếu hết hạn
+            await PlannerService.autoCompleteExpiredPlanners();
+        } catch (error) {
+            Logger.error('Daily planners cron job error:', error);
+        }
+    });
+
+    Logger.info('Cron jobs scheduled successfully');
 };
 
 module.exports = {

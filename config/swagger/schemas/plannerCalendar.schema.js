@@ -130,7 +130,7 @@
  *         site_code:
  *           type: string
  *           example: "CHNAM001"
- *         day_number:
+ *         leg_number:
  *           type: integer
  *           example: 1
  *         order_index:

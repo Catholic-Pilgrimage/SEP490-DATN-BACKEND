@@ -22,7 +22,7 @@ class PlannerCalendarService {
                                 attributes: ['id', 'name', 'code', 'province', 'address', 'latitude', 'longitude'] 
                             }
                         ],
-                        order: [['day_number', 'ASC'], ['order_index', 'ASC']]
+                        order: [['leg_number', 'ASC'], ['order_index', 'ASC']]
                     }
                 ]
             });
@@ -57,7 +57,7 @@ class PlannerCalendarService {
             for (const item of planner.items) {
                 // Calculate actual date for this item
                 const itemDate = new Date(plannerStartDate);
-                itemDate.setDate(plannerStartDate.getDate() + (item.day_number - 1));
+                itemDate.setDate(plannerStartDate.getDate() + (item.leg_number - 1));
                 const dateStr = itemDate.toISOString().split('T')[0]; // YYYY-MM-DD
 
                 // Parse estimated_time (HH:mm)
@@ -83,7 +83,7 @@ class PlannerCalendarService {
                 if (item.site.province) {
                     notes += `🗺️ ${item.site.province}\n`;
                 }
-                notes += `📅 Ngày ${item.day_number} - Điểm ${item.order_index}\n`;
+                notes += `📅 Ngày ${item.leg_number} - Điểm ${item.order_index}\n`;
                 if (item.note) {
                     notes += `📝 ${item.note}\n`;
                 }
@@ -113,7 +113,7 @@ class PlannerCalendarService {
                         planner_item_id: item.id,
                         site_id: item.site_id,
                         site_code: item.site.code,
-                        day_number: item.day_number,
+                        leg_number: item.leg_number,
                         order_index: item.order_index,
                         coordinates: coordinates
                     }

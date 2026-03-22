@@ -19,23 +19,16 @@ const Planner = sequelize.define('Planner', {
         type: DataTypes.STRING(255),
         allowNull: false
     },
-    estimated_days: {
-        type: DataTypes.INTEGER,
+    start_date: {
+        type: DataTypes.DATEONLY,
         allowNull: true,
-        validate: {
-            min: 1
-        },
-        comment: 'Số ngày dự kiến cho chuyến đi'
+        comment: 'Ngày bắt đầu chuyến đi'
     },
-    // BỎ: start_date, end_date - thay thế bằng estimated_days
-    // start_date: {
-    //     type: DataTypes.DATEONLY,
-    //     allowNull: true
-    // },
-    // end_date: {
-    //     type: DataTypes.DATEONLY,
-    //     allowNull: true
-    // },
+    end_date: {
+        type: DataTypes.DATEONLY,
+        allowNull: true,
+        comment: 'Ngày kết thúc chuyến đi'
+    },
     number_of_people: {
         type: DataTypes.INTEGER,
         defaultValue: 1,

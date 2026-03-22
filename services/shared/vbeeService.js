@@ -1,4 +1,4 @@
-const { requestTTS, downloadAudio, getVoiceForRegion, AVAILABLE_VOICES } = require('../../config/vbee.config');
+const { requestTTS, downloadAudio, getVoiceForRegion, AVAILABLE_VOICES, getAvailableVoicesAsync } = require('../../config/vbee.config');
 const { cloudinary } = require('../../config/cloudinary.config');
 const { SiteMedia, Site } = require('../../models');
 const Logger = require('../../utils/logger.util');
@@ -6,12 +6,13 @@ const Logger = require('../../utils/logger.util');
 class VbeeService {
 
     /**
-     * Full pipeline: Text -> VBee TTS -> Cloudinary -> DB Update
-     * @param {string} mediaId - SiteMedia ID (must be type 'model_3d')
+     * Full pipeline (async): Text -> VBee TTS request -> wait for VBee callback
+     * VBee will call VBEE_CALLBACK_URL with the audio file when ready
+     * @param {string} mediaId - SiteMedia ID
      * @param {string} narrationText - Text content for voiceover
      * @param {string} region - Site region ('Bac', 'Trung', 'Nam')
      * @param {string} [customVoice] - Optional voice override
-     * @returns {Promise<{audio_url: string}>}
+     * @returns {Promise<{request_id: string, status: 'processing'}>}
      */
     static async generateAndUploadNarration(mediaId, narrationText, region, customVoice = null) {
         if (!narrationText || narrationText.trim().length < 3) {
@@ -24,21 +25,20 @@ class VbeeService {
 
         const voice = customVoice || getVoiceForRegion(region);
 
-        Logger.info(`VBee Service: Starting TTS pipeline for media=${mediaId}, voice=${voice}, region=${region}`);
+        Logger.info(`VBee Service: Starting async TTS for media=${mediaId}, voice=${voice}, region=${region}`);
 
-        // Step 1: Call VBee TTS API
-        const audioUrl = await requestTTS(narrationText, voice, 1.0);
+        // Build callback URL with mediaId so webhook knows which record to update
+        const baseUrl = process.env.SERVER_BASE_URL || process.env.VBEE_CALLBACK_URL?.replace(/\/api\/webhooks\/vbee.*/, '');
+        const callbackUrl = `${baseUrl}/api/webhooks/vbee?mediaId=${mediaId}`;
 
-        // Step 2: Download audio buffer
-        const audioBuffer = await downloadAudio(audioUrl);
+        // Send async TTS request to VBee
+        const { request_id } = await requestTTS(narrationText, voice, 1.0, callbackUrl);
 
-        // Step 3: Upload to Cloudinary
-        const cloudinaryUrl = await VbeeService._uploadBufferToCloudinary(audioBuffer, `narration_${mediaId}_${Date.now()}`);
+        Logger.info(`VBee Service: TTS request sent. request_id=${request_id}, awaiting callback for media=${mediaId}`);
 
-        Logger.info(`VBee Service: Pipeline complete. audio_url=${cloudinaryUrl}`);
-
-        return { audio_url: cloudinaryUrl };
+        return { request_id, status: 'processing' };
     }
+
 
     /**
      * Upload a raw audio file (from Local Guide) to Cloudinary
@@ -79,10 +79,13 @@ class VbeeService {
     }
 
     /**
-     * Get available voices list
-     * @returns {Array}
+     * Get available voices list from VBee dynamically
+     * @returns {Promise<Array>}
      */
-    static getAvailableVoices() {
+    static async getAvailableVoices() {
+        if (typeof getAvailableVoicesAsync === 'function') {
+            return await getAvailableVoicesAsync();
+        }
         return AVAILABLE_VOICES;
     }
 }

@@ -10,6 +10,7 @@ const {
 const PlannerValidator = require('../validators/planner.validator');
 const OfflineValidator = require('../validators/offline.validator');
 const authenticate = require('../middlewares/auth.middleware');
+const CheckinController = require('../controllers/CheckinController');
 
 
 router.post(
@@ -40,13 +41,7 @@ router.put(
     PlannerController.updatePlanner
 );
 
-// PATCH method for partial updates (same handler as PUT)
-router.patch(
-    '/:id',
-    authenticate,
-    PlannerValidator.updatePlanner,
-    PlannerController.updatePlanner
-);
+
 
 router.delete(
     '/:id',
@@ -88,13 +83,14 @@ router.patch(
 router.post(
     '/:id/items/:itemId/checkin',
     authenticate,
-    PlannerController.checkinItem
+    CheckinController.checkin
 );
 
-router.post(
-    '/:id/items/:itemId/skip',
+// [Trưởng đoàn] Cập nhật trạng thái điểm đến (Chốt sổ hoặc Bỏ qua)
+router.patch(
+    '/:id/items/:itemId/status',
     authenticate,
-    PlannerController.skipItem
+    CheckinController.updateItemStatus
 );
 
 router.get(

@@ -52,9 +52,9 @@ class CheckinService {
         }
 
         // ===== VALIDATION: Planner item status =====
-        // Kiểm tra item không được skipped
-        if (plannerItem.status === 'skipped') {
-            throw new Error('Địa điểm này đã bị bỏ qua, không thể check-in');
+        // Chỉ cho phép check-in nếu item đang in_progress
+        if (plannerItem.status !== 'in_progress') {
+            throw new Error('Địa điểm này chưa bắt đầu hoặc đã đóng, không thể check-in');
         }
 
         // Kiểm tra user đã check-in rồi thì không cho check-in lại
@@ -98,8 +98,8 @@ class CheckinService {
         // ===== VALIDATION: Check-in phải theo thứ tự =====
         const allPlannerItems = await PlannerItem.findAll({
             where: { planner_id: planner.id },
-            order: [['day_number', 'ASC'], ['order_index', 'ASC']],
-            attributes: ['id', 'day_number', 'order_index']
+            order: [['leg_number', 'ASC'], ['order_index', 'ASC']],
+            attributes: ['id', 'leg_number', 'order_index']
         });
 
         // Lấy tất cả check-ins đã có của user cho planner này (trừ skipped/missed/absent)
@@ -121,12 +121,16 @@ class CheckinService {
             throw new Error('Planner item không thuộc planner này');
         }
 
-        // Kiểm tra xem tất cả items trước đó đã được check-in chưa
+        // Kiểm tra xem tất cả items trước đó đã hoàn thành chưa (visited hoặc skipped)
         for (let i = 0; i < currentItemIndex; i++) {
-            if (!checkedInItemIds.has(allPlannerItems[i].id)) {
-                const previousItem = allPlannerItems[i];
+            const previousItem = allPlannerItems[i];
+            
+            // Re-fetch previous item status because we only gathered id, leg_number, order_index
+            const prevItemRecord = await PlannerItem.findByPk(previousItem.id, { attributes: ['status'] });
+            
+            if (prevItemRecord.status !== 'visited' && prevItemRecord.status !== 'skipped') {
                 throw new Error(
-                    `Bạn phải check-in theo thứ tự! Vui lòng check-in địa điểm Ngày ${previousItem.day_number}, thứ tự ${previousItem.order_index} trước.`
+                    `Bạn phải thực hiện tuần tự! Địa điểm Ngày ${previousItem.leg_number}, thứ tự ${previousItem.order_index} vẫn chưa hoàn thành.`
                 );
             }
         }
@@ -187,22 +191,39 @@ class CheckinService {
             });
         }
 
-        // ===== CẬP NHẬT PLANNER ITEM STATUS =====
-        await this.updatePlannerItemStatus(plannerItemId, planner.id);
-
-        // ===== TỰ ĐỘNG CHUYỂN PLANNER SANG 'ongoing' NẾU ĐÂY LÀ CHECK-IN ĐẦU TIÊN =====
+        // Ghi nhận thời gian bắt đầu thực tế (started_at) vào check-in đầu tiên nếu chưa có
         let newPlannerStatus = planner.status;
-        
-        if (planner.status === 'planning' && !planner.started_at) {
+        if (!planner.started_at) {
             await planner.update({
-                status: 'ongoing',
                 started_at: new Date()
             });
-            newPlannerStatus = 'ongoing';
         }
 
-        // ===== TỰ ĐỘNG CHUYỂN SANG 'completed' NẾU TẤT CẢ THÀNH VIÊN ĐÃ HOÀN THÀNH =====
-        await this.checkAndUpdatePlannerCompletion(planner.id);
+        // Tự động mark 'visited' nếu TẤT CẢ mọi người (kể cả owner) đều đã check-in
+        const membersCount = await PlannerMember.count({ 
+            where: { planner_id: planner.id, join_status: 'joined' } 
+        });
+        const totalExpected = membersCount + 1; // +1 cho owner
+
+        const checkedInCount = await UserCheckin.count({
+            where: { planner_item_id: plannerItemId, status: 'checked_in' }
+        });
+
+        if (checkedInCount >= totalExpected) {
+            await plannerItem.update({ status: 'visited' });
+            
+            // Check xem còn phải điểm cuối không
+            const allItems = await PlannerItem.findAll({ 
+                where: { planner_id: planner.id }, 
+                attributes: ['status'] 
+            });
+            const allFinished = allItems.every(i => i.status === 'visited' || i.status === 'skipped');
+            if (allFinished && newPlannerStatus !== 'completed') {
+                await planner.update({ status: 'completed', completed_at: new Date() });
+                newPlannerStatus = 'completed';
+                Logger.info(`Planner ${planner.id} auto-completed after final check-in by all members`);
+            }
+        }
 
         return {
             distance: Math.round(distance),
@@ -213,9 +234,9 @@ class CheckinService {
     }
 
     /**
-     * Skip a planner item (user chủ động không đi điểm này)
+     * Bỏ qua cả địa điểm (Chỉ dành cho Trưởng đoàn). Áp dụng cho cả đoàn, không mất cọc.
      */
-    static async skipItem(userId, plannerItemId, reason) {
+    static async skipItemByOwner(ownerId, plannerItemId) {
         const plannerItem = await PlannerItem.findByPk(plannerItemId, {
             include: [{
                 model: Planner,
@@ -230,182 +251,103 @@ class CheckinService {
 
         const planner = plannerItem.planner;
 
-        // Kiểm tra user là thành viên
-        const isOwner = planner.user_id === userId;
-        
-        if (!isOwner) {
-            const member = await PlannerMember.findOne({
-                where: {
-                    planner_id: planner.id,
-                    user_id: userId
-                }
-            });
-            
-            if (!member) {
-                throw new Error('Bạn không phải thành viên của kế hoạch này');
-            }
+        if (planner.user_id !== ownerId) {
+            throw new Error('Chỉ Trưởng đoàn mới có quyền bỏ qua địa điểm này');
         }
 
-        // Kiểm tra đã check-in chưa
-        const existingCheckin = await UserCheckin.findOne({
-            where: {
-                user_id: userId,
-                planner_item_id: plannerItemId
-            }
-        });
-
-        if (existingCheckin && existingCheckin.status === 'checked_in') {
-            throw new Error('Bạn đã check-in rồi, không thể bỏ qua');
+        if (plannerItem.status === 'visited' || plannerItem.status === 'skipped') {
+            throw new Error('Địa điểm này đã chốt sổ, không thể thay đổi');
         }
 
-        // Tạo hoặc cập nhật check-in status thành 'skipped'
-        if (existingCheckin) {
-            await existingCheckin.update({
-                status: 'skipped',
-                note: reason || 'Người dùng chủ động bỏ qua'
-            });
-        } else {
-            await UserCheckin.create({
-                user_id: userId,
-                planner_item_id: plannerItemId,
-                status: 'skipped',
-                note: reason || 'Người dùng chủ động bỏ qua'
-            });
-        }
+        await plannerItem.update({ status: 'skipped' });
 
-        // Cập nhật planner item status
-        await this.updatePlannerItemStatus(plannerItemId, planner.id);
-
-        return { message: 'Đã đánh dấu bỏ qua địa điểm này' };
+        return { message: 'Đã đánh dấu bỏ qua địa điểm này cho toàn đoàn' };
     }
 
     /**
-     * Cập nhật status của planner_item dựa trên tất cả user_checkins
-     * Logic:
-     * - Nếu tất cả đều checked_in → 'checked_in'
-     * - Nếu có ít nhất 1 checked_in → 'in_progress'
-     * - Nếu tất cả skipped/missed/absent → 'skipped'
+     * Hoàn thành điểm đến (Chỉ Trưởng đoàn). Đánh dấu 'visited' và quét 'missed' những ai chưa check-in.
      */
-    static async updatePlannerItemStatus(plannerItemId, plannerId) {
-        const allMembers = await PlannerMember.findAll({
-            where: { planner_id: plannerId },
-            attributes: ['user_id']
-        });
-        
-        // Thêm owner vào danh sách
-        const planner = await Planner.findByPk(plannerId);
-        const allUserIds = [planner.user_id, ...allMembers.map(m => m.user_id)];
+    static async completeItem(ownerId, plannerItemId) {
+        const sequelize = require('../config/database');
+        const t = await sequelize.transaction();
 
-        const userCheckins = await UserCheckin.findAll({
-            where: {
-                planner_item_id: plannerItemId,
-                user_id: allUserIds
+        try {
+            const plannerItem = await PlannerItem.findByPk(plannerItemId, {
+                include: [{
+                    model: Planner,
+                    as: 'planner',
+                    attributes: ['id', 'user_id', 'status']
+                }],
+                transaction: t
+            });
+
+            if (!plannerItem) {
+                throw new Error('Planner item not found');
             }
-        });
 
-        const checkinByUser = {};
-        userCheckins.forEach(c => {
-            checkinByUser[c.user_id] = c.status;
-        });
+            const planner = plannerItem.planner;
 
-        // Đếm số lượng theo từng trạng thái
-        let checkedInCount = 0;
-        let pendingCount = 0;
-        let skippedCount = 0;
-        let missedCount = 0;
-        let absentCount = 0;
+            if (planner.user_id !== ownerId) {
+                throw new Error('Chỉ Trưởng đoàn mới có quyền hoàn thành địa điểm này');
+            }
 
-        allUserIds.forEach(userId => {
-            const status = checkinByUser[userId];
-            if (status === 'checked_in') checkedInCount++;
-            else if (status === 'skipped') skippedCount++;
-            else if (status === 'missed') missedCount++;
-            else if (status === 'absent') absentCount++;
-            else pendingCount++;
-        });
+            if (plannerItem.status !== 'in_progress') {
+                throw new Error('Địa điểm này chưa bắt đầu hoặc đã kết thúc, không thể hoàn thành');
+            }
 
-        const totalMembers = allUserIds.length;
-        let newStatus;
+            // Lấy tất cả user đã tham gia chuyến đi
+            const members = await PlannerMember.findAll({
+                where: { planner_id: planner.id, join_status: 'joined' },
+                attributes: ['user_id'],
+                transaction: t
+            });
+            const allUserIds = [planner.user_id, ...members.map(m => m.user_id)];
 
-        if (checkedInCount === totalMembers) {
-            newStatus = 'checked_in';
-        } else if (checkedInCount > 0) {
-            newStatus = 'in_progress';
-        } else if (skippedCount + missedCount + absentCount === totalMembers) {
-            newStatus = 'skipped';
-        } else {
-            newStatus = 'planned';
-        }
-
-        await PlannerItem.update(
-            { status: newStatus },
-            { where: { id: plannerItemId } }
-        );
-
-        return newStatus;
-    }
-
-    /**
-     * Kiểm tra và cập nhật planner sang completed nếu tất cả thành viên đã hoàn thành
-     */
-    static async checkAndUpdatePlannerCompletion(plannerId) {
-        const planner = await Planner.findByPk(plannerId, {
-            include: [{
-                model: PlannerItem,
-                as: 'items',
-                attributes: ['id', 'status']
-            }]
-        });
-
-        if (!planner || planner.status !== 'ongoing') {
-            return;
-        }
-
-        // Lấy tất cả members
-        const allMembers = await PlannerMember.findAll({
-            where: { planner_id: plannerId },
-            attributes: ['user_id']
-        });
-        const allUserIds = [planner.user_id, ...allMembers.map(m => m.user_id)];
-
-        // Lấy tất cả items
-        const allItems = planner.items || [];
-        const allItemIds = allItems.map(item => item.id);
-
-        if (allItemIds.length === 0) return;
-
-        // Với mỗi user, kiểm tra đã hoàn thành chưa
-        let allMembersCompleted = true;
-
-        for (const userId of allUserIds) {
-            const userCheckins = await UserCheckin.findAll({
+            // Lấy những người đã check-in
+            const checkedInUsers = await UserCheckin.findAll({
                 where: {
-                    user_id: userId,
-                    planner_item_id: allItemIds
-                }
+                    planner_item_id: plannerItemId,
+                    status: 'checked_in'
+                },
+                attributes: ['user_id'],
+                transaction: t
             });
+            const checkedInIds = new Set(checkedInUsers.map(c => c.user_id));
 
-            const checkedItemIds = new Set(
-                userCheckins
-                    .filter(c => c.status === 'checked_in' || c.status === 'skipped')
-                    .map(c => c.planner_item_id)
-            );
+            // Tìm những người chưa check-in để gán missed
+            const missingUsers = allUserIds.filter(id => !checkedInIds.has(id));
 
-            // User phải check-in hoặc skip tất cả items
-            if (checkedItemIds.size < allItemIds.length) {
-                allMembersCompleted = false;
-                break;
+            if (missingUsers.length > 0) {
+                const missedRecords = missingUsers.map(uid => ({
+                    id: require('crypto').randomUUID(),
+                    user_id: uid,
+                    planner_item_id: plannerItemId,
+                    status: 'missed',
+                    note: 'Hệ thống tự động ghi vắng mặt khi trưởng đoàn chốt sổ'
+                }));
+                await UserCheckin.bulkCreate(missedRecords, { transaction: t });
             }
-        }
 
-        if (allMembersCompleted) {
-            await planner.update({
-                status: 'completed',
-                completed_at: new Date()
-            });
-        }
+            // Update item to visited
+            await plannerItem.update({ status: 'visited' }, { transaction: t });
 
-        return allMembersCompleted;
+            // Autocomplete planner if this was the last item
+            const allItems = await PlannerItem.findAll({ where: { planner_id: planner.id }, attributes: ['status'], transaction: t });
+            const allFinished = allItems.every(i => i.status === 'visited' || i.status === 'skipped');
+            if (allFinished) {
+                await planner.update({ status: 'completed', completed_at: new Date() }, { transaction: t });
+            }
+
+            await t.commit();
+
+            return { 
+                message: 'Đã hoàn thành điểm đến', 
+                stats: { checked_in: checkedInIds.size, missed: missingUsers.length } 
+            };
+        } catch (error) {
+            await t.rollback();
+            throw error;
+        }
     }
 
     /**
@@ -421,7 +363,7 @@ class CheckinService {
             include: [{
                 model: PlannerItem,
                 as: 'plannerItem',
-                attributes: ['id', 'site_id', 'day_number', 'order_index'],
+                attributes: ['id', 'site_id', 'leg_number', 'order_index'],
                 include: [{
                     model: Site,
                     as: 'site',
@@ -479,7 +421,7 @@ class CheckinService {
         // Lấy tất cả items
         const items = await PlannerItem.findAll({
             where: { planner_id: plannerId },
-            order: [['day_number', 'ASC'], ['order_index', 'ASC']],
+            order: [['leg_number', 'ASC'], ['order_index', 'ASC']],
             include: [{
                 model: Site,
                 as: 'site',
@@ -507,23 +449,32 @@ class CheckinService {
             checkinsByUser[uid] = allCheckins.filter(c => c.user_id === uid);
         });
 
+        const plannerSkippedCount = items.filter(i => i.status === 'skipped').length;
+
         // Build kết quả
         const progressData = allUserIds.map(userId => {
             const userCheckins = checkinsByUser[userId] || [];
             const checkedCount = userCheckins.filter(c => c.status === 'checked_in').length;
-            const skippedCount = userCheckins.filter(c => c.status === 'skipped').length;
             const missedCount = userCheckins.filter(c => c.status === 'missed').length;
-            const absentCount = userCheckins.filter(c => c.status === 'absent').length;
+            
+            // Những điểm Trưởng đoàn bỏ qua (skipped) được tính là đã hoàn thành (không bị trừ % tiến độ)
+            const completedCount = checkedCount + plannerSkippedCount;
+
+            const checkinDetails = userCheckins.map(c => ({
+                planner_item_id: c.planner_item_id,
+                status: c.status,
+                checkin_date: c.checkin_date
+            }));
 
             return {
                 user_id: userId,
                 total_items: items.length,
                 checked_in: checkedCount,
-                skipped: skippedCount,
+                skipped_by_planner: plannerSkippedCount,
                 missed: missedCount,
-                absent: absentCount,
-                completed: checkedCount + skippedCount,
-                percent: items.length > 0 ? Math.round((checkedCount + skippedCount) / items.length * 100) : 0
+                completed: completedCount,
+                percent: items.length > 0 ? Math.round((completedCount) / items.length * 100) : 0,
+                history: checkinDetails
             };
         });
 

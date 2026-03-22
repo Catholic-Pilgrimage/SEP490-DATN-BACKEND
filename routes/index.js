@@ -14,7 +14,6 @@ const publicRoutes = require('./public.routes');
 const journalRoutes = require('./journal.routes');
 const plannerRoutes = require('./planner.routes');
 const plannerChatRoutes = require('./plannerChat.routes');
-const checkinRoutes = require('./checkin.routes');
 const checkinHistoryRoutes = require('./checkin-history.routes');
 const notificationRoutes = require('./notification.routes');
 const sosRoutes = require('./sos.routes');
@@ -22,6 +21,7 @@ const postRoutes = require('./post.routes');
 const reportRoutes = require('./report.routes');
 const walletRoutes = require('./wallet.routes');
 const aiRoutes = require('./ai.routes');
+const webhookRoutes = require('./webhook.routes');
 
 router.get('/', (req, res) => {
   res.json({
@@ -46,7 +46,6 @@ router.get('/', (req, res) => {
       journals: '/api/journals',
       planners: '/api/planners',
       plannerChat: '/api/planners/:id/messages',
-      checkins: '/api/planner-items/:id/checkin',
       checkinHistory: '/api/checkins/me',
       notifications: '/api/notifications',
       sos: '/api/sos',
@@ -117,8 +116,6 @@ router.use('/planners', plannerRoutes);
 // Planner Chat routes
 router.use('/planners', plannerChatRoutes);
 
-// Check-in routes
-router.use('/planner-items', checkinRoutes);
 
 // Check-in history routes
 router.use('/checkins', checkinHistoryRoutes);
@@ -140,6 +137,9 @@ router.use('/wallet', walletRoutes);
 
 // AI routes (Google Gemini AI features)
 router.use('/ai', aiRoutes);
+
+// Webhook routes (no auth - called by external services)
+router.use('/webhooks', webhookRoutes);
 
 
 module.exports = router;
