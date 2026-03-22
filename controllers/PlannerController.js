@@ -171,7 +171,7 @@ class PlannerController {
                 return ResponseUtil.notFound(res, req.__('planner.site_not_found'));
             }
             if (error.message.includes('Invalid day number')) {
-                return ResponseUtil.badRequest(res, req.__('planner.invalid_day_number_range', { max: error.message.match(/\d+/)?.[0] || '?' }));
+                return ResponseUtil.badRequest(res, req.__('planner.invalid_leg_number_range', { max: error.message.match(/\d+/)?.[0] || '?' }));
             }
             if (error.message.includes('Cannot add the same site consecutively')) {
                 return ResponseUtil.badRequest(res, error.message);

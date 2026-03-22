@@ -40,8 +40,8 @@ const UserCheckin = sequelize.define('UserCheckin', {
         defaultValue: false
     },
     status: {
-        type: DataTypes.ENUM('pending', 'checked_in', 'skipped'),
-        defaultValue: 'pending'
+        type: DataTypes.ENUM('checked_in', 'skipped', 'missed'),
+        defaultValue: 'checked_in'
     },
     checkin_date: {
         type: DataTypes.DATE,

@@ -147,7 +147,7 @@ class PlannerValidator {
         body('site_id')
             .notEmpty().withMessage('Site ID không được để trống')
             .isUUID().withMessage('Site ID không hợp lệ'),
-        body('day_number')
+        body('leg_number')
             .notEmpty().withMessage('Số ngày không được để trống')
             .isInt({ min: 1 }).withMessage('Số ngày phải lớn hơn hoặc bằng 1'),
 
@@ -322,7 +322,7 @@ class PlannerValidator {
             .notEmpty().withMessage('Site ID không được để trống')
             .isUUID().withMessage('Site ID không hợp lệ'),
 
-        body('day_number')
+        body('leg_number')
             .notEmpty().withMessage('Số ngày không được để trống')
             .isInt({ min: 1 }).withMessage('Số ngày phải lớn hơn hoặc bằng 1'),
 
@@ -382,7 +382,7 @@ class PlannerValidator {
         param('token')
             .notEmpty().withMessage('Token không được để trống'),
 
-        body('day_number')
+        body('leg_number')
             .notEmpty().withMessage('Số ngày không được để trống')
             .isInt({ min: 1 }).withMessage('Số ngày phải lớn hơn hoặc bằng 1'),
 

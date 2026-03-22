@@ -29,7 +29,7 @@ class PlannerShareService {
                             include: [
                                 { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image'] }
                             ],
-                            order: [['day_number', 'ASC'], ['order_index', 'ASC']]
+                            order: [['leg_number', 'ASC'], ['order_index', 'ASC']]
                         }
                     ]
                 }]

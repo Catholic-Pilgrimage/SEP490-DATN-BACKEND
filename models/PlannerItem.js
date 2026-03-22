@@ -23,7 +23,7 @@ const PlannerItem = sequelize.define('PlannerItem', {
             key: 'id'
         }
     },
-    day_number: {
+    leg_number: {
         type: DataTypes.INTEGER,
         defaultValue: 1,
         validate: {
@@ -49,7 +49,7 @@ const PlannerItem = sequelize.define('PlannerItem', {
         field: 'planner_item_status',
         validate: {
             isIn: [
-                ['planned', 'in_progress', 'checked_in', 'skipped']
+                ['planned', 'in_progress', 'visited', 'skipped']
             ]
         }
     },

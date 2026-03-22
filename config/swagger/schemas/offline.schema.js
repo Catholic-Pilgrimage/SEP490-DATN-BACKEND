@@ -78,7 +78,7 @@
  *         site_id:
  *           type: string
  *           format: uuid
- *         day_number:
+ *         leg_number:
  *           type: integer
  *         order_in_day:
  *           type: integer

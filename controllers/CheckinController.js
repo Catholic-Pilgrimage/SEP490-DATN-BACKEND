@@ -20,16 +20,21 @@ class CheckinController {
                 );
             }
 
-            const { latitude, longitude, note } = req.body;
-            const plannerItemId = req.params.id;
+            const { latitude, longitude, note, checkin_latitude, checkin_longitude } = req.body;
+            // Hỗ trợ cả 2 params: :id và :itemId tùy route
+            const plannerItemId = req.params.itemId || req.params.id;
             const userId = req.user.id;
+            
+            // Map body keys
+            const lat = checkin_latitude !== undefined ? checkin_latitude : latitude;
+            const lng = checkin_longitude !== undefined ? checkin_longitude : longitude;
 
             // Call service
             const result = await CheckinService.checkin(
                 userId,
                 plannerItemId,
-                latitude,
-                longitude,
+                lat,
+                lng,
                 note
             );
 
@@ -61,28 +66,38 @@ class CheckinController {
     }
 
     /**
-     * Skip a planner item (chủ động không đi điểm này)
-     * POST /planner-items/:id/skip
+     * [Trưởng đoàn] Cập nhật trạng thái điểm đến (Chốt sổ hoặc Bỏ qua)
+     * PATCH /planners/:id/items/:itemId/status
      */
-    static async skipItem(req, res) {
+    static async updateItemStatus(req, res) {
         try {
-            const { reason } = req.body;
-            const plannerItemId = req.params.id;
-            const userId = req.user.id;
+            const plannerItemId = req.params.itemId || req.params.id;
+            const userId = req.user.id; // Owner ID
+            const { status } = req.body;
 
-            const result = await CheckinService.skipItem(userId, plannerItemId, reason);
-            return ResponseUtil.success(res, result, 'Đã đánh dấu bỏ qua địa điểm');
+            if (!status || !['visited', 'skipped'].includes(status)) {
+                return ResponseUtil.badRequest(res, 'Status không hợp lệ. Phải là "visited" hoặc "skipped"');
+            }
+
+            let result;
+            if (status === 'visited') {
+                result = await CheckinService.completeItem(userId, plannerItemId);
+                return ResponseUtil.success(res, result, 'Đã hoàn thành điểm đến');
+            } else if (status === 'skipped') {
+                result = await CheckinService.skipItemByOwner(userId, plannerItemId);
+                return ResponseUtil.success(res, result, 'Đã đánh dấu bỏ qua điểm đến');
+            }
         } catch (err) {
             if (err.message === 'Planner item not found') {
                 return ResponseUtil.notFound(res, err.message);
             }
-            if (err.message.includes('Không phải thành viên')) {
+            if (err.message.includes('Chỉ Trưởng đoàn')) {
                 return ResponseUtil.forbidden(res, err.message);
             }
-            if (err.message.includes('đã check-in')) {
+            if (err.message.includes('đã chốt sổ') || err.message.includes('không thể hoàn thành')) {
                 return ResponseUtil.badRequest(res, err.message);
             }
-            return ResponseUtil.error(res, err.message || 'Skip failed', 500);
+            return ResponseUtil.error(res, err.message || 'Cập nhật trạng thái thất bại', 500);
         }
     }
 
