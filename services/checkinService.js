@@ -259,35 +259,6 @@ class CheckinService {
             throw new Error('Địa điểm này đã chốt sổ, không thể thay đổi');
         }
 
-        // Lấy tất cả members đang tham gia
-        const members = await PlannerMember.findAll({
-            where: { planner_id: planner.id, join_status: 'joined' },
-            attributes: ['user_id']
-        });
-        const allUserIds = [planner.user_id, ...members.map(m => m.user_id)];
-
-        // Lấy những ai đã có record (checked_in hoặc skipped)
-        const existing = await UserCheckin.findAll({
-            where: { planner_item_id: plannerItemId },
-            attributes: ['user_id']
-        });
-        const existingIds = new Set(existing.map(c => c.user_id));
-
-        // Tạo record 'skipped' cho những ai chưa có
-        const toInsert = allUserIds
-            .filter(id => !existingIds.has(id))
-            .map(uid => ({
-                id: require('crypto').randomUUID(),
-                user_id: uid,
-                planner_item_id: plannerItemId,
-                status: 'skipped',
-                note: 'Trưởng đoàn quyết định bỏ qua địa điểm này'
-            }));
-
-        if (toInsert.length > 0) {
-            await UserCheckin.bulkCreate(toInsert);
-        }
-
         await plannerItem.update({ status: 'skipped' });
 
         return { message: 'Đã đánh dấu bỏ qua địa điểm này cho toàn đoàn' };
@@ -478,19 +449,32 @@ class CheckinService {
             checkinsByUser[uid] = allCheckins.filter(c => c.user_id === uid);
         });
 
+        const plannerSkippedCount = items.filter(i => i.status === 'skipped').length;
+
         // Build kết quả
         const progressData = allUserIds.map(userId => {
             const userCheckins = checkinsByUser[userId] || [];
             const checkedCount = userCheckins.filter(c => c.status === 'checked_in').length;
             const missedCount = userCheckins.filter(c => c.status === 'missed').length;
+            
+            // Những điểm Trưởng đoàn bỏ qua (skipped) được tính là đã hoàn thành (không bị trừ % tiến độ)
+            const completedCount = checkedCount + plannerSkippedCount;
+
+            const checkinDetails = userCheckins.map(c => ({
+                planner_item_id: c.planner_item_id,
+                status: c.status,
+                checkin_date: c.checkin_date
+            }));
 
             return {
                 user_id: userId,
                 total_items: items.length,
                 checked_in: checkedCount,
+                skipped_by_planner: plannerSkippedCount,
                 missed: missedCount,
-                completed: checkedCount,
-                percent: items.length > 0 ? Math.round((checkedCount) / items.length * 100) : 0
+                completed: completedCount,
+                percent: items.length > 0 ? Math.round((completedCount) / items.length * 100) : 0,
+                history: checkinDetails
             };
         });
 
