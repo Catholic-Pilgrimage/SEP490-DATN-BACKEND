@@ -20,13 +20,7 @@ const PlannerMember = sequelize.define('PlannerMember', {
             key: 'id'
         }
     },
-    role: {
-        type: DataTypes.STRING(20),
-        defaultValue: 'viewer',
-        validate: {
-            isIn: [['viewer']]
-        }
-    },
+
     deposit_status: {
         type: DataTypes.STRING(20),
         allowNull: true,

@@ -35,13 +35,7 @@ const PlannerInvite = sequelize.define('PlannerInvite', {
         allowNull: false,
         unique: true
     },
-    role: {
-        type: DataTypes.STRING(20),
-        defaultValue: 'viewer',
-        validate: {
-            isIn: [['viewer']]
-        }
-    },
+
     status: {
         type: DataTypes.STRING(20),
         defaultValue: 'pending',

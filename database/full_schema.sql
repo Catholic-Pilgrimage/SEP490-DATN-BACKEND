@@ -38,8 +38,8 @@ DO $$ BEGIN
     -- Planner
     CREATE TYPE planner_status AS ENUM ('planning', 'ongoing', 'completed', 'expired');
     CREATE TYPE planner_item_status AS ENUM ('planned', 'in_progress', 'visited', 'skipped');
-    CREATE TYPE planner_role AS ENUM ('owner', 'viewer');
-    CREATE TYPE checkin_status AS ENUM ('checked_in', 'skipped', 'missed');
+
+    CREATE TYPE checkin_status AS ENUM ('checked_in', 'skipped', 'missed', 'pending');
 
     
     -- Journal & Community
@@ -575,7 +575,7 @@ CREATE TABLE IF NOT EXISTS planner_invites (
     inviter_id UUID REFERENCES users(id) ON DELETE CASCADE,
     email VARCHAR(255) NOT NULL,
     token VARCHAR(100) NOT NULL,
-    role planner_role DEFAULT 'viewer',
+
     status invite_status DEFAULT 'pending',
     expires_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -605,7 +605,6 @@ ADD CONSTRAINT uq_planner_items_order UNIQUE (planner_id, leg_number, order_inde
 CREATE TABLE IF NOT EXISTS planner_members (
     planner_id UUID REFERENCES planners(id) ON DELETE CASCADE,
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    role planner_role DEFAULT 'viewer',
     deposit_status VARCHAR(20) DEFAULT NULL CHECK (deposit_status IS NULL OR deposit_status IN ('paid', 'refunded', 'penalized')),
     join_status VARCHAR(20) DEFAULT 'joined' NOT NULL CHECK (join_status IN ('joined', 'dropped_out', 'kicked')),
     joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

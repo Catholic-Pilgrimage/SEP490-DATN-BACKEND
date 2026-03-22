@@ -397,15 +397,6 @@ class PlannerValidator {
             })
     ];
 
-    // Validate update share role
-    static updateShareRole = [
-        param('id')
-            .isUUID().withMessage('Planner ID không hợp lệ'),
-
-        body('role')
-            .notEmpty().withMessage('Role không được để trống')
-            .isIn(['viewer']).withMessage('Role phải là viewer')
-    ];
 
     // Validate invite user to planner
     static inviteUser = [
