@@ -23,7 +23,7 @@ const PlannerItem = sequelize.define('PlannerItem', {
             key: 'id'
         }
     },
-    day_number: {
+    leg_number: {
         type: DataTypes.INTEGER,
         defaultValue: 1,
         validate: {

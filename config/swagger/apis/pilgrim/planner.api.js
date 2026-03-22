@@ -35,7 +35,7 @@
  *           items:
  *             type: object
  *             properties:
- *               day_number:
+ *               leg_number:
  *                 type: integer
  *               estimated_time:
  *                 type: string

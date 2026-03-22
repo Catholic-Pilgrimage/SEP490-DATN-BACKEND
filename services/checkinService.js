@@ -98,8 +98,8 @@ class CheckinService {
         // ===== VALIDATION: Check-in phải theo thứ tự =====
         const allPlannerItems = await PlannerItem.findAll({
             where: { planner_id: planner.id },
-            order: [['day_number', 'ASC'], ['order_index', 'ASC']],
-            attributes: ['id', 'day_number', 'order_index']
+            order: [['leg_number', 'ASC'], ['order_index', 'ASC']],
+            attributes: ['id', 'leg_number', 'order_index']
         });
 
         // Lấy tất cả check-ins đã có của user cho planner này (trừ skipped/missed/absent)
@@ -125,12 +125,12 @@ class CheckinService {
         for (let i = 0; i < currentItemIndex; i++) {
             const previousItem = allPlannerItems[i];
             
-            // Re-fetch previous item status because we only gathered id, day_number, order_index
+            // Re-fetch previous item status because we only gathered id, leg_number, order_index
             const prevItemRecord = await PlannerItem.findByPk(previousItem.id, { attributes: ['status'] });
             
             if (prevItemRecord.status !== 'visited' && prevItemRecord.status !== 'skipped') {
                 throw new Error(
-                    `Bạn phải thực hiện tuần tự! Địa điểm Ngày ${previousItem.day_number}, thứ tự ${previousItem.order_index} vẫn chưa hoàn thành.`
+                    `Bạn phải thực hiện tuần tự! Địa điểm Ngày ${previousItem.leg_number}, thứ tự ${previousItem.order_index} vẫn chưa hoàn thành.`
                 );
             }
         }
@@ -394,7 +394,7 @@ class CheckinService {
             include: [{
                 model: PlannerItem,
                 as: 'plannerItem',
-                attributes: ['id', 'site_id', 'day_number', 'order_index'],
+                attributes: ['id', 'site_id', 'leg_number', 'order_index'],
                 include: [{
                     model: Site,
                     as: 'site',
@@ -452,7 +452,7 @@ class CheckinService {
         // Lấy tất cả items
         const items = await PlannerItem.findAll({
             where: { planner_id: plannerId },
-            order: [['day_number', 'ASC'], ['order_index', 'ASC']],
+            order: [['leg_number', 'ASC'], ['order_index', 'ASC']],
             include: [{
                 model: Site,
                 as: 'site',

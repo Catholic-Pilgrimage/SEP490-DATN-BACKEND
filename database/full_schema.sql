@@ -587,7 +587,7 @@ CREATE TABLE IF NOT EXISTS planner_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     planner_id UUID NOT NULL REFERENCES planners(id) ON DELETE CASCADE,
     site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
-    day_number INT DEFAULT 1,
+    leg_number INT DEFAULT 1,
     order_index INT DEFAULT 1,
     status planner_item_status DEFAULT 'planned',
     note TEXT,
@@ -600,7 +600,7 @@ CREATE TABLE IF NOT EXISTS planner_items (
 
 CREATE INDEX IF NOT EXISTS idx_planner_items_planner ON planner_items(planner_id);
 ALTER TABLE planner_items
-ADD CONSTRAINT uq_planner_items_order UNIQUE (planner_id, day_number, order_index);
+ADD CONSTRAINT uq_planner_items_order UNIQUE (planner_id, leg_number, order_index);
 
 CREATE TABLE IF NOT EXISTS planner_members (
     planner_id UUID REFERENCES planners(id) ON DELETE CASCADE,

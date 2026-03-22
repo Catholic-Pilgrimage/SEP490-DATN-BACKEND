@@ -84,14 +84,14 @@
  *       type: object
  *       required:
  *         - site_id
- *         - day_number
+ *         - leg_number
  *       properties:
  *         site_id:
  *           type: string
  *           format: uuid
  *           example: "123e4567-e89b-12d3-a456-426614174000"
  *           description: "ID của địa điểm"
- *         day_number:
+ *         leg_number:
  *           type: integer
  *           minimum: 1
  *           example: 1
@@ -130,7 +130,7 @@
  *         site_id:
  *           type: string
  *           format: uuid
- *         day_number:
+ *         leg_number:
  *           type: integer
  *         order_index:
  *           type: integer
