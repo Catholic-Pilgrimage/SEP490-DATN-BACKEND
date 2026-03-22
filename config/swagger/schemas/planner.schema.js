@@ -11,11 +11,16 @@
  *           type: string
  *           example: "Hành hương miền Bắc"
  *           description: "Tên kế hoạch (tối đa 255 ký tự)"
- *         estimated_days:
- *           type: integer
- *           minimum: 1
- *           example: 3
- *           description: "Số ngày dự kiến cho chuyến đi"
+ *         start_date:
+ *           type: string
+ *           format: date
+ *           example: "2026-05-01"
+ *           description: "Ngày bắt đầu chuyến đi"
+ *         end_date:
+ *           type: string
+ *           format: date
+ *           example: "2026-05-03"
+ *           description: "Ngày kết thúc chuyến đi (tối đa 30 ngày kể từ start_date)"
  *         number_of_people:
  *           type: integer
  *           minimum: 1
@@ -45,11 +50,16 @@
  *         name:
  *           type: string
  *           example: "Hành hương miền Bắc - Updated"
- *         estimated_days:
- *           type: integer
- *           minimum: 1
- *           example: 5
- *           description: "Số ngày dự kiến cho chuyến đi"
+ *         start_date:
+ *           type: string
+ *           format: date
+ *           example: "2026-05-01"
+ *           description: "Ngày bắt đầu chuyến đi"
+ *         end_date:
+ *           type: string
+ *           format: date
+ *           example: "2026-05-03"
+ *           description: "Ngày kết thúc chuyến đi"
  *         number_of_people:
  *           type: integer
  *           minimum: 1
@@ -126,8 +136,8 @@
  *           type: integer
  *         status:
  *           type: string
- *           enum: [planned, in_progress, checked_in, skipped, missed]
- *           description: "Trạng thái của item"
+ *           enum: [planned, in_progress, visited, skipped]
+ *           description: "Trạng thái của điểm đến trong lịch trình"
  *         note:
  *           type: string
  *         nearby_amenity_ids:
@@ -191,9 +201,19 @@
  *           format: uuid
  *         name:
  *           type: string
- *         estimated_days:
+ *         start_date:
+ *           type: string
+ *           format: date
+ *           example: "2026-05-01"
+ *           description: "Ngày bắt đầu chuyến đi"
+ *         end_date:
+ *           type: string
+ *           format: date
+ *           example: "2026-05-03"
+ *           description: "Ngày kết thúc chuyến đi"
+ *         number_of_days:
  *           type: integer
- *           description: "Số ngày dự kiến cho chuyến đi"
+ *           description: "Số ngày của chuyến đi = end_date - start_date + 1 (tự động tính)"
  *         number_of_people:
  *           type: integer
  *         transportation:

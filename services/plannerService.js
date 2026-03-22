@@ -14,16 +14,21 @@ class PlannerService {
      */
     static async createPlanner(userId, plannerData) {
         try {
-            const { name, estimated_days, number_of_people = 1, transportation, start_date, end_date } = plannerData;
+            const { name, number_of_people = 1, transportation, start_date, end_date } = plannerData;
 
             // Validate required fields
             if (!name || name.trim().length === 0) {
                 throw new Error('Name is required');
             }
 
-            // Validate estimated_days (optional)
-            if (estimated_days !== undefined && estimated_days !== null && estimated_days < 1) {
-                throw new Error('Estimated days must be at least 1');
+            // Validate start_date must be >= tomorrow
+            if (start_date) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const startDateObj = new Date(start_date);
+                if (startDateObj <= today) {
+                    throw new Error('Ngày bắt đầu kế hoạch phải từ ngày mai trở đi');
+                }
             }
 
             // Validate date range
@@ -299,21 +304,38 @@ class PlannerService {
                 dataToUpdate.name = updateData.name.trim();
             }
 
-            // Thay thế start_date/end_date bằng estimated_days
-            if (updateData.estimated_days !== undefined) {
-                if (updateData.estimated_days < 1) {
-                    throw new Error('Estimated days must be at least 1');
-                }
-                dataToUpdate.estimated_days = updateData.estimated_days;
+            // Cập nhật start_date và end_date
+            if (updateData.start_date !== undefined) {
+                dataToUpdate.start_date = updateData.start_date;
+            }
+            if (updateData.end_date !== undefined) {
+                dataToUpdate.end_date = updateData.end_date;
             }
 
-            // BỎ: start_date, end_date
-            // if (updateData.start_date !== undefined) {
-            //     dataToUpdate.start_date = updateData.start_date;
-            // }
-            // if (updateData.end_date !== undefined) {
-            //     dataToUpdate.end_date = updateData.end_date;
-            // }
+            // Validate start date must be >= tomorrow (chỉ check khi có sửa đổi start_date)
+            if (updateData.start_date !== undefined && updateData.start_date !== planner.start_date) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const startDateObj = new Date(updateData.start_date);
+                if (startDateObj <= today) {
+                    throw new Error('Ngày bắt đầu kế hoạch phải từ ngày mai trở đi');
+                }
+            }
+
+            // Validate date range nếu update cả hai
+            const newStart = dataToUpdate.start_date ?? planner.start_date;
+            const newEnd = dataToUpdate.end_date ?? planner.end_date;
+            if (newStart && newEnd) {
+                const startObj = new Date(newStart);
+                const endObj = new Date(newEnd);
+                if (endObj < startObj) {
+                    throw new Error('End date must be after or equal to start date');
+                }
+                const diffDays = Math.ceil((endObj - startObj) / (1000 * 60 * 60 * 24)) + 1;
+                if (diffDays > 30) {
+                    throw new Error('Planner exceeds 30 days');
+                }
+            }
 
             if (updateData.number_of_people !== undefined) {
                 if (updateData.number_of_people < 1) {
@@ -583,7 +605,7 @@ class PlannerService {
                     // Calculate day_number (1-based)
                     calculatedDayNumber = Math.ceil((eventStartDate - plannerStartDate) / (1000 * 60 * 60 * 24)) + 1;
                 } else {
-                    // No planner dates - use next available day_number or estimated_days
+                    // Không có ngày: dùng day_number tiếp theo trong planner
                     const existingItems = await PlannerItem.findAll({
                         where: { planner_id: plannerId },
                         attributes: ['day_number'],
@@ -593,13 +615,7 @@ class PlannerService {
                         limit: 1
                     });
 
-                    if (existingItems.length > 0) {
-                        calculatedDayNumber = existingItems[0].day_number + 1;
-                    } else if (planner.estimated_days) {
-                        calculatedDayNumber = 1;
-                    } else {
-                        calculatedDayNumber = 1;
-                    }
+                    calculatedDayNumber = existingItems.length > 0 ? existingItems[0].day_number + 1 : 1;
 
                     Logger.info(`Planner without dates: using calculated day_number = ${calculatedDayNumber} for event ${event.name}`);
                 }
@@ -1503,20 +1519,25 @@ class PlannerService {
      * Format planner response
      */
     static formatPlannerResponse(planner) {
-        // Tính number_of_days: ưu tiên estimated_days, nếu không có thì tính từ items
-        let numberOfDays = planner.estimated_days;
+        // Tính số ngày từ start_date và end_date
+        let numberOfDays = null;
+        if (planner.start_date && planner.end_date) {
+            const start = new Date(planner.start_date);
+            const end = new Date(planner.end_date);
+            numberOfDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+        }
 
         return {
             id: planner.id,
             user_id: planner.user_id,
             name: planner.name,
-            estimated_days: planner.estimated_days,
+            start_date: planner.start_date,
+            end_date: planner.end_date,
             number_of_days: numberOfDays,
             number_of_people: planner.number_of_people,
             transportation: planner.transportation,
             deposit_amount: planner.deposit_amount,
             penalty_percentage: planner.penalty_percentage,
-
             status: planner.status,
             share_token: planner.share_token,
             qr_code_url: planner.qr_code_url,
@@ -1664,6 +1685,57 @@ class PlannerService {
     }
 
     /**
+     * Validate that a planner has items for every day
+     * @param {string} plannerId
+     */
+    static async validatePlannerContinuity(plannerId) {
+        const planner = await Planner.findByPk(plannerId);
+        if (!planner) throw new Error('Planner not found');
+
+        // Tính tổng số ngày (nếu có start/end date thì tính theo date, nếu ko thì lấy ngày lớn nhất có item)
+        let totalDays = 0;
+        if (planner.start_date && planner.end_date) {
+            const start = new Date(planner.start_date);
+            const end = new Date(planner.end_date);
+            totalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+        }
+
+        const items = await PlannerItem.findAll({
+            where: { planner_id: plannerId },
+            attributes: ['day_number'],
+            raw: true
+        });
+
+        if (items.length === 0) {
+            return {
+                isValid: false,
+                missingDays: totalDays > 0 ? Array.from({length: totalDays}, (_, i) => i + 1) : [1],
+                totalDays: totalDays || 1
+            };
+        }
+
+        const maxDayInItems = Math.max(...items.map(i => i.day_number));
+        if (totalDays === 0 || maxDayInItems > totalDays) {
+            totalDays = Math.max(totalDays, maxDayInItems);
+        }
+
+        const existingDays = new Set(items.map(i => i.day_number));
+        const missingDays = [];
+
+        for (let i = 1; i <= totalDays; i++) {
+            if (!existingDays.has(i)) {
+                missingDays.push(i);
+            }
+        }
+
+        return {
+            isValid: missingDays.length === 0,
+            missingDays,
+            totalDays
+        };
+    }
+
+    /**
      * Update planner status (gộp start và complete)
      * @param {string} plannerId
      * @param {string} userId
@@ -1689,20 +1761,20 @@ class PlannerService {
                 if (currentStatus !== 'planning') {
                     throw new Error('Planner is not in planning status');
                 }
-                // BỎ: Không cần bắt buộc start_date/end_date
-                // if (!planner.start_date || !planner.end_date) {
-                //     throw new Error('Planner must have start_date and end_date to start');
-                // }
 
-                // ===== VALIDATION: Planner phải có đủ items - BỎ vì không cần ngày cố định =====
-                // const continuityCheck = await this.validatePlannerContinuity(plannerId);
-                // if (!continuityCheck.isValid) {
-                //     const missingDaysStr = continuityCheck.missingDays.join(', ');
-                //     throw new Error(
-                //         `Không thể bắt đầu kế hoạch! Lịch trình chưa đầy đủ. ` +
-                //         `Bạn cần thêm địa điểm cho Ngày ${missingDaysStr} (Tổng ${continuityCheck.totalDays} ngày).`
-                //     );
-                // }
+                // Để phục vụ DEMO và dùng thực tế: 
+                // Có thể start planner thủ công bằng API bất kể lúc nào (kể cả chưa tới start_date)
+
+
+                // ===== VALIDATION: Planner phải có đủ items =====
+                const continuityCheck = await this.validatePlannerContinuity(plannerId);
+                if (!continuityCheck.isValid) {
+                    const missingDaysStr = continuityCheck.missingDays.join(', ');
+                    throw new Error(
+                        `Không thể bắt đầu kế hoạch! Lịch trình chưa đầy đủ. ` +
+                        `Bạn cần thêm địa điểm cho Ngày ${missingDaysStr} (Tổng ${continuityCheck.totalDays} ngày).`
+                    );
+                }
                 // ===== END: Validation =====
 
                 await planner.update({ status: 'ongoing' });
@@ -2033,6 +2105,50 @@ class PlannerService {
                 await transaction.rollback();
             }
             Logger.error('Skip item error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Auto-start planners that have reached their start_date
+     * Called by cron job
+     */
+    static async autoStartPlanners() {
+        try {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // Tìm các planner đang 'planning' và đã đến start_date
+            const readyPlanners = await Planner.findAll({
+                where: {
+                    status: 'planning',
+                    start_date: {
+                        [Op.lte]: today
+                    }
+                }
+            });
+
+            let startedCount = 0;
+            for (const planner of readyPlanners) {
+                await planner.update({ status: 'ongoing' });
+
+                await PlannerItem.update(
+                    { status: 'in_progress' },
+                    {
+                        where: {
+                            planner_id: planner.id,
+                            status: 'planned'
+                        }
+                    }
+                );
+                startedCount++;
+                Logger.info(`Planner ${planner.id} auto-started (start_date: ${planner.start_date})`);
+            }
+
+            Logger.info(`Auto-started ${startedCount} planners`);
+            return startedCount;
+        } catch (error) {
+            Logger.error('Auto-start planners error:', error);
             throw error;
         }
     }

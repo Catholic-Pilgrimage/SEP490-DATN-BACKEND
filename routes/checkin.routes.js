@@ -11,10 +11,10 @@ router.post(
     CheckinController.checkin
 );
 
-router.post(
-    '/:id/skip',
+router.patch(
+    '/:id/status',
     authMiddleware,
-    CheckinController.skipItem
+    CheckinController.updateItemStatus
 );
 
 module.exports = router;
