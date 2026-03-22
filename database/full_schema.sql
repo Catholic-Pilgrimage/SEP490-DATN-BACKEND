@@ -457,6 +457,7 @@ CREATE TABLE IF NOT EXISTS events (
     end_time TIME,
     location VARCHAR(255),
     banner_url TEXT,
+    category VARCHAR(100),
     status site_content_status DEFAULT 'pending',
     rejection_reason VARCHAR(500),
     is_active BOOLEAN DEFAULT TRUE,

@@ -285,7 +285,7 @@ class AdminFinanceService {
                     owner: planner.owner || null,
                     deposit_amount: planner.deposit_amount || 0,
                     member_count: memberCountMap[pid] || 0,
-                    total_locked,
+                    total_locked: locked,
                     net_locked: Math.max(0, locked - refunded - penApplied),
                     penalty_pending: penaltyMap[pid] || 0
                 };

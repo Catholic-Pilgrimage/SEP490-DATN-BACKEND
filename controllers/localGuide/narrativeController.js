@@ -1,5 +1,5 @@
 const { SiteMedia, Site, User } = require('../../models');
-const FptAiService = require('../../services/shared/fptAiService');
+const VbeeService = require('../../services/shared/vbeeService');
 const ResponseUtil = require('../../utils/response.util');
 const Logger = require('../../utils/logger.util');
 
@@ -58,12 +58,12 @@ exports.updateNarrative = async (req, res) => {
         if (audioFile) {
             // Path B: Direct audio upload to Cloudinary
             Logger.info(`Narrative: Local Guide ${req.user.id} uploading audio file for media ${id}`);
-            audioUrl = await FptAiService.uploadAudioFile(audioFile);
+            audioUrl = await VbeeService.uploadAudioFile(audioFile);
 
         } else if (narration_text) {
             // Path A: Text-to-Speech via FPT AI
             Logger.info(`Narrative: Local Guide ${req.user.id} generating TTS for media ${id}`);
-            const result = await FptAiService.generateAndUploadNarration(
+            const result = await VbeeService.generateAndUploadNarration(
                 id,
                 narration_text,
                 media.site.region,
@@ -118,7 +118,7 @@ exports.updateNarrative = async (req, res) => {
  */
 exports.getVoices = async (req, res) => {
     try {
-        const voices = FptAiService.getAvailableVoices();
+        const voices = VbeeService.getAvailableVoices();
         return ResponseUtil.success(res, voices, req.__('narrative.get_voices_success'));
     } catch (error) {
         return ResponseUtil.error(res, req.__('error.server_error'));

@@ -358,7 +358,7 @@ class PilgrimSiteService {
 
       const { count, rows } = await Event.findAndCountAll({
         where,
-        attributes: ['id', 'code', 'name', 'description', 'start_date', 'end_date', 'start_time', 'end_time', 'location', 'banner_url', 'created_at'],
+        attributes: ['id', 'code', 'name', 'description', 'start_date', 'end_date', 'start_time', 'end_time', 'location', 'banner_url', 'category', 'created_at'],
         order: [['start_date', 'ASC'], ['start_time', 'ASC']],
         limit,
         offset

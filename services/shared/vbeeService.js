@@ -3,7 +3,7 @@ const { cloudinary } = require('../../config/cloudinary.config');
 const { SiteMedia, Site } = require('../../models');
 const Logger = require('../../utils/logger.util');
 
-class FptAiService {
+class VbeeService {
 
     /**
      * Full pipeline: Text -> VBee TTS -> Cloudinary -> DB Update
@@ -33,7 +33,7 @@ class FptAiService {
         const audioBuffer = await downloadAudio(audioUrl);
 
         // Step 3: Upload to Cloudinary
-        const cloudinaryUrl = await FptAiService._uploadBufferToCloudinary(audioBuffer, `narration_${mediaId}_${Date.now()}`);
+        const cloudinaryUrl = await VbeeService._uploadBufferToCloudinary(audioBuffer, `narration_${mediaId}_${Date.now()}`);
 
         Logger.info(`VBee Service: Pipeline complete. audio_url=${cloudinaryUrl}`);
 
@@ -46,7 +46,7 @@ class FptAiService {
      * @returns {Promise<string>} - Cloudinary secure URL
      */
     static async uploadAudioFile(file) {
-        const audioUrl = await FptAiService._uploadBufferToCloudinary(
+        const audioUrl = await VbeeService._uploadBufferToCloudinary(
             file.buffer,
             `narration_upload_${Date.now()}`
         );
@@ -87,4 +87,4 @@ class FptAiService {
     }
 }
 
-module.exports = FptAiService;
+module.exports = VbeeService;
