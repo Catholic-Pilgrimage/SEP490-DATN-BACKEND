@@ -23,6 +23,14 @@ const PostComment = sequelize.define('PostComment', {
             key: 'id'
         }
     },
+    parent_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'post_comments',
+            key: 'id'
+        }
+    },
     content: {
         type: DataTypes.TEXT,
         allowNull: false,

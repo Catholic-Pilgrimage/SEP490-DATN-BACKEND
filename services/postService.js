@@ -281,7 +281,7 @@ class PostService {
     /**
      * Add comment to post
      */
-    async addComment(postId, userId, content) {
+    async addComment(postId, userId, content, parentId = null) {
         try {
             const post = await Post.findByPk(postId);
 
@@ -291,9 +291,19 @@ class PostService {
                 throw error;
             }
 
+            if (parentId) {
+                const parentComment = await PostComment.findByPk(parentId);
+                if (!parentComment || parentComment.post_id !== postId) {
+                    const error = new Error('Parent comment not found in this post');
+                    error.statusCode = 404;
+                    throw error;
+                }
+            }
+
             const comment = await PostComment.create({
                 post_id: postId,
                 user_id: userId,
+                parent_id: parentId,
                 content,
                 status: 'published'
             });

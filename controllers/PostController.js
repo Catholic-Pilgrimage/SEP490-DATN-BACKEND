@@ -149,13 +149,33 @@ class PostController {
         try {
             const userId = req.user.id;
             const { id } = req.params;
-            const { content } = req.body;
+            const { content, parent_id } = req.body;
 
-            const comment = await postService.addComment(id, userId, content);
+            const comment = await postService.addComment(id, userId, content, parent_id);
 
             return ResponseUtil.created(res, comment, req.__('comment.created'));
         } catch (error) {
             console.error('PostController.addComment error:', error);
+            return ResponseUtil.error(res, error.message, error.statusCode || 500);
+        }
+    }
+
+    /**
+     * Reply to a comment
+     * POST /posts/:id/comments/:commentId/reply
+     */
+    async replyComment(req, res) {
+        try {
+            const userId = req.user.id;
+            const { id, commentId } = req.params;
+            const { content } = req.body;
+
+            // Here commentId from the URL becomes parentId
+            const comment = await postService.addComment(id, userId, content, commentId);
+
+            return ResponseUtil.created(res, comment, req.__('comment.replied') || 'Reply created successfully');
+        } catch (error) {
+            console.error('PostController.replyComment error:', error);
             return ResponseUtil.error(res, error.message, error.statusCode || 500);
         }
     }
