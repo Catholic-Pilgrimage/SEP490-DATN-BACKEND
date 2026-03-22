@@ -41,13 +41,7 @@ router.put(
     PlannerController.updatePlanner
 );
 
-// PATCH method for partial updates (same handler as PUT)
-router.patch(
-    '/:id',
-    authenticate,
-    PlannerValidator.updatePlanner,
-    PlannerController.updatePlanner
-);
+
 
 router.delete(
     '/:id',

@@ -167,7 +167,7 @@
  *       - Các điểm trước trong lịch trình phải là **visited** hoặc **skipped** thì mới được check-in điểm này
  *       - Ghi nhận thông tin GPS để xác thực có mặt
  *       - Ai check-in sẽ có bản ghi `checked_in` trong bảng `user_checkins`
- *     tags: [Planners - Pilgrim]
+ *     tags: [Check-in History - Pilgrim]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -229,7 +229,7 @@
  *       
  *       - Truyền `status: "visited"` (Chốt sổ): Ai chưa check-in sẽ bị hệ thống tự động ghi **missed**. Nếu là điểm cuối thì chuyến đi chuyển sang **completed**.
  *       - Truyền `status: "skipped"` (Bỏ qua): Hệ thống tự ghi **skipped** cho tất cả người chưa check-in. **Không bị phạt**.
- *     tags: [Planners - Pilgrim]
+ *     tags: [Check-in History - Pilgrim]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -320,41 +320,7 @@
  *         description: Không có quyền - không phải chủ sở hữu
  *       404:
  *         description: Không tìm thấy kế hoạch
- *   patch:
- *     summary: Cập nhật một phần kế hoạch
- *     description: Cập nhật một hoặc nhiều trường của kế hoạch (partial update)
- *     tags: [Planners - Pilgrim]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: ID kế hoạch
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/UpdatePlannerRequest'
- *     responses:
- *       200:
- *         description: Cập nhật kế hoạch thành công
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/PlannerResponse'
- *       400:
- *         description: Lỗi xác thực
- *       401:
- *         description: Chưa xác thực
- *       403:
- *         description: Không có quyền - không phải chủ sở hữu
- *       404:
- *         description: Không tìm thấy kế hoạch
+
  */
 
 /**

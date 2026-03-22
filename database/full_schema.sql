@@ -39,7 +39,7 @@ DO $$ BEGIN
     CREATE TYPE planner_status AS ENUM ('planning', 'ongoing', 'completed', 'expired');
     CREATE TYPE planner_item_status AS ENUM ('planned', 'in_progress', 'visited', 'skipped');
 
-    CREATE TYPE checkin_status AS ENUM ('checked_in', 'skipped', 'missed', 'pending');
+    CREATE TYPE checkin_status AS ENUM ('checked_in', 'missed', 'pending');
 
     
     -- Journal & Community
