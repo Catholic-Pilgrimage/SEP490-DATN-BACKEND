@@ -88,8 +88,7 @@ class PlannerShareService {
                 throw new Error('Can only invite when planner is in planning status');
             }
 
-            // Role is always viewer (owner = null in DB, viewer for all invitees)
-            const role = 'viewer';
+
 
             // Sweep ALL expired active invites (pending + awaiting_payment) before counting slots
             // Prevents stale invites from falsely blocking available slots or re-inviting same email
@@ -192,7 +191,6 @@ class PlannerShareService {
                 inviter_id: userId,
                 email,
                 token,
-                role,
                 status: 'pending',
                 expires_at: expiresAt
             });
@@ -232,7 +230,6 @@ class PlannerShareService {
             return {
                 id: invite.id,
                 email: invite.email,
-                role: invite.role,
                 token: invite.token,
                 expires_at: invite.expires_at,
                 invite_link: inviteLink,
@@ -443,14 +440,12 @@ class PlannerShareService {
                                 if (existingMember) {
                                     existingMember.join_status = 'joined';
                                     existingMember.deposit_status = 'paid';
-                                    existingMember.role = invite.role;
                                     existingMember.joined_at = new Date();
                                     await existingMember.save({ transaction: t });
                                 } else {
                                     await PlannerMember.create({
                                         planner_id: planner.id,
                                         user_id: userId,
-                                        role: invite.role,
                                         join_status: 'joined',
                                         deposit_status: 'paid'
                                     }, { transaction: t });
@@ -575,7 +570,6 @@ class PlannerShareService {
             return invites.map(invite => ({
                 id: invite.id,
                 email: invite.email,
-                role: invite.role,
                 status: invite.status,
                 expires_at: invite.expires_at,
                 created_at: invite.created_at,
@@ -597,7 +591,7 @@ class PlannerShareService {
                     model: User,
                     as: 'members',
                     through: {
-                        attributes: ['role', 'joined_at', 'deposit_status', 'join_status']
+                        attributes: ['joined_at', 'deposit_status', 'join_status']
                     },
                     attributes: ['id', 'full_name', 'email', 'avatar_url']
                 }, {
@@ -627,14 +621,12 @@ class PlannerShareService {
             const members = [
                 {
                     ...planner.owner.toJSON(),
-                    role: 'owner',
                     joined_at: planner.created_at
                 },
                 ...visibleMembers.map(member => {
                     const { PlannerMember: pm, ...userData } = member.toJSON();
                     return {
                         ...userData,
-                        role: pm.role,
                         joined_at: pm.joined_at,
                         deposit_status: pm.deposit_status,
                         join_status: pm.join_status

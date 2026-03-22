@@ -131,7 +131,6 @@ class PlannerService {
                 const memberData = {
                     planner_id: planner.id,
                     user_id: userId,
-                    role: 'viewer',
                     join_status: 'joined',
                     deposit_status: null   // Owner does not pay a deposit
                 };

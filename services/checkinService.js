@@ -191,14 +191,12 @@ class CheckinService {
             });
         }
 
-        // Tự động chuyển planner sang 'ongoing' nếu đây là check-in đầu tiên
+        // Ghi nhận thời gian bắt đầu thực tế (started_at) vào check-in đầu tiên nếu chưa có
         let newPlannerStatus = planner.status;
-        if (planner.status === 'planning' && !planner.started_at) {
+        if (!planner.started_at) {
             await planner.update({
-                status: 'ongoing',
                 started_at: new Date()
             });
-            newPlannerStatus = 'ongoing';
         }
 
         // Tự động mark 'visited' nếu TẤT CẢ mọi người (kể cả owner) đều đã check-in
