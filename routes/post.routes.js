@@ -66,6 +66,13 @@ router.post('/:id/comments',
     PostController.addComment
 );
 
+router.post('/:id/comments/:commentId/reply',
+    authenticate,
+    postValidator.replyComment,
+    validate,
+    PostController.replyComment
+);
+
 router.get('/:id/comments',
     authenticate,
     postValidator.getComments,

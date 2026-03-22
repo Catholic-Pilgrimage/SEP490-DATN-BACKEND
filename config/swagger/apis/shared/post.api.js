@@ -349,6 +349,11 @@
  *                 type: string
  *                 description: Nội dung comment
  *                 example: "Bài viết hay quá!"
+ *               parent_id:
+ *                 type: string
+ *                 format: uuid
+ *                 description: ID của comment gốc nếu đây là reply (tùy chọn)
+ *                 example: "123e4567-e89b-12d3-a456-426614174000"
  *     responses:
  *       201:
  *         description: Comment thành công
@@ -367,6 +372,62 @@
  *                   example: "Tạo comment thành công"
  *       404:
  *         description: Không tìm thấy bài viết
+ */
+
+/**
+ * @swagger
+ * /api/posts/{id}/comments/{commentId}/reply:
+ *   post:
+ *     summary: Trả lời một comment
+ *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của bài viết
+ *       - in: path
+ *         name: commentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của comment gốc muốn trả lời
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - content
+ *             properties:
+ *               content:
+ *                 type: string
+ *                 description: Nội dung câu trả lời
+ *                 example: "Mình đồng ý với bạn!"
+ *     responses:
+ *       201:
+ *         description: Trả lời thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   $ref: '#/components/schemas/PostComment'
+ *                 message:
+ *                   type: string
+ *                   example: "Reply created successfully"
+ *       404:
+ *         description: Không tìm thấy bài viết hoặc comment
  */
 
 /**
