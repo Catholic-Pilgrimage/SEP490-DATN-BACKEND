@@ -240,6 +240,10 @@ PostComment.belongsTo(Post, { foreignKey: 'post_id', as: 'post' });
 User.hasMany(PostComment, { foreignKey: 'user_id', as: 'postComments' });
 PostComment.belongsTo(User, { foreignKey: 'user_id', as: 'author' });
 
+// PostComment - PostComment (Self-referencing for replies)
+PostComment.hasMany(PostComment, { foreignKey: 'parent_id', as: 'replies' });
+PostComment.belongsTo(PostComment, { foreignKey: 'parent_id', as: 'parent' });
+
 // Report - User (reporter)
 User.hasMany(Report, { foreignKey: 'reporter_id', as: 'reports' });
 Report.belongsTo(User, { foreignKey: 'reporter_id', as: 'reporter' });
