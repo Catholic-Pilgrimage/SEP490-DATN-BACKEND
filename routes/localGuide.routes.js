@@ -36,6 +36,14 @@ router.get(
     LocalGuideController.getVoices
 );
 
+// GET - Get ALL approved site media (for viewing & selecting for narratives)
+router.get(
+    '/site-media',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    LocalGuideController.getAllSiteMedia
+);
+
 // GET  - List site media
 router.get(
     '/media',

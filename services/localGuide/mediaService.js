@@ -165,6 +165,55 @@ class LocalGuideMediaService {
     }
 
     /**
+     * Local Guide: Get ALL approved media of their site
+     */
+    static async getAllSiteMedia(userId, filters = {}) {
+        try {
+            const user = await User.findByPk(userId);
+
+            if (!user || user.role !== 'local_guide' || !user.site_id) {
+                throw new Error('Unauthorized');
+            }
+
+            const page = parseInt(filters.page) || 1;
+            const limit = parseInt(filters.limit) || 10;
+            const offset = (page - 1) * limit;
+
+            const where = {
+                site_id: user.site_id,
+                status: 'approved',
+                is_active: true
+            };
+
+            if (filters.type && ['image', 'video', 'model_3d'].includes(filters.type)) {
+                where.type = filters.type;
+            }
+
+            const totalItems = await SiteMedia.count({ where });
+
+            const mediaList = await SiteMedia.findAll({
+                where,
+                order: [['created_at', 'DESC']],
+                limit,
+                offset
+            });
+
+            return {
+                data: mediaList,
+                pagination: {
+                    page,
+                    limit,
+                    totalItems,
+                    totalPages: Math.ceil(totalItems / limit)
+                }
+            };
+        } catch (error) {
+            Logger.error('Get all site media error:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Local Guide: Update media (only own + pending/rejected)
      * - Can update: caption, type, url (if YouTube video)
      * - Can replace file (if file upload)
@@ -300,10 +349,30 @@ class LocalGuideMediaService {
                 throw new Error('Media is already active');
             }
 
-            // Restore
-            await media.update({ is_active: true });
+            // Restore (with auto-deactivation for model_3d)
+            if (media.type === 'model_3d') {
+                // 1 site = 1 active model_3d → deactivate others first
+                const sequelize = SiteMedia.sequelize;
+                await sequelize.transaction(async (t) => {
+                    await SiteMedia.update(
+                        { is_active: false },
+                        {
+                            where: {
+                                site_id: user.site_id,
+                                type: 'model_3d',
+                                is_active: true,
+                                id: { [Op.ne]: mediaId }
+                            },
+                            transaction: t
+                        }
+                    );
+                    await media.update({ is_active: true }, { transaction: t });
+                });
+            } else {
+                await media.update({ is_active: true });
+            }
 
-            Logger.info(`Local Guide ${userId} restored media ${mediaId}`);
+            Logger.info(`Local Guide ${userId} restored media ${mediaId}${media.type === 'model_3d' ? ' (other model_3d auto-deactivated)' : ''}`);
 
             return media;
         } catch (error) {

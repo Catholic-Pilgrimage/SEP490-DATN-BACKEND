@@ -125,17 +125,34 @@ class ManagerContentService {
 
             const code = `MDL${dateStr}${String(sequence).padStart(3, '0')}`;
 
-            const media = await SiteMedia.create({
-                site_id: user.site_id,
-                code,
-                url,
-                type: 'model_3d',
-                caption,
-                status: 'approved', // Manager upload → auto approved
-                created_by: userId
+            // Transaction: deactivate existing active model_3d + create new one
+            const sequelize = SiteMedia.sequelize;
+            const media = await sequelize.transaction(async (t) => {
+                // Auto-deactivate all existing active model_3d of this site
+                await SiteMedia.update(
+                    { is_active: false },
+                    {
+                        where: {
+                            site_id: user.site_id,
+                            type: 'model_3d',
+                            is_active: true
+                        },
+                        transaction: t
+                    }
+                );
+
+                return await SiteMedia.create({
+                    site_id: user.site_id,
+                    code,
+                    url,
+                    type: 'model_3d',
+                    caption,
+                    status: 'approved',
+                    created_by: userId
+                }, { transaction: t });
             });
 
-            Logger.info(`Manager ${userId} uploaded 3D model ${media.code} for site ${user.site_id}`);
+            Logger.info(`Manager ${userId} uploaded 3D model ${media.code} for site ${user.site_id} (old models auto-deactivated)`);
 
             return media;
         } catch (error) {
@@ -237,10 +254,30 @@ class ManagerContentService {
                 throw new Error('Only approved media can be toggled');
             }
 
-            await media.update({ is_active: isActive });
+            // Auto-deactivate other model_3d when activating a model_3d
+            if (isActive && media.type === 'model_3d') {
+                const sequelize = SiteMedia.sequelize;
+                await sequelize.transaction(async (t) => {
+                    await SiteMedia.update(
+                        { is_active: false },
+                        {
+                            where: {
+                                site_id: user.site_id,
+                                type: 'model_3d',
+                                is_active: true,
+                                id: { [Op.ne]: mediaId }
+                            },
+                            transaction: t
+                        }
+                    );
+                    await media.update({ is_active: isActive }, { transaction: t });
+                });
+            } else {
+                await media.update({ is_active: isActive });
+            }
 
             const action = isActive ? 'restored' : 'deactivated';
-            Logger.info(`Manager ${userId} ${action} media ${media.code}`);
+            Logger.info(`Manager ${userId} ${action} media ${media.code}${isActive && media.type === 'model_3d' ? ' (other model_3d auto-deactivated)' : ''}`);
 
             return media;
         } catch (error) {

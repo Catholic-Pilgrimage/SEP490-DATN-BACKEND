@@ -179,6 +179,7 @@
     "no_site": "Hướng dẫn viên chưa được gán vào địa điểm nào",
     "upload_media_success": "Tải lên media thành công",
     "get_media_success": "Lấy danh sách media thành công",
+    "get_all_site_media_success": "Lấy danh sách media của site thành công",
     "delete_media_success": "Xóa media thành công",
     "restore_media_success": "Khôi phục media thành công",
     "update_media_success": "Cập nhật media thành công",
