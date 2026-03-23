@@ -49,6 +49,9 @@
  *                 type: string
  *                 format: binary
  *                 description: Banner sự kiện
+ *               category:
+ *                 type: string
+ *                 description: "Phân loại sự kiện (VD: mass, retreat, procession, workshop, prayer, festival, charity, youth)"
  *     responses:
  *       201:
  *         description: Tạo sự kiện thành công
@@ -131,6 +134,9 @@
  *               banner:
  *                 type: string
  *                 format: binary
+ *               category:
+ *                 type: string
+ *                 description: "Phân loại sự kiện"
  *     responses:
  *       200:
  *         description: Cập nhật thành công

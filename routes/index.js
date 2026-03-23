@@ -20,6 +20,7 @@ const sosRoutes = require('./sos.routes');
 const postRoutes = require('./post.routes');
 const reportRoutes = require('./report.routes');
 const walletRoutes = require('./wallet.routes');
+const aiRoutes = require('./ai.routes');
 const webhookRoutes = require('./webhook.routes');
 
 router.get('/', (req, res) => {
@@ -50,7 +51,8 @@ router.get('/', (req, res) => {
       sos: '/api/sos',
       posts: '/api/posts',
       reports: '/api/reports',
-      wallet: '/api/wallet'
+      wallet: '/api/wallet',
+      ai: '/api/ai'
     }
   });
 });
@@ -132,6 +134,9 @@ router.use('/reports', reportRoutes);
 
 // Wallet routes (shared - all authenticated users)
 router.use('/wallet', walletRoutes);
+
+// AI routes (Google Gemini AI features)
+router.use('/ai', aiRoutes);
 
 // Webhook routes (no auth - called by external services)
 router.use('/webhooks', webhookRoutes);

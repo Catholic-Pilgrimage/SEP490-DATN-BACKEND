@@ -870,6 +870,11 @@
  *           type: string
  *           format: uri
  *           nullable: true
+ *         category:
+ *           type: string
+ *           nullable: true
+ *           description: "Phân loại sự kiện"
+ *           example: "mass"
  *         status:
  *           type: string
  *           enum: [pending, approved, rejected]

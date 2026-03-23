@@ -150,6 +150,12 @@ class LocalGuideValidator {
         body('location')
             .optional()
             .isLength({ max: 255 }).withMessage('Địa điểm tối đa 255 ký tự')
+            .trim(),
+
+        body('category')
+            .optional()
+            .isString().withMessage('Phân loại phải là chuỗi')
+            .isLength({ max: 100 }).withMessage('Phân loại tối đa 100 ký tự')
             .trim()
     ];
 
@@ -201,6 +207,12 @@ class LocalGuideValidator {
         body('location')
             .optional()
             .isLength({ max: 255 }).withMessage('Địa điểm tối đa 255 ký tự')
+            .trim(),
+
+        body('category')
+            .optional()
+            .isString().withMessage('Phân loại phải là chuỗi')
+            .isLength({ max: 100 }).withMessage('Phân loại tối đa 100 ký tự')
             .trim()
     ];
 

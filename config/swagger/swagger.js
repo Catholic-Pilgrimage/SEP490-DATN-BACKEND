@@ -48,6 +48,7 @@ const options = {
     './config/swagger/apis/manager/*.js',
     './config/swagger/apis/localGuide/*.js',
     './config/swagger/apis/pilgrim/*.js',
+    './config/swagger/apis/ai/*.js',
     './config/swagger/schemas/*.js',
     './routes/*.js'
   ]

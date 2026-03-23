@@ -18,6 +18,7 @@ module.exports = {
     generateMediaCode: LocalGuideMediaService.generateMediaCode.bind(LocalGuideMediaService),
     uploadMedia: LocalGuideMediaService.uploadMedia.bind(LocalGuideMediaService),
     getSiteMedia: LocalGuideMediaService.getSiteMedia.bind(LocalGuideMediaService),
+    getAllSiteMedia: LocalGuideMediaService.getAllSiteMedia.bind(LocalGuideMediaService),
     updateMedia: LocalGuideMediaService.updateMedia.bind(LocalGuideMediaService),
     deleteMedia: LocalGuideMediaService.deleteMedia.bind(LocalGuideMediaService),
     restoreMedia: LocalGuideMediaService.restoreMedia.bind(LocalGuideMediaService),

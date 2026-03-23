@@ -409,12 +409,11 @@ class PlannerShareService {
                             // Lock wallet row to prevent double-spend
                             const lockedWallet = await Wallet.findByPk(wallet.id, { transaction: t, lock: true });
                             const confirmedBalance = parseFloat(lockedWallet.balance) || 0;
-                            walletBalance = confirmedBalance; // sync for PayOS fallback
+                            walletBalance = confirmedBalance; 
 
                             // Re-check balance inside transaction (could have changed)
                             if (confirmedBalance < depositAmount) {
                                 await t.rollback();
-                                // Fall through to PayOS path below
                             } else {
                                 const walletTx = await Transaction.create({
                                     wallet_id: lockedWallet.id,
@@ -462,6 +461,13 @@ class PlannerShareService {
                                 PlannerChatService.sendSystemMessage(planner.id,
                                     `💰 ${memberUser?.full_name || 'Thành viên'} đã đóng cọc ${depositAmount.toLocaleString('vi-VN')} VND từ ví và tham gia nhóm`
                                 ).catch(() => { });
+
+                                // Push notifications (fire-and-forget)
+                                const NotificationService = require('../shared/notificationService');
+                                NotificationService.createNotification('planner_joined', planner.user_id, {
+                                    memberName: memberUser?.full_name || 'Thành viên',
+                                    plannerName: planner.name
+                                }).catch(() => { });
 
                                 return {
                                     deposit_required: false,
@@ -906,24 +912,25 @@ class PlannerShareService {
                 transaction: t
             });
 
+            // Find invite via email match
+            const user = await User.findByPk(userId);
+            const inviteByEmail = user
+                ? await PlannerInvite.findOne({
+                    where: { planner_id: plannerId, email: user.email, status: 'awaiting_payment' },
+                    transaction: t
+                })
+                : null;
+
+            if (!inviteByEmail) {
+                // No valid invite — money received but invite expired/cancelled.
+                // STILL commit transaction as completed to track the payment.
+                // Do NOT create member — handle refund separately.
+                await t.commit();
+                Logger.warn(`Webhook: No awaiting_payment invite found for user=${userId}, planner=${plannerId}. Transaction marked completed but member NOT created — needs manual refund.`);
+                return { success: true, message: 'Payment received but invite expired. Refund needed.' };
+            }
+
             if (!existingMember) {
-                // Find invite via email match — must still be awaiting_payment
-                const user = await User.findByPk(userId);
-                const inviteByEmail = user
-                    ? await PlannerInvite.findOne({
-                        where: { planner_id: plannerId, email: user.email, status: 'awaiting_payment' },
-                        transaction: t
-                    })
-                    : null;
-
-                // Guard: do not create member if no valid invite found
-                // This prevents ghost members from late/replayed webhooks after invite expired
-                if (!inviteByEmail) {
-                    Logger.warn(`Webhook: No awaiting_payment invite found for user=${userId}, planner=${plannerId}. Member NOT created — possible late/replayed webhook after expiry.`);
-                    await t.rollback();
-                    return { success: false, message: 'No valid invite found for this payment' };
-                }
-
                 await PlannerMember.create({
                     planner_id: plannerId,
                     user_id: userId,
@@ -936,20 +943,6 @@ class PlannerShareService {
                 await inviteByEmail.update({ status: 'accepted' }, { transaction: t });
             } else if (existingMember.join_status !== 'joined') {
                 // Re-invite flow: member was kicked/dropped_out, re-activate them
-                const user = await User.findByPk(userId);
-                const inviteByEmail = user
-                    ? await PlannerInvite.findOne({
-                        where: { planner_id: plannerId, email: user.email, status: 'awaiting_payment' },
-                        transaction: t
-                    })
-                    : null;
-
-                if (!inviteByEmail) {
-                    Logger.warn(`Webhook re-invite: No awaiting_payment invite for user=${userId}, planner=${plannerId}`);
-                    await t.rollback();
-                    return { success: false, message: 'No valid invite found for this payment' };
-                }
-
                 existingMember.join_status = 'joined';
                 existingMember.deposit_status = 'paid';
                 existingMember.role = inviteByEmail.role;
@@ -971,6 +964,16 @@ class PlannerShareService {
                 `💰 ${paidUser?.full_name || 'Thành viên'} đã thanh toán cọc ${parseFloat(transaction.amount).toLocaleString('vi-VN')} VND và tham gia nhóm`
             ).catch(() => { });
 
+            // Push notifications (fire-and-forget)
+            const NotificationService = require('../shared/notificationService');
+            const planner = await Planner.findByPk(plannerId, { attributes: ['user_id', 'name'] });
+            if (planner) {
+                NotificationService.createNotification('planner_joined', planner.user_id, {
+                    memberName: paidUser?.full_name || 'Thành viên',
+                    plannerName: planner.name
+                }).catch(() => { });
+            }
+
             return { success: true, amount: parseFloat(transaction.amount) };
         } catch (error) {
             await t.rollback();
@@ -986,8 +989,9 @@ class PlannerShareService {
      * @param {boolean} reject - If true, reject the invite permanently; if false, reset to pending for retry
      */
     static async cancelDeposit(userId, plannerId, reject = false) {
+        const t = await sequelize.transaction();
         try {
-            const user = await User.findByPk(userId);
+            const user = await User.findByPk(userId, { transaction: t });
             if (!user) throw new Error('User not found');
 
             // Find invite in awaiting_payment for this user (match by email)
@@ -996,7 +1000,8 @@ class PlannerShareService {
                     planner_id: plannerId,
                     email: user.email,
                     status: 'awaiting_payment'
-                }
+                },
+                transaction: t
             });
 
             if (!invite) throw new Error('No pending deposit found for this invite');
@@ -1009,7 +1014,8 @@ class PlannerShareService {
                     type: 'escrow_lock',
                     status: 'pending'
                 },
-                include: [{ model: require('../../models').Wallet, as: 'wallet', where: { user_id: userId }, required: true }]
+                include: [{ model: require('../../models').Wallet, as: 'wallet', where: { user_id: userId }, required: true }],
+                transaction: t
             });
 
             if (pendingTx) {
@@ -1019,19 +1025,21 @@ class PlannerShareService {
                 } catch (e) {
                     Logger.warn(`Could not cancel PayOS order: ${e.message}`);
                 }
-                await pendingTx.update({ status: 'cancelled' });
+                await pendingTx.update({ status: 'cancelled' }, { transaction: t });
             }
 
-            // Reset or reject invite
+            // Reset or reject invite — atomic with transaction cancel above
             const newStatus = reject ? 'rejected' : 'pending';
-            await invite.update({ status: newStatus });
+            await invite.update({ status: newStatus }, { transaction: t });
 
+            await t.commit();
             Logger.info(`Deposit cancelled: user=${userId}, planner=${plannerId}, invite=${newStatus}`);
 
             return {
                 messageKey: reject ? 'invite_rejected' : 'deposit_cancelled'
             };
         } catch (error) {
+            await t.rollback();
             Logger.error('Cancel deposit error:', error);
             throw error;
         }

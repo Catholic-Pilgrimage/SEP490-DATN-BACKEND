@@ -27,8 +27,8 @@ exports.createEvent = async (req, res) => {
  */
 exports.getEvents = async (req, res) => {
     try {
-        const { page, limit, status } = req.query;
-        const result = await LocalGuideService.getEvents(req.user.id, { page, limit, status });
+        const { page, limit, status, is_active } = req.query;
+        const result = await LocalGuideService.getEvents(req.user.id, { page, limit, status, is_active });
         return ResponseUtil.success(res, result, req.__('local_guide.get_events_success'));
     } catch (error) {
         if (error.message === 'Unauthorized') {

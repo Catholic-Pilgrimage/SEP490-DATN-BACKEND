@@ -197,3 +197,113 @@
  *       403:
  *         description: Không phải Local Guide
  */
+
+/**
+ * @swagger
+ * /api/local-guide/site-media:
+ *   get:
+ *     summary: Lấy tất cả media đã duyệt của site (Local Guide)
+ *     tags: [Local Guide - Media]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Số trang
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Số item mỗi trang
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [image, video, model_3d]
+ *         description: Lọc theo loại media
+ *     responses:
+ *       200:
+ *         description: Lấy danh sách media của site thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Lấy danh sách media của site thành công"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                           site_id:
+ *                             type: string
+ *                             format: uuid
+ *                           code:
+ *                             type: string
+ *                             example: "MDL0323001"
+ *                           url:
+ *                             type: string
+ *                             example: "https://..."
+ *                           type:
+ *                             type: string
+ *                             enum: [image, video, model_3d]
+ *                           caption:
+ *                             type: string
+ *                             example: "Model 3D nhà thờ"
+ *                           status:
+ *                             type: string
+ *                             example: "approved"
+ *                           is_active:
+ *                             type: boolean
+ *                             example: true
+ *                           audio_url:
+ *                             type: string
+ *                             nullable: true
+ *                           narration_text:
+ *                             type: string
+ *                             nullable: true
+ *                           narrative_status:
+ *                             type: string
+ *                             nullable: true
+ *                             enum: [pending, approved, rejected]
+ *                           created_at:
+ *                             type: string
+ *                             format: date-time
+ *                           updated_at:
+ *                             type: string
+ *                             format: date-time
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                           example: 1
+ *                         limit:
+ *                           type: integer
+ *                           example: 10
+ *                         totalItems:
+ *                           type: integer
+ *                           example: 25
+ *                         totalPages:
+ *                           type: integer
+ *                           example: 3
+ *       401:
+ *         description: Chưa xác thực
+ *       403:
+ *         description: Không có quyền - Không phải local guide hoặc chưa được gán site
+ */

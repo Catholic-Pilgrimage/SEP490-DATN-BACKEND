@@ -48,7 +48,7 @@ class LocalGuideEventService {
                 throw new Error('Local Guide has no site');
             }
 
-            const { name, description, start_date, end_date, start_time, end_time, location } = data;
+            const { name, description, start_date, end_date, start_time, end_time, location, category } = data;
 
             const code = await this.generateEventCode();
 
@@ -62,6 +62,7 @@ class LocalGuideEventService {
                 start_time: start_time || null,
                 end_time: end_time || null,
                 location: location || null,
+                category: category || null,
                 banner_url: bannerUrl,
                 status: 'pending',
                 created_by: userId
@@ -161,7 +162,7 @@ class LocalGuideEventService {
                 throw new Error('Cannot update approved event');
             }
 
-            const { name, description, start_date, end_date, start_time, end_time, location } = updateData;
+            const { name, description, start_date, end_date, start_time, end_time, location, category } = updateData;
 
             const dataToUpdate = {};
 
@@ -172,6 +173,7 @@ class LocalGuideEventService {
             if (start_time !== undefined) dataToUpdate.start_time = start_time;
             if (end_time !== undefined) dataToUpdate.end_time = end_time;
             if (location !== undefined) dataToUpdate.location = location;
+            if (category !== undefined) dataToUpdate.category = category;
             if (bannerUrl) dataToUpdate.banner_url = bannerUrl;
 
             if (event.status === 'rejected') {

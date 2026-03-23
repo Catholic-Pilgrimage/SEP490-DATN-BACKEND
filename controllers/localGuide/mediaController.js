@@ -69,6 +69,26 @@ exports.getSiteMedia = async (req, res) => {
 };
 
 /**
+ * Local Guide: Get ALL approved media of their site
+ * GET /api/local-guide/site-media
+ * Query params: page, limit, type
+ */
+exports.getAllSiteMedia = async (req, res) => {
+    try {
+        const { page, limit, type } = req.query;
+        const result = await LocalGuideService.getAllSiteMedia(req.user.id, {
+            page, limit, type
+        });
+        return ResponseUtil.success(res, result, req.__('local_guide.get_all_site_media_success'));
+    } catch (error) {
+        if (error.message === 'Unauthorized') {
+            return ResponseUtil.forbidden(res, req.__('auth.forbidden'));
+        }
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
+
+/**
  * Local Guide: Update Site Media (Only pending)
  * PUT /api/local-guide/media/:id
  */

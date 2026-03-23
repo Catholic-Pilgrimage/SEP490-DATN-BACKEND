@@ -492,6 +492,11 @@
  *                         type: string
  *                       banner_url:
  *                         type: string
+ *                       category:
+ *                         type: string
+ *                         nullable: true
+ *                         description: "Phân loại sự kiện"
+ *                         example: "mass"
  *                       created_at:
  *                         type: string
  *                         format: date-time

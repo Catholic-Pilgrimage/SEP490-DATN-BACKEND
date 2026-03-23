@@ -60,6 +60,11 @@ const Event = sequelize.define('Event', {
         type: DataTypes.TEXT,
         allowNull: true
     },
+    category: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+        comment: 'Event category (e.g. mass, retreat, procession, workshop, prayer, festival, charity, youth)'
+    },
     status: {
         type: DataTypes.STRING,
         defaultValue: 'pending',

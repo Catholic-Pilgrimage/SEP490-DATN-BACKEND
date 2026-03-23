@@ -141,6 +141,7 @@
     "no_site": "Local Guide has no assigned site",
     "upload_media_success": "Media uploaded successfully",
     "get_media_success": "Media retrieved successfully",
+    "get_all_site_media_success": "Site media retrieved successfully",
     "delete_media_success": "Media deleted successfully",
     "restore_media_success": "Media restored successfully",
     "update_media_success": "Media updated successfully",

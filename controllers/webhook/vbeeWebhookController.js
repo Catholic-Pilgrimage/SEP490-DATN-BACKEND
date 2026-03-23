@@ -1,5 +1,5 @@
 const { SiteMedia } = require('../../models');
-const FptAiService = require('../../services/shared/fptAiService');
+const VbeeService = require('../../services/shared/vbeeService');
 const Logger = require('../../utils/logger.util');
 
 /**
@@ -31,12 +31,12 @@ exports.handleVbeeCallback = async (req, res) => {
 
         // Flexible payload parsing logic since VBee formats vary
         const resultObj = payload?.result || payload?.data || payload;
-        
+
         let isSuccess = false;
         if (
-            payload?.status === 1 || 
-            payload?.status === 'SUCCESS' || 
-            payload?.code === 0 || 
+            payload?.status === 1 ||
+            payload?.status === 'SUCCESS' ||
+            payload?.code === 0 ||
             resultObj?.status === 1 ||
             resultObj?.status === 'SUCCESS'
         ) {
@@ -44,12 +44,12 @@ exports.handleVbeeCallback = async (req, res) => {
         }
 
         // Search for audio url in various possible fields
-        let audioUrl = payload?.audio_url || 
-                       payload?.audio_link || 
-                       resultObj?.audio_url || 
-                       resultObj?.audio_link || 
-                       resultObj?.url || 
-                       payload?.url;
+        let audioUrl = payload?.audio_url ||
+            payload?.audio_link ||
+            resultObj?.audio_url ||
+            resultObj?.audio_link ||
+            resultObj?.url ||
+            payload?.url;
 
         // Force success if we found a URL
         if (audioUrl) {
@@ -81,7 +81,7 @@ exports.handleVbeeCallback = async (req, res) => {
             const audioBuffer = await downloadAudio(audioUrl);
 
             // Upload to Cloudinary
-            const cloudinaryUrl = await FptAiService._uploadBufferToCloudinary(
+            const cloudinaryUrl = await VbeeService._uploadBufferToCloudinary(
                 audioBuffer,
                 `narration_${mediaId}_${Date.now()}`
             );
