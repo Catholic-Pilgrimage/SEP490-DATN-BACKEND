@@ -6,21 +6,21 @@ const reportValidator = {
     body('target_type')
       .notEmpty()
       .withMessage('Target type is required')
-      .isIn(['post', 'comment', 'journal'])
-      .withMessage('Target type must be post, comment, or journal'),
-    
+      .isIn(['post', 'comment', 'journal', 'site_review', 'nearby_place_review'])
+      .withMessage('Target type must be post, comment, journal, site_review, or nearby_place_review'),
+
     body('target_id')
       .notEmpty()
       .withMessage('Target ID is required')
       .isUUID()
       .withMessage('Invalid target ID format'),
-    
+
     body('reason')
       .notEmpty()
       .withMessage('Reason is required')
       .isIn(['spam', 'inappropriate', 'harassment', 'other'])
       .withMessage('Invalid reason'),
-    
+
     body('description')
       .optional({ nullable: true, checkFalsy: true })
       .isLength({ max: 1000 })
@@ -33,17 +33,17 @@ const reportValidator = {
       .optional({ nullable: true, checkFalsy: true })
       .isIn(['pending', 'resolved', 'dismissed'])
       .withMessage('Invalid status'),
-    
+
     query('target_type')
       .optional({ nullable: true, checkFalsy: true })
-      .isIn(['post', 'comment', 'journal'])
+      .isIn(['post', 'comment', 'journal', 'site_review', 'nearby_place_review'])
       .withMessage('Invalid target type'),
-    
+
     query('page')
       .optional()
       .isInt({ min: 1 })
       .withMessage('Page must be a positive integer'),
-    
+
     query('limit')
       .optional()
       .isInt({ min: 1, max: 100 })
@@ -55,13 +55,13 @@ const reportValidator = {
     param('id')
       .isUUID()
       .withMessage('Invalid report ID'),
-    
+
     body('action')
       .notEmpty()
       .withMessage('Action is required')
       .isIn(['resolved', 'dismissed'])
       .withMessage('Action must be resolved or dismissed'),
-    
+
     body('note')
       .optional({ nullable: true, checkFalsy: true })
       .isLength({ max: 500 })
@@ -74,7 +74,7 @@ const reportValidator = {
       .optional()
       .isInt({ min: 1 })
       .withMessage('Page must be a positive integer'),
-    
+
     query('limit')
       .optional()
       .isInt({ min: 1, max: 100 })

@@ -514,5 +514,19 @@
     "penalty_applied": "Đã áp dụng phạt",
     "penalty_released": "Đã giải ngân tiền phạt",
     "penalty_refunded": "Đã hoàn trả tiền phạt"
+  },
+  "review": {
+    "created": "Tạo đánh giá thành công",
+    "updated": "Cập nhật đánh giá thành công",
+    "deleted": "Xóa đánh giá thành công",
+    "retrieved": "Lấy thông tin đánh giá thành công",
+    "list_retrieved": "Lấy danh sách đánh giá thành công",
+    "reply_created": "Phản hồi đánh giá thành công",
+    "reply_updated": "Cập nhật phản hồi thành công",
+    "reply_deleted": "Xóa phản hồi thành công",
+    "already_exists": "Bạn đã đánh giá địa điểm này rồi",
+    "not_found": "Không tìm thấy đánh giá",
+    "not_authorized": "Bạn không có quyền thực hiện hành động này",
+    "reply_already_exists": "Đánh giá này đã có phản hồi"
   }
 }

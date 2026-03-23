@@ -5,6 +5,7 @@ const authMiddleware = require('../middlewares/auth.middleware');
 const i18nMiddleware = require('../middlewares/i18n.middleware');
 const { uploadMedia, uploadNarrativeAudio } = require('../config/cloudinary.config');
 const LocalGuideValidator = require('../validators/localGuide.validator');
+const ReviewValidator = require('../validators/review.validator');
 const { handleValidationErrors } = require('../utils/validation.util');
 
 router.use(i18nMiddleware);
@@ -319,6 +320,81 @@ router.patch(
 );
 
 
+// ===================== REVIEW MANAGEMENT =====================
+
+// GET /api/local-guide/reviews - Get all reviews for my site
+router.get(
+    '/reviews',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    LocalGuideController.getReviewsForMySite
+);
+
+// ===================== REVIEW REPLIES =====================
+
+// POST /api/local-guide/site-reviews/:reviewId/reply
+router.post(
+    '/site-reviews/:reviewId/reply',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    ReviewValidator.validateReviewId,
+    ReviewValidator.reply,
+    handleValidationErrors,
+    LocalGuideController.replySiteReview
+);
+
+// PUT /api/local-guide/site-reviews/:reviewId/reply
+router.put(
+    '/site-reviews/:reviewId/reply',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    ReviewValidator.validateReviewId,
+    ReviewValidator.reply,
+    handleValidationErrors,
+    LocalGuideController.updateSiteReviewReply
+);
+
+// DELETE /api/local-guide/site-reviews/:reviewId/reply
+router.delete(
+    '/site-reviews/:reviewId/reply',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    ReviewValidator.validateReviewId,
+    handleValidationErrors,
+    LocalGuideController.deleteSiteReviewReply
+);
+
+// POST /api/local-guide/nearby-place-reviews/:reviewId/reply
+router.post(
+    '/nearby-place-reviews/:reviewId/reply',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    ReviewValidator.validateReviewId,
+    ReviewValidator.reply,
+    handleValidationErrors,
+    LocalGuideController.replyNearbyPlaceReview
+);
+
+// PUT /api/local-guide/nearby-place-reviews/:reviewId/reply
+router.put(
+    '/nearby-place-reviews/:reviewId/reply',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    ReviewValidator.validateReviewId,
+    ReviewValidator.reply,
+    handleValidationErrors,
+    LocalGuideController.updateNearbyPlaceReviewReply
+);
+
+// DELETE /api/local-guide/nearby-place-reviews/:reviewId/reply
+router.delete(
+    '/nearby-place-reviews/:reviewId/reply',
+    authMiddleware,
+    authMiddleware.authorize('local_guide'),
+    ReviewValidator.validateReviewId,
+    handleValidationErrors,
+    LocalGuideController.deleteNearbyPlaceReviewReply
+);
 
 
 module.exports = router;

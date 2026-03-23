@@ -515,5 +515,19 @@
     "penalty_applied": "Penalty applied successfully",
     "penalty_released": "Penalty released successfully",
     "penalty_refunded": "Penalty refunded successfully"
+  },
+  "review": {
+    "created": "Review created successfully",
+    "updated": "Review updated successfully",
+    "deleted": "Review deleted successfully",
+    "retrieved": "Review retrieved successfully",
+    "list_retrieved": "Reviews retrieved successfully",
+    "reply_created": "Reply created successfully",
+    "reply_updated": "Reply updated successfully",
+    "reply_deleted": "Reply deleted successfully",
+    "already_exists": "You already have a review for this place",
+    "not_found": "Review not found",
+    "not_authorized": "You are not authorized to perform this action",
+    "reply_already_exists": "This review already has a reply"
   }
 }

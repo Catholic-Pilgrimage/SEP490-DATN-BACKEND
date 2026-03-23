@@ -1,4 +1,4 @@
-const { Report, User, Post, PostComment, Journal } = require('../models');
+const { Report, User, Post, PostComment, Journal, SiteReview, NearbyPlaceReview } = require('../models');
 const { Op } = require('sequelize');
 
 const reportService = {
@@ -19,7 +19,7 @@ const reportService = {
           throw new Error('Cannot report your own post');
         }
         break;
-      
+
       case 'comment':
         target = await PostComment.findByPk(target_id);
         if (!target) {
@@ -29,7 +29,7 @@ const reportService = {
           throw new Error('Cannot report your own comment');
         }
         break;
-      
+
       case 'journal':
         target = await Journal.findByPk(target_id);
         if (!target) {
@@ -43,7 +43,27 @@ const reportService = {
           throw new Error('Cannot report your own journal');
         }
         break;
-      
+
+      case 'site_review':
+        target = await SiteReview.findByPk(target_id);
+        if (!target) {
+          throw new Error('Site review not found');
+        }
+        if (target.user_id === userId) {
+          throw new Error('Cannot report your own review');
+        }
+        break;
+
+      case 'nearby_place_review':
+        target = await NearbyPlaceReview.findByPk(target_id);
+        if (!target) {
+          throw new Error('Nearby place review not found');
+        }
+        if (target.user_id === userId) {
+          throw new Error('Cannot report your own review');
+        }
+        break;
+
       default:
         throw new Error('Invalid target type');
     }
@@ -79,11 +99,11 @@ const reportService = {
    */
   async getReports({ status, target_type, page = 1, limit = 20 }) {
     const where = {};
-    
+
     if (status) {
       where.status = status;
     }
-    
+
     if (target_type) {
       where.target_type = target_type;
     }
@@ -182,7 +202,7 @@ const reportService = {
           ]
         });
         break;
-      
+
       case 'comment':
         targetContent = await PostComment.findByPk(report.target_id, {
           include: [
@@ -193,12 +213,36 @@ const reportService = {
           ]
         });
         break;
-      
+
       case 'journal':
         targetContent = await Journal.findByPk(report.target_id, {
           include: [
             {
               model: User,
+              attributes: ['id', 'full_name', 'email', 'avatar_url']
+            }
+          ]
+        });
+        break;
+
+      case 'site_review':
+        targetContent = await SiteReview.findByPk(report.target_id, {
+          include: [
+            {
+              model: User,
+              as: 'reviewer',
+              attributes: ['id', 'full_name', 'email', 'avatar_url']
+            }
+          ]
+        });
+        break;
+
+      case 'nearby_place_review':
+        targetContent = await NearbyPlaceReview.findByPk(report.target_id, {
+          include: [
+            {
+              model: User,
+              as: 'reviewer',
               attributes: ['id', 'full_name', 'email', 'avatar_url']
             }
           ]
@@ -230,8 +274,17 @@ const reportService = {
     report.status = action;
     report.resolved_by = adminId;
     report.description = note ? `${report.description}\n\nAdmin note: ${note}` : report.description;
-    
+
     await report.save();
+
+    // Auto-hide review when resolved
+    if (action === 'resolved') {
+      if (report.target_type === 'site_review') {
+        await SiteReview.update({ is_active: false }, { where: { id: report.target_id } });
+      } else if (report.target_type === 'nearby_place_review') {
+        await NearbyPlaceReview.update({ is_active: false }, { where: { id: report.target_id } });
+      }
+    }
 
     return report;
   },

@@ -375,6 +375,38 @@ const NOTIFICATION_TEMPLATES = {
             title: 'New shift for review',
             message: '{{guideName}} submitted shift for week {{weekStart}}'
         }
+    },
+
+    // Review notifications
+    new_site_review: {
+        vi: {
+            title: 'Đánh giá mới',
+            message: '{{reviewerName}} đã đánh giá {{siteName}} - ⭐ {{rating}}/5'
+        },
+        en: {
+            title: 'New review',
+            message: '{{reviewerName}} reviewed {{siteName}} - ⭐ {{rating}}/5'
+        }
+    },
+    new_nearby_place_review: {
+        vi: {
+            title: 'Đánh giá mới cho địa điểm lân cận',
+            message: '{{reviewerName}} đã đánh giá {{placeName}} - ⭐ {{rating}}/5'
+        },
+        en: {
+            title: 'New nearby place review',
+            message: '{{reviewerName}} reviewed {{placeName}} - ⭐ {{rating}}/5'
+        }
+    },
+    review_replied: {
+        vi: {
+            title: 'Đánh giá của bạn đã được phản hồi',
+            message: '{{siteName}} đã phản hồi đánh giá của bạn'
+        },
+        en: {
+            title: 'Your review got a reply',
+            message: '{{siteName}} replied to your review'
+        }
     }
 };
 

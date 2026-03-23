@@ -6,6 +6,7 @@ const LocalGuideShiftService = require('./shiftService');
 const LocalGuideNearbyPlaceService = require('./nearbyPlaceService');
 const LocalGuideSOSService = require('./sosService');
 const LocalGuideDashboardService = require('./dashboardService');
+const LocalGuideReviewReplyService = require('./reviewReplyService');
 
 module.exports = {
     // Dashboard
@@ -57,5 +58,8 @@ module.exports = {
     restoreNearbyPlace: LocalGuideNearbyPlaceService.restoreNearbyPlace.bind(LocalGuideNearbyPlaceService),
 
     // SOS
-    LocalGuideSOSService
+    LocalGuideSOSService,
+
+    // Review Replies
+    LocalGuideReviewReplyService
 };

@@ -29,6 +29,10 @@ const PostLike = require('./PostLike');
 const PostComment = require('./PostComment');
 const Report = require('./Report');
 const OfflineSyncLog = require('./OfflineSyncLog');
+const SiteReview = require('./SiteReview');
+const NearbyPlaceReview = require('./NearbyPlaceReview');
+const SiteReviewReply = require('./SiteReviewReply');
+const NearbyPlaceReviewReply = require('./NearbyPlaceReviewReply');
 
 // ===================== WALLETS & TRANSACTIONS =====================
 
@@ -258,6 +262,46 @@ Report.belongsTo(User, { foreignKey: 'resolved_by', as: 'resolver' });
 User.hasMany(OfflineSyncLog, { foreignKey: 'user_id', as: 'offlineSyncLogs' });
 OfflineSyncLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
+// ===================== SITE REVIEWS =====================
+
+// SiteReview - Site
+Site.hasMany(SiteReview, { foreignKey: 'site_id', as: 'reviews' });
+SiteReview.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
+
+// SiteReview - User
+User.hasMany(SiteReview, { foreignKey: 'user_id', as: 'siteReviews' });
+SiteReview.belongsTo(User, { foreignKey: 'user_id', as: 'reviewer' });
+
+// SiteReview - UserCheckin
+UserCheckin.hasMany(SiteReview, { foreignKey: 'checkin_id', as: 'reviews' });
+SiteReview.belongsTo(UserCheckin, { foreignKey: 'checkin_id', as: 'checkin' });
+
+// SiteReview - SiteReviewReply (1-to-1 for MVP)
+SiteReview.hasOne(SiteReviewReply, { foreignKey: 'review_id', as: 'reply' });
+SiteReviewReply.belongsTo(SiteReview, { foreignKey: 'review_id', as: 'review' });
+
+// SiteReviewReply - User
+User.hasMany(SiteReviewReply, { foreignKey: 'user_id', as: 'siteReviewReplies' });
+SiteReviewReply.belongsTo(User, { foreignKey: 'user_id', as: 'replier' });
+
+// ===================== NEARBY PLACE REVIEWS =====================
+
+// NearbyPlaceReview - NearbyPlace
+NearbyPlace.hasMany(NearbyPlaceReview, { foreignKey: 'nearby_place_id', as: 'reviews' });
+NearbyPlaceReview.belongsTo(NearbyPlace, { foreignKey: 'nearby_place_id', as: 'nearbyPlace' });
+
+// NearbyPlaceReview - User
+User.hasMany(NearbyPlaceReview, { foreignKey: 'user_id', as: 'nearbyPlaceReviews' });
+NearbyPlaceReview.belongsTo(User, { foreignKey: 'user_id', as: 'reviewer' });
+
+// NearbyPlaceReview - NearbyPlaceReviewReply (1-to-1 for MVP)
+NearbyPlaceReview.hasOne(NearbyPlaceReviewReply, { foreignKey: 'review_id', as: 'reply' });
+NearbyPlaceReviewReply.belongsTo(NearbyPlaceReview, { foreignKey: 'review_id', as: 'review' });
+
+// NearbyPlaceReviewReply - User
+User.hasMany(NearbyPlaceReviewReply, { foreignKey: 'user_id', as: 'nearbyPlaceReviewReplies' });
+NearbyPlaceReviewReply.belongsTo(User, { foreignKey: 'user_id', as: 'replier' });
+
 
 const db = {
   sequelize,
@@ -290,7 +334,11 @@ const db = {
   PostLike,
   PostComment,
   Report,
-  OfflineSyncLog
+  OfflineSyncLog,
+  SiteReview,
+  NearbyPlaceReview,
+  SiteReviewReply,
+  NearbyPlaceReviewReply
 };
 
 module.exports = db;

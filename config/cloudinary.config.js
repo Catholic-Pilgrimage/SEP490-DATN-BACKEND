@@ -112,6 +112,21 @@ const uploadPostImages = multer({
     limits: { fileSize: 10 * 1024 * 1024 } // 10MB max per image
 }).array('images', 10); // Max 10 images per post
 
+// Review image storage (max 5 images per review)
+const reviewImageStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'catholic_pilgrimage/reviews',
+        allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+        transformation: [{ width: 1200, height: 1200, crop: 'limit', quality: 'auto' }]
+    }
+});
+
+const uploadReviewImages = multer({
+    storage: reviewImageStorage,
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB per image
+}).array('images', 5); // Max 5 images per review
+
 // Narrative audio storage (for 3D Model voiceover - uses memory storage for FPT AI pipeline)
 const uploadNarrativeAudio = multer({
     storage: multer.memoryStorage(),
@@ -135,5 +150,6 @@ module.exports = {
     uploadJournalAudio,
     uploadJournalVideo,
     uploadPostImages,
+    uploadReviewImages,
     uploadNarrativeAudio
 };

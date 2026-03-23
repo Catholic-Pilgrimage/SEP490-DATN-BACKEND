@@ -10,6 +10,7 @@ const localGuideRoutes = require('./localGuide.routes');
 const localGuideDashboardRoutes = require('./localGuideDashboard.routes');
 const pilgrimDashboardRoutes = require('./pilgrimDashboard.routes');
 const managerContentRoutes = require('./managerContent.routes');
+const managerReviewRoutes = require('./managerReview.routes');
 const publicRoutes = require('./public.routes');
 const journalRoutes = require('./journal.routes');
 const plannerRoutes = require('./planner.routes');
@@ -22,6 +23,7 @@ const reportRoutes = require('./report.routes');
 const walletRoutes = require('./wallet.routes');
 const aiRoutes = require('./ai.routes');
 const webhookRoutes = require('./webhook.routes');
+const reviewRoutes = require('./review.routes');
 
 router.get('/', (req, res) => {
   res.json({
@@ -52,7 +54,8 @@ router.get('/', (req, res) => {
       posts: '/api/posts',
       reports: '/api/reports',
       wallet: '/api/wallet',
-      ai: '/api/ai'
+      ai: '/api/ai',
+      reviews: '/api/sites/:siteId/reviews'
     }
   });
 });
@@ -84,6 +87,9 @@ router.use('/manager/dashboard', managerDashboardRoutes);
 // Manager Content routes (Media, Schedule, Event approval)
 router.use('/manager/content', managerContentRoutes);
 
+// Manager Review routes
+router.use('/manager/reviews', managerReviewRoutes);
+
 // Local Guide self routes
 router.use('/local-guide', localGuideRoutes);
 
@@ -101,6 +107,9 @@ router.use('/admin/verification-requests', adminVerificationRoutes);
 
 // Public routes (Sites, Events, etc.) - includes /available endpoint
 router.use('/sites', publicRoutes);
+
+// Review routes (nested under /sites)
+router.use('/sites', reviewRoutes);
 
 // Journal routes
 router.use('/journals', journalRoutes);

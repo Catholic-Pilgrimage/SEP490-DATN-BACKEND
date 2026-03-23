@@ -58,7 +58,11 @@ const Notification = sequelize.define('Notification', {
                 'event_submitted',
                 'schedule_submitted',
                 'nearby_place_submitted',
-                'shift_submitted'
+                'shift_submitted',
+                // Review notifications
+                'new_site_review',
+                'new_nearby_place_review',
+                'review_replied'
             ]]
         }
     },

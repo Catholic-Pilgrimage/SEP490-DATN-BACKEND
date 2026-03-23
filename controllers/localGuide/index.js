@@ -7,6 +7,7 @@ const eventController = require('./eventController');
 const shiftController = require('./shiftController');
 const nearbyPlaceController = require('./nearbyPlaceController');
 const narrativeController = require('./narrativeController');
+const reviewReplyController = require('./reviewReplyController');
 const LocalGuideSOSController = require('./SOSController');
 const LocalGuideDashboardController = require('./DashboardController');
 
@@ -31,6 +32,9 @@ module.exports = {
 
     // Narrative (3D Model Audio)
     ...narrativeController,
+
+    // Review Replies
+    ...reviewReplyController,
 
     // SOS
     LocalGuideSOSController,
