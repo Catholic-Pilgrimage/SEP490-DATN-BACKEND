@@ -407,6 +407,28 @@ const NOTIFICATION_TEMPLATES = {
             title: 'Your review got a reply',
             message: '{{siteName}} replied to your review'
         }
+    },
+
+    // Report penalty notifications
+    content_deleted: {
+        vi: {
+            title: 'Nội dung của bạn đã bị gỡ',
+            message: '{{snippet}} đã bị gỡ do vi phạm tiêu chuẩn cộng đồng.{{adminNote}}'
+        },
+        en: {
+            title: 'Your content has been removed',
+            message: '{{snippet}} was removed for violating community standards.{{adminNote}}'
+        }
+    },
+    content_warning: {
+        vi: {
+            title: 'Cảnh cáo vi phạm nội dung',
+            message: '{{snippet}} đã bị báo cáo vi phạm tiêu chuẩn cộng đồng.{{adminNote}}'
+        },
+        en: {
+            title: 'Content violation warning',
+            message: '{{snippet}} was reported for violating community standards.{{adminNote}}'
+        }
     }
 };
 

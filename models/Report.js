@@ -7,6 +7,11 @@ const Report = sequelize.define('Report', {
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true
   },
+  code: {
+    type: DataTypes.STRING(30),
+    allowNull: true,
+    unique: true
+  },
   reporter_id: {
     type: DataTypes.UUID,
     allowNull: true,
@@ -38,6 +43,10 @@ const Report = sequelize.define('Report', {
   status: {
     type: DataTypes.ENUM('pending', 'resolved', 'reject'),
     defaultValue: 'pending'
+  },
+  admin_note: {
+    type: DataTypes.TEXT,
+    allowNull: true
   },
   resolved_by: {
     type: DataTypes.UUID,

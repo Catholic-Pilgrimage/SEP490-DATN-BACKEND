@@ -79,11 +79,12 @@ const ReportController = {
     try {
       const { id } = req.params;
       const adminId = req.user.id;
-      const { action, note } = req.body;
+      const { action, note, penalty } = req.body;
 
-      const report = await reportService.resolveReport(id, adminId, { action, note });
+      const report = await reportService.resolveReport(id, adminId, { action, note, penalty });
 
-      return ResponseUtil.success(res, report, req.__('report.resolved'));
+      const message = action === 'reject' ? req.__('admin.reject_report_success') : req.__('admin.resolve_report_success');
+      return ResponseUtil.success(res, report, message);
     } catch (error) {
       next(error);
     }

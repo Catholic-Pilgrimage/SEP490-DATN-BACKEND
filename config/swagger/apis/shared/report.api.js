@@ -42,6 +42,34 @@
  *     responses:
  *       201:
  *         description: Tạo báo cáo thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       format: uuid
+ *                     code:
+ *                       type: string
+ *                       example: RPSR240324001
+ *                     target_type:
+ *                       type: string
+ *                     target_id:
+ *                       type: string
+ *                       format: uuid
+ *                     reason:
+ *                       type: string
+ *                     status:
+ *                       type: string
+ *                       example: pending
  *       400:
  *         description: Dữ liệu không hợp lệ
  *       404:
@@ -82,6 +110,36 @@
  *     responses:
  *       200:
  *         description: Danh sách báo cáo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     reports:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                           code:
+ *                             type: string
+ *                             example: RPSR240324001
+ *                           target_type:
+ *                             type: string
+ *                           status:
+ *                             type: string
+ *                           admin_note:
+ *                             type: string
+ *                             description: Ghi chú của admin khi xử lý
+ *                     pagination:
+ *                       type: object
  */
 
 /**
@@ -126,6 +184,30 @@
  *     responses:
  *       200:
  *         description: Chi tiết báo cáo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       format: uuid
+ *                     code:
+ *                       type: string
+ *                       example: RPSR240324001
+ *                     target_type:
+ *                       type: string
+ *                     target_content:
+ *                       type: object
+ *                       description: Nội dung bị báo cáo kèm thông tin tác giả
+ *                     admin_note:
+ *                       type: string
+ *                       description: Ghi chú của admin khi xử lý
  *       404:
  *         description: Không tìm thấy báo cáo
  */
