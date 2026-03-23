@@ -311,7 +311,7 @@ class AdminDashboardService {
             const reportsStatusMap = {
                 pending: 0,
                 resolved: 0,
-                dismissed: 0
+                reject: 0
             };
             reportsByStatus.forEach(item => {
                 reportsStatusMap[item.status] = parseInt(item.count);

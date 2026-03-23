@@ -232,7 +232,7 @@
  *               type: integer
  *               example: 60
  *               description: "Báo cáo đã xử lý"
- *             dismissed:
+ *             reject:
  *               type: integer
  *               example: 13
  *               description: "Báo cáo bị bỏ qua"

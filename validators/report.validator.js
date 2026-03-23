@@ -31,7 +31,7 @@ const reportValidator = {
   getReports: [
     query('status')
       .optional({ nullable: true, checkFalsy: true })
-      .isIn(['pending', 'resolved', 'dismissed'])
+      .isIn(['pending', 'resolved', 'reject'])
       .withMessage('Invalid status'),
     
     query('target_type')
@@ -59,8 +59,8 @@ const reportValidator = {
     body('action')
       .notEmpty()
       .withMessage('Action is required')
-      .isIn(['resolved', 'dismissed'])
-      .withMessage('Action must be resolved or dismissed'),
+      .isIn(['resolved', 'reject'])
+      .withMessage('Action must be resolved or reject'),
     
     body('note')
       .optional({ nullable: true, checkFalsy: true })

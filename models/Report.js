@@ -36,7 +36,7 @@ const Report = sequelize.define('Report', {
     allowNull: true
   },
   status: {
-    type: DataTypes.ENUM('pending', 'resolved', 'dismissed'),
+    type: DataTypes.ENUM('pending', 'resolved', 'reject'),
     defaultValue: 'pending'
   },
   resolved_by: {

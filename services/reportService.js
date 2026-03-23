@@ -177,6 +177,7 @@ const reportService = {
           include: [
             {
               model: User,
+              as: 'author',
               attributes: ['id', 'full_name', 'email', 'avatar_url']
             }
           ]
@@ -188,6 +189,7 @@ const reportService = {
           include: [
             {
               model: User,
+              as: 'author',
               attributes: ['id', 'full_name', 'email', 'avatar_url']
             }
           ]
@@ -199,6 +201,7 @@ const reportService = {
           include: [
             {
               model: User,
+              as: 'author',
               attributes: ['id', 'full_name', 'email', 'avatar_url']
             }
           ]
@@ -215,7 +218,7 @@ const reportService = {
   /**
    * Xử lý report (Admin only)
    */
-  async resolveReport(reportId, adminId, { action, note }) {
+  async resolveReport(reportId, adminId, { action, note, penalty }) {
     const report = await Report.findByPk(reportId);
 
     if (!report) {
@@ -229,8 +232,59 @@ const reportService = {
     // Cập nhật status
     report.status = action;
     report.resolved_by = adminId;
-    report.description = note ? `${report.description}\n\nAdmin note: ${note}` : report.description;
+    report.description = note ? `${report.description}\n\n[System] Admin note: ${note}` : report.description;
     
+    if (action === 'resolved') {
+      const { Post, PostComment, Journal, Notification } = require('../models');
+      let targetUser = null;
+      let snippet = 'Nội dung bị ẩn';
+
+      // 1. Phân loại theo target_type để lấy tác giả và áp dụng penalty
+      if (report.target_type === 'post') {
+        const post = await Post.findByPk(report.target_id);
+        if (post) {
+          targetUser = post.user_id;
+          snippet = post.content ? post.content.substring(0, 50) + '...' : 'Bài viết hình ảnh';
+          if (penalty === 'delete_content') {
+            await post.update({ status: 'rejected' });
+          }
+        }
+      } else if (report.target_type === 'comment') {
+        const comment = await PostComment.findByPk(report.target_id);
+        if (comment) {
+          targetUser = comment.user_id;
+          snippet = comment.content ? comment.content.substring(0, 50) + '...' : 'Bình luận';
+          if (penalty === 'delete_content') {
+            await comment.update({ status: 'rejected' });
+          }
+        }
+      } else if (report.target_type === 'journal') {
+        const journal = await Journal.findByPk(report.target_id);
+        if (journal) {
+          targetUser = journal.user_id;
+          snippet = journal.title ? journal.title : 'Nhật ký';
+          if (penalty === 'delete_content') {
+            // Journal không có trường status, do đó hard delete hoặc đổi thành private
+            await journal.destroy();
+          }
+        }
+      }
+
+      // 2. Gửi thông báo cho tác giả
+      if (targetUser && (penalty === 'delete_content' || penalty === 'warning')) {
+        const notifType = penalty === 'delete_content' ? 'content_deleted' : 'content_warning';
+        const titleStr = penalty === 'delete_content' ? 'Nội dung của bạn đã bị gỡ' : 'Cảnh cáo vi phạm nội dung';
+        const actionStr = penalty === 'delete_content' ? 'bị gỡ' : 'báo cáo vi phạm';
+
+        await Notification.create({
+          receiver_id: targetUser,
+          type: notifType,
+          title: titleStr,
+          message: `Nội dung bắt đầu bằng "${snippet}" đã ${actionStr} do vi phạm tiêu chuẩn cộng đồng. Ghi chú của Admin: ${note}`
+        });
+      }
+    }
+
     await report.save();
 
     return report;

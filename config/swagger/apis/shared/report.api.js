@@ -61,7 +61,7 @@
  *         name: status
  *         schema:
  *           type: string
- *           enum: [pending, resolved, dismissed]
+ *           enum: [pending, resolved, reject]
  *         description: Lọc theo trạng thái
  *       - in: query
  *         name: target_type
@@ -156,7 +156,7 @@
  *             properties:
  *               action:
  *                 type: string
- *                 enum: [resolved, dismissed]
+ *                 enum: [resolved, reject]
  *                 description: Hành động xử lý
  *               note:
  *                 type: string

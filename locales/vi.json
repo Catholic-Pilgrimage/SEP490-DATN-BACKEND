@@ -54,7 +54,7 @@
     "report_already_processed": "Báo cáo đã được xử lý",
     "invalid_action": "Hành động không hợp lệ",
     "resolve_report_success": "Xử lý báo cáo thành công",
-    "dismiss_report_success": "Bỏ qua báo cáo thành công",
+    "reject_report_success": "Từ chối báo cáo thành công",
     "delete_report_success": "Xóa báo cáo thành công",
     "finance_dashboard_success": "Lấy tổng quan tài chính thành công",
     "get_transactions_success": "Lấy danh sách giao dịch thành công",

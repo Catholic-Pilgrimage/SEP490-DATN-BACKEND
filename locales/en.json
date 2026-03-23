@@ -54,7 +54,7 @@
     "report_already_processed": "Report already processed",
     "invalid_action": "Invalid action",
     "resolve_report_success": "Report resolved successfully",
-    "dismiss_report_success": "Report dismissed successfully",
+    "reject_report_success": "Report rejected successfully",
     "delete_report_success": "Report deleted successfully",
     "finance_dashboard_success": "Finance overview retrieved successfully",
     "get_transactions_success": "Transactions retrieved successfully",
