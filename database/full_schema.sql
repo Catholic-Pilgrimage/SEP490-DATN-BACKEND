@@ -54,7 +54,7 @@ DO $$ BEGIN
     
     -- Others
     CREATE TYPE report_reason AS ENUM ('spam', 'inappropriate', 'harassment', 'other');
-    CREATE TYPE report_status AS ENUM ('pending', 'resolved', 'dismissed');
+    CREATE TYPE report_status AS ENUM ('pending', 'resolved', 'reject');
     CREATE TYPE sos_status AS ENUM ('pending', 'accepted', 'resolved', 'cancelled');
     CREATE TYPE invite_status AS ENUM ('pending', 'awaiting_payment', 'accepted', 'rejected', 'expired');
     CREATE TYPE participant_status AS ENUM ('going', 'interested');
