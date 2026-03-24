@@ -102,8 +102,8 @@ services:
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    # ports:
-    #   - "5432:5432"  # Uncomment if need external access
+    ports:
+      - "5432:5432"  # Allow external access for team
     networks:
       - app-network
     restart: unless-stopped
