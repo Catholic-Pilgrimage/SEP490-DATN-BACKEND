@@ -3,6 +3,9 @@
 # Deploy script for VPS
 echo "Starting deployment..."
 
+# Navigate to app directory
+cd "$(dirname "$0")/.." || exit 1
+
 # Check if .env exists
 if [ ! -f .env ]; then
     echo "ERROR: .env file not found!"

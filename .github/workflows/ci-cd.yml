@@ -61,8 +61,9 @@ jobs:
         port: 22
         script: |
           cd /root/app
+          git pull origin main
           chmod +x scripts/deploy.sh
-          ./scripts/deploy.sh
+          bash scripts/deploy.sh
     
     - name: Deployment complete
       run: |
