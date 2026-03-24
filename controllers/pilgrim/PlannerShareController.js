@@ -59,6 +59,51 @@ class PlannerShareController {
     }
 
     /**
+     * POST /planners/:id/invite-friend - Mời bạn bè vào kế hoạch (không cọc)
+     */
+    static async inviteFriend(req, res) {
+        try {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
+            }
+
+            const { friend_id } = req.body;
+            const result = await PlannerShareService.inviteFriendToPlanner(req.params.id, req.user.id, friend_id);
+            return ResponseUtil.success(res, result, 'Đã gửi lời mời bạn bè tham gia kế hoạch');
+        } catch (error) {
+            if (error.message === 'Planner not found') {
+                return ResponseUtil.notFound(res, req.__('planner.not_found'));
+            }
+            if (error.message === 'Forbidden') {
+                return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
+            }
+            if (error.message === 'Can only invite when planner is in planning status') {
+                return ResponseUtil.badRequest(res, req.__('planner.only_planning_invite'));
+            }
+            if (error.message === 'Cannot invite yourself') {
+                return ResponseUtil.badRequest(res, 'Không thể tự mời chính mình');
+            }
+            if (error.message.includes('Not friends')) {
+                return ResponseUtil.badRequest(res, 'Hai người chưa là bạn bè. Chỉ có thể mời bạn bè qua tính năng này');
+            }
+            if (error.message === 'User not found') {
+                return ResponseUtil.notFound(res, 'Không tìm thấy người dùng');
+            }
+            if (error.message.includes('Planner is full')) {
+                return ResponseUtil.badRequest(res, req.__('planner.planner_full'));
+            }
+            if (error.message === 'User already invited') {
+                return ResponseUtil.badRequest(res, req.__('planner.pending_invite_exists'));
+            }
+            if (error.message === 'User is already a member') {
+                return ResponseUtil.badRequest(res, req.__('planner.already_member'));
+            }
+            return ResponseUtil.error(res, req.__('error.server_error'));
+        }
+    }
+
+    /**
      * POST /planners/invite/:token - Respond to invite (accept/reject)
      */
     static async respondToInvite(req, res) {

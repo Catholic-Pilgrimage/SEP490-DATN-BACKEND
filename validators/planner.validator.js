@@ -420,6 +420,16 @@ class PlannerValidator {
             .isIn(['accept', 'reject']).withMessage('Action phải là accept hoặc reject')
     ];
 
+    // Validate invite friend (no deposit)
+    static inviteFriend = [
+        param('id')
+            .isUUID().withMessage('Planner ID không hợp lệ'),
+
+        body('friend_id')
+            .notEmpty().withMessage('Friend ID không được để trống')
+            .isUUID().withMessage('Friend ID không hợp lệ')
+    ];
+
     // Validate remove member
     static removeMember = [
         param('id')

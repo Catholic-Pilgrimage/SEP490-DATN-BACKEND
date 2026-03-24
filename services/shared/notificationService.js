@@ -429,6 +429,38 @@ const NOTIFICATION_TEMPLATES = {
             title: 'Content violation warning',
             message: '{{snippet}} was reported for violating community standards.{{adminNote}}'
         }
+    },
+
+    // Friendship notifications
+    friend_request: {
+        vi: {
+            title: 'Lời mời kết bạn',
+            message: '{{requesterName}} đã gửi lời mời kết bạn'
+        },
+        en: {
+            title: 'Friend request',
+            message: '{{requesterName}} sent you a friend request'
+        }
+    },
+    friend_accepted: {
+        vi: {
+            title: 'Kết bạn thành công',
+            message: 'Bạn và {{friendName}} đã trở thành bạn bè'
+        },
+        en: {
+            title: 'Friend request accepted',
+            message: 'You and {{friendName}} are now friends'
+        }
+    },
+    planner_friend_invite: {
+        vi: {
+            title: 'Lời mời tham gia kế hoạch',
+            message: '{{inviterName}} đã mời bạn tham gia kế hoạch "{{plannerName}}" (không cần cọc)'
+        },
+        en: {
+            title: 'Planner invitation from friend',
+            message: '{{inviterName}} invited you to join planner "{{plannerName}}" (no deposit required)'
+        }
     }
 };
 

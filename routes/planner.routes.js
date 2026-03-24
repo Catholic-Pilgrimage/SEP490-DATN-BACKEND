@@ -114,6 +114,14 @@ router.post(
     PilgrimPlannerShareController.inviteUser
 );
 
+// Friend invite (no deposit)
+router.post(
+    '/:id/invite-friend',
+    authenticate,
+    PlannerValidator.inviteFriend,
+    PilgrimPlannerShareController.inviteFriend
+);
+
 router.post(
     '/invite/:token',
     authenticate,

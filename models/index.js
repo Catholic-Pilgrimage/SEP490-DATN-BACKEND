@@ -33,6 +33,7 @@ const SiteReview = require('./SiteReview');
 const NearbyPlaceReview = require('./NearbyPlaceReview');
 const SiteReviewReply = require('./SiteReviewReply');
 const NearbyPlaceReviewReply = require('./NearbyPlaceReviewReply');
+const Friendship = require('./Friendship');
 
 // ===================== WALLETS & TRANSACTIONS =====================
 
@@ -302,6 +303,16 @@ NearbyPlaceReviewReply.belongsTo(NearbyPlaceReview, { foreignKey: 'review_id', a
 User.hasMany(NearbyPlaceReviewReply, { foreignKey: 'user_id', as: 'nearbyPlaceReviewReplies' });
 NearbyPlaceReviewReply.belongsTo(User, { foreignKey: 'user_id', as: 'replier' });
 
+// ===================== FRIENDSHIPS =====================
+
+// Friendship - User (requester)
+User.hasMany(Friendship, { foreignKey: 'requester_id', as: 'sentFriendRequests' });
+Friendship.belongsTo(User, { foreignKey: 'requester_id', as: 'requester' });
+
+// Friendship - User (addressee)
+User.hasMany(Friendship, { foreignKey: 'addressee_id', as: 'receivedFriendRequests' });
+Friendship.belongsTo(User, { foreignKey: 'addressee_id', as: 'addressee' });
+
 
 const db = {
   sequelize,
@@ -338,7 +349,8 @@ const db = {
   SiteReview,
   NearbyPlaceReview,
   SiteReviewReply,
-  NearbyPlaceReviewReply
+  NearbyPlaceReviewReply,
+  Friendship
 };
 
 module.exports = db;

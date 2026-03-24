@@ -36,6 +36,24 @@ const PlannerInvite = sequelize.define('PlannerInvite', {
         unique: true
     },
 
+    invite_type: {
+        type: DataTypes.STRING(20),
+        defaultValue: 'external',
+        allowNull: false,
+        validate: {
+            isIn: [['friend', 'external']]
+        },
+        comment: 'friend: mời bạn (không cọc), external: mời qua email/link (có cọc)'
+    },
+    invitee_user_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'users',
+            key: 'id'
+        },
+        comment: 'ID người được mời (dùng cho friend invite)'
+    },
     status: {
         type: DataTypes.STRING(20),
         defaultValue: 'pending',

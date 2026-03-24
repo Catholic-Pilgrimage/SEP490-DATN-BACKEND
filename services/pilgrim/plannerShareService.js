@@ -7,6 +7,7 @@ const QRCode = require('qrcode');
 const PlannerService = require('../plannerService');
 const PayOSService = require('../shared/payosService');
 const WalletService = require('./walletService');
+const FriendshipService = require('./friendshipService');
 const sequelize = require('../../config/database');
 
 class PlannerShareService {
@@ -49,7 +50,7 @@ class PlannerShareService {
                 invite: {
                     id: invite.id,
                     email: invite.email,
-                    role: invite.role,
+                    invite_type: invite.invite_type,
                     status: invite.status,
                     expires_at: invite.expires_at
                 },
@@ -242,6 +243,163 @@ class PlannerShareService {
     }
 
     /**
+     * Invite a friend to planner (no deposit required)
+     * Creates PlannerInvite with invite_type = 'friend', status = 'pending'
+     * Friend must still accept/reject via respondToInvite
+     */
+    static async inviteFriendToPlanner(plannerId, ownerId, friendId) {
+        try {
+            const planner = await Planner.findByPk(plannerId, {
+                include: [{
+                    model: User,
+                    as: 'members'
+                }]
+            });
+
+            if (!planner) {
+                throw new Error('Planner not found');
+            }
+
+            // Only owner can invite
+            if (planner.user_id !== ownerId) {
+                throw new Error('Forbidden');
+            }
+
+            // Only allow inviting when planner is in planning status
+            if (planner.status !== 'planning') {
+                throw new Error('Can only invite when planner is in planning status');
+            }
+
+            // Cannot invite yourself
+            if (ownerId === friendId) {
+                throw new Error('Cannot invite yourself');
+            }
+
+            // Check friendship
+            const areFriends = await FriendshipService.areFriends(ownerId, friendId);
+            if (!areFriends) {
+                throw new Error('Not friends. Can only use friend invite for accepted friends');
+            }
+
+            // Get friend user info
+            const friend = await User.findByPk(friendId, { attributes: ['id', 'full_name', 'email'] });
+            if (!friend) {
+                throw new Error('User not found');
+            }
+
+            // Sweep expired active invites before counting slots
+            const now = new Date();
+            const expiredActiveInvites = await PlannerInvite.findAll({
+                where: {
+                    planner_id: plannerId,
+                    status: { [Op.in]: ['pending', 'awaiting_payment'] },
+                    expires_at: { [Op.lt]: now }
+                }
+            });
+            for (const expiredInvite of expiredActiveInvites) {
+                await expiredInvite.update({ status: 'expired' });
+                Logger.info(`Slot sweep: expired invite ${expiredInvite.id} for planner ${plannerId}`);
+            }
+
+            // Slot counting
+            const currentMemberCount = await PlannerMember.count({
+                where: {
+                    planner_id: plannerId,
+                    join_status: 'joined',
+                    user_id: { [Op.ne]: planner.user_id }
+                }
+            });
+            const activeInviteCount = await PlannerInvite.count({
+                where: {
+                    planner_id: plannerId,
+                    status: { [Op.in]: ['pending', 'awaiting_payment'] },
+                    [Op.or]: [
+                        { expires_at: null },
+                        { expires_at: { [Op.gte]: now } }
+                    ]
+                }
+            });
+
+            const totalSlots = planner.number_of_people;
+            const usedSlots = currentMemberCount + activeInviteCount + 1; // +1 for owner
+
+            if (usedSlots >= totalSlots) {
+                throw new Error(`Planner is full. Max participants: ${totalSlots}`);
+            }
+
+            // Prevent duplicate active invite for same user
+            const existingInvite = await PlannerInvite.findOne({
+                where: {
+                    planner_id: plannerId,
+                    invitee_user_id: friendId,
+                    status: { [Op.in]: ['pending', 'awaiting_payment'] },
+                    [Op.or]: [
+                        { expires_at: null },
+                        { expires_at: { [Op.gte]: now } }
+                    ]
+                }
+            });
+
+            if (existingInvite) {
+                throw new Error('User already invited');
+            }
+
+            // Check if friend is already an active member
+            const existingMember = await PlannerMember.findOne({
+                where: {
+                    planner_id: plannerId,
+                    user_id: friendId
+                }
+            });
+            if (existingMember && existingMember.join_status === 'joined') {
+                throw new Error('User is already a member');
+            }
+
+            // Create invite token (still needed for accept flow)
+            const token = crypto.randomBytes(32).toString('hex');
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + 7);
+
+            const invite = await PlannerInvite.create({
+                planner_id: plannerId,
+                inviter_id: ownerId,
+                email: friend.email,
+                token,
+                invite_type: 'friend',
+                invitee_user_id: friendId,
+                status: 'pending',
+                expires_at: expiresAt
+            });
+
+            Logger.info(`Friend invite sent to ${friend.full_name} (${friendId}) for planner ${plannerId}`);
+
+            // Send notification to friend (no email for friend invite)
+            const inviter = await User.findByPk(ownerId, { attributes: ['full_name'] });
+            const NotificationService = require('../shared/notificationService');
+            NotificationService.createNotification('planner_friend_invite', friendId, {
+                inviterName: inviter?.full_name || 'Bạn bè',
+                plannerName: planner.name
+            }).catch(() => { });
+
+            return {
+                id: invite.id,
+                invite_type: 'friend',
+                friend: {
+                    id: friend.id,
+                    full_name: friend.full_name,
+                    email: friend.email
+                },
+                token: invite.token,
+                expires_at: invite.expires_at,
+                planner_name: planner.name
+            };
+        } catch (error) {
+            Logger.error('Invite friend to planner error:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Respond to planner invite (accept or reject)
      */
     static async respondToInvite(token, userId, action) {
@@ -348,15 +506,109 @@ class PlannerShareService {
                 throw new Error('Invite has expired');
             }
 
-            // Verify user email matches
+            // Verify user identity matches the invite
             const user = await User.findByPk(userId);
-            if (!user || user.email !== invite.email) {
-                throw new Error('Email mismatch. This invite is for another user');
+            if (!user) {
+                throw new Error('User not found');
+            }
+
+            // Friend invite: check invitee_user_id (not email)
+            // External invite: check email (existing behavior)
+            if (invite.invite_type === 'friend') {
+                if (invite.invitee_user_id && invite.invitee_user_id !== userId) {
+                    throw new Error('This friend invite is for another user');
+                }
+            } else {
+                if (user.email !== invite.email) {
+                    throw new Error('Email mismatch. This invite is for another user');
+                }
             }
 
             if (action === 'accept') {
                 const planner = invite.planner;
 
+                // ===== FRIEND INVITE: join immediately, no deposit =====
+                if (invite.invite_type === 'friend') {
+                    // Extra security: verify invitee_user_id matches
+                    if (invite.invitee_user_id && invite.invitee_user_id !== userId) {
+                        throw new Error('This friend invite is for another user');
+                    }
+
+                    // Check slots
+                    const currentMemberCount = await PlannerMember.count({
+                        where: {
+                            planner_id: planner.id,
+                            join_status: 'joined',
+                            user_id: { [Op.ne]: planner.user_id }
+                        }
+                    });
+                    const activeInviteCount = await PlannerInvite.count({
+                        where: {
+                            planner_id: planner.id,
+                            status: { [Op.in]: ['pending', 'awaiting_payment'] },
+                            id: { [Op.ne]: invite.id }
+                        }
+                    });
+
+                    const totalSlots = planner.number_of_people;
+                    if (currentMemberCount + activeInviteCount + 1 >= totalSlots) {
+                        throw new Error(`Planner is full. Max participants: ${totalSlots}`);
+                    }
+
+                    // Create or reactivate PlannerMember — no deposit
+                    const t = await sequelize.transaction();
+                    try {
+                        const existingMember = await PlannerMember.findOne({
+                            where: { planner_id: planner.id, user_id: userId },
+                            transaction: t
+                        });
+
+                        if (existingMember) {
+                            existingMember.join_status = 'joined';
+                            existingMember.deposit_status = null;
+                            existingMember.joined_at = new Date();
+                            await existingMember.save({ transaction: t });
+                        } else {
+                            await PlannerMember.create({
+                                planner_id: planner.id,
+                                user_id: userId,
+                                join_status: 'joined',
+                                deposit_status: null
+                            }, { transaction: t });
+                        }
+
+                        await invite.update({ status: 'accepted' }, { transaction: t });
+                        await t.commit();
+                    } catch (txError) {
+                        await t.rollback();
+                        throw txError;
+                    }
+
+                    Logger.info(`Friend ${userId} joined planner ${planner.id} via friend invite (no deposit)`);
+
+                    // System chat message (fire-and-forget)
+                    const memberUser = await User.findByPk(userId, { attributes: ['full_name'] });
+                    const PlannerChatService = require('./plannerChatService');
+                    PlannerChatService.sendSystemMessage(planner.id,
+                        `🤝 ${memberUser?.full_name || 'Bạn bè'} đã tham gia nhóm (mời bởi bạn bè)`
+                    ).catch(() => { });
+
+                    // Push notification to owner
+                    const NotificationService = require('../shared/notificationService');
+                    NotificationService.createNotification('planner_joined', planner.user_id, {
+                        memberName: memberUser?.full_name || 'Bạn bè',
+                        plannerName: planner.name
+                    }).catch(() => { });
+
+                    return {
+                        deposit_required: false,
+                        joined: true,
+                        planner_name: planner.name,
+                        message: 'Đã tham gia nhóm thành công (bạn bè - không cần cọc)'
+                    };
+                }
+
+                // ===== EXTERNAL INVITE: deposit flow (existing code) =====
                 try {
                     // Check slots again using invite-based counting
                     const currentMemberCount = await PlannerMember.count({
@@ -384,8 +636,7 @@ class PlannerShareService {
 
                     const depositAmount = parseFloat(planner.deposit_amount) || 0;
 
-                    // Business rule: share planners MUST have deposit_amount > 0
-                    // If deposit = 0 on a share planner, it's a data inconsistency — reject
+                    // Business rule: external invites MUST have deposit_amount > 0
                     if (depositAmount <= 0) {
                         await invite.update({ status: 'pending' }); // roll back
                         throw new Error('Share planner must have a deposit amount configured. Contact the planner owner.');
@@ -409,7 +660,7 @@ class PlannerShareService {
                             // Lock wallet row to prevent double-spend
                             const lockedWallet = await Wallet.findByPk(wallet.id, { transaction: t, lock: true });
                             const confirmedBalance = parseFloat(lockedWallet.balance) || 0;
-                            walletBalance = confirmedBalance; 
+                            walletBalance = confirmedBalance;
 
                             // Re-check balance inside transaction (could have changed)
                             if (confirmedBalance < depositAmount) {
@@ -934,7 +1185,6 @@ class PlannerShareService {
                 await PlannerMember.create({
                     planner_id: plannerId,
                     user_id: userId,
-                    role: inviteByEmail.role,
                     join_status: 'joined',
                     deposit_status: 'paid'
                 }, { transaction: t });
@@ -945,7 +1195,6 @@ class PlannerShareService {
                 // Re-invite flow: member was kicked/dropped_out, re-activate them
                 existingMember.join_status = 'joined';
                 existingMember.deposit_status = 'paid';
-                existingMember.role = inviteByEmail.role;
                 existingMember.joined_at = new Date();
                 await existingMember.save({ transaction: t });
 
