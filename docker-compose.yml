@@ -79,6 +79,43 @@ services:
     restart: unless-stopped
     networks:
       - app-network
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: pilgrim-db
+    mem_limit: 2g
+    memswap_limit: 2g
+    mem_reservation: 512m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      POSTGRES_DB: ${DB_NAME:-pilgrim_db}
+      POSTGRES_USER: ${DB_USER:-pilgrim_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # ports:
+    #   - "5432:5432"  # Uncomment if need external access
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-pilgrim_user} -d ${DB_NAME:-pilgrim_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
 
 networks:
   app-network:
