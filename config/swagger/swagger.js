@@ -15,11 +15,15 @@ const options = {
     servers: [
       {
         url: `http://localhost:${process.env.PORT || 3000}`,
-        description: 'Development server'
+        description: 'Development server (Local)'
+      },
+      {
+        url: 'http://160.187.229.183:3000',
+        description: 'Production server (VPS)'
       },
       {
         url: 'https://sep490-datn-backend.onrender.com',
-        description: 'Production server (Render)'
+        description: 'Backup server (Render)'
       },
       {
         url: 'https://www.catholicpilgrimage.id.vn',
