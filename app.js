@@ -34,9 +34,14 @@ app.use(cors({
       ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
       : ['*'];
 
+    console.log('[CORS DEBUG] Request origin:', origin);
+    console.log('[CORS DEBUG] Allowed origins:', allowedOrigins);
+
     if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+      console.log('[CORS DEBUG] Origin allowed');
       callback(null, true);
     } else {
+      console.log('[CORS DEBUG] Origin rejected');
       callback(new Error('Not allowed by CORS'));
     }
   },
