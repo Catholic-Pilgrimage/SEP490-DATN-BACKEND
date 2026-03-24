@@ -1,5 +1,6 @@
 const { User, Site, GuideShift, GuideShiftSubmission } = require('../../models');
 const { Op } = require('sequelize');
+const sequelize = require('../../config/database');
 const Logger = require('../../utils/logger.util');
 const NotificationService = require('../shared/notificationService');
 const appConfig = require('../../config/app.config');
@@ -234,33 +235,40 @@ class LocalGuideShiftService {
         // Generate submission code
         const code = await this.generateShiftSubmissionCode();
 
-        // Create submission
-        const submission = await GuideShiftSubmission.create({
-            guide_id: userId,
-            site_id: user.site_id,
-            code,
-            week_start_date,
-            submission_type: submissionType,
-            change_reason: change_reason || null,
-            previous_submission_id: previous_submission_id || null,
-            status: 'pending',
-            total_shifts: validatedShifts.length,
-            is_active: true
+        // Create submission + shifts in a transaction
+        const { submission, createdShifts } = await sequelize.transaction(async (t) => {
+            const submission = await GuideShiftSubmission.create({
+                guide_id: userId,
+                site_id: user.site_id,
+                code,
+                week_start_date,
+                submission_type: submissionType,
+                change_reason: change_reason || null,
+                previous_submission_id: previous_submission_id || null,
+                status: 'pending',
+                total_shifts: validatedShifts.length,
+                is_active: true
+            }, { transaction: t });
+
+            const createdShifts = await Promise.all(
+                validatedShifts.map(shift => GuideShift.create({
+                    submission_id: submission.id,
+                    ...shift
+                }, { transaction: t }))
+            );
+
+            return { submission, createdShifts };
         });
 
-        // Create shifts
-        const createdShifts = await Promise.all(
-            validatedShifts.map(shift => GuideShift.create({
-                submission_id: submission.id,
-                ...shift
-            }))
-        );
-
-        // Notify Manager
-        await NotificationService.notifySiteManager(user.site_id, 'shift_submitted', {
-            guideName: user.full_name || user.email,
-            weekStart: new Date(week_start_date).toLocaleDateString('vi-VN')
-        });
+        // Notify Manager (outside transaction — noti failure should not rollback data)
+        try {
+            await NotificationService.notifySiteManager(user.site_id, 'shift_submitted', {
+                guideName: user.full_name || user.email,
+                weekStart: new Date(week_start_date).toLocaleDateString('vi-VN')
+            });
+        } catch (notifyError) {
+            Logger.error('Failed to notify manager about shift submission:', notifyError);
+        }
 
         return {
             submission,
@@ -429,26 +437,89 @@ class LocalGuideShiftService {
             throw new Error(`Validation errors: ${JSON.stringify(errors)}`);
         }
 
-        // Delete old shifts
-        await GuideShift.destroy({ where: { submission_id: submissionId } });
+        // Check for overlaps with other guides
+        const otherSubmissions = await GuideShiftSubmission.findAll({
+            where: {
+                site_id: submission.site_id,
+                week_start_date: submission.week_start_date,
+                guide_id: { [Op.ne]: userId },
+                status: { [Op.in]: ['pending', 'approved'] },
+                is_active: true
+            },
+            include: [
+                {
+                    model: GuideShift,
+                    as: 'shifts'
+                },
+                {
+                    model: User,
+                    as: 'guide',
+                    attributes: ['id', 'full_name', 'email']
+                }
+            ]
+        });
 
-        // Create new shifts
-        const createdShifts = await Promise.all(
-            validatedShifts.map(shift => GuideShift.create({
-                submission_id: submissionId,
-                ...shift
-            }))
-        );
+        const overlapErrors = [];
+        for (const sub of otherSubmissions) {
+            for (const existingShift of (sub.shifts || [])) {
+                for (const newShift of validatedShifts) {
+                    if (
+                        existingShift.day_of_week === newShift.day_of_week &&
+                        existingShift.start_time < newShift.end_time &&
+                        existingShift.end_time > newShift.start_time
+                    ) {
+                        overlapErrors.push({
+                            day_of_week: newShift.day_of_week,
+                            new_shift_time: `${newShift.start_time} - ${newShift.end_time}`,
+                            conflicting_guide: sub.guide?.full_name || 'Unknown',
+                            conflicting_submission_status: sub.status,
+                            existing_time: `${existingShift.start_time} - ${existingShift.end_time}`,
+                            error: `Shift overlaps with another Local Guide's ${sub.status} shift`
+                        });
+                    }
+                }
+            }
+        }
 
-        // Update submission
-        await submission.update({
-            total_shifts: createdShifts.length,
-            status: wasRejected ? 'pending' : submission.status,
-            rejection_reason: wasRejected ? null : submission.rejection_reason
+        if (overlapErrors.length > 0) {
+            throw new Error(`Shift conflicts detected: ${JSON.stringify(overlapErrors)}`);
+        }
+
+        // Delete old shifts + create new shifts + update submission in a transaction
+        const { updatedSubmission, createdShifts } = await sequelize.transaction(async (t) => {
+            // Re-check submission status with lock to prevent race with manager approve/reject
+            const freshSubmission = await GuideShiftSubmission.findOne({
+                where: { id: submissionId },
+                lock: t.LOCK.UPDATE,
+                transaction: t
+            });
+
+            if (!freshSubmission || !['pending', 'rejected'].includes(freshSubmission.status)) {
+                throw new Error('Submission not found or already approved');
+            }
+
+            const currentWasRejected = freshSubmission.status === 'rejected';
+
+            await GuideShift.destroy({ where: { submission_id: submissionId }, transaction: t });
+
+            const createdShifts = await Promise.all(
+                validatedShifts.map(shift => GuideShift.create({
+                    submission_id: submissionId,
+                    ...shift
+                }, { transaction: t }))
+            );
+
+            await freshSubmission.update({
+                total_shifts: createdShifts.length,
+                status: currentWasRejected ? 'pending' : freshSubmission.status,
+                rejection_reason: currentWasRejected ? null : freshSubmission.rejection_reason
+            }, { transaction: t });
+
+            return { updatedSubmission: freshSubmission, createdShifts };
         });
 
         return {
-            submission,
+            submission: updatedSubmission,
             shifts: createdShifts
         };
     }
@@ -465,7 +536,6 @@ class LocalGuideShiftService {
             throw new Error('Submission not found or not pending');
         }
 
-        await GuideShift.destroy({ where: { submission_id: submissionId } });
         await submission.destroy();
 
         return { message: 'Submission deleted successfully' };

@@ -47,6 +47,7 @@ router.patch(
     '/shift-submissions/:id/status',
     authMiddleware,
     authMiddleware.authorize('manager'),
+    ManagerLocalGuideValidator.updateSubmissionStatus,
     ManagerLocalGuideController.updateSubmissionStatus
 );
 

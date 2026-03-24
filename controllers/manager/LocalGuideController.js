@@ -142,6 +142,12 @@ exports.getSubmissionDetail = async (req, res) => {
  */
 exports.updateSubmissionStatus = async (req, res) => {
     try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            const formattedErrors = formatValidationErrors(errors.array());
+            return ResponseUtil.badRequest(res, req.__('validation.failed'), formattedErrors);
+        }
+
         const result = await ManagerLocalGuideService.updateSubmissionStatus(
             req.user.id,
             req.params.id,
@@ -155,8 +161,8 @@ exports.updateSubmissionStatus = async (req, res) => {
         if (error.message === 'Submission not found') {
             return ResponseUtil.notFound(res, req.__('manager.submission_not_found'));
         }
-        if (error.message.includes('already')) {
-            return ResponseUtil.badRequest(res, error.message);
+        if (error.message === 'Only pending submissions can be approved or rejected') {
+            return ResponseUtil.badRequest(res, req.__('manager.only_pending_submissions') || error.message);
         }
         if (error.message.includes('Rejection reason is required')) {
             return ResponseUtil.badRequest(res, req.__('manager.rejection_reason_required'));

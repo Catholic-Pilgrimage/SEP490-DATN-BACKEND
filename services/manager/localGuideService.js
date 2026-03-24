@@ -474,21 +474,6 @@ class ManagerLocalGuideService {
                 throw new Error('Manager not found');
             }
 
-            const submission = await GuideShiftSubmission.findOne({
-                where: {
-                    id: submissionId,
-                    site_id: manager.site_id
-                }
-            });
-
-            if (!submission) {
-                throw new Error('Submission not found');
-            }
-
-            if (submission.status === status) {
-                throw new Error(`Submission is already ${status}`);
-            }
-
             // Validate rejection reason
             if (status === 'rejected' && !rejection_reason) {
                 throw new Error('Rejection reason is required when rejecting submission');
@@ -504,25 +489,53 @@ class ManagerLocalGuideService {
                 updateData.rejection_reason = rejection_reason;
             } else if (status === 'approved') {
                 updateData.rejection_reason = null;
-
-
-                if (submission.previous_submission_id) {
-                    await GuideShiftSubmission.update(
-                        { is_active: false },
-                        { where: { id: submission.previous_submission_id } }
-                    );
-                }
             }
 
-            await submission.update(updateData);
+            // All DB writes + status check in a transaction with row lock
+            const sequelize = require('../../config/database');
+            const submission = await sequelize.transaction(async (t) => {
+                // Lock the row to prevent concurrent approve/reject race
+                const submission = await GuideShiftSubmission.findOne({
+                    where: {
+                        id: submissionId,
+                        site_id: manager.site_id
+                    },
+                    lock: t.LOCK.UPDATE,
+                    transaction: t
+                });
 
-            // Send notification to LocalGuide
-            const notificationType = status === 'approved' ? 'shift_assigned' : 'shift_rejected';
-            const weekStart = submission.week_start_date;
-            await NotificationService.createNotification(notificationType, submission.guide_id, {
-                weekStart: weekStart ? new Date(weekStart).toLocaleDateString('vi-VN') : '',
-                reason: rejection_reason || ''
+                if (!submission) {
+                    throw new Error('Submission not found');
+                }
+
+                // State machine: only pending submissions can be approved/rejected
+                if (submission.status !== 'pending') {
+                    throw new Error('Only pending submissions can be approved or rejected');
+                }
+
+                if (status === 'approved' && submission.previous_submission_id) {
+                    await GuideShiftSubmission.update(
+                        { is_active: false },
+                        { where: { id: submission.previous_submission_id }, transaction: t }
+                    );
+                }
+
+                await submission.update(updateData, { transaction: t });
+
+                return submission;
             });
+
+            // Send notification (outside transaction — noti failure should not affect result)
+            try {
+                const notificationType = status === 'approved' ? 'shift_assigned' : 'shift_rejected';
+                const weekStart = submission.week_start_date;
+                await NotificationService.createNotification(notificationType, submission.guide_id, {
+                    weekStart: weekStart ? new Date(weekStart).toLocaleDateString('vi-VN') : '',
+                    reason: rejection_reason || ''
+                });
+            } catch (notifyError) {
+                Logger.error('Failed to notify local guide about submission status change:', notifyError);
+            }
 
             Logger.info(`Submission ${submissionId} status changed to ${status} by Manager ${managerId}`);
 

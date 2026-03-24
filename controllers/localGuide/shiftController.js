@@ -125,6 +125,19 @@ exports.updateSubmission = async (req, res) => {
             }
             return ResponseUtil.badRequest(res, req.__('local_guide.validation_errors') || 'Validation errors', validationErrors);
         }
+        if (error.message.includes('Shift conflicts detected') || error.message.includes('overlaps with another Local Guide')) {
+            let conflictDetails = null;
+            try {
+                const jsonMatch = error.message.match(/\[.*\]/);
+                if (jsonMatch) {
+                    conflictDetails = JSON.parse(jsonMatch[0]);
+                }
+            } catch (e) {
+                // If parsing fails, just use the raw message
+            }
+
+            return ResponseUtil.conflict(res, req.__('local_guide.shift_conflict') || 'Shift conflicts detected', conflictDetails);
+        }
         return ResponseUtil.error(res, req.__('error.server_error'));
     }
 };

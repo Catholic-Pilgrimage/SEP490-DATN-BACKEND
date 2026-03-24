@@ -140,7 +140,8 @@
     "only_approved_toggle": "Chỉ có thể ẩn/hiện nội dung đã được duyệt",
     "only_pending_can_review": "Chỉ có thể xem xét nội dung đang chờ duyệt",
     "only_approved_nearby_place_toggle": "Chỉ có thể ẩn/hiện địa điểm lân cận đã được duyệt",
-    "only_pending_nearby_place": "Chỉ có thể xem xét địa điểm lân cận đang chờ duyệt"
+    "only_pending_nearby_place": "Chỉ có thể xem xét địa điểm lân cận đang chờ duyệt",
+    "only_pending_submissions": "Chỉ có thể duyệt hoặc từ chối lịch đăng ký đang chờ xử lý"
   },
   "verification": {
     "create_success": "Gửi yêu cầu xác minh thành công",
