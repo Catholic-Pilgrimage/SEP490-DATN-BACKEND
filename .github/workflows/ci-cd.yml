@@ -61,10 +61,8 @@ jobs:
         port: 22
         script: |
           cd /root/app
-          git pull origin main
-          docker compose down
-          docker compose up -d --build
-          docker compose logs --tail=50
+          chmod +x scripts/deploy.sh
+          ./scripts/deploy.sh
     
     - name: Deployment complete
       run: |

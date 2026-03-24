@@ -18,16 +18,16 @@ const options = {
         description: 'Development server (Local)'
       },
       {
+        url: 'https://api.catholicpilgrimage.id.vn',
+        description: 'Production server (VPS with SSL)'
+      },
+      {
         url: 'http://160.187.229.183:3000',
-        description: 'Production server (VPS)'
+        description: 'Production server (VPS - Direct IP)'
       },
       {
         url: 'https://sep490-datn-backend.onrender.com',
         description: 'Backup server (Render)'
-      },
-      {
-        url: 'https://www.catholicpilgrimage.id.vn',
-        description: 'Production server (Custom Domain)'
       }
     ],
     components: {
