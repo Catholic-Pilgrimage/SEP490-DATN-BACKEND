@@ -118,6 +118,42 @@ class WalletService {
         }
     }
 
+    /**
+     * Chi tiết một giao dịch (chỉ xem transaction thuộc ví của mình)
+     */
+    static async getTransactionDetail(userId, transactionId) {
+        try {
+            const wallet = await this.getOrCreateWallet(userId);
+
+            const transaction = await Transaction.findOne({
+                where: {
+                    id: transactionId,
+                    wallet_id: wallet.id
+                }
+            });
+
+            if (!transaction) {
+                throw new Error('Transaction not found');
+            }
+
+            const json = transaction.toJSON();
+            let bankInfo = null;
+            try {
+                bankInfo = typeof json.bank_info === 'string'
+                    ? JSON.parse(json.bank_info)
+                    : (json.bank_info || null);
+            } catch (_) { bankInfo = null; }
+
+            return {
+                ...json,
+                amount: parseFloat(json.amount),
+                bank_info: bankInfo
+            };
+        } catch (error) {
+            Logger.error('Get transaction detail error:', error);
+            throw error;
+        }
+    }
 
     /**
      * Lấy lịch sử giao dịch quỹ nhóm của một planner (Sao kê)

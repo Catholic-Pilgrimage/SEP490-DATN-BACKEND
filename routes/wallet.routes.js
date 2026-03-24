@@ -3,6 +3,7 @@ const router = express.Router();
 const WalletController = require('../controllers/shared/WalletController');
 const WalletValidator = require('../validators/wallet.validator');
 const authMiddleware = require('../middlewares/auth.middleware');
+const { handleValidationErrors } = require('../utils/validation.util');
 
 // ===================== USER ENDPOINTS =====================
 
@@ -18,7 +19,17 @@ router.get(
     '/transactions',
     authMiddleware,
     WalletValidator.getTransactions,
+    handleValidationErrors,
     WalletController.getTransactions
+);
+
+// Chi tiết giao dịch
+router.get(
+    '/transactions/:id',
+    authMiddleware,
+    WalletValidator.getTransactionDetail,
+    handleValidationErrors,
+    WalletController.getTransactionDetail
 );
 
 // Rút tiền qua PayOS Chi (tự động chuyển)

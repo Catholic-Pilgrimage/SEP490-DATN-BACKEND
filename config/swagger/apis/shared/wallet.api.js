@@ -223,4 +223,40 @@
  *                         example: "https://cdn.vietqr.io/img/TPB.png"
  */
 
+/**
+ * @swagger
+ * /api/wallet/transactions/{id}:
+ *   get:
+ *     summary: Chi tiết giao dịch
+ *     description: Xem chi tiết một giao dịch. Chỉ xem được giao dịch thuộc ví của mình.
+ *     tags: [Wallet]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID giao dịch
+ *     responses:
+ *       200:
+ *         description: Lấy chi tiết giao dịch thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   $ref: '#/components/schemas/Transaction'
+ *       404:
+ *         description: Không tìm thấy giao dịch
+ *       401:
+ *         description: Chưa xác thực
+ */
+
 module.exports = {};

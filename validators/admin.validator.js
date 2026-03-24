@@ -31,6 +31,12 @@ class AdminValidator {
       .isUUID().withMessage('ID người dùng không hợp lệ')
   ];
 
+  // Validate transaction ID param
+  static validateTransactionId = [
+    param('id')
+      .isUUID().withMessage('ID giao dịch không hợp lệ')
+  ];
+
   // Validate update user status
   static updateUserStatus = [
     param('id')

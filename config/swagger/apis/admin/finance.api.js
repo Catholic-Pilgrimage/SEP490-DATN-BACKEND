@@ -283,4 +283,90 @@
  *                                 type: string
  */
 
+/**
+ * @swagger
+ * /api/admin/wallet/transactions/{id}:
+ *   get:
+ *     summary: Chi tiết giao dịch (Admin)
+ *     description: Xem chi tiết bất kỳ giao dịch nào trong hệ thống, bao gồm thông tin user.
+ *     tags: [Admin - Finance]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID giao dịch
+ *     responses:
+ *       200:
+ *         description: Lấy chi tiết giao dịch thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       format: uuid
+ *                     code:
+ *                       type: string
+ *                       example: TXN20260324A1B2
+ *                     amount:
+ *                       type: number
+ *                       example: 50000
+ *                     type:
+ *                       type: string
+ *                       enum: [escrow_lock, escrow_refund, penalty_applied, penalty_received, penalty_refunded, withdraw, topup]
+ *                     status:
+ *                       type: string
+ *                       enum: [pending, completed, failed]
+ *                     description:
+ *                       type: string
+ *                     reference_type:
+ *                       type: string
+ *                     reference_id:
+ *                       type: string
+ *                     bank_info:
+ *                       type: object
+ *                       nullable: true
+ *                       properties:
+ *                         account_number:
+ *                           type: string
+ *                         account_name:
+ *                           type: string
+ *                         bank_code:
+ *                           type: string
+ *                     created_at:
+ *                       type: string
+ *                       format: date-time
+ *                     updated_at:
+ *                       type: string
+ *                       format: date-time
+ *                     wallet:
+ *                       type: object
+ *                       properties:
+ *                         user:
+ *                           type: object
+ *                           properties:
+ *                             id:
+ *                               type: string
+ *                             full_name:
+ *                               type: string
+ *                             email:
+ *                               type: string
+ *                             avatar_url:
+ *                               type: string
+ *       404:
+ *         description: Không tìm thấy giao dịch
+ */
+
 module.exports = {};

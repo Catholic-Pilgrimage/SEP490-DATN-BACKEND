@@ -180,6 +180,46 @@ class AdminFinanceService {
     }
 
     /**
+     * GET /admin/wallet/transactions/:id - Chi tiết giao dịch
+     */
+    static async getTransactionDetail(transactionId) {
+        try {
+            const transaction = await Transaction.findByPk(transactionId, {
+                include: [{
+                    model: Wallet,
+                    as: 'wallet',
+                    include: [{
+                        model: User,
+                        as: 'user',
+                        attributes: ['id', 'full_name', 'email', 'avatar_url']
+                    }]
+                }]
+            });
+
+            if (!transaction) {
+                throw new Error('Transaction not found');
+            }
+
+            const json = transaction.toJSON();
+            let bankInfo = null;
+            try {
+                bankInfo = typeof json.bank_info === 'string'
+                    ? JSON.parse(json.bank_info)
+                    : (json.bank_info || null);
+            } catch (_) { bankInfo = null; }
+
+            return {
+                ...json,
+                amount: parseFloat(json.amount),
+                bank_info: bankInfo
+            };
+        } catch (error) {
+            Logger.error('Admin getTransactionDetail error:', error);
+            throw error;
+        }
+    }
+
+    /**
      * GET /admin/wallet/escrow
      */
     static async getEscrowSummary(filters = {}) {

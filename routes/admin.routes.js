@@ -5,6 +5,7 @@ const ReportController = require('../controllers/ReportController');
 const AdminValidator = require('../validators/admin.validator');
 const authMiddleware = require('../middlewares/auth.middleware');
 const i18nMiddleware = require('../middlewares/i18n.middleware');
+const { handleValidationErrors } = require('../utils/validation.util');
 
 // Apply middlewares
 router.use(i18nMiddleware);
@@ -27,6 +28,7 @@ router.get('/dashboard/analytics/sos-by-site', AdminDashboardController.getSOSBy
 // Finance routes
 router.get('/dashboard/finance', AdminFinanceController.getFinanceDashboard);
 router.get('/wallet/transactions', AdminFinanceController.getAllTransactions);
+router.get('/wallet/transactions/:id', AdminValidator.validateTransactionId, handleValidationErrors, AdminFinanceController.getTransactionDetail);
 router.get('/wallet/escrow', AdminFinanceController.getEscrowSummary);
 router.get('/wallet/withdrawals', AdminFinanceController.getWithdrawals);
 

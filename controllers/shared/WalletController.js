@@ -88,6 +88,21 @@ class WalletController {
             return ResponseUtil.error(res, 'Lỗi khi lấy danh sách ngân hàng');
         }
     }
+
+    /**
+     * GET /wallet/transactions/:id - Chi tiết giao dịch
+     */
+    static async getTransactionDetail(req, res) {
+        try {
+            const result = await WalletService.getTransactionDetail(req.user.id, req.params.id);
+            return ResponseUtil.success(res, result, req.__('wallet.get_transactions_success'));
+        } catch (error) {
+            if (error.message === 'Transaction not found') {
+                return ResponseUtil.notFound(res, req.__('wallet.transaction_not_found'));
+            }
+            return ResponseUtil.error(res, req.__('error.server_error'));
+        }
+    }
 }
 
 module.exports = WalletController;

@@ -1,6 +1,13 @@
-const { body, query } = require('express-validator');
+const { body, query, param } = require('express-validator');
 
 const WalletValidator = {
+    // GET /wallet/transactions/:id
+    getTransactionDetail: [
+        param('id')
+            .isUUID()
+            .withMessage('Invalid transaction ID format')
+    ],
+
     // GET /wallet/transactions
     getTransactions: [
         query('page')

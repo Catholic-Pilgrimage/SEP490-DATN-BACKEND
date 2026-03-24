@@ -53,3 +53,19 @@ exports.getWithdrawals = async (req, res) => {
         return ResponseUtil.error(res, req.__('admin.finance_error'));
     }
 };
+
+/**
+ * GET /api/admin/wallet/transactions/:id
+ */
+exports.getTransactionDetail = async (req, res) => {
+    try {
+        const data = await AdminFinanceService.getTransactionDetail(req.params.id);
+        return ResponseUtil.success(res, data, req.__('admin.get_transactions_success'));
+    } catch (error) {
+        if (error.message === 'Transaction not found') {
+            return ResponseUtil.notFound(res, req.__('wallet.transaction_not_found'));
+        }
+        Logger.error('Admin getTransactionDetail controller error:', error);
+        return ResponseUtil.error(res, req.__('admin.finance_error'));
+    }
+};
