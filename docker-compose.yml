@@ -7,9 +7,18 @@ services:
     container_name: pilgrim-app
     ports:
       - "${PORT:-3000}:3000"
+    mem_limit: 1536m
+    memswap_limit: 1536m
+    mem_reservation: 768m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: ${PORT:-3000}
+      NODE_OPTIONS: --max-old-space-size=1024
       # Database
       DB_HOST: db
       DB_PORT: ${DB_PORT:-5432}
@@ -45,6 +54,14 @@ services:
   db:
     image: postgres:15-alpine
     container_name: pilgrim-db
+    mem_limit: 2g
+    memswap_limit: 2g
+    mem_reservation: 1536m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
@@ -53,8 +70,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/full_schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-    ports:
-      - "${DB_PORT:-5432}:5432"
+    # Expose port only for external access (comment out for internal-only)
+    # ports:
+    #   - "${DB_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 10s
