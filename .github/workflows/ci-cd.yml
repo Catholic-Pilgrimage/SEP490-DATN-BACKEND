@@ -38,9 +38,9 @@ jobs:
         echo " Code quality check passed"
         echo " Dependencies installed successfully"
 
-  # CD - Continuous Deployment (chỉ chạy khi push vào main)
+  # CD - Continuous Deployment to VPS (chỉ chạy khi push vào main)
   deploy:
-    name: Deploy to Render
+    name: Deploy to VPS
     runs-on: ubuntu-latest
     needs: test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -48,12 +48,25 @@ jobs:
     steps:
     - name: Notify deployment start
       run: |
-        echo " Starting deployment to Render..."
+        echo "Starting deployment to VPS..."
         echo "Branch: ${{ github.ref }}"
         echo "Commit: ${{ github.sha }}"
     
-    - name: Wait for Render auto-deploy
+    - name: Deploy to VPS via SSH
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USERNAME }}
+        password: ${{ secrets.VPS_PASSWORD }}
+        port: 22
+        script: |
+          cd /root/app
+          git pull origin main
+          docker compose down
+          docker compose up -d --build
+          docker compose logs --tail=50
+    
+    - name: Deployment complete
       run: |
-        echo " Render is automatically deploying..."
-        echo " Monitor at: https://dashboard.render.com"
-        echo " Deployment triggered successfully"
+        echo "Deployment to VPS completed successfully"
+        echo "App URL: http://${{ secrets.VPS_HOST }}:3000"
