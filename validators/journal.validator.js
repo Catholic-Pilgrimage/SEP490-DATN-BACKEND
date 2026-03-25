@@ -14,11 +14,7 @@ class JournalValidator {
 
         body('planner_item_id')
             .notEmpty().withMessage('Planner item ID là bắt buộc')
-            .isUUID().withMessage('Planner item ID không hợp lệ'),
-
-        body('privacy')
-            .optional()
-            .isIn(['private', 'public']).withMessage('Privacy phải là private hoặc public')
+            .isUUID().withMessage('Planner item ID không hợp lệ')
     ];
 
     // Validate update journal
@@ -34,36 +30,11 @@ class JournalValidator {
 
         body('site_id')
             .optional()
-            .isString().withMessage('Site ID phải là chuỗi'),
-
-        body('privacy')
-            .optional()
-            .isIn(['private', 'public']).withMessage('Privacy phải là private hoặc public')
+            .isString().withMessage('Site ID phải là chuỗi')
     ];
 
-    // Validate filters for public journals
-    static getPublicJournals = [
-        query('site_id')
-            .optional()
-            .isUUID().withMessage('Site ID không hợp lệ'),
-
-        query('keyword')
-            .optional()
-            .isString().withMessage('Keyword phải là chuỗi')
-            .trim(),
-
-        query('date')
-            .optional()
-            .matches(/^\d{4}-\d{2}-\d{2}$/).withMessage('Date phải có định dạng YYYY-MM-DD'),
-
-        query('page')
-            .optional()
-            .isInt({ min: 1 }).withMessage('Page phải là số nguyên dương'),
-
-        query('limit')
-            .optional()
-            .isInt({ min: 1, max: 100 }).withMessage('Limit phải từ 1-100')
-    ];
+    // getPublicJournals is deprecated
+    static getPublicJournals = [];
 
     // Validate filters for user journals
     static getUserJournals = [

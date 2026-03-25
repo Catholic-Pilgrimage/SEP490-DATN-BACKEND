@@ -43,6 +43,34 @@ const Post = sequelize.define('Post', {
     updated_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
+    },
+    journal_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'journals',
+            key: 'id'
+        }
+    },
+    site_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'sites',
+            key: 'id'
+        }
+    },
+    planner_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'planners',
+            key: 'id'
+        }
+    },
+    is_active: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true
     }
 }, {
     tableName: 'posts',

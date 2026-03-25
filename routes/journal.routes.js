@@ -67,6 +67,12 @@ router.get(
     JournalController.getJournalById
 );
 
+router.post(
+    '/:id/share',
+    authenticate,
+    JournalController.shareToPost
+);
+
 router.patch(
     '/:id',
     authenticate,

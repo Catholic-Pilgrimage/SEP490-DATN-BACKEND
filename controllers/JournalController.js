@@ -69,14 +69,35 @@ class JournalController {
      */
     static async getPublicJournals(req, res) {
         try {
-            const errors = validationResult(req);
-            if (!errors.isEmpty()) {
-                return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
-            }
-
             const result = await JournalService.getPublicJournals(req.query);
             return ResponseUtil.success(res, result, req.__('journal.list_success'));
         } catch (error) {
+            // As per instruction, return success with an empty array on error
+            return ResponseUtil.success(res, [], req.__('journal.list_success'));
+        }
+    }
+
+    /**
+     * POST /journals/:id/share - Share journal to community
+     */
+    static async shareToPost(req, res) {
+        try {
+            const journalId = req.params.id;
+            const userId = req.user.id;
+
+            const result = await JournalService.shareJournalToPost(journalId, userId);
+
+            return ResponseUtil.created(res, result, req.__('journal.share_success') || 'Shared to community successfully');
+        } catch (error) {
+            if (error.message === 'Journal not found') {
+                return ResponseUtil.notFound(res, req.__('journal.not_found'));
+            }
+            if (error.message === 'Forbidden') {
+                return ResponseUtil.forbidden(res, req.__('journal.forbidden'));
+            }
+            if (error.message === 'This journal has already been shared to the community') {
+                return ResponseUtil.badRequest(res, error.message);
+            }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
