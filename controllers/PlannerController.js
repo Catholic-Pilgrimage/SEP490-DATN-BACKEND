@@ -493,6 +493,27 @@ class PlannerController {
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
+
+    /**
+     * POST /planners/:id/share - Share journey to community post
+     */
+    static async shareToPost(req, res) {
+        try {
+            const result = await PlannerService.sharePlannerToPost(req.user.id, req.params.id);
+            return ResponseUtil.created(res, result, 'Hành trình của bạn đã được chia sẻ lên cộng đồng!');
+        } catch (error) {
+            if (error.message === 'Planner not found') {
+                return ResponseUtil.notFound(res, req.__('planner.not_found'));
+            }
+            if (error.statusCode === 403) {
+                return ResponseUtil.forbidden(res, error.message);
+            }
+            if (error.statusCode === 400) {
+                return ResponseUtil.badRequest(res, error.message);
+            }
+            return ResponseUtil.error(res, req.__('error.server_error'));
+        }
+    }
 }
 
 module.exports = PlannerController;

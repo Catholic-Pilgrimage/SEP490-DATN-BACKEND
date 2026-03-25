@@ -165,6 +165,13 @@ router.get(
     PlannerController.getPlannerProgress
 );
 
+router.post(
+    '/:id/share',
+    authenticate,
+    PlannerValidator.validatePlannerId,
+    PlannerController.shareToPost
+);
+
 // Offline Mode Routes
 router.get(
     '/:id/offline-data',

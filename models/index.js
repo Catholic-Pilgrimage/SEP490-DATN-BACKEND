@@ -96,6 +96,14 @@ Journal.belongsTo(User, { foreignKey: 'user_id', as: 'author' });
 Journal.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
 Site.hasMany(Journal, { foreignKey: 'site_id', as: 'journals' });
 
+// Journal - Planner
+Journal.belongsTo(Planner, { foreignKey: 'planner_id', as: 'planner' });
+Planner.hasMany(Journal, { foreignKey: 'planner_id', as: 'journals' });
+
+// Journal - PlannerItem
+Journal.belongsTo(PlannerItem, { foreignKey: 'planner_item_id', as: 'plannerItem' });
+PlannerItem.hasOne(Journal, { foreignKey: 'planner_item_id', as: 'journal' });
+
 // User - Planner
 User.hasMany(Planner, { foreignKey: 'user_id', as: 'planners' });
 Planner.belongsTo(User, { foreignKey: 'user_id', as: 'owner' });
@@ -235,6 +243,17 @@ User.belongsToMany(Post, {
   otherKey: 'post_id',
   as: 'likedPosts'
 });
+
+// Post - Journal (for shared journals)
+Post.belongsTo(Journal, { as: 'sourceJournal', foreignKey: 'journal_id' });
+Journal.hasMany(Post, { as: 'sharedPosts', foreignKey: 'journal_id' });
+
+Post.belongsTo(Planner, { as: 'planner', foreignKey: 'planner_id' });
+Planner.hasMany(Post, { as: 'posts', foreignKey: 'planner_id' });
+
+// Post - Site (location tagging)
+Post.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
+Site.hasMany(Post, { foreignKey: 'site_id', as: 'posts' });
 
 // PostComment - Post
 Post.hasMany(PostComment, { foreignKey: 'post_id', as: 'comments' });

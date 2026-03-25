@@ -536,6 +536,62 @@ class PlannerService {
     }
 
     /**
+     * Share a completed planner journey to community posts
+     */
+    static async sharePlannerToPost(userId, plannerId) {
+        try {
+            const planner = await Planner.findByPk(plannerId);
+
+            if (!planner) {
+                throw new Error('Planner not found');
+            }
+
+            // Check ownership
+            if (planner.user_id !== userId) {
+                const error = new Error('You can only share your own planners');
+                error.statusCode = 403;
+                throw error;
+            }
+
+            // Check if completed
+            if (planner.status !== 'completed') {
+                const error = new Error('You can only share a completed journey');
+                error.statusCode = 400;
+                throw error;
+            }
+
+            // Check if already shared
+            const { Post } = require('../models');
+            const existingPost = await Post.findOne({
+                where: {
+                    user_id: userId,
+                    planner_id: plannerId
+                }
+            });
+
+            if (existingPost) {
+                const error = new Error('This journey has already been shared to the community');
+                error.statusCode = 400;
+                throw error;
+            }
+
+            // Create post referencing the planner
+            const post = await Post.create({
+                user_id: userId,
+                planner_id: plannerId,
+                content: `Hành trình "${planner.name}" của tôi đã hoàn thành!`,
+                status: 'published'
+            });
+
+            Logger.info(`Planner ${plannerId} shared to post ${post.id} by user ${userId}`);
+            return post;
+        } catch (error) {
+            Logger.error('Share planner to post error:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Add item to planner with distance validation
      * userId is optional - if not provided, skips ownership check (for token access)
      * 

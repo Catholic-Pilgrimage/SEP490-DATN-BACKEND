@@ -703,6 +703,7 @@ CREATE TABLE IF NOT EXISTS journals (
     image_url TEXT[],
     video_url TEXT,
     privacy journal_privacy DEFAULT 'private',
+    is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -710,6 +711,7 @@ CREATE TABLE IF NOT EXISTS journals (
 CREATE INDEX IF NOT EXISTS idx_journals_user ON journals(user_id);
 CREATE INDEX IF NOT EXISTS idx_journals_site ON journals(site_id);
 CREATE INDEX IF NOT EXISTS idx_journals_privacy ON journals(privacy) WHERE privacy = 'public';
+CREATE INDEX IF NOT EXISTS idx_journals_active ON journals(is_active) WHERE is_active = true;
 
 -- Trigger
 DROP TRIGGER IF EXISTS update_journals_updated_at ON journals;
@@ -798,14 +800,22 @@ CREATE TABLE IF NOT EXISTS posts (
     group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
     image_urls TEXT[],
+    journal_id UUID REFERENCES journals(id) ON DELETE SET NULL,
+    site_id UUID REFERENCES sites(id) ON DELETE SET NULL,
+    planner_id UUID REFERENCES planners(id) ON DELETE SET NULL,
     likes_count INT DEFAULT 0,
     status content_status DEFAULT 'published',
+    is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id);
 CREATE INDEX IF NOT EXISTS idx_posts_group ON posts(group_id);
+CREATE INDEX IF NOT EXISTS idx_posts_journal ON posts(journal_id) WHERE journal_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_posts_site ON posts(site_id) WHERE site_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_posts_planner ON posts(planner_id) WHERE planner_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_posts_active ON posts(is_active) WHERE is_active = true;
 
 -- Trigger
 DROP TRIGGER IF EXISTS update_posts_updated_at ON posts;
@@ -835,10 +845,12 @@ CREATE TABLE IF NOT EXISTS post_comments (
     parent_id UUID REFERENCES post_comments(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
     status content_status DEFAULT 'published',
+    is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_post_comments_post ON post_comments(post_id);
+CREATE INDEX IF NOT EXISTS idx_post_comments_active ON post_comments(is_active) WHERE is_active = true;
 
 -- ============================================
 -- 11. MODERATION & REPORTS

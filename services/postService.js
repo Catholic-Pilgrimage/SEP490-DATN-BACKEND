@@ -1,4 +1,4 @@
-const { Post, PostLike, PostComment, User, sequelize } = require('../models');
+const { Post, PostLike, PostComment, User, Journal, Site, Planner, PlannerItem, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 class PostService {
@@ -7,13 +7,31 @@ class PostService {
      */
     async createPost(userId, data) {
         try {
-            const { content, image_urls } = data;
+            const { content, image_urls, site_id } = data;
+
+            // If site_id is provided, validate check-in
+            if (site_id) {
+                const checkin = await UserCheckin.findOne({
+                    where: { user_id: userId },
+                    include: [{
+                        model: PlannerItem,
+                        as: 'plannerItem',
+                        where: { site_id: site_id },
+                        required: true
+                    }]
+                });
+
+                if (!checkin) {
+                    throw new Error('You must check-in at this site before tagging it in your post.');
+                }
+            }
 
             // Create post
             const post = await Post.create({
                 user_id: userId,
                 content,
                 image_urls: image_urls || [],
+                site_id: site_id || null,
                 status: 'published'
             });
 
@@ -33,7 +51,8 @@ class PostService {
             const offset = (page - 1) * limit;
 
             const whereClause = {
-                status: 'published'
+                status: 'published',
+                is_active: true
             };
 
             const { count, rows: posts } = await Post.findAndCountAll({
@@ -43,6 +62,35 @@ class PostService {
                         model: User,
                         as: 'author',
                         attributes: ['id', 'full_name', 'avatar_url']
+                    },
+                    {
+                        model: Journal,
+                        as: 'sourceJournal',
+                        attributes: ['id', 'title', 'content', 'image_url', 'audio_url', 'video_url']
+                    },
+                    {
+                        model: Site,
+                        as: 'site',
+                        attributes: ['id', 'name', 'province']
+                    },
+                    {
+                        model: Planner,
+                        as: 'planner',
+                        attributes: ['id', 'name', 'start_date', 'end_date', 'status'],
+                        include: [
+                            {
+                                model: PlannerItem,
+                                as: 'items',
+                                attributes: ['id', 'leg_number', 'order_index', 'status', 'site_id'],
+                                include: [
+                                    {
+                                        model: Site,
+                                        as: 'site',
+                                        attributes: ['id', 'name', 'province', 'cover_image']
+                                    }
+                                ]
+                            }
+                        ]
                     }
                 ],
                 order: [['created_at', 'DESC']],
@@ -63,13 +111,44 @@ class PostService {
                         PostComment.count({
                             where: {
                                 post_id: post.id,
-                                status: 'published'
+                                status: 'published',
+                                is_active: true
                             }
                         })
                     ]);
 
+                    const postData = post.toJSON();
+                    
+                    // If shared from journal, override content/images if they are empty in post
+                    if (post.journal_id && post.sourceJournal) {
+                        postData.content = post.sourceJournal.content;
+                        postData.image_urls = post.sourceJournal.image_url || [];
+                        postData.title = post.sourceJournal.title; // Extra info
+                    }
+
+                    // If shared from planner, enrich journey data with journals
+                    if (post.planner_id && post.planner) {
+                        const journey = post.planner.toJSON();
+                        // For each item, find matching journal if any
+                        const itemsWithJournals = await Promise.all(
+                            journey.items.map(async (item) => {
+                                const journal = await Journal.findOne({
+                                    where: {
+                                        user_id: post.user_id,
+                                        site_id: item.site_id,
+                                        is_active: true
+                                        // Optional: filter by date if needed
+                                    },
+                                    attributes: ['id', 'title', 'content', 'image_url', 'audio_url', 'video_url']
+                                });
+                                return { ...item, journal: journal };
+                            })
+                        );
+                        postData.journey = { ...journey, items: itemsWithJournals };
+                    }
+
                     return {
-                        ...post.toJSON(),
+                        ...postData,
                         is_liked: !!isLiked,
                         comments_count: commentsCount
                     };
@@ -95,12 +174,45 @@ class PostService {
      */
     async getPostById(postId, userId) {
         try {
-            const post = await Post.findByPk(postId, {
+            const post = await Post.findOne({
+                where: {
+                    id: postId,
+                    is_active: true
+                },
                 include: [
                     {
                         model: User,
                         as: 'author',
                         attributes: ['id', 'full_name', 'avatar_url']
+                    },
+                    {
+                        model: Journal,
+                        as: 'sourceJournal',
+                        attributes: ['id', 'title', 'content', 'image_url', 'audio_url', 'video_url']
+                    },
+                    {
+                        model: Site,
+                        as: 'site',
+                        attributes: ['id', 'name', 'province']
+                    },
+                    {
+                        model: Planner,
+                        as: 'planner',
+                        attributes: ['id', 'name', 'start_date', 'end_date', 'status'],
+                        include: [
+                            {
+                                model: PlannerItem,
+                                as: 'items',
+                                attributes: ['id', 'leg_number', 'order_index', 'status', 'site_id'],
+                                include: [
+                                    {
+                                        model: Site,
+                                        as: 'site',
+                                        attributes: ['id', 'name', 'province', 'cover_image']
+                                    }
+                                ]
+                            }
+                        ]
                     }
                 ]
             });
@@ -119,8 +231,32 @@ class PostService {
                 }
             });
 
+            const postData = post.toJSON();
+            if (post.journal_id && post.sourceJournal) {
+                postData.content = post.sourceJournal.content;
+                postData.image_urls = post.sourceJournal.image_url || [];
+                postData.title = post.sourceJournal.title;
+            }
+
+            // If shared from planner, enrich journey data with journals
+            if (post.planner_id && post.planner) {
+                const journey = post.planner.toJSON();
+                const itemsWithJournals = await Promise.all(
+                    journey.items.map(async (item) => {
+                        const journal = await Journal.findOne({
+                            where: {
+                                user_id: post.user_id,
+                                site_id: item.site_id
+                            },
+                        });
+                        return { ...item, journal: journal ? journal.toJSON() : null };
+                    })
+                );
+                postData.journey = { ...journey, items: itemsWithJournals };
+            }
+
             return {
-                ...post.toJSON(),
+                ...postData,
                 is_liked: !!isLiked
             };
         } catch (error) {
@@ -133,7 +269,12 @@ class PostService {
      */
     async updatePost(postId, userId, data) {
         try {
-            const post = await Post.findByPk(postId);
+            const post = await Post.findOne({
+                where: { 
+                    id: postId,
+                    is_active: true
+                }
+            });
 
             if (!post) {
                 const error = new Error('Post not found');
@@ -149,6 +290,16 @@ class PostService {
             }
 
             const { content, image_urls } = data;
+
+            // Protection: Shared journals/planners should not have their content edited via Post API
+            if (post.journal_id || post.planner_id) {
+                if (content !== undefined || image_urls !== undefined) {
+                    const type = post.journal_id ? 'nhật ký' : 'hành trình';
+                    const error = new Error(`Không thể chỉnh sửa nội dung của ${type} đã chia sẻ thông qua Post API. Vui lòng chỉnh sửa bản gốc.`);
+                    error.statusCode = 400;
+                    throw error;
+                }
+            }
 
             await post.update({
                 content: content !== undefined ? content : post.content,
@@ -184,7 +335,8 @@ class PostService {
                 throw error;
             }
 
-            await post.destroy();
+            // Soft delete instead of destroy
+            await post.update({ is_active: false });
 
             return { message: 'Post deleted successfully' };
         } catch (error) {
@@ -342,7 +494,8 @@ class PostService {
             const { count, rows: comments } = await PostComment.findAndCountAll({
                 where: {
                     post_id: postId,
-                    status: 'published'
+                    status: 'published',
+                    is_active: true
                 },
                 include: [
                     {
@@ -375,7 +528,12 @@ class PostService {
      */
     async updateComment(postId, commentId, userId, content) {
         try {
-            const comment = await PostComment.findByPk(commentId);
+            const comment = await PostComment.findOne({
+                where: { 
+                    id: commentId,
+                    is_active: true
+                }
+            });
 
             if (!comment || comment.post_id !== postId) {
                 const error = new Error('Comment not found');
@@ -433,7 +591,8 @@ class PostService {
                 throw error;
             }
 
-            await comment.destroy();
+            // Soft delete instead of destroy
+            await comment.update({ is_active: false });
 
             return { message: 'Comment deleted successfully' };
         } catch (error) {
