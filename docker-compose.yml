@@ -7,16 +7,27 @@ services:
     container_name: pilgrim-app
     ports:
       - "${PORT:-3000}:3000"
+    mem_limit: 1536m
+    memswap_limit: 1536m
+    mem_reservation: 768m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: ${PORT:-3000}
-      # Database
-      DB_HOST: db
+      NODE_OPTIONS: --max-old-space-size=1024
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
+      # Database (Supabase)
+      DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT:-5432}
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
-      DB_DIALECT: postgres
+      DB_DIALECT: ${DB_DIALECT:-postgres}
+      DB_SSL: ${DB_SSL:-true}
       # JWT
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
@@ -34,35 +45,79 @@ services:
       # Swagger
       SWAGGER_USERNAME: ${SWAGGER_USERNAME}
       SWAGGER_PASSWORD: ${SWAGGER_PASSWORD}
-    depends_on:
-      db:
-        condition: service_healthy
+      # Supabase Storage
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      # VBee TTS
+      VBEE_API_KEY: ${VBEE_API_KEY}
+      VBEE_APP_ID: ${VBEE_APP_ID}
+      SERVER_BASE_URL: ${SERVER_BASE_URL}
+      VBEE_CALLBACK_URL: ${VBEE_CALLBACK_URL}
+      # Firebase
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL}
+      FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY}
+      # PayOS
+      PAYOS_RECEIVE_CLIENT_ID: ${PAYOS_RECEIVE_CLIENT_ID}
+      PAYOS_RECEIVE_API_KEY: ${PAYOS_RECEIVE_API_KEY}
+      PAYOS_RECEIVE_CHECKSUM_KEY: ${PAYOS_RECEIVE_CHECKSUM_KEY}
+      PAYOS_PAYOUT_CLIENT_ID: ${PAYOS_PAYOUT_CLIENT_ID}
+      PAYOS_PAYOUT_API_KEY: ${PAYOS_PAYOUT_API_KEY}
+      PAYOS_PAYOUT_CHECKSUM_KEY: ${PAYOS_PAYOUT_CHECKSUM_KEY}
+      PAYOS_RETURN_URL: ${PAYOS_RETURN_URL}
+      PAYOS_CANCEL_URL: ${PAYOS_CANCEL_URL}
+      # Google AI
+      GOOGLE_AI_KEY_ROUTE: ${GOOGLE_AI_KEY_ROUTE}
+      GOOGLE_AI_KEY_ARTICLE: ${GOOGLE_AI_KEY_ARTICLE}
+      GOOGLE_AI_KEY_TRANSLATE: ${GOOGLE_AI_KEY_TRANSLATE}
+      GOOGLE_AI_KEY_EVENTS: ${GOOGLE_AI_KEY_EVENTS}
+      # Vietmap
+      VIETMAP_API_KEY: ${VIETMAP_API_KEY}
+      VIETMAP_REVERSE_URL: ${VIETMAP_REVERSE_URL}
+      VIETMAP_ROUTE_URL: ${VIETMAP_ROUTE_URL}
     restart: unless-stopped
     networks:
       - app-network
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # PostgreSQL Database
   db:
     image: postgres:15-alpine
     container_name: pilgrim-db
+    mem_limit: 2g
+    memswap_limit: 2g
+    mem_reservation: 512m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USER}
+      POSTGRES_DB: ${DB_NAME:-pilgrim_db}
+      POSTGRES_USER: ${DB_USER:-pilgrim_user}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/full_schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "5432:5432"  # Allow external access for team
+    networks:
+      - app-network
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-pilgrim_user} -d ${DB_NAME:-pilgrim_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
-    networks:
-      - app-network
 
 volumes:
   postgres_data:

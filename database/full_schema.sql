@@ -6,10 +6,10 @@
 -- ============================================
 -- DROP ALL TABLES & RESET DATABASE (Uncomment when needed)
 -- ============================================
-DROP SCHEMA public CASCADE;
-CREATE SCHEMA public;
-GRANT ALL ON SCHEMA public TO postgres;
-GRANT ALL ON SCHEMA public TO public;
+-- DROP SCHEMA public CASCADE;
+-- CREATE SCHEMA public;
+-- GRANT ALL ON SCHEMA public TO postgres;
+-- GRANT ALL ON SCHEMA public TO public;
 
 -- ============================================
 -- EXTENSIONS
