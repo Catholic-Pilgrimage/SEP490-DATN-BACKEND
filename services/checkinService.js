@@ -51,6 +51,11 @@ class CheckinService {
             }
         }
 
+        // ===== VALIDATION: Planner status =====
+        if (planner.status === 'completed' || planner.status === 'expired') {
+            throw new Error(`Kế hoạch đã ${planner.status === 'completed' ? 'hoàn thành' : 'hết hạn'}, không thể check-in`);
+        }
+
         // ===== VALIDATION: Planner item status =====
         // Chỉ cho phép check-in nếu item đang in_progress
         if (plannerItem.status !== 'in_progress') {
@@ -255,6 +260,10 @@ class CheckinService {
             throw new Error('Chỉ Trưởng đoàn mới có quyền bỏ qua địa điểm này');
         }
 
+        if (planner.status === 'completed' || planner.status === 'expired') {
+            throw new Error(`Kế hoạch đã ${planner.status === 'completed' ? 'hoàn thành' : 'hết hạn'}, không thể thay đổi địa điểm`);
+        }
+
         if (plannerItem.status === 'visited' || plannerItem.status === 'skipped') {
             throw new Error('Địa điểm này đã chốt sổ, không thể thay đổi');
         }
@@ -289,6 +298,10 @@ class CheckinService {
 
             if (planner.user_id !== ownerId) {
                 throw new Error('Chỉ Trưởng đoàn mới có quyền hoàn thành địa điểm này');
+            }
+
+            if (planner.status === 'completed' || planner.status === 'expired') {
+                throw new Error(`Kế hoạch đã ${planner.status === 'completed' ? 'hoàn thành' : 'hết hạn'}, không thể hoàn thành địa điểm`);
             }
 
             if (plannerItem.status !== 'in_progress') {

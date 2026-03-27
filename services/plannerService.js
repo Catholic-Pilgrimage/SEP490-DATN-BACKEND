@@ -781,6 +781,13 @@ class PlannerService {
                 throw new Error('Planner not found');
             }
 
+            // Block modifications if planner is completed or expired
+            if (planner.status === 'completed' || planner.status === 'expired') {
+                const error = new Error(`Không thể thêm địa điểm vào kế hoạch đã ${planner.status === 'completed' ? 'hoàn thành' : 'hết hạn'}`);
+                error.statusCode = 400;
+                throw error;
+            }
+
             if (userId && planner.user_id !== userId) {
                 throw new Error('Forbidden');
             }
@@ -1299,6 +1306,27 @@ class PlannerService {
                 throw new Error('Item not found');
             }
 
+            // Block modifications if planner is ongoing, completed or expired
+            if (planner.status === 'ongoing' || planner.status === 'completed' || planner.status === 'expired') {
+                let errorMsg = '';
+                if (planner.status === 'ongoing') {
+                    errorMsg = 'Hành trình đang diễn ra, bạn không thể xóa địa điểm. Vui lòng sử dụng tính năng "Bỏ qua" địa điểm.';
+                } else {
+                    errorMsg = `Không thể xóa địa điểm của kế hoạch đã ${planner.status === 'completed' ? 'hoàn thành' : 'hết hạn'}`;
+                }
+                const error = new Error(errorMsg);
+                error.statusCode = 400;
+                throw error;
+            }
+
+            // Block if item is visited or skipped
+            if (item.status === 'visited' || item.status === 'skipped') {
+                const statusVn = item.status === 'visited' ? 'đã đến' : 'đã bỏ qua';
+                const error = new Error(`Không thể xóa địa điểm ${statusVn}`);
+                error.statusCode = 400;
+                throw error;
+            }
+
             // Verify item belongs to this planner
             if (item.planner_id !== plannerId) {
                 throw new Error('Item does not belong to this planner');
@@ -1396,6 +1424,21 @@ class PlannerService {
 
             if (!item) {
                 throw new Error('Item not found');
+            }
+
+            // Block modifications if planner is completed or expired
+            if (planner.status === 'completed' || planner.status === 'expired') {
+                const error = new Error(`Không thể chỉnh sửa địa điểm của kế hoạch đã ${planner.status === 'completed' ? 'hoàn thành' : 'hết hạn'}`);
+                error.statusCode = 400;
+                throw error;
+            }
+
+            // Block if item is visited or skipped
+            if (item.status === 'visited' || item.status === 'skipped') {
+                const statusVn = item.status === 'visited' ? 'đã đến' : 'đã bỏ qua';
+                const error = new Error(`Không thể chỉnh sửa địa điểm ${statusVn}`);
+                error.statusCode = 400;
+                throw error;
             }
 
             if (item.planner_id !== plannerId) {
@@ -2291,7 +2334,7 @@ class PlannerService {
 
     /**
      * Checkin vào một địa điểm trong planner
-     * Yêu cầu: checkin theo thứ tự (item trước đó phải checked_in hoặc skipped)
+     * Yêu cầu: checkin theo thứ tự (item trước đó phải visited hoặc skipped)
      */
     static async checkinItem(plannerId, userId, itemId, checkinData) {
         try {
@@ -2334,7 +2377,7 @@ class PlannerService {
                 throw new Error('Item is not available for checkin');
             }
 
-            // Check previous item: must be checked_in or skipped
+            // Check previous item: must be visited or skipped
             const previousItem = await PlannerItem.findOne({
                 where: {
                     planner_id: plannerId,
@@ -2344,20 +2387,20 @@ class PlannerService {
                 order: [['order_index', 'DESC']]
             });
 
-            if (previousItem && !['checked_in', 'skipped'].includes(previousItem.status)) {
+            if (previousItem && !['visited', 'skipped'].includes(previousItem.status)) {
                 throw new Error(`Vui lòng hoàn thành địa điểm "${previousItem.site?.name || 'trước đó'}" trước khi checkin địa điểm này`);
             }
 
             // Update item with checkin info
             await item.update({
-                status: 'checked_in',
+                status: 'visited',
                 checked_in_at: new Date(),
                 checkin_latitude: latitude || null,
                 checkin_longitude: longitude || null,
                 checkin_distance_meters: distance_meters || null
             });
 
-            Logger.info(`Item ${itemId} checked in by user ${userId} at planner ${plannerId}`);
+            Logger.info(`Item ${itemId} checked in (visited) by user ${userId} at planner ${plannerId}`);
 
             // Return updated item with site info
             const updatedItem = await PlannerItem.findByPk(itemId, {

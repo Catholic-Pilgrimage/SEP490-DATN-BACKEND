@@ -53,7 +53,7 @@ DO $$ BEGIN
     CREATE TYPE ai_source_type AS ENUM ('journal', 'planner', 'post', 'chat');
     
     -- Others
-    CREATE TYPE report_reason AS ENUM ('spam', 'inappropriate', 'harassment', 'other');
+    CREATE TYPE report_reason AS ENUM ('spam', 'harassment', 'hate_speech', 'false_information', 'violence', 'inappropriate', 'other');
     CREATE TYPE report_status AS ENUM ('pending', 'resolved', 'reject');
     CREATE TYPE sos_status AS ENUM ('pending', 'accepted', 'resolved', 'cancelled');
     CREATE TYPE invite_status AS ENUM ('pending', 'awaiting_payment', 'accepted', 'rejected', 'expired');
