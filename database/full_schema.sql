@@ -36,8 +36,8 @@ DO $$ BEGIN
     CREATE TYPE nearby_place_status AS ENUM ('pending', 'approved', 'rejected');
     
     -- Planner
-    CREATE TYPE planner_status AS ENUM ('planning', 'ongoing', 'completed', 'expired');
-    CREATE TYPE planner_item_status AS ENUM ('planned', 'in_progress', 'visited', 'skipped');
+    CREATE TYPE planner_status AS ENUM ('planning', 'ongoing', 'completed', 'cancelled');
+    CREATE TYPE planner_item_status AS ENUM ('upcoming', 'visited', 'skipped');
 
     CREATE TYPE checkin_status AS ENUM ('checked_in', 'missed', 'pending');
 
@@ -53,7 +53,7 @@ DO $$ BEGIN
     CREATE TYPE ai_source_type AS ENUM ('journal', 'planner', 'post', 'chat');
     
     -- Others
-    CREATE TYPE report_reason AS ENUM ('spam', 'inappropriate', 'harassment', 'other');
+    CREATE TYPE report_reason AS ENUM ('spam', 'harassment', 'hate_speech', 'false_information', 'violence', 'inappropriate', 'other');
     CREATE TYPE report_status AS ENUM ('pending', 'resolved', 'reject');
     CREATE TYPE sos_status AS ENUM ('pending', 'accepted', 'resolved', 'cancelled');
     CREATE TYPE invite_status AS ENUM ('pending', 'awaiting_payment', 'accepted', 'rejected', 'expired');
@@ -556,6 +556,8 @@ CREATE TABLE IF NOT EXISTS planners (
     started_at TIMESTAMP WITH TIME ZONE,
     completed_at TIMESTAMP WITH TIME ZONE,
     is_active BOOLEAN DEFAULT TRUE NOT NULL,
+    lock_duration_hours INTEGER DEFAULT 24,
+    is_locked BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_planner_dates CHECK (end_date IS NULL OR end_date >= start_date)
@@ -590,7 +592,7 @@ CREATE TABLE IF NOT EXISTS planner_items (
     site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
     leg_number INT DEFAULT 1,
     order_index INT DEFAULT 1,
-    status planner_item_status DEFAULT 'planned',
+    status planner_item_status DEFAULT 'upcoming',
     note TEXT,
     -- NEW: Enhanced planning features
     nearby_amenity_ids UUID[], -- Array of nearby_place IDs (optional)

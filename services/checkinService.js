@@ -47,14 +47,24 @@ class CheckinService {
             });
             
             if (!member) {
-                throw new Error('Bạn không phải thành viên của kế hoạch này');
+                throw new Error('You are not a member of this plan');
             }
         }
 
+        // ===== VALIDATION: Planner status =====
+        if (['completed', 'cancelled'].includes(planner.status)) {
+            throw new Error(`The plan has been ${planner.status}, cannot check-in`);
+        }
+
+        // ===== VALIDATION: Planner status must be ongoing =====
+        if (planner.status !== 'ongoing') {
+            throw new Error('This plan has not started yet, cannot check-in');
+        }
+
         // ===== VALIDATION: Planner item status =====
-        // Chỉ cho phép check-in nếu item đang in_progress
-        if (plannerItem.status !== 'in_progress') {
-            throw new Error('Địa điểm này chưa bắt đầu hoặc đã đóng, không thể check-in');
+        // Chỉ cho phép check-in nếu item đang upcoming
+        if (plannerItem.status !== 'upcoming') {
+            throw new Error('This site has already been processed, cannot check-in');
         }
 
         // Kiểm tra user đã check-in rồi thì không cho check-in lại
@@ -67,7 +77,7 @@ class CheckinService {
         });
 
         if (existingCheckin) {
-            throw new Error('Bạn đã check-in địa điểm này rồi');
+            throw new Error('You have already checked-in at this site');
         }
 
         // Kiểm tra planner đã hết hạn chưa - BỎ vì không cần ngày cố định
@@ -118,7 +128,7 @@ class CheckinService {
         const currentItemIndex = allPlannerItems.findIndex(item => item.id === plannerItemId);
         
         if (currentItemIndex === -1) {
-            throw new Error('Planner item không thuộc planner này');
+            throw new Error('Planner item does not belong to this planner');
         }
 
         // Kiểm tra xem tất cả items trước đó đã hoàn thành chưa (visited hoặc skipped)
@@ -130,7 +140,7 @@ class CheckinService {
             
             if (prevItemRecord.status !== 'visited' && prevItemRecord.status !== 'skipped') {
                 throw new Error(
-                    `Bạn phải thực hiện tuần tự! Địa điểm Ngày ${previousItem.leg_number}, thứ tự ${previousItem.order_index} vẫn chưa hoàn thành.`
+                    `Sequential required: day ${previousItem.leg_number}, order ${previousItem.order_index}`
                 );
             }
         }
@@ -149,14 +159,14 @@ class CheckinService {
         );
 
         if (!routeInfo || routeInfo.distance == null) {
-            throw new Error('Không thể tính khoảng cách. Vui lòng thử lại.');
+            throw new Error('Cannot calculate distance. Please try again.');
         }
 
         const distance = routeInfo.distance;
 
         // Reject check-in if distance > 500 meters
         if (distance > 500) {
-            throw new Error(`Bạn cách địa điểm ${Math.round(distance)}m. Vui lòng đến gần hơn (trong bán kính 500m) để check-in.`);
+            throw new Error(`Too far: distance ${Math.round(distance)}, radius 500`);
         }
 
         // ===== TẠO HOẶC CẬP NHẬT CHECK-IN =====
@@ -252,11 +262,15 @@ class CheckinService {
         const planner = plannerItem.planner;
 
         if (planner.user_id !== ownerId) {
-            throw new Error('Chỉ Trưởng đoàn mới có quyền bỏ qua địa điểm này');
+            throw new Error('Only the Leader can perform this action');
+        }
+
+        if (['completed', 'cancelled'].includes(planner.status)) {
+            throw new Error(`The plan has been ${planner.status}, cannot change site status`);
         }
 
         if (plannerItem.status === 'visited' || plannerItem.status === 'skipped') {
-            throw new Error('Địa điểm này đã chốt sổ, không thể thay đổi');
+            throw new Error('This site is already closed, cannot change');
         }
 
         await plannerItem.update({ status: 'skipped' });
@@ -288,11 +302,20 @@ class CheckinService {
             const planner = plannerItem.planner;
 
             if (planner.user_id !== ownerId) {
-                throw new Error('Chỉ Trưởng đoàn mới có quyền hoàn thành địa điểm này');
+                throw new Error('Only the Leader can perform this action');
             }
 
-            if (plannerItem.status !== 'in_progress') {
-                throw new Error('Địa điểm này chưa bắt đầu hoặc đã kết thúc, không thể hoàn thành');
+            if (['completed', 'cancelled'].includes(planner.status)) {
+                throw new Error(`The plan has been ${planner.status}, cannot change site status`);
+            }
+
+            // ===== VALIDATION: Planner status must be ongoing =====
+            if (planner.status !== 'ongoing') {
+                throw new Error('This plan is not active, cannot update site status');
+            }
+
+            if (plannerItem.status !== 'upcoming') {
+                throw new Error('This site has already been processed, cannot update status');
             }
 
             // Lấy tất cả user đã tham gia chuyến đi
@@ -414,7 +437,7 @@ class CheckinService {
             });
             
             if (!member) {
-                throw new Error('Bạn không có quyền xem tiến độ này');
+                throw new Error('You do not have permission to view this progress');
             }
         }
 

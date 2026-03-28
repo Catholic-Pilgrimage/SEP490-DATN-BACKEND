@@ -62,9 +62,7 @@ const Planner = sequelize.define('Planner', {
     status: {
         type: DataTypes.STRING,
         defaultValue: 'planning',
-        validate: {
-            isIn: [['planning', 'ongoing', 'completed', 'expired']]
-        }
+            isIn: [['planning', 'ongoing', 'completed', 'cancelled']]
     },
     started_at: {
         type: DataTypes.DATE,
@@ -77,6 +75,20 @@ const Planner = sequelize.define('Planner', {
     is_active: {
         type: DataTypes.BOOLEAN,
         defaultValue: true,
+        allowNull: false
+    },
+    lock_duration_hours: {
+        type: DataTypes.INTEGER,
+        defaultValue: 24,
+        allowNull: false,
+        validate: {
+            min: 24,
+            max: 48
+        }
+    },
+    is_locked: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
         allowNull: false
     }
 }, {

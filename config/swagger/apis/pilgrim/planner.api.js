@@ -124,6 +124,7 @@
  *     description: |
  *       Lấy thông tin chi tiết kế hoạch.
  *       Tự động chuyển trạng thái từ 'planning' sang 'ongoing' khi today >= start_date.
+ *       Trạng thái điểm đến luôn mặc định là 'upcoming' cho đến khi được chốt là 'visited' hoặc 'skipped'.
  *     tags: [Planners - Pilgrim]
  *     security:
  *       - bearerAuth: []
@@ -163,7 +164,7 @@
  *   post:
  *     summary: Thành viên check-in vào một địa điểm
  *     description: |
- *       - Điểm đến phải đang ở trạng thái **in_progress**
+ *       - Điểm đến phải đang ở trạng thái **upcoming**
  *       - Các điểm trước trong lịch trình phải là **visited** hoặc **skipped** thì mới được check-in điểm này
  *       - Ghi nhận thông tin GPS để xác thực có mặt
  *       - Ai check-in sẽ có bản ghi `checked_in` trong bảng `user_checkins`
@@ -208,7 +209,7 @@
  *         description: Check-in thành công
  *       400:
  *         description: |
- *           - Điểm đến không đang ở trạng thái in_progress
+ *           - Điểm đến không đang ở trạng thái upcoming
  *           - Điểm trước chưa được visited/skipped
  *           - Đã check-in điểm này rồi
  *       401:
@@ -496,7 +497,7 @@
  *         - Yêu cầu kế hoạch phải có start_date và end_date
  *       - **completed**: Hoàn thành kế hoạch (từ 'ongoing' → 'completed')
  *         - Yêu cầu checkin >= 80% địa điểm
- *         - Nếu checkin < 80% → tự động chuyển sang 'expired'
+ *         - Nếu checkin === 0 → tự động chuyển sang 'cancelled'
  *     tags: [Planners - Pilgrim]
  *     security:
  *       - bearerAuth: []
@@ -550,6 +551,65 @@
  *         description: Không có quyền
  *       404:
  *         description: Không tìm thấy kế hoạch
+ */
+
+/**
+ * @swagger
+ * /api/planners/{id}/lock:
+ *   patch:
+ *     summary: "[Trưởng đoàn] Tạm khóa/Mở khóa hành trình (Manual Lock/Unlock)"
+ *     description: |
+ *       **Chỉ dành cho Trưởng đoàn (Owner)**.
+ *       
+ *       Dùng để chủ động khóa hoặc mở khóa hành trình nhằm chặn các thay đổi (lịch trình, thành viên) đối với hành trình nhóm (từ 2 người trở lên).
+ *       Hữu ích cho việc chốt lịch sớm hoặc testing.
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của hành trình
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - is_locked
+ *             properties:
+ *               is_locked:
+ *                 type: boolean
+ *                 description: |
+ *                   - `true`: Khóa hành trình
+ *                   - `false`: Mở khóa hành trình
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/PlannerResponse'
+ *       400:
+ *         description: Lỗi xác thực hoặc không phải hành trình nhóm
+ *       401:
+ *         description: Chưa xác thực
+ *       403:
+ *         description: Không phải Trưởng đoàn
+ *       404:
+ *         description: Không tìm thấy hành trình
  */
 
 /**

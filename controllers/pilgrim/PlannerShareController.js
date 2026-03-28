@@ -54,6 +54,18 @@ class PlannerShareController {
             if (error.message === 'User is already a member') {
                 return ResponseUtil.badRequest(res, req.__('planner.already_member'));
             }
+            if (error.message === 'Planner join window is closed') {
+                return ResponseUtil.badRequest(res, req.__('planner.join_window_closed'));
+            }
+            if (error.message === 'Planner must have start_date and end_date before inviting members') {
+                return ResponseUtil.badRequest(res, req.__('planner.invite_requires_dates'));
+            }
+            if (error.message === 'Planner schedule must be complete before inviting members') {
+                return ResponseUtil.badRequest(res, req.__('planner.invite_requires_complete_schedule'));
+            }
+            if (error.message === 'Planner is locked') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));
+            }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
@@ -95,6 +107,18 @@ class PlannerShareController {
             }
             if (error.message === 'Email mismatch. This invite is for another user') {
                 return ResponseUtil.forbidden(res, req.__('planner.email_mismatch'));
+            }
+            if (error.message === 'Planner join window is closed') {
+                return ResponseUtil.badRequest(res, req.__('planner.join_window_closed'));
+            }
+            if (error.message === 'Planner must have start_date and end_date before inviting members') {
+                return ResponseUtil.badRequest(res, req.__('planner.invite_requires_dates'));
+            }
+            if (error.message === 'Planner schedule must be complete before inviting members') {
+                return ResponseUtil.badRequest(res, req.__('planner.invite_requires_complete_schedule'));
+            }
+            if (error.message === 'Planner is locked') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_join_locked'));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
@@ -152,17 +176,29 @@ class PlannerShareController {
             if (error.message === 'Planner not found') {
                 return ResponseUtil.notFound(res, req.__('planner.not_found'));
             }
-            if (error.message === 'Forbidden') {
-                return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
-            }
-            if (error.message === 'Cannot remove members during ongoing trip') {
+            if (error.message === 'Cannot leave ongoing journey') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_remove_ongoing'));
+            }
+            if (error.message === 'Cannot leave completed plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_remove_completed'));
+            }
+            if (error.message === 'Cannot leave expired plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_remove_expired'));
             }
             if (error.message === 'Cannot remove owner') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_remove_owner'));
             }
             if (error.message === 'Member not found') {
                 return ResponseUtil.notFound(res, req.__('planner.member_not_found'));
+            }
+            if (error.message === 'Member already left or kicked') {
+                return ResponseUtil.badRequest(res, req.__('planner.member_already_left'));
+            }
+            if (error.message === 'Planner member changes are closed') {
+                return ResponseUtil.badRequest(res, req.__('planner.member_changes_closed'));
+            }
+            if (error.message === 'Planner is locked') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_leave_locked'));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }

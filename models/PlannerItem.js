@@ -45,11 +45,11 @@ const PlannerItem = sequelize.define('PlannerItem', {
     },
     status: {
         type: DataTypes.STRING,
-        defaultValue: 'planned',
+        defaultValue: 'upcoming',
         field: 'planner_item_status',
         validate: {
             isIn: [
-                ['planned', 'in_progress', 'visited', 'skipped']
+                ['upcoming', 'visited', 'skipped']
             ]
         }
     },

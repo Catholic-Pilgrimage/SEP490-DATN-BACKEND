@@ -18,7 +18,7 @@ const reportValidator = {
     body('reason')
       .notEmpty()
       .withMessage('Reason is required')
-      .isIn(['spam', 'inappropriate', 'harassment', 'other'])
+      .isIn(['spam', 'harassment', 'hate_speech', 'false_information', 'violence', 'inappropriate', 'other'])
       .withMessage('Invalid reason'),
 
     body('description')

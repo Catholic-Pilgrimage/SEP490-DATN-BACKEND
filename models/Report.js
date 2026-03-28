@@ -33,7 +33,7 @@ const Report = sequelize.define('Report', {
     allowNull: false
   },
   reason: {
-    type: DataTypes.ENUM('spam', 'inappropriate', 'harassment', 'other'),
+    type: DataTypes.ENUM('spam', 'harassment', 'hate_speech', 'false_information', 'violence', 'inappropriate', 'other'),
     allowNull: false
   },
   description: {
