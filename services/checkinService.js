@@ -52,14 +52,19 @@ class CheckinService {
         }
 
         // ===== VALIDATION: Planner status =====
-        if (planner.status === 'completed' || planner.status === 'expired') {
+        if (['completed', 'cancelled'].includes(planner.status)) {
             throw new Error(`The plan has been ${planner.status}, cannot check-in`);
         }
 
+        // ===== VALIDATION: Planner status must be ongoing =====
+        if (planner.status !== 'ongoing') {
+            throw new Error('This plan has not started yet, cannot check-in');
+        }
+
         // ===== VALIDATION: Planner item status =====
-        // Chỉ cho phép check-in nếu item đang in_progress
-        if (plannerItem.status !== 'in_progress') {
-            throw new Error('This site has not started or has closed, cannot check-in');
+        // Chỉ cho phép check-in nếu item đang upcoming
+        if (plannerItem.status !== 'upcoming') {
+            throw new Error('This site has already been processed, cannot check-in');
         }
 
         // Kiểm tra user đã check-in rồi thì không cho check-in lại
@@ -260,7 +265,7 @@ class CheckinService {
             throw new Error('Only the Leader can perform this action');
         }
 
-        if (planner.status === 'completed' || planner.status === 'expired') {
+        if (['completed', 'cancelled'].includes(planner.status)) {
             throw new Error(`The plan has been ${planner.status}, cannot change site status`);
         }
 
@@ -300,12 +305,17 @@ class CheckinService {
                 throw new Error('Only the Leader can perform this action');
             }
 
-            if (planner.status === 'completed' || planner.status === 'expired') {
+            if (['completed', 'cancelled'].includes(planner.status)) {
                 throw new Error(`The plan has been ${planner.status}, cannot change site status`);
             }
 
-            if (plannerItem.status !== 'in_progress') {
-                throw new Error('This site has not started or has finished, cannot complete');
+            // ===== VALIDATION: Planner status must be ongoing =====
+            if (planner.status !== 'ongoing') {
+                throw new Error('This plan is not active, cannot update site status');
+            }
+
+            if (plannerItem.status !== 'upcoming') {
+                throw new Error('This site has already been processed, cannot update status');
             }
 
             // Lấy tất cả user đã tham gia chuyến đi

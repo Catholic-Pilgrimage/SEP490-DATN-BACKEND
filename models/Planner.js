@@ -62,9 +62,7 @@ const Planner = sequelize.define('Planner', {
     status: {
         type: DataTypes.STRING,
         defaultValue: 'planning',
-        validate: {
-            isIn: [['planning', 'ongoing', 'completed', 'expired']]
-        }
+            isIn: [['planning', 'ongoing', 'completed', 'cancelled']]
     },
     started_at: {
         type: DataTypes.DATE,

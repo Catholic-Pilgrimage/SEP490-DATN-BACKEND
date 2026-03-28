@@ -4,6 +4,26 @@ const { validationResult } = require('express-validator');
 const { formatValidationErrors } = require('../utils/validation.util');
 
 class PlannerController {
+    static localizePlannerItemWarning(req, result) {
+        if (!result?.warning || typeof result.warning === 'string') {
+            return result;
+        }
+
+        if (result.warning.code === 'event_time_window') {
+            return {
+                ...result,
+                warning: req.__('planner.event_time_warning', {
+                    time: result.warning.time || '',
+                    eventName: result.warning.eventName || 'Event',
+                    startTime: result.warning.startTime || '--:--',
+                    endTime: result.warning.endTime || '--:--'
+                })
+            };
+        }
+
+        return result;
+    }
+
     /**
      * POST /planners - Create a new planner
      */
@@ -165,7 +185,8 @@ class PlannerController {
                 return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
             }
 
-            const result = await PlannerService.addPlannerItem(req.params.id, req.user?.id, req.body);
+            let result = await PlannerService.addPlannerItem(req.params.id, req.user?.id, req.body);
+            result = this.localizePlannerItemWarning(req, result);
 
             // If there's a warning, include it in the response
             if (result.warning) {
@@ -222,6 +243,13 @@ class PlannerController {
             }
             if (error.message === 'Rest duration is required') {
                 return ResponseUtil.badRequest(res, req.__('planner.rest_duration_required'));
+            }
+            if (error.message === 'Event time after end') {
+                return ResponseUtil.badRequest(res, req.__('planner.event_time_after_end', {
+                    time: error.time || req.body.estimated_time || '',
+                    eventName: error.eventName || 'Event',
+                    endTime: error.endTime || '--:--'
+                }));
             }
             if (error.message.startsWith('Missing preceding days:')) {
                 const parts = error.message.replace('Missing preceding days: ', '').split(', missing days ');
@@ -309,8 +337,8 @@ class PlannerController {
             if (error.message === 'Cannot delete skipped site') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_skipped'));
             }
-            if (error.message === 'Cannot delete site in progress') {
-                return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_in_progress'));
+            if (error.message.startsWith('Cannot delete')) {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_processed'));
             }
             if (error.message.startsWith('Cannot delete last item gap:')) {
                 const parts = error.message.replace('Cannot delete last item gap: ', '').split(', ');
@@ -332,12 +360,17 @@ class PlannerController {
                 return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
             }
 
-            const result = await PlannerService.updatePlannerItem(
+            let result = await PlannerService.updatePlannerItem(
                 req.params.id,
                 req.user?.id,
                 req.params.itemId,
                 req.body
             );
+            result = this.localizePlannerItemWarning(req, result);
+
+            if (result.warning) {
+                return ResponseUtil.success(res, result, req.__('planner.item_update_success_with_warning'));
+            }
 
             return ResponseUtil.success(res, result, req.__('planner.item_update_success'));
         } catch (error) {
@@ -379,6 +412,13 @@ class PlannerController {
             }
             if (error.message === 'Cannot update skipped site') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_update_skipped'));
+            }
+            if (error.message === 'Event time after end') {
+                return ResponseUtil.badRequest(res, req.__('planner.event_time_after_end', {
+                    time: error.time || req.body.estimated_time || '',
+                    eventName: error.eventName || 'Event',
+                    endTime: error.endTime || '--:--'
+                }));
             }
 
             if (error.message.startsWith('Invalid arrival time:')) {
@@ -431,8 +471,8 @@ class PlannerController {
             const result = await PlannerService.completePlanner(req.params.id, req.user.id);
 
             // Customize message based on final status
-            const message = result.status === 'expired'
-                ? req.__('planner.expired_below_80', { percentage: result.checkin_percentage || '?' })
+            const message = result.status === 'cancelled'
+                ? req.__('planner.cancelled_zero_visited')
                 : req.__('planner.complete_success');
 
             return ResponseUtil.success(res, result, message);
@@ -482,27 +522,27 @@ class PlannerController {
 
     /**
      * PATCH /planners/:id/status - Update planner status (start/complete)
-     * Body: { status: 'ongoing' | 'completed' | 'expired' }
+     * Body: { status: 'ongoing' | 'completed' | 'cancelled' }
      */
     static async updatePlannerStatus(req, res) {
         try {
             const { status } = req.body;
 
             // Validate status
-            const validStatuses = ['ongoing', 'completed', 'expired'];
+            const validStatuses = ['ongoing', 'completed', 'cancelled'];
             if (!status || !validStatuses.includes(status)) {
                 return ResponseUtil.badRequest(res, req.__('planner.invalid_status_options', { options: validStatuses.join(', ') }));
             }
 
             const result = await PlannerService.updatePlannerStatus(req.params.id, req.user.id, status);
 
-            // Customize message based on status
+            // Customize message based on status (map results to correct messages)
             const message = status === 'ongoing'
                 ? req.__('planner.start_success')
-                : status === 'completed'
+                : result.status === 'completed'
                     ? req.__('planner.complete_success')
-                    : status === 'expired'
-                        ? req.__('planner.expired_below_80', { percentage: result.checkin_percentage || '?' })
+                    : result.status === 'cancelled'
+                        ? req.__('planner.cancelled_zero_visited')
                         : req.__('planner.status_update_success');
 
             return ResponseUtil.success(res, result, message);
@@ -525,13 +565,11 @@ class PlannerController {
                 const totalDays = parts[1].replace('total days ', '');
                 return ResponseUtil.badRequest(res, req.__('planner.incomplete_schedule', { missingDays, totalDays }));
             }
-            if (error.message.startsWith('Plan expired below 80:')) {
-                const percentage = error.message.replace('Plan expired below 80: percentage ', '');
-                return ResponseUtil.badRequest(res, req.__('planner.expired_below_80', { percentage }));
+            if (error.message.startsWith('Plan cancelled:') || error.message.includes('0 sites visited')) {
+                return ResponseUtil.badRequest(res, req.__('planner.cancelled_zero_visited'));
             }
-            if (error.message.startsWith('Minimum check-in required:')) {
-                const percentage = error.message.replace('Minimum check-in required: current ', '');
-                return ResponseUtil.badRequest(res, req.__('planner.min_checkin_required', { percentage }));
+            if (error.message.startsWith('Minimum check-in required:') || error.message.includes('0 sites visited')) {
+                return ResponseUtil.badRequest(res, req.__('planner.min_visited_required'));
             }
             if (error.message === 'Planner must have start_date and end_date to start') {
                 return ResponseUtil.badRequest(res, req.__('planner.missing_dates'));

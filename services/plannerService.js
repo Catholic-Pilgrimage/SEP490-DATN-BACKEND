@@ -1,4 +1,4 @@
-const { Planner, PlannerItem, User, Site, PlannerInvite, PlannerMember, NearbyPlace } = require('../models');
+const { Planner, PlannerItem, User, Site, Event, PlannerInvite, PlannerMember, NearbyPlace } = require('../models');
 const { Op } = require('sequelize');
 const Logger = require('../utils/logger.util');
 const sequelize = require('../config/database');
@@ -8,6 +8,145 @@ const QRCode = require('qrcode');
 const { calculateEstimatedTime, parseDurationToMinutes, isWithinOpeningHours } = require('../utils/timeCalculation.util');
 
 class PlannerService {
+
+    static parseTimeValue(timeValue) {
+        if (!timeValue || typeof timeValue !== 'string') {
+            return null;
+        }
+
+        const [hours, minutes] = timeValue.split(':').map(Number);
+        if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+            return null;
+        }
+
+        return {
+            hours,
+            minutes,
+            totalMinutes: (hours * 60) + minutes,
+            formatted: `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+        };
+    }
+
+    static buildDateTime(dateValue, timeValue, fallbackTime) {
+        if (!dateValue) {
+            return null;
+        }
+
+        return new Date(`${dateValue}T${timeValue || fallbackTime}`);
+    }
+
+    static validateEventTimingForPlannerItem(planner, legNumber, estimatedTime, event) {
+        const itemTime = this.parseTimeValue(estimatedTime);
+        if (!event || !itemTime) {
+            return { warning: null };
+        }
+
+        const eventName = event.name || 'Event';
+        const startTime = this.parseTimeValue(event.start_time);
+        const endTime = this.parseTimeValue(event.end_time);
+
+        if (planner?.start_date && event.start_date) {
+            const itemDateTime = new Date(`${planner.start_date}T00:00:00`);
+            itemDateTime.setDate(itemDateTime.getDate() + (legNumber - 1));
+            itemDateTime.setHours(itemTime.hours, itemTime.minutes, 0, 0);
+
+            const eventStartDateTime = this.buildDateTime(
+                event.start_date,
+                startTime ? `${startTime.formatted}:00` : null,
+                '00:00:00'
+            );
+
+            let eventEndDateTime = this.buildDateTime(
+                event.end_date || event.start_date,
+                endTime ? `${endTime.formatted}:59` : null,
+                '23:59:59'
+            );
+
+            if (eventStartDateTime && eventEndDateTime && eventEndDateTime <= eventStartDateTime) {
+                eventEndDateTime.setDate(eventEndDateTime.getDate() + 1);
+            }
+
+            if (eventEndDateTime && itemDateTime > eventEndDateTime) {
+                const error = new Error('Event time after end');
+                error.time = itemTime.formatted;
+                error.eventName = eventName;
+                error.endTime = endTime ? endTime.formatted : '23:59';
+                throw error;
+            }
+
+            if (eventStartDateTime && itemDateTime >= eventStartDateTime && (!eventEndDateTime || itemDateTime <= eventEndDateTime)) {
+                return {
+                    warning: {
+                        code: 'event_time_window',
+                        time: itemTime.formatted,
+                        eventName,
+                        startTime: startTime ? startTime.formatted : null,
+                        endTime: endTime ? endTime.formatted : null
+                    }
+                };
+            }
+
+            return { warning: null };
+        }
+
+        if (startTime && endTime) {
+            if (endTime.totalMinutes >= startTime.totalMinutes) {
+                if (itemTime.totalMinutes > endTime.totalMinutes) {
+                    const error = new Error('Event time after end');
+                    error.time = itemTime.formatted;
+                    error.eventName = eventName;
+                    error.endTime = endTime.formatted;
+                    throw error;
+                }
+
+                if (itemTime.totalMinutes >= startTime.totalMinutes) {
+                    return {
+                        warning: {
+                            code: 'event_time_window',
+                            time: itemTime.formatted,
+                            eventName,
+                            startTime: startTime.formatted,
+                            endTime: endTime.formatted
+                        }
+                    };
+                }
+            } else {
+                const isWithinOvernightWindow =
+                    itemTime.totalMinutes >= startTime.totalMinutes ||
+                    itemTime.totalMinutes <= endTime.totalMinutes;
+
+                if (isWithinOvernightWindow) {
+                    return {
+                        warning: {
+                            code: 'event_time_window',
+                            time: itemTime.formatted,
+                            eventName,
+                            startTime: startTime.formatted,
+                            endTime: endTime.formatted
+                        }
+                    };
+                }
+            }
+        } else if (startTime && itemTime.totalMinutes >= startTime.totalMinutes) {
+            return {
+                warning: {
+                    code: 'event_time_window',
+                    time: itemTime.formatted,
+                    eventName,
+                    startTime: startTime.formatted,
+                    endTime: endTime ? endTime.formatted : null
+                }
+            };
+        } else if (endTime && itemTime.totalMinutes > endTime.totalMinutes) {
+            const error = new Error('Event time after end');
+            error.time = itemTime.formatted;
+            error.eventName = eventName;
+            error.endTime = endTime.formatted;
+            throw error;
+        }
+
+        return { warning: null };
+    }
 
     /**
      * Create a new planner
@@ -250,26 +389,13 @@ class PlannerService {
                 }
             }
 
-            // Auto-update status to 'ongoing' if today >= start_date and status is 'planning'
+            // Auto-update status to 'ongoing' based on first task time (Trigger: 2 hours before first task)
             if (planner.status === 'planning' && planner.start_date) {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const startDate = new Date(planner.start_date);
-                startDate.setHours(0, 0, 0, 0);
-
-                if (today >= startDate) {
+                const shouldBeOngoing = await this.shouldPlannerBeOngoing(planner);
+                if (shouldBeOngoing) {
                     await planner.update({ status: 'ongoing' });
                     planner.status = 'ongoing';
-
-                    // Update all 'planned' items to 'in_progress'
-                    await PlannerItem.update({ status: 'in_progress' }, {
-                        where: {
-                            planner_id: plannerId,
-                            status: 'planned'
-                        }
-                    });
-
-                    Logger.info(`Planner ${plannerId} auto-updated status from 'planning' to 'ongoing' (today >= start_date), items updated to in_progress`);
+                    Logger.info(`Planner ${plannerId} auto-updated status from 'planning' to 'ongoing' (triggered by first task time)`);
                 }
             }
 
@@ -296,9 +422,9 @@ class PlannerService {
                 throw new Error('Forbidden');
             }
             
-            // Block modifications if planner is completed or expired
-            if (planner.status === 'completed' || planner.status === 'expired') {
-                throw new Error(planner.status === 'completed' ? 'Cannot update completed plan' : 'Cannot update expired plan');
+            // Block modifications if planner is completed or cancelled
+            if (['completed', 'cancelled'].includes(planner.status)) {
+                throw new Error(`Cannot update ${planner.status} plan`);
             }
 
             // Prepare update data
@@ -410,13 +536,13 @@ class PlannerService {
             }
 
             // Only allow deletion during planning phase
-            if (planner.status === 'ongoing' || planner.status === 'completed' || planner.status === 'expired') {
+            if (['ongoing', 'completed', 'cancelled'].includes(planner.status)) {
                 if (planner.status === 'ongoing') {
                     throw new Error('Cannot delete ongoing journey');
                 } else if (planner.status === 'completed') {
                     throw new Error('Cannot delete completed plan');
                 } else {
-                    throw new Error('Cannot delete expired plan');
+                    throw new Error('Cannot delete cancelled plan');
                 }
             }
 
@@ -618,9 +744,9 @@ class PlannerService {
             // ========== EVENT HANDLING ==========
             let eventInfo = null;
             let multiDayItems = null; // For multi-day events
+            let eventTimeWarning = null;
 
             if (event_id) {
-                const { Event } = require('../models');
                 const event = await Event.findByPk(event_id);
 
                 if (!event) {
@@ -789,9 +915,9 @@ class PlannerService {
                 throw new Error('Planner not found');
             }
 
-            // Block modifications if planner is completed or expired
-            if (planner.status === 'completed' || planner.status === 'expired') {
-                throw new Error(planner.status === 'completed' ? 'Cannot add item to completed plan' : 'Cannot add item to expired plan');
+            // Block modifications if planner is completed or cancelled
+            if (['completed', 'cancelled'].includes(planner.status)) {
+                throw new Error(`Cannot add item to ${planner.status} plan`);
             }
 
             if (userId && planner.user_id !== userId) {
@@ -1066,6 +1192,16 @@ class PlannerService {
                 }
             }
 
+            if (eventInfo && (!multiDayItems || multiDayItems.length <= 1)) {
+                const timingValidation = this.validateEventTimingForPlannerItem(
+                    planner,
+                    leg_number,
+                    finalEstimatedTime,
+                    eventInfo
+                );
+                eventTimeWarning = timingValidation.warning;
+            }
+
             // ========== HANDLE MULTI-DAY EVENTS ==========
             if (multiDayItems && multiDayItems.length > 1) {
                 const createdItems = [];
@@ -1073,6 +1209,20 @@ class PlannerService {
                 for (let i = 0; i < multiDayItems.length; i++) {
                     const dayItem = multiDayItems[i];
                     const itemLegNumber = dayItem.leg_number;
+                    const itemEstimatedTime = dayItem.estimated_time || finalEstimatedTime;
+
+                    if (eventInfo) {
+                        const timingValidation = this.validateEventTimingForPlannerItem(
+                            planner,
+                            itemLegNumber,
+                            itemEstimatedTime,
+                            eventInfo
+                        );
+
+                        if (!eventTimeWarning && timingValidation.warning) {
+                            eventTimeWarning = timingValidation.warning;
+                        }
+                    }
 
                     // Get previous item in this day
                     const prevItemInDay = await PlannerItem.findOne({
@@ -1107,10 +1257,10 @@ class PlannerService {
                         leg_number: itemLegNumber,
                         event_id: event_id,
                         order_index: (maxIdx || 0) + 1,
-                        status: planner.status === 'ongoing' ? 'in_progress' : 'planned',
+                        status: 'upcoming',
                         note: dayItem.note,
                         nearby_amenity_ids: validatedNearbyAmenityIds,
-                        estimated_time: dayItem.estimated_time || finalEstimatedTime,
+                        estimated_time: itemEstimatedTime,
                         rest_duration: dayItem.rest_duration || rest_duration,
                         travel_time_minutes: travel_time_minutes || null
                     }, { transaction });
@@ -1138,12 +1288,18 @@ class PlannerService {
 
                 Logger.info(`Multi-day event ${event_id} added to planner ${plannerId} for ${multiDayItems.length} days by user ${userId}`);
 
-                return {
+                const response = {
                     event_id: event_id,
                     event_name: eventInfo ? eventInfo.name : null,
                     total_days: multiDayItems.length,
                     items: results.map(i => this.formatPlannerItemResponse(i))
                 };
+
+                if (eventTimeWarning) {
+                    response.warning = eventTimeWarning;
+                }
+
+                return response;
             }
 
             // ========== SINGLE ITEM CREATION ==========
@@ -1159,7 +1315,7 @@ class PlannerService {
             const nextOrderIndex = (maxOrderIndex || 0) + 1;
 
             // Determine item status based on planner status
-            const itemStatus = planner.status === 'ongoing' ? 'in_progress' : 'planned';
+            const itemStatus = 'upcoming';
 
             // Create planner item
             const item = await PlannerItem.create({
@@ -1199,6 +1355,10 @@ class PlannerService {
                     start_time: eventInfo.start_time,
                     end_time: eventInfo.end_time
                 };
+            }
+
+            if (eventTimeWarning) {
+                response.warning = eventTimeWarning;
             }
 
             return response;
@@ -1306,14 +1466,14 @@ class PlannerService {
                 throw new Error('Item not found');
             }
 
-            // Block modifications if planner is ongoing, completed or expired
-            if (planner.status === 'ongoing' || planner.status === 'completed' || planner.status === 'expired') {
+            // Block modifications if planner is ongoing, completed or cancelled
+            if (['ongoing', 'completed', 'cancelled'].includes(planner.status)) {
                 if (planner.status === 'ongoing') {
                     throw new Error('Cannot delete ongoing journey');
                 } else if (planner.status === 'completed') {
                     throw new Error('Cannot delete completed plan');
                 } else {
-                    throw new Error('Cannot delete expired plan');
+                    throw new Error('Cannot delete cancelled plan');
                 }
             }
 
@@ -1327,9 +1487,10 @@ class PlannerService {
                 throw new Error('Item does not belong to this planner');
             }
 
-            // ===== VALIDATION: Không được xóa item nếu đang in_progress =====
-            if (item.status === 'in_progress') {
-                throw new Error('Cannot delete site in progress');
+            // ===== VALIDATION: Không được xóa item nếu đang đã chốt (visited/skipped) =====
+            // Checkin status guards already handle this indirectly since 'upcoming' is deleteable
+            if (item.status !== 'upcoming') {
+                throw new Error(`Cannot delete ${item.status} site`);
             }
             // ===== END: Validation =====
 
@@ -1418,9 +1579,9 @@ class PlannerService {
                 throw new Error('Item not found');
             }
 
-            // Block modifications if planner is completed or expired
-            if (planner.status === 'completed' || planner.status === 'expired') {
-                throw new Error(planner.status === 'completed' ? 'Cannot update completed plan' : 'Cannot update expired plan');
+            // Block modifications if planner is completed or cancelled
+            if (['completed', 'cancelled'].includes(planner.status)) {
+                throw new Error(`Cannot update ${planner.status} plan`);
             }
 
             // Block if item is visited or skipped
@@ -1433,6 +1594,8 @@ class PlannerService {
             }
 
             const dataToUpdate = {};
+            let eventInfo = null;
+            let eventTimeWarning = null;
 
             // Update note
             if (updateData.note !== undefined) {
@@ -1457,6 +1620,10 @@ class PlannerService {
 
             // Update estimated_time
             if (updateData.estimated_time !== undefined) {
+                if (item.event_id) {
+                    eventInfo = await Event.findByPk(item.event_id, { transaction });
+                }
+
                 // Validation: Check if estimated_time is after previous item's departure time + travel time
                 const previousItem = await PlannerItem.findOne({
                     where: {
@@ -1538,6 +1705,16 @@ class PlannerService {
                     }
                 }
 
+                if (eventInfo) {
+                    const timingValidation = this.validateEventTimingForPlannerItem(
+                        planner,
+                        item.leg_number,
+                        updateData.estimated_time,
+                        eventInfo
+                    );
+                    eventTimeWarning = timingValidation.warning;
+                }
+
                 dataToUpdate.estimated_time = updateData.estimated_time;
             }
 
@@ -1590,7 +1767,12 @@ class PlannerService {
 
             Logger.info(`Item ${itemId} updated in planner ${plannerId} by user ${userId}`);
 
-            return this.formatPlannerItemResponse(result);
+            const response = this.formatPlannerItemResponse(result);
+            if (eventTimeWarning) {
+                response.warning = eventTimeWarning;
+            }
+
+            return response;
         } catch (error) {
             if (transaction && !transaction.finished) {
                 await transaction.rollback();
@@ -1737,11 +1919,11 @@ class PlannerService {
             }
             // ===== END: Validation =====
 
-            // Check checkin percentage to decide completed vs expired
+            // Check visitedCount to decide completed vs cancelled
             const checkinStats = await this.getCheckinStats(plannerId);
-            const checkinPercentage = checkinStats.percentage;
+            const { visitedCount, percentage: checkinPercentage } = checkinStats;
 
-            if (checkinPercentage >= 80) {
+            if (visitedCount > 0) {
                 await planner.update({
                     status: 'completed',
                     completed_at: new Date()
@@ -1750,10 +1932,10 @@ class PlannerService {
                 const PlannerAntiFraudService = require('./pilgrim/plannerAntiFraudService');
                 await PlannerAntiFraudService.verifyAndSettlePlanner(plannerId, t);
 
-                Logger.info(`Planner ${plannerId} completed (${checkinPercentage}% checkin)`);
+                Logger.info(`Planner ${plannerId} completed (${visitedCount} sites visited)`);
             } else {
-                await planner.update({ status: 'expired' }, { transaction: t });
-                Logger.info(`Planner ${plannerId} expired (${checkinPercentage}% checkin, below 80%)`);
+                await planner.update({ status: 'cancelled' }, { transaction: t });
+                Logger.info(`Planner ${plannerId} cancelled (0 sites visited)`);
             }
 
             await t.commit();
@@ -1856,17 +2038,6 @@ class PlannerService {
 
                 await planner.update({ status: 'ongoing' });
 
-                // Update all 'planned' items to 'in_progress'
-                await PlannerItem.update(
-                    { status: 'in_progress' },
-                    {
-                        where: {
-                            planner_id: plannerId,
-                            status: 'planned'
-                        }
-                    }
-                );
-
                 Logger.info(`Planner ${plannerId} started by user ${userId}`);
             } else if (newStatus === 'completed') {
                 // Chuyển từ ongoing -> completed (hoặc expired)
@@ -1881,19 +2052,19 @@ class PlannerService {
                     throw new Error(`Incomplete schedule: missing days ${missingDaysStr}, total days ${continuityCheck.totalDays}`);
                 }
 
-                // Check checkin percentage
+                // Check visitedCount
                 const checkinStats = await this.getCheckinStats(plannerId);
-                const checkinPercentage = checkinStats.percentage;
+                const { visitedCount, percentage: checkinPercentage } = checkinStats;
 
-                if (checkinPercentage >= 80) {
+                if (visitedCount > 0) {
                     await planner.update({
                         status: 'completed',
                         completed_at: new Date()
                     });
-                    Logger.info(`Planner ${plannerId} completed by user ${userId} (${checkinPercentage}% checkin)`);
+                    Logger.info(`Planner ${plannerId} completed by user ${userId} (${visitedCount} sites visited)`);
                 } else {
-                    await planner.update({ status: 'expired' });
-                    throw new Error(`Plan expired below 80: percentage ${checkinPercentage}`);
+                    await planner.update({ status: 'cancelled' });
+                    throw new Error(`Plan cancelled: 0 sites visited`);
                 }
             } else {
                 throw new Error('Invalid status: ongoing or completed');
@@ -1922,7 +2093,15 @@ class PlannerService {
             return { totalItems: 0, checkedInItems: 0, percentage: 0 };
         }
 
-        // Get items with status 'visited' (or 'skipped' also counts as completed)
+        // Get items with status 'visited' (actual check-ins)
+        const visitedCount = await PlannerItem.count({
+            where: {
+                planner_id: plannerId,
+                status: 'visited'
+            }
+        });
+
+        // Get items with status 'visited' or 'skipped' (counts towards completion percentage)
         const checkedInItems = await PlannerItem.count({
             where: {
                 planner_id: plannerId,
@@ -1932,9 +2111,9 @@ class PlannerService {
             }
         });
 
-        const percentage = Math.round((checkedInItems / totalItems) * 100);
+        const percentage = totalItems > 0 ? Math.round((checkedInItems / totalItems) * 100) : 0;
 
-        return { totalItems, checkedInItems, percentage };
+        return { totalItems, checkedInItems, visitedCount, percentage };
     }
 
 
@@ -1959,19 +2138,12 @@ class PlannerService {
 
             let startedCount = 0;
             for (const planner of readyPlanners) {
-                await planner.update({ status: 'ongoing' });
-
-                await PlannerItem.update(
-                    { status: 'in_progress' },
-                    {
-                        where: {
-                            planner_id: planner.id,
-                            status: 'planned'
-                        }
-                    }
-                );
-                startedCount++;
-                Logger.info(`Planner ${planner.id} auto-started (start_date: ${planner.start_date})`);
+                const shouldBeOngoing = await this.shouldPlannerBeOngoing(planner);
+                if (shouldBeOngoing) {
+                    await planner.update({ status: 'ongoing' });
+                    startedCount++;
+                    Logger.info(`Planner ${planner.id} auto-started (start_date: ${planner.start_date}, triggered by items)`);
+                }
             }
 
             Logger.info(`Auto-started ${startedCount} planners`);
@@ -2006,18 +2178,18 @@ class PlannerService {
                 // Check checkin percentage
                 const stats = await this.getCheckinStats(planner.id);
 
-                if (stats.percentage < 80) {
-                    // < 80% checkin → expire
-                    await planner.update({ status: 'expired' });
+                if (stats.visitedCount === 0) {
+                    // 0 items visited → cancel
+                    await planner.update({ status: 'cancelled' });
                     expiredCount++;
-                    Logger.info(`Planner ${planner.id} auto-expired (end_date: ${planner.end_date}, checkin: ${stats.percentage}%)`);
+                    Logger.info(`Planner ${planner.id} auto-cancelled (end_date: ${planner.end_date}, 0 sites visited)`);
                 } else {
-                    // >= 80% checkin → complete
+                    // >= 1 items visited → complete
                     await planner.update({
                         status: 'completed',
                         completed_at: new Date()
                     });
-                    Logger.info(`Planner ${planner.id} auto-completed (end_date: ${planner.end_date}, checkin: ${stats.percentage}%)`);
+                    Logger.info(`Planner ${planner.id} auto-completed (end_date: ${planner.end_date}, ${stats.visitedCount} sites visited)`);
                 }
             }
 
@@ -2049,36 +2221,10 @@ class PlannerService {
                 throw new Error('Planner is not in planning status');
             }
 
-            // BỎ: Không cần bắt buộc start_date/end_date
-            // if (!planner.start_date || !planner.end_date) {
-            //     throw new Error('Planner must have start_date and end_date to start');
-            // }
-
-            // BỎ: Validation đủ items cho tất cả các ngày - không cần ngày cố định
-            // const continuityCheck = await this.validatePlannerContinuity(plannerId);
-            // if (!continuityCheck.isValid) {
-            //     const missingDaysStr = continuityCheck.missingDays.join(', ');
-            //     throw new Error(
-            //         `Không thể bắt đầu kế hoạch! Lịch trình chưa đầy đủ. ` +
-            //         `Bạn cần thêm địa điểm cho Ngày ${missingDaysStr} (Tổng ${continuityCheck.totalDays} ngày).`
-            //     );
-            // }
-
-            // Update planner status to ongoing
+            // Start trek (ongoing)
             await planner.update({ status: 'ongoing' });
 
-            // Update all 'planned' items to 'in_progress'
-            await PlannerItem.update(
-                { status: 'in_progress' },
-                {
-                    where: {
-                        planner_id: plannerId,
-                        status: 'planned'
-                    }
-                }
-            );
-
-            Logger.info(`Planner ${plannerId} started by user ${userId} (planning -> ongoing), items updated to in_progress`);
+            Logger.info(`Planner ${plannerId} started by user ${userId} (planning -> ongoing)`);
             return this.formatPlannerResponse(planner);
         } catch (error) {
             Logger.error('Start planner error:', error);
@@ -2090,7 +2236,7 @@ class PlannerService {
      * Update planner status (unified endpoint for start/complete)
      * @param {string} plannerId - Planner ID
      * @param {string} userId - User ID
-     * @param {string} status - New status: 'ongoing' | 'completed' | 'expired'
+     * @param {string} status - New status: 'ongoing' | 'completed' | 'cancelled'
      */
     static async updatePlannerStatus(plannerId, userId, status) {
         try {
@@ -2106,8 +2252,8 @@ class PlannerService {
 
             // Validate status transitions
             const validTransitions = {
-                'planning': ['ongoing'],
-                'ongoing': ['completed', 'expired']
+                'planning': ['ongoing', 'cancelled'],
+                'ongoing': ['completed', 'cancelled']
             };
 
             if (!validTransitions[planner.status] || !validTransitions[planner.status].includes(status)) {
@@ -2131,21 +2277,10 @@ class PlannerService {
 
                 await planner.update({ status: 'ongoing' });
 
-                // Update all 'planned' items to 'in_progress'
-                await PlannerItem.update(
-                    { status: 'in_progress' },
-                    {
-                        where: {
-                            planner_id: plannerId,
-                            status: 'planned'
-                        }
-                    }
-                );
-
                 Logger.info(`Planner ${plannerId} started by user ${userId} (planning -> ongoing)`);
             }
-            // Handle 'completed' or 'expired' status (complete planner)
-            else if (status === 'completed' || status === 'expired') {
+            // Handle 'completed' or 'cancelled' status (complete planner)
+            else if (status === 'completed' || status === 'cancelled') {
                 // ===== VALIDATION: Planner phải có đủ items cho tất cả các ngày =====
                 const continuityCheck = await this.validatePlannerContinuity(plannerId);
 
@@ -2155,16 +2290,16 @@ class PlannerService {
                 }
                 // ===== END: Validation =====
 
-                // ===== VALIDATION: Check checkin percentage =====
+                // ===== VALIDATION: Check visitedCount =====
                 const checkinStats = await this.getCheckinStats(plannerId);
-                const checkinPercentage = checkinStats.percentage;
+                const { visitedCount, percentage: checkinPercentage } = checkinStats;
 
-                if (status === 'completed' && checkinPercentage < 80) {
-                    throw new Error(`Minimum check-in required: current ${checkinPercentage}%`);
+                if (status === 'completed' && visitedCount === 0) {
+                    throw new Error(`Cannot complete journey: 0 sites visited`);
                 }
 
-                // Determine final status based on checkin percentage
-                const finalStatus = checkinPercentage >= 80 ? 'completed' : 'expired';
+                // Determine final status based on visitedCount
+                const finalStatus = visitedCount > 0 ? 'completed' : 'cancelled';
 
                 const updateData = { status: finalStatus };
                 if (finalStatus === 'completed') {
@@ -2173,7 +2308,7 @@ class PlannerService {
 
                 await planner.update(updateData);
 
-                Logger.info(`Planner ${plannerId} status updated to ${finalStatus} by user ${userId} (${checkinPercentage}% checkin)`);
+                Logger.info(`Planner ${plannerId} status updated to ${finalStatus} by user ${userId} (${visitedCount} sites visited)`);
             }
 
             return this.formatPlannerResponse(planner);
@@ -2187,8 +2322,8 @@ class PlannerService {
      * Auto complete or expire ongoing planners that have passed their end_date
      * Called by cron job
      * Logic:
-     * - checkin >= 80% → status = 'completed'
-     * - checkin < 80% → status = 'expired'
+     * - visitedCount > 0 → status = 'completed'
+     * - visitedCount === 0 → status = 'cancelled'
      */
     static async autoCompleteExpiredPlanners() {
         try {
@@ -2218,7 +2353,7 @@ class PlannerService {
                     // Check checkin percentage
                     const stats = await this.getCheckinStats(planner.id);
 
-                    if (stats.percentage >= 80) {
+                    if (stats.visitedCount > 0) {
                         await currentPlanner.update({
                             status: 'completed',
                             completed_at: new Date()
@@ -2227,11 +2362,11 @@ class PlannerService {
                         const PlannerAntiFraudService = require('./pilgrim/plannerAntiFraudService');
                         await PlannerAntiFraudService.verifyAndSettlePlanner(currentPlanner.id, t);
                         completedCount++;
-                        Logger.info(`Planner ${planner.id} auto-completed (checkin: ${stats.percentage}%)`);
+                        Logger.info(`Planner ${planner.id} auto-completed (${stats.visitedCount} sites visited)`);
                     } else {
-                        await currentPlanner.update({ status: 'expired' }, { transaction: t });
+                        await currentPlanner.update({ status: 'cancelled' }, { transaction: t });
                         expiredCount++;
-                        Logger.info(`Planner ${planner.id} auto-expired (checkin: ${stats.percentage}%, below 80%)`);
+                        Logger.info(`Planner ${planner.id} auto-cancelled (0 sites visited)`);
                     }
 
                     await t.commit();
@@ -2343,7 +2478,8 @@ class PlannerService {
             }
 
             // Item must be in_progress or skipped (can re-checkin after skip)
-            if (!['in_progress', 'skipped'].includes(item.status)) {
+            // Verify item is upcoming or skipped (if allowing checkin for skipped)
+            if (!['upcoming', 'skipped'].includes(item.status)) {
                 throw new Error('Item is not available for checkin');
             }
 
@@ -2382,6 +2518,59 @@ class PlannerService {
             Logger.error('Checkin item error:', error);
             throw error;
         }
+    }
+
+    /**
+     * Helper to determine if a planner should transition to 'ongoing'
+     * Logic: 2 hours before the estimated_time of the first task on start_date
+     * If no tasks or no time, defaults to 00:00 of start_date
+     */
+    static async shouldPlannerBeOngoing(planner) {
+        if (!planner || planner.status !== 'planning' || !planner.start_date) {
+            return false;
+        }
+
+        const now = new Date();
+        const startDate = new Date(planner.start_date);
+        startDate.setHours(0, 0, 0, 0);
+
+        // If today is before start_date, definitely not ongoing
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (today < startDate) {
+            return false;
+        }
+
+        // If today is after start_date, it's already overdue, should be ongoing
+        if (today > startDate) {
+            return true;
+        }
+
+        // It's the start_date. Check for the first mission's estimated_time
+        const firstItem = await PlannerItem.findOne({
+            where: { planner_id: planner.id },
+            order: [
+                ['leg_number', 'ASC'],
+                ['order_index', 'ASC']
+            ]
+        });
+
+        // Default behavior if no items found or no estimated_time: start at midnight
+        if (!firstItem || !firstItem.estimated_time) {
+            return true;
+        }
+
+        // firstItem.estimated_time is "HH:mm:ss"
+        const [hours, minutes, seconds] = firstItem.estimated_time.split(':').map(Number);
+        
+        // Combine start_date with estimated_time
+        const triggerTime = new Date(startDate);
+        triggerTime.setHours(hours, minutes, seconds || 0, 0);
+        
+        // Subtract 2 hours
+        triggerTime.setHours(triggerTime.getHours() - 2);
+
+        return now >= triggerTime;
     }
 }
 

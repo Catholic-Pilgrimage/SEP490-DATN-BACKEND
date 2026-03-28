@@ -672,14 +672,12 @@ class PlannerShareService {
                 throw new Error('Forbidden');
             }
 
-            // Cannot remove during ongoing, completed or expired trip
-            if (planner.status === 'ongoing' || planner.status === 'completed' || planner.status === 'expired') {
+            // Cannot remove during ongoing, completed, or cancelled trip
+            if (['ongoing', 'completed', 'cancelled'].includes(planner.status)) {
                 if (planner.status === 'ongoing') {
                     throw new Error('Cannot leave ongoing journey');
-                } else if (planner.status === 'completed') {
-                    throw new Error('Cannot leave completed plan');
                 } else {
-                    throw new Error('Cannot leave expired plan');
+                    throw new Error('Cannot leave cancelled plan');
                 }
             }
 

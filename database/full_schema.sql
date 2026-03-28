@@ -36,8 +36,8 @@ DO $$ BEGIN
     CREATE TYPE nearby_place_status AS ENUM ('pending', 'approved', 'rejected');
     
     -- Planner
-    CREATE TYPE planner_status AS ENUM ('planning', 'ongoing', 'completed', 'expired');
-    CREATE TYPE planner_item_status AS ENUM ('planned', 'in_progress', 'visited', 'skipped');
+    CREATE TYPE planner_status AS ENUM ('planning', 'ongoing', 'completed', 'cancelled');
+    CREATE TYPE planner_item_status AS ENUM ('upcoming', 'visited', 'skipped');
 
     CREATE TYPE checkin_status AS ENUM ('checked_in', 'missed', 'pending');
 
@@ -590,7 +590,7 @@ CREATE TABLE IF NOT EXISTS planner_items (
     site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
     leg_number INT DEFAULT 1,
     order_index INT DEFAULT 1,
-    status planner_item_status DEFAULT 'planned',
+    status planner_item_status DEFAULT 'upcoming',
     note TEXT,
     -- NEW: Enhanced planning features
     nearby_amenity_ids UUID[], -- Array of nearby_place IDs (optional)
