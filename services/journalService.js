@@ -71,7 +71,7 @@ class JournalService {
                     }
                 });
                 if (existingPoint) {
-                    throw new Error('Bạn đã viết nhật ký cho lần ghé thăm này rồi.');
+                    throw new Error('Already exists');
                 }
 
                 finalSiteId = checkin.plannerItem.site_id;
@@ -80,11 +80,11 @@ class JournalService {
                 // Trip Summary Journal logic: Validate completion and uniqueness
                 const planner = await Planner.findByPk(planner_id);
                 if (!planner) {
-                    throw new Error('Hành trình không tồn tại.');
+                    throw new Error('Planner not found');
                 }
 
                 if (planner.status !== 'completed') {
-                    throw new Error('Bạn cần hoàn thành hành trình trước khi viết bài tổng kết.');
+                    throw new Error('You need to complete the journey before writing a summary.');
                 }
 
                 // Check for existing summary journal (planner_id exists but planner_item_id is NULL)
@@ -97,14 +97,14 @@ class JournalService {
                     }
                 });
                 if (existingSummary) {
-                    throw new Error('Bạn đã viết bài tổng kết cho hành trình này rồi.');
+                    throw new Error('Summary already exists');
                 }
                 
                 finalPlannerId = planner_id;
                 finalSiteId = null; // Summary can be site-independent
                 finalPlannerItemId = null;
             } else {
-                throw new Error('Cần cung cấp Planner Item ID hoặc Planner ID.');
+                throw new Error('Planner Item ID or Planner ID is required');
             }
 
 

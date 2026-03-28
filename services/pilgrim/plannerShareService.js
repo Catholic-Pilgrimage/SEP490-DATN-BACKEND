@@ -672,9 +672,15 @@ class PlannerShareService {
                 throw new Error('Forbidden');
             }
 
-            // Cannot remove during ongoing trip
-            if (planner.status === 'ongoing') {
-                throw new Error('Không thể rời nhóm khi chuyến đi đang diễn ra');
+            // Cannot remove during ongoing, completed or expired trip
+            if (planner.status === 'ongoing' || planner.status === 'completed' || planner.status === 'expired') {
+                if (planner.status === 'ongoing') {
+                    throw new Error('Cannot leave ongoing journey');
+                } else if (planner.status === 'completed') {
+                    throw new Error('Cannot leave completed plan');
+                } else {
+                    throw new Error('Cannot leave expired plan');
+                }
             }
 
             // Cannot remove owner
@@ -696,7 +702,7 @@ class PlannerShareService {
 
             // Guard: cannot remove a member who already left or was kicked
             if (member.join_status !== 'joined') {
-                throw new Error('Thành viên này đã rời nhóm hoặc đã bị xóa trước đó');
+                throw new Error('Member already left or kicked');
             }
 
             const depositAmount = parseFloat(planner.deposit_amount) || 0;

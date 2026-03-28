@@ -118,7 +118,7 @@ class PostService {
                     ]);
 
                     const postData = post.toJSON();
-                    
+
                     // If shared from journal, override content/images if they are empty in post
                     if (post.journal_id && post.sourceJournal) {
                         postData.content = post.sourceJournal.content;
@@ -270,7 +270,7 @@ class PostService {
     async updatePost(postId, userId, data) {
         try {
             const post = await Post.findOne({
-                where: { 
+                where: {
                     id: postId,
                     is_active: true
                 }
@@ -295,7 +295,7 @@ class PostService {
             if (post.journal_id || post.planner_id) {
                 if (content !== undefined || image_urls !== undefined) {
                     const type = post.journal_id ? 'nhật ký' : 'hành trình';
-                    const error = new Error(`Không thể chỉnh sửa nội dung của ${type} đã chia sẻ thông qua Post API. Vui lòng chỉnh sửa bản gốc.`);
+                    const error = new Error(`Không thể chỉnh sửa nội dung của ${type} đã chia sẻ thông qua từ nhật ký tâm linh. Vui lòng chỉnh sửa bản gốc.`);
                     error.statusCode = 400;
                     throw error;
                 }
@@ -529,7 +529,7 @@ class PostService {
     async updateComment(postId, commentId, userId, content) {
         try {
             const comment = await PostComment.findOne({
-                where: { 
+                where: {
                     id: commentId,
                     is_active: true
                 }
@@ -581,9 +581,9 @@ class PostService {
             const post = await Post.findByPk(postId);
 
             // Check permissions: comment owner, post owner, or system admin
-            let canDelete = comment.user_id === userId || 
-                           post.user_id === userId || 
-                           userRole === 'admin';
+            let canDelete = comment.user_id === userId ||
+                post.user_id === userId ||
+                userRole === 'admin';
 
             if (!canDelete) {
                 const error = new Error('You do not have permission to delete this comment');

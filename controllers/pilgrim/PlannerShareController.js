@@ -152,17 +152,23 @@ class PlannerShareController {
             if (error.message === 'Planner not found') {
                 return ResponseUtil.notFound(res, req.__('planner.not_found'));
             }
-            if (error.message === 'Forbidden') {
-                return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
-            }
-            if (error.message === 'Cannot remove members during ongoing trip') {
+            if (error.message === 'Cannot leave ongoing journey') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_remove_ongoing'));
+            }
+            if (error.message === 'Cannot leave completed plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_remove_completed'));
+            }
+            if (error.message === 'Cannot leave expired plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_remove_expired'));
             }
             if (error.message === 'Cannot remove owner') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_remove_owner'));
             }
             if (error.message === 'Member not found') {
                 return ResponseUtil.notFound(res, req.__('planner.member_not_found'));
+            }
+            if (error.message === 'Member already left or kicked') {
+                return ResponseUtil.badRequest(res, req.__('planner.member_already_left'));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }

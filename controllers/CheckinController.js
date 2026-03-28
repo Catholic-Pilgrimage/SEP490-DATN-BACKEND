@@ -38,30 +38,46 @@ class CheckinController {
                 note
             );
 
-            return ResponseUtil.success(res, result, 'Check-in thành công');
+            return ResponseUtil.success(res, result, req.__('checkin.success'));
         } catch (err) {
             // Handle specific errors
-            if (err.message === 'Planner item not found') {
-                return ResponseUtil.notFound(res, err.message);
+            if (err.message === 'You are not a member of this plan') {
+                return ResponseUtil.forbidden(res, req.__('checkin.not_member'));
             }
-            if (err.message === 'Bạn đã check-in địa điểm này rồi' || err.message === 'Bạn đã check-in điểm này rồi') {
-                return ResponseUtil.badRequest(res, err.message);
+            if (err.message.startsWith('The plan has been')) {
+                const status = err.message.split(' ')[4].replace(',', '');
+                return ResponseUtil.badRequest(res, req.__('checkin.planner_finished', { status }));
+            }
+            if (err.message === 'This site has not started or has closed, cannot check-in') {
+                return ResponseUtil.badRequest(res, req.__('checkin.item_not_open'));
+            }
+            if (err.message === 'You have already checked-in at this site') {
+                return ResponseUtil.badRequest(res, req.__('checkin.already_checked_in'));
+            }
+            if (err.message === 'Planner item does not belong to this planner') {
+                return ResponseUtil.badRequest(res, req.__('checkin.not_in_planner'));
+            }
+            if (err.message.startsWith('Sequential required:')) {
+                const parts = err.message.replace('Sequential required: ', '').split(', ');
+                const day = parts[0].replace('day ', '');
+                const order = parts[1].replace('order ', '');
+                return ResponseUtil.badRequest(res, req.__('checkin.sequential_required', { day, order }));
             }
             if (err.message === 'Site coordinates not available') {
-                return ResponseUtil.badRequest(res, err.message);
+                return ResponseUtil.badRequest(res, req.__('checkin.coordinates_unavailable'));
             }
-            if (err.message.includes('Không thể tính khoảng cách')) {
-                return ResponseUtil.error(res, err.message, 503);
+            if (err.message === 'Cannot calculate distance. Please try again.') {
+                return ResponseUtil.error(res, req.__('checkin.distance_calc_failed'), 503);
             }
-            if (err.message.includes('Bạn cách địa điểm')) {
-                return ResponseUtil.badRequest(res, err.message);
-            }
-            if (err.message.includes('Không phải thành viên')) {
-                return ResponseUtil.forbidden(res, err.message);
+            if (err.message.startsWith('Too far:')) {
+                const parts = err.message.replace('Too far: ', '').split(', ');
+                const distance = parts[0].replace('distance ', '');
+                const radius = parts[1].replace('radius ', '');
+                return ResponseUtil.badRequest(res, req.__('checkin.too_far', { distance, radius }));
             }
 
             // Generic error
-            return ResponseUtil.error(res, err.message || 'Check-in failed', 500);
+            return ResponseUtil.error(res, err.message || req.__('error.server_error'), 500);
         }
     }
 
@@ -76,28 +92,32 @@ class CheckinController {
             const { status } = req.body;
 
             if (!status || !['visited', 'skipped'].includes(status)) {
-                return ResponseUtil.badRequest(res, 'Status không hợp lệ. Phải là "visited" hoặc "skipped"');
+                return ResponseUtil.badRequest(res, req.__('validation.failed'));
             }
 
             let result;
             if (status === 'visited') {
                 result = await CheckinService.completeItem(userId, plannerItemId);
-                return ResponseUtil.success(res, result, 'Đã hoàn thành điểm đến');
+                return ResponseUtil.success(res, result, req.__('checkin.complete_item_success'));
             } else if (status === 'skipped') {
                 result = await CheckinService.skipItemByOwner(userId, plannerItemId);
-                return ResponseUtil.success(res, result, 'Đã đánh dấu bỏ qua điểm đến');
+                return ResponseUtil.success(res, result, req.__('checkin.skip_success'));
             }
         } catch (err) {
-            if (err.message === 'Planner item not found') {
-                return ResponseUtil.notFound(res, err.message);
+            if (err.message === 'Only the Leader can perform this action') {
+                return ResponseUtil.forbidden(res, req.__('checkin.owner_only'));
             }
-            if (err.message.includes('Chỉ Trưởng đoàn')) {
-                return ResponseUtil.forbidden(res, err.message);
+            if (err.message.startsWith('The plan has been')) {
+                const status = err.message.split(' ')[4].replace(',', '');
+                return ResponseUtil.badRequest(res, req.__('checkin.planner_finished_change', { status }));
             }
-            if (err.message.includes('đã chốt sổ') || err.message.includes('không thể hoàn thành')) {
-                return ResponseUtil.badRequest(res, err.message);
+            if (err.message === 'This site is already closed, cannot change') {
+                return ResponseUtil.badRequest(res, req.__('checkin.item_closed'));
             }
-            return ResponseUtil.error(res, err.message || 'Cập nhật trạng thái thất bại', 500);
+            if (err.message === 'This site has not started or has finished, cannot complete') {
+                return ResponseUtil.badRequest(res, req.__('checkin.item_not_in_progress'));
+            }
+            return ResponseUtil.error(res, err.message || req.__('error.server_error'), 500);
         }
     }
 
@@ -111,15 +131,12 @@ class CheckinController {
             const userId = req.user.id;
 
             const result = await CheckinService.getPlannerProgress(plannerId, userId);
-            return ResponseUtil.success(res, result, 'Lấy tiến độ thành công');
+            return ResponseUtil.success(res, result, req.__('checkin.get_progress_success'));
         } catch (err) {
-            if (err.message === 'Planner not found') {
-                return ResponseUtil.notFound(res, err.message);
+            if (err.message === 'You do not have permission to view this progress') {
+                return ResponseUtil.forbidden(res, req.__('checkin.no_permission_view'));
             }
-            if (err.message.includes('Không có quyền')) {
-                return ResponseUtil.forbidden(res, err.message);
-            }
-            return ResponseUtil.error(res, err.message || 'Lấy tiến độ thất bại', 500);
+            return ResponseUtil.error(res, err.message || req.__('error.server_error'), 500);
         }
     }
 
@@ -131,9 +148,9 @@ class CheckinController {
         try {
             const userId = req.user.id;
             const result = await CheckinService.getUserCheckins(userId);
-            return ResponseUtil.success(res, result, 'Lấy danh sách check-in thành công');
+            return ResponseUtil.success(res, result, req.__('checkin.get_history_success'));
         } catch (err) {
-            return ResponseUtil.error(res, err.message || 'Lấy danh sách check-in thất bại', 500);
+            return ResponseUtil.error(res, err.message || req.__('error.server_error'), 500);
         }
     }
 }

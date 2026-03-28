@@ -28,20 +28,23 @@ class JournalController {
 
             return ResponseUtil.created(res, result, req.__('journal.create_success'));
         } catch (error) {
-            if (error.message === 'Title and content are required') {
-                return ResponseUtil.badRequest(res, req.__('journal.title_content_required'));
+            if (error.message === 'Already exists') {
+                return ResponseUtil.badRequest(res, req.__('journal.already_exists'));
             }
-            if (error.message === 'Maximum 10 images allowed') {
-                return ResponseUtil.badRequest(res, req.__('journal.max_images'));
+            if (error.message === 'Planner not found') {
+                return ResponseUtil.notFound(res, req.__('journal.planner_not_found'));
             }
-            if (error.message.includes('Planner item ID is required')) {
-                return ResponseUtil.badRequest(res, req.__('journal.planner_item_required'));
+            if (error.message === 'You need to complete the journey before writing a summary.') {
+                return ResponseUtil.badRequest(res, req.__('journal.planner_not_completed'));
             }
-            if (error.message.includes('You must check-in at this location')) {
-                return ResponseUtil.badRequest(res, req.__('journal.checkin_required'));
+            if (error.message === 'Summary already exists') {
+                return ResponseUtil.badRequest(res, req.__('journal.summary_already_exists'));
             }
-            if (error.message.includes('This planner item is not associated with a site')) {
-                return ResponseUtil.badRequest(res, req.__('journal.site_not_associated'));
+            if (error.message === 'Planner Item ID or Planner ID is required') {
+                return ResponseUtil.badRequest(res, req.__('journal.id_required'));
+            }
+            if (error.message === 'You can only create a journal for a completed journey.') {
+                return ResponseUtil.badRequest(res, req.__('journal.planner_not_completed'));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }

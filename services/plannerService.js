@@ -295,6 +295,11 @@ class PlannerService {
             if (planner.user_id !== userId) {
                 throw new Error('Forbidden');
             }
+            
+            // Block modifications if planner is completed or expired
+            if (planner.status === 'completed' || planner.status === 'expired') {
+                throw new Error(planner.status === 'completed' ? 'Cannot update completed plan' : 'Cannot update expired plan');
+            }
 
             // Prepare update data
             const dataToUpdate = {};
@@ -405,11 +410,14 @@ class PlannerService {
             }
 
             // Only allow deletion during planning phase
-            if (planner.status === 'ongoing') {
-                throw new Error('Không thể xóa kế hoạch khi chuyến đi đang diễn ra');
-            }
-            if (planner.status === 'completed') {
-                throw new Error('Không thể xóa kế hoạch đã hoàn thành');
+            if (planner.status === 'ongoing' || planner.status === 'completed' || planner.status === 'expired') {
+                if (planner.status === 'ongoing') {
+                    throw new Error('Cannot delete ongoing journey');
+                } else if (planner.status === 'completed') {
+                    throw new Error('Cannot delete completed plan');
+                } else {
+                    throw new Error('Cannot delete expired plan');
+                }
             }
 
             const depositAmount = parseFloat(planner.deposit_amount) || 0;
@@ -783,9 +791,7 @@ class PlannerService {
 
             // Block modifications if planner is completed or expired
             if (planner.status === 'completed' || planner.status === 'expired') {
-                const error = new Error(`Không thể thêm địa điểm vào kế hoạch đã ${planner.status === 'completed' ? 'hoàn thành' : 'hết hạn'}`);
-                error.statusCode = 400;
-                throw error;
+                throw new Error(planner.status === 'completed' ? 'Cannot add item to completed plan' : 'Cannot add item to expired plan');
             }
 
             if (userId && planner.user_id !== userId) {
@@ -833,10 +839,7 @@ class PlannerService {
                 }
 
                 if (missingDays.length > 0) {
-                    throw new Error(
-                        `Bạn không thể thêm địa điểm cho Ngày ${leg_number} khi chưa có địa điểm cho ` +
-                        `Ngày ${missingDays.join(', ')}. Vui lòng thêm địa điểm theo thứ tự.`
-                    );
+                    throw new Error(`Missing preceding days: current day ${leg_number}, missing days ${missingDays.join(', ')}`);
                 }
             }
             // ===== END: Validation =====
@@ -860,7 +863,7 @@ class PlannerService {
 
             // Validation: Cannot add the same site consecutively
             if (previousItem && previousItem.site_id === site_id) {
-                throw new Error('Cannot add the same site consecutively. Please add a different site or move to the next day.');
+                throw new Error('Consecutive site not allowed');
             }
 
             // ===== VALIDATION: Check travel time between days =====
@@ -913,13 +916,8 @@ class PlannerService {
                     if (arrivalMinutes > 1440 && newItemEstimatedMinutes < arrivalMinutesInNewDay) {
                         const travelHours = Math.floor(travel_time_minutes / 60);
                         const travelMinsPart = travel_time_minutes % 60;
-                        const travelStr = travelHours > 0 ? `${travelHours} giờ ${travelMinsPart} phút` : `${travelMinsPart} phút`;
-
-                        const arrivalHours = Math.floor(arrivalMinutesInNewDay / 60);
-                        const arrivalMins = arrivalMinutesInNewDay % 60;
-                        const arrivalTimeStr = `${String(arrivalHours).padStart(2, '0')}:${String(arrivalMins).padStart(2, '0')}`;
-
-                        throw new Error(`Thời gian di chuyển từ ngày ${leg_number - 1} đến ngày ${leg_number} là ${travelStr}. Bạn sẽ đến khoảng ${arrivalTimeStr} (ngày ${leg_number}). Vui lòng chọn thời gian từ ${arrivalTimeStr} trở đi.`);
+                        
+                        throw new Error(`Invalid arrival time suggested: ${estimated_time}, departure ${lastItemPreviousDay.estimated_time}, travel ${travelHours}h ${travelMinsPart}m, suggested ${arrivalTimeStr}`);
                     }
 
                     Logger.info(`Travel validation: arrivalMinutes=${arrivalMinutes}, arrivalMinutesInNewDay=${arrivalMinutesInNewDay}, newItemTime=${newItemEstimatedMinutes}`);
@@ -937,7 +935,9 @@ class PlannerService {
 
                 // If arrival time >= 24:00 (1440 minutes), it's next day
                 if (arrivalMinutes >= 1440) {
-                    throw new Error(`Thời gian di chuyển vượt quá ngày hiện tại (${Math.floor(travel_time_minutes / 60)} giờ ${travel_time_minutes % 60} phút). Không thể thêm địa điểm này vào lịch trình của ngày ${leg_number}.`);
+                    const travelHours = Math.floor(travel_time_minutes / 60);
+                    const travelMinsPart = travel_time_minutes % 60;
+                    throw new Error(`Arrival time past midnight: departure ${previousItem.estimated_time}, travel ${travelHours}h ${travelMinsPart}m, day ${leg_number}`);
                 }
             }
 
@@ -973,7 +973,7 @@ class PlannerService {
 
                     // Check if arrival time >= departure time
                     if (newArrivalMinutes < prevDepartureMinutes) {
-                        throw new Error(`Thời gian đến ${finalEstimatedTime} không hợp lệ. Địa điểm trước đó rời đi lúc ${departureTimeStr}. Vui lòng chọn thời gian sau ${departureTimeStr}.`);
+                        throw new Error(`Invalid arrival time: ${finalEstimatedTime}, departure: ${departureTimeStr}`);
                     }
 
                     // Check if arrival time >= departure + travel (with 5 min tolerance)
@@ -984,14 +984,14 @@ class PlannerService {
 
                         const travelHours = Math.floor(travelMins / 60);
                         const travelMinsPart = travelMins % 60;
-                        const travelStr = travelHours > 0 ? `${travelHours} giờ ${travelMinsPart} phút` : `${travelMinsPart} phút`;
+                        const travelStr = travelHours > 0 ? `${travelHours}h ${travelMinsPart}m` : `${travelMinsPart}m`;
 
                         // If minimum arrival crosses midnight, block it
                         if (minimumArrivalMinutes >= 1440) {
-                            throw new Error(`Thời gian đến không hợp lệ. Rời lúc ${departureTimeStr} + ${travelStr} di chuyển = qua ngày hôm sau. Không thể thêm địa điểm này vào lịch trình của ngày ${leg_number}.`);
+                            throw new Error(`Arrival time past midnight: departure ${departureTimeStr}, travel ${travelStr}, day ${leg_number}`);
                         }
 
-                        throw new Error(`Thời gian đến ${finalEstimatedTime} không hợp lệ. Rời lúc ${departureTimeStr} + ${travelStr} di chuyển = đến khoảng ${suggestedTimeStr}. Vui lòng chọn thời gian từ ${suggestedTimeStr} trở đi.`);
+                        throw new Error(`Invalid arrival time suggested: ${finalEstimatedTime}, departure ${departureTimeStr}, travel ${travelStr}, suggested ${suggestedTimeStr}`);
                     }
                 }
 
@@ -1006,7 +1006,7 @@ class PlannerService {
                 });
 
                 if (existingItemWithSameTime) {
-                    throw new Error(`Đã có địa điểm khác với giờ ${finalEstimatedTime} trong ngày ${leg_number}. Vui lòng chọn thời gian khác.`);
+                    throw new Error(`Duplicate time in day: ${finalEstimatedTime}, day ${leg_number}`);
                 }
             } else if (previousItem && previousItem.estimated_time) {
                 // If there's a previous item but no user input, auto-calculate with 0 travel time
@@ -1088,7 +1088,7 @@ class PlannerService {
 
                     // Validate consecutive site
                     if (prevItemInDay && prevItemInDay.site_id === site_id) {
-                        throw new Error(`Ngày ${itemLegNumber}: Không thể thêm cùng địa điểm liên tiếp.`);
+                        throw new Error(`Consecutive site same day: day ${itemLegNumber}`);
                     }
 
                     // Get order_index for this day
@@ -1308,23 +1308,18 @@ class PlannerService {
 
             // Block modifications if planner is ongoing, completed or expired
             if (planner.status === 'ongoing' || planner.status === 'completed' || planner.status === 'expired') {
-                let errorMsg = '';
                 if (planner.status === 'ongoing') {
-                    errorMsg = 'Hành trình đang diễn ra, bạn không thể xóa địa điểm. Vui lòng sử dụng tính năng "Bỏ qua" địa điểm.';
+                    throw new Error('Cannot delete ongoing journey');
+                } else if (planner.status === 'completed') {
+                    throw new Error('Cannot delete completed plan');
                 } else {
-                    errorMsg = `Không thể xóa địa điểm của kế hoạch đã ${planner.status === 'completed' ? 'hoàn thành' : 'hết hạn'}`;
+                    throw new Error('Cannot delete expired plan');
                 }
-                const error = new Error(errorMsg);
-                error.statusCode = 400;
-                throw error;
             }
 
             // Block if item is visited or skipped
             if (item.status === 'visited' || item.status === 'skipped') {
-                const statusVn = item.status === 'visited' ? 'đã đến' : 'đã bỏ qua';
-                const error = new Error(`Không thể xóa địa điểm ${statusVn}`);
-                error.statusCode = 400;
-                throw error;
+                throw new Error(item.status === 'visited' ? 'Cannot delete visited site' : 'Cannot delete skipped site');
             }
 
             // Verify item belongs to this planner
@@ -1334,7 +1329,7 @@ class PlannerService {
 
             // ===== VALIDATION: Không được xóa item nếu đang in_progress =====
             if (item.status === 'in_progress') {
-                throw new Error('Không thể xóa địa điểm đang trong quá trình thực hiện');
+                throw new Error('Cannot delete site in progress');
             }
             // ===== END: Validation =====
 
@@ -1365,10 +1360,7 @@ class PlannerService {
                 });
 
                 if (higherDayExists) {
-                    throw new Error(
-                        `Không thể xóa địa điểm cuối cùng của Ngày ${legNumber} vì bạn đã có địa điểm cho ` +
-                        `Ngày ${higherDayExists.leg_number}. Xin vui lòng xóa các ngày sau trước hoặc thêm địa điểm khác cho Ngày ${legNumber}.`
-                    );
+                    throw new Error(`Cannot delete last item gap: day ${legNumber}, higherDay ${higherDayExists.leg_number}`);
                 }
             }
             // ===== END: Validation =====
@@ -1428,17 +1420,12 @@ class PlannerService {
 
             // Block modifications if planner is completed or expired
             if (planner.status === 'completed' || planner.status === 'expired') {
-                const error = new Error(`Không thể chỉnh sửa địa điểm của kế hoạch đã ${planner.status === 'completed' ? 'hoàn thành' : 'hết hạn'}`);
-                error.statusCode = 400;
-                throw error;
+                throw new Error(planner.status === 'completed' ? 'Cannot update completed plan' : 'Cannot update expired plan');
             }
 
             // Block if item is visited or skipped
             if (item.status === 'visited' || item.status === 'skipped') {
-                const statusVn = item.status === 'visited' ? 'đã đến' : 'đã bỏ qua';
-                const error = new Error(`Không thể chỉnh sửa địa điểm ${statusVn}`);
-                error.statusCode = 400;
-                throw error;
+                throw new Error(item.status === 'visited' ? 'Cannot update visited site' : 'Cannot update skipped site');
             }
 
             if (item.planner_id !== plannerId) {
@@ -1502,7 +1489,7 @@ class PlannerService {
 
                     // Check if arrival time >= departure time
                     if (newArrivalMinutes < prevDepartureMinutes) {
-                        throw new Error(`Thời gian đến ${updateData.estimated_time} không hợp lệ. Địa điểm trước đó rời đi lúc ${departureTimeStr}. Vui lòng chọn thời gian sau ${departureTimeStr}.`);
+                        throw new Error(`Invalid arrival time: ${updateData.estimated_time}, departure: ${departureTimeStr}`);
                     }
 
                     // Check if arrival time >= departure + travel (with 5 min tolerance)
@@ -1513,14 +1500,14 @@ class PlannerService {
 
                         const travelHours = Math.floor(travelMins / 60);
                         const travelMinsPart = travelMins % 60;
-                        const travelStr = travelHours > 0 ? `${travelHours} giờ ${travelMinsPart} phút` : `${travelMinsPart} phút`;
+                        const travelStr = travelHours > 0 ? `${travelHours}h ${travelMinsPart}m` : `${travelMinsPart}m`;
 
                         // If minimum arrival crosses midnight, block it
                         if (minimumArrivalMinutes >= 1440) {
-                            throw new Error(`Thời gian đến không hợp lệ. Rời lúc ${departureTimeStr} + ${travelStr} di chuyển = qua ngày hôm sau. Không thể cập nhật địa điểm này vào lịch trình của ngày ${item.leg_number}.`);
+                            throw new Error(`Arrival time past midnight: departure ${departureTimeStr}, travel ${travelStr}, day ${item.leg_number}`);
                         }
 
-                        throw new Error(`Thời gian đến ${updateData.estimated_time} không hợp lệ. Rời lúc ${departureTimeStr} + ${travelStr} di chuyển = đến khoảng ${suggestedTimeStr}. Vui lòng chọn thời gian từ ${suggestedTimeStr} trở đi.`);
+                        throw new Error(`Invalid arrival time suggested: ${updateData.estimated_time}, departure ${departureTimeStr}, travel ${travelStr}, suggested ${suggestedTimeStr}`);
                     }
                 }
 
@@ -1536,7 +1523,7 @@ class PlannerService {
                 });
 
                 if (existingItemWithSameTime) {
-                    throw new Error(`Đã có địa điểm khác với giờ ${updateData.estimated_time} trong ngày ${item.leg_number}. Vui lòng chọn thời gian khác.`);
+                    throw new Error(`Duplicate time in day: ${updateData.estimated_time}, day ${item.leg_number}`);
                 }
 
                 // Validate opening hours
@@ -1746,10 +1733,7 @@ class PlannerService {
 
             if (!continuityCheck.isValid) {
                 const missingDaysStr = continuityCheck.missingDays.join(', ');
-                throw new Error(
-                    `Không thể hoàn thành kế hoạch! Lịch trình chưa đầy đủ. ` +
-                    `Bạn cần thêm địa điểm cho Ngày ${missingDaysStr} (Tổng ${continuityCheck.totalDays} ngày).`
-                );
+                throw new Error(`Incomplete schedule: missing days ${missingDaysStr}, total days ${continuityCheck.totalDays}`);
             }
             // ===== END: Validation =====
 
@@ -1864,14 +1848,9 @@ class PlannerService {
                 // Có thể start planner thủ công bằng API bất kể lúc nào (kể cả chưa tới start_date)
 
 
-                // ===== VALIDATION: Planner phải có đủ items =====
-                const continuityCheck = await this.validatePlannerContinuity(plannerId);
                 if (!continuityCheck.isValid) {
                     const missingDaysStr = continuityCheck.missingDays.join(', ');
-                    throw new Error(
-                        `Không thể bắt đầu kế hoạch! Lịch trình chưa đầy đủ. ` +
-                        `Bạn cần thêm địa điểm cho Ngày ${missingDaysStr} (Tổng ${continuityCheck.totalDays} ngày).`
-                    );
+                    throw new Error(`Incomplete schedule: missing days ${missingDaysStr}, total days ${continuityCheck.totalDays}`);
                 }
                 // ===== END: Validation =====
 
@@ -1899,10 +1878,7 @@ class PlannerService {
                 const continuityCheck = await this.validatePlannerContinuity(plannerId);
                 if (!continuityCheck.isValid) {
                     const missingDaysStr = continuityCheck.missingDays.join(', ');
-                    throw new Error(
-                        `Không thể hoàn thành kế hoạch! Lịch trình chưa đầy đủ. ` +
-                        `Bạn cần thêm địa điểm cho Ngày ${missingDaysStr} (Tổng ${continuityCheck.totalDays} ngày).`
-                    );
+                    throw new Error(`Incomplete schedule: missing days ${missingDaysStr}, total days ${continuityCheck.totalDays}`);
                 }
 
                 // Check checkin percentage
@@ -1917,10 +1893,10 @@ class PlannerService {
                     Logger.info(`Planner ${plannerId} completed by user ${userId} (${checkinPercentage}% checkin)`);
                 } else {
                     await planner.update({ status: 'expired' });
-                    Logger.info(`Planner ${plannerId} expired by user ${userId} (${checkinPercentage}% checkin)`);
+                    throw new Error(`Plan expired below 80: percentage ${checkinPercentage}`);
                 }
             } else {
-                throw new Error('Invalid status. Use "ongoing" or "completed"');
+                throw new Error('Invalid status: ongoing or completed');
             }
 
             return this.formatPlannerResponse(planner);
@@ -2135,7 +2111,7 @@ class PlannerService {
             };
 
             if (!validTransitions[planner.status] || !validTransitions[planner.status].includes(status)) {
-                throw new Error(`Không thể chuyển trạng thái từ '${planner.status}' sang '${status}'`);
+                throw new Error(`Cannot transition status: from ${planner.status} to ${status}`);
             }
 
             // Handle 'ongoing' status (start planner)
@@ -2149,10 +2125,7 @@ class PlannerService {
 
                 if (!continuityCheck.isValid) {
                     const missingDaysStr = continuityCheck.missingDays.join(', ');
-                    throw new Error(
-                        `Không thể bắt đầu kế hoạch! Lịch trình chưa đầy đủ. ` +
-                        `Bạn cần thêm địa điểm cho Ngày ${missingDaysStr} (Tổng ${continuityCheck.totalDays} ngày).`
-                    );
+                    throw new Error(`Incomplete schedule: missing days ${missingDaysStr}, total days ${continuityCheck.totalDays}`);
                 }
                 // ===== END: Validation =====
 
@@ -2178,10 +2151,7 @@ class PlannerService {
 
                 if (!continuityCheck.isValid) {
                     const missingDaysStr = continuityCheck.missingDays.join(', ');
-                    throw new Error(
-                        `Không thể hoàn thành kế hoạch! Lịch trình chưa đầy đủ. ` +
-                        `Bạn cần thêm địa điểm cho Ngày ${missingDaysStr} (Tổng ${continuityCheck.totalDays} ngày).`
-                    );
+                    throw new Error(`Incomplete schedule: missing days ${missingDaysStr}, total days ${continuityCheck.totalDays}`);
                 }
                 // ===== END: Validation =====
 
@@ -2190,7 +2160,7 @@ class PlannerService {
                 const checkinPercentage = checkinStats.percentage;
 
                 if (status === 'completed' && checkinPercentage < 80) {
-                    throw new Error(`Chỉ có thể hoàn thành kế hoạch khi đã check-in ít nhất 80% địa điểm (hiện tại: ${checkinPercentage}%)`);
+                    throw new Error(`Minimum check-in required: current ${checkinPercentage}%`);
                 }
 
                 // Determine final status based on checkin percentage
@@ -2388,7 +2358,7 @@ class PlannerService {
             });
 
             if (previousItem && !['visited', 'skipped'].includes(previousItem.status)) {
-                throw new Error(`Vui lòng hoàn thành địa điểm "${previousItem.site?.name || 'trước đó'}" trước khi checkin địa điểm này`);
+                throw new Error(`Complete previous item first: site ${previousItem.site?.name || 'preceding'}`);
             }
 
             // Update item with checkin info
