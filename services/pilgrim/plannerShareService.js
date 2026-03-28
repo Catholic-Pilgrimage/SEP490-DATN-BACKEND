@@ -88,8 +88,6 @@ class PlannerShareService {
                 throw new Error('Can only invite when planner is in planning status');
             }
 
-
-
             // Sweep ALL expired active invites (pending + awaiting_payment) before counting slots
             // Prevents stale invites from falsely blocking available slots or re-inviting same email
             const now = new Date();
@@ -121,6 +119,20 @@ class PlannerShareService {
                 }
                 await expiredInvite.update({ status: 'expired' });
                 Logger.info(`Slot sweep: expired ${expiredInvite.status} invite ${expiredInvite.id} for planner ${plannerId}`);
+            }
+
+            const plannerState = await PlannerService.getPlannerState(plannerId, planner);
+            if (plannerState.finalLocked) {
+                throw new Error('Planner is locked');
+            }
+            if (plannerState.joinWindowClosed) {
+                throw new Error('Planner join window is closed');
+            }
+            if (!planner.start_date || !planner.end_date) {
+                throw new Error('Planner must have start_date and end_date before inviting members');
+            }
+            if (!plannerState.scheduleComplete) {
+                throw new Error('Planner schedule must be complete before inviting members');
             }
 
             // Slot counting: joined members (excluding owner) + active non-expired invites
@@ -356,6 +368,24 @@ class PlannerShareService {
 
             if (action === 'accept') {
                 const planner = invite.planner;
+                const plannerState = await PlannerService.getPlannerState(planner.id, planner);
+
+                if (plannerState.finalLocked) {
+                    throw new Error('Planner is locked');
+                }
+
+                if (plannerState.joinWindowClosed) {
+                    await invite.update({ status: 'expired' });
+                    throw new Error('Planner join window is closed');
+                }
+                if (!planner.start_date || !planner.end_date) {
+                    await invite.update({ status: 'expired' });
+                    throw new Error('Planner must have start_date and end_date before inviting members');
+                }
+                if (!plannerState.scheduleComplete) {
+                    await invite.update({ status: 'expired' });
+                    throw new Error('Planner schedule must be complete before inviting members');
+                }
 
                 try {
                     // Check slots again using invite-based counting
@@ -681,6 +711,17 @@ class PlannerShareService {
                 }
             }
 
+            const plannerState = await PlannerService.getPlannerState(plannerId, planner, { transaction: t });
+
+            // Check final lock
+            if (plannerState.finalLocked) {
+                throw new Error('Planner is locked');
+            }
+
+            if (plannerState.joinWindowClosed) {
+                throw new Error('Planner member changes are closed');
+            }
+
             // Cannot remove owner
             if (memberId === planner.user_id) {
                 throw new Error('Cannot remove owner');
@@ -934,6 +975,26 @@ class PlannerShareService {
                 return { success: true, message: 'Payment received but invite expired. Refund needed.' };
             }
 
+            const currentPlanner = await Planner.findByPk(plannerId, { transaction: t });
+            const plannerState = currentPlanner
+                ? await PlannerService.getPlannerState(plannerId, currentPlanner, { transaction: t })
+                : null;
+
+            if (
+                !currentPlanner ||
+                currentPlanner.status !== 'planning' ||
+                !currentPlanner.start_date ||
+                !currentPlanner.end_date ||
+                !plannerState.scheduleComplete ||
+                plannerState.joinWindowClosed ||
+                plannerState.finalLocked
+            ) {
+                await inviteByEmail.update({ status: 'expired' }, { transaction: t });
+                await t.commit();
+                Logger.warn(`Webhook: payment received after planner closed for user=${userId}, planner=${plannerId}. Member NOT created - needs manual refund.`);
+                return { success: true, message: 'Payment received but planner is closed. Refund needed.' };
+            }
+
             if (!existingMember) {
                 await PlannerMember.create({
                     planner_id: plannerId,
@@ -970,11 +1031,11 @@ class PlannerShareService {
 
             // Push notifications (fire-and-forget)
             const NotificationService = require('../shared/notificationService');
-            const planner = await Planner.findByPk(plannerId, { attributes: ['user_id', 'name'] });
-            if (planner) {
-                NotificationService.createNotification('planner_joined', planner.user_id, {
+            const plannerInfo = await Planner.findByPk(plannerId, { attributes: ['user_id', 'name'] });
+            if (plannerInfo) {
+                NotificationService.createNotification('planner_joined', plannerInfo.user_id, {
                     memberName: paidUser?.full_name || 'Thành viên',
-                    plannerName: planner.name
+                    plannerName: plannerInfo.name
                 }).catch(() => { });
             }
 

@@ -80,6 +80,13 @@ router.patch(
     PlannerController.updatePlannerStatus
 );
 
+router.patch(
+    '/:id/lock',
+    authenticate,
+    PlannerValidator.validatePlannerId,
+    PlannerController.toggleLock
+);
+
 router.post(
     '/:id/items/:itemId/checkin',
     authenticate,

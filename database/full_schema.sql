@@ -556,6 +556,8 @@ CREATE TABLE IF NOT EXISTS planners (
     started_at TIMESTAMP WITH TIME ZONE,
     completed_at TIMESTAMP WITH TIME ZONE,
     is_active BOOLEAN DEFAULT TRUE NOT NULL,
+    lock_duration_hours INTEGER DEFAULT 24,
+    is_locked BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_planner_dates CHECK (end_date IS NULL OR end_date >= start_date)

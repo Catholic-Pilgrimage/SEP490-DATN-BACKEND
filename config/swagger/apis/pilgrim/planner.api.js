@@ -555,6 +555,65 @@
 
 /**
  * @swagger
+ * /api/planners/{id}/lock:
+ *   patch:
+ *     summary: "[Trưởng đoàn] Tạm khóa/Mở khóa hành trình (Manual Lock/Unlock)"
+ *     description: |
+ *       **Chỉ dành cho Trưởng đoàn (Owner)**.
+ *       
+ *       Dùng để chủ động khóa hoặc mở khóa hành trình nhằm chặn các thay đổi (lịch trình, thành viên) đối với hành trình nhóm (từ 2 người trở lên).
+ *       Hữu ích cho việc chốt lịch sớm hoặc testing.
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của hành trình
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - is_locked
+ *             properties:
+ *               is_locked:
+ *                 type: boolean
+ *                 description: |
+ *                   - `true`: Khóa hành trình
+ *                   - `false`: Mở khóa hành trình
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/PlannerResponse'
+ *       400:
+ *         description: Lỗi xác thực hoặc không phải hành trình nhóm
+ *       401:
+ *         description: Chưa xác thực
+ *       403:
+ *         description: Không phải Trưởng đoàn
+ *       404:
+ *         description: Không tìm thấy hành trình
+ */
+
+/**
+ * @swagger
  * /api/planners/{id}/progress:
  *   get:
  *     summary: Lấy tiến độ của tất cả thành viên trong planner

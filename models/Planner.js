@@ -76,6 +76,20 @@ const Planner = sequelize.define('Planner', {
         type: DataTypes.BOOLEAN,
         defaultValue: true,
         allowNull: false
+    },
+    lock_duration_hours: {
+        type: DataTypes.INTEGER,
+        defaultValue: 24,
+        allowNull: false,
+        validate: {
+            min: 24,
+            max: 48
+        }
+    },
+    is_locked: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        allowNull: false
     }
 }, {
     tableName: 'planners',

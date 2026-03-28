@@ -160,13 +160,29 @@ class PlannerService {
                 throw new Error('Name is required');
             }
 
-            // Validate start_date must be >= tomorrow
+            // Validate start_date
             if (start_date) {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
+                const now = new Date();
                 const startDateObj = new Date(start_date);
-                if (startDateObj <= today) {
-                    throw new Error('Ngày bắt đầu kế hoạch phải từ ngày mai trở đi');
+                startDateObj.setHours(0, 0, 0, 0);
+
+                const numPeople = parseInt(number_of_people) || 1;
+                
+                if (numPeople >= 2) {
+                    // Group coordination lead time: 48h (2 days)
+                    const minLeadTime = new Date(now);
+                    minLeadTime.setHours(minLeadTime.getHours() + 48);
+                    
+                    if (startDateObj < minLeadTime) {
+                        throw new Error('Group lead time error');
+                    }
+                } else {
+                    // Solo trip: must be at least tomorrow
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    if (startDateObj <= today) {
+                        throw new Error('Ngày bắt đầu kế hoạch phải từ ngày mai trở đi');
+                    }
                 }
             }
 
@@ -391,11 +407,19 @@ class PlannerService {
 
             // Auto-update status to 'ongoing' based on first task time (Trigger: 2 hours before first task)
             if (planner.status === 'planning' && planner.start_date) {
-                const shouldBeOngoing = await this.shouldPlannerBeOngoing(planner);
-                if (shouldBeOngoing) {
-                    await planner.update({ status: 'ongoing' });
-                    planner.status = 'ongoing';
-                    Logger.info(`Planner ${plannerId} auto-updated status from 'planning' to 'ongoing' (triggered by first task time)`);
+                const plannerState = await this.getPlannerState(plannerId, planner);
+                const canAutoStart = planner.number_of_people <= 1
+                    ? plannerState.scheduleComplete
+                    : (plannerState.isRealGroup && plannerState.finalLocked);
+
+                if (canAutoStart) {
+                    const shouldBeOngoing = await this.shouldPlannerBeOngoing(planner);
+                    if (shouldBeOngoing) {
+                        await planner.update({ status: 'ongoing', is_locked: false });
+                        planner.status = 'ongoing';
+                        planner.is_locked = false;
+                        Logger.info(`Planner ${plannerId} auto-updated status from 'planning' to 'ongoing' (triggered by first task time)`);
+                    }
                 }
             }
 
@@ -427,6 +451,13 @@ class PlannerService {
                 throw new Error(`Cannot update ${planner.status} plan`);
             }
 
+            const plannerState = await this.getPlannerState(plannerId, planner);
+
+            // Check final lock
+            if (plannerState.finalLocked) {
+                throw new Error('Planner is locked');
+            }
+
             // Prepare update data
             const dataToUpdate = {};
 
@@ -440,6 +471,16 @@ class PlannerService {
             }
             if (updateData.end_date !== undefined) {
                 dataToUpdate.end_date = updateData.end_date;
+            }
+
+            if (updateData.lock_duration_hours !== undefined) {
+                const effectiveNumPeople = updateData.number_of_people ?? planner.number_of_people ?? 1;
+                if (effectiveNumPeople > 1) {
+                    if (updateData.lock_duration_hours < 24 || updateData.lock_duration_hours > 48) {
+                        throw new Error('Group lock duration must be between 24 and 48 hours');
+                    }
+                }
+                dataToUpdate.lock_duration_hours = updateData.lock_duration_hours;
             }
 
             // Validate start date must be >= tomorrow (chỉ check khi có sửa đổi start_date)
@@ -470,6 +511,11 @@ class PlannerService {
             if (updateData.number_of_people !== undefined) {
                 if (updateData.number_of_people < 1) {
                     throw new Error('Number of people must be at least 1');
+                }
+                if (updateData.number_of_people < plannerState.committedSlots) {
+                    const error = new Error('Cannot reduce capacity below committed slots');
+                    error.requiredSlots = plannerState.committedSlots;
+                    throw error;
                 }
                 dataToUpdate.number_of_people = updateData.number_of_people;
             }
@@ -504,6 +550,25 @@ class PlannerService {
             if (effectiveNumPeople <= 1) {
                 dataToUpdate.deposit_amount = 0;
                 dataToUpdate.penalty_percentage = 0;
+            }
+
+            const nextPlannerSnapshot = {
+                ...planner.get({ plain: true }),
+                ...dataToUpdate
+            };
+
+            if (plannerState.hasSharedCommitment) {
+                if (!nextPlannerSnapshot.start_date || !nextPlannerSnapshot.end_date) {
+                    throw new Error('Cannot make planner incomplete after sharing');
+                }
+                const nextScheduleState = await this.getPlannerScheduleState(plannerId, nextPlannerSnapshot);
+                if (!nextScheduleState.isValid) {
+                    const error = new Error('Cannot make planner incomplete after sharing');
+                    error.missingDays = nextScheduleState.missingDays;
+                    error.extraDays = nextScheduleState.extraDays;
+                    error.totalDays = nextScheduleState.totalDays;
+                    throw error;
+                }
             }
 
             // Update planner
@@ -544,6 +609,13 @@ class PlannerService {
                 } else {
                     throw new Error('Cannot delete cancelled plan');
                 }
+            }
+
+            const plannerState = await this.getPlannerState(plannerId, planner, { transaction: t });
+
+            // Check final lock
+            if (plannerState.finalLocked) {
+                throw new Error('Planner is locked');
             }
 
             const depositAmount = parseFloat(planner.deposit_amount) || 0;
@@ -918,6 +990,13 @@ class PlannerService {
             // Block modifications if planner is completed or cancelled
             if (['completed', 'cancelled'].includes(planner.status)) {
                 throw new Error(`Cannot add item to ${planner.status} plan`);
+            }
+
+            const plannerState = await this.getPlannerState(plannerId, planner, { transaction });
+
+            // Check final lock
+            if (plannerState.finalLocked) {
+                throw new Error('Planner is locked');
             }
 
             if (userId && planner.user_id !== userId) {
@@ -1374,6 +1453,29 @@ class PlannerService {
 
     /**
      * Delete planner item by ID
+     */
+    static async reorderPlannerItems(plannerId, userId, legNumber, newOrder) {
+        const transaction = await sequelize.transaction();
+        try {
+            const planner = await Planner.findByPk(plannerId);
+            if (!planner) throw new Error('Planner not found');
+            if (planner.user_id !== userId) throw new Error('Forbidden');
+            if (['ongoing', 'completed', 'cancelled'].includes(planner.status)) throw new Error(`Cannot reorder ${planner.status} plan`);
+
+            const plannerState = await this.getPlannerState(plannerId, planner, { transaction });
+
+            // Check final lock
+            if (plannerState.finalLocked) {
+                throw new Error('Planner is locked');
+            }
+
+            // Update order_index for each item
+            for (let i = 0; i < newOrder.length; i++) {
+                await PlannerItem.update(
+                    { order_index: i + 1 },
+                    { where: { id: newOrder[i], planner_id: plannerId, leg_number: legNumber }, transaction }
+                );
+            }
 
             // Recalculate estimated times for all items after reorder
             Logger.info('Recalculating estimated times after reorder...');
@@ -1460,6 +1562,13 @@ class PlannerService {
                 throw new Error('Forbidden');
             }
 
+            const plannerState = await this.getPlannerState(plannerId, planner, { transaction });
+
+            // Check final lock
+            if (plannerState.finalLocked) {
+                throw new Error('Planner is locked');
+            }
+
             // Get item
             const item = await PlannerItem.findByPk(itemId, { transaction });
             if (!item) {
@@ -1510,6 +1619,12 @@ class PlannerService {
             // Nếu đây là item cuối cùng của ngày
             if (itemCountInDay === 1) {
                 // Kiểm tra xem có ngày nào lớn hơn không
+                if (plannerState.hasSharedCommitment && planner.start_date && planner.end_date) {
+                    const error = new Error('Cannot make planner incomplete after sharing');
+                    error.missingDays = [legNumber];
+                    throw error;
+                }
+
                 const higherDayExists = await PlannerItem.findOne({
                     where: {
                         planner_id: plannerId,
@@ -1567,6 +1682,13 @@ class PlannerService {
 
             if (userId && planner.user_id !== userId) {
                 throw new Error('Forbidden');
+            }
+
+            const plannerState = await this.getPlannerState(plannerId, planner, { transaction });
+
+            // Check final lock
+            if (plannerState.finalLocked) {
+                throw new Error('Planner is locked');
             }
 
             // Get item
@@ -2000,84 +2122,6 @@ class PlannerService {
     }
 
     /**
-     * Update planner status (gộp start và complete)
-     * @param {string} plannerId
-     * @param {string} userId
-     * @param {string} newStatus - 'ongoing' hoặc 'completed'
-     */
-    static async updatePlannerStatus(plannerId, userId, newStatus) {
-        try {
-            const planner = await Planner.findByPk(plannerId);
-
-            if (!planner) {
-                throw new Error('Planner not found');
-            }
-
-            if (planner.user_id !== userId) {
-                throw new Error('Forbidden');
-            }
-
-            const currentStatus = planner.status;
-
-            // Validate status transition
-            if (newStatus === 'ongoing') {
-                // Chuyển từ planning -> ongoing
-                if (currentStatus !== 'planning') {
-                    throw new Error('Planner is not in planning status');
-                }
-
-                // Để phục vụ DEMO và dùng thực tế: 
-                // Có thể start planner thủ công bằng API bất kể lúc nào (kể cả chưa tới start_date)
-
-
-                if (!continuityCheck.isValid) {
-                    const missingDaysStr = continuityCheck.missingDays.join(', ');
-                    throw new Error(`Incomplete schedule: missing days ${missingDaysStr}, total days ${continuityCheck.totalDays}`);
-                }
-                // ===== END: Validation =====
-
-                await planner.update({ status: 'ongoing' });
-
-                Logger.info(`Planner ${plannerId} started by user ${userId}`);
-            } else if (newStatus === 'completed') {
-                // Chuyển từ ongoing -> completed (hoặc expired)
-                if (currentStatus !== 'ongoing') {
-                    throw new Error('Planner is not ongoing');
-                }
-
-                // Validate continuity
-                const continuityCheck = await this.validatePlannerContinuity(plannerId);
-                if (!continuityCheck.isValid) {
-                    const missingDaysStr = continuityCheck.missingDays.join(', ');
-                    throw new Error(`Incomplete schedule: missing days ${missingDaysStr}, total days ${continuityCheck.totalDays}`);
-                }
-
-                // Check visitedCount
-                const checkinStats = await this.getCheckinStats(plannerId);
-                const { visitedCount, percentage: checkinPercentage } = checkinStats;
-
-                if (visitedCount > 0) {
-                    await planner.update({
-                        status: 'completed',
-                        completed_at: new Date()
-                    });
-                    Logger.info(`Planner ${plannerId} completed by user ${userId} (${visitedCount} sites visited)`);
-                } else {
-                    await planner.update({ status: 'cancelled' });
-                    throw new Error(`Plan cancelled: 0 sites visited`);
-                }
-            } else {
-                throw new Error('Invalid status: ongoing or completed');
-            }
-
-            return this.formatPlannerResponse(planner);
-        } catch (error) {
-            Logger.error('Update planner status error:', error);
-            throw error;
-        }
-    }
-
-    /**
      * Get checkin statistics for a planner
      * @returns {Promise<{totalItems: number, checkedInItems: number, percentage: number}>}
      */
@@ -2138,10 +2182,48 @@ class PlannerService {
 
             let startedCount = 0;
             for (const planner of readyPlanners) {
+                const plannerState = await this.getPlannerState(planner.id, planner);
+                if (!plannerState.scheduleComplete) {
+                    continue;
+                }
+
+                if (planner.number_of_people > 1 && (!plannerState.isRealGroup || !plannerState.finalLocked)) {
+                    continue;
+                }
+
                 const shouldBeOngoing = await this.shouldPlannerBeOngoing(planner);
                 if (shouldBeOngoing) {
-                    await planner.update({ status: 'ongoing' });
+                    await planner.update({ 
+                        status: 'ongoing',
+                        is_locked: false // Auto-unlock when trip starts so owner can modify
+                    });
                     startedCount++;
+                    
+                    // Trigger notification for all members
+                    try {
+                        const NotificationService = require('./shared/notificationService');
+                        const members = await PlannerMember.findAll({
+                            where: { planner_id: planner.id, join_status: 'joined' },
+                            attributes: ['user_id']
+                        });
+                        
+                        // Notify owner
+                        await NotificationService.createNotification('planner_started', planner.user_id, {
+                            plannerName: planner.name
+                        });
+                        
+                        // Notify members
+                        for (const member of members) {
+                            if (member.user_id !== planner.user_id) {
+                                await NotificationService.createNotification('planner_started', member.user_id, {
+                                    plannerName: planner.name
+                                });
+                            }
+                        }
+                    } catch (notifError) {
+                        Logger.warn(`Failed to send start notifications for planner ${planner.id}: ${notifError.message}`);
+                    }
+                    
                     Logger.info(`Planner ${planner.id} auto-started (start_date: ${planner.start_date}, triggered by items)`);
                 }
             }
@@ -2221,8 +2303,27 @@ class PlannerService {
                 throw new Error('Planner is not in planning status');
             }
 
+            if (!planner.start_date || !planner.end_date) {
+                throw new Error('Planner must have start_date and end_date to start');
+            }
+
+            const plannerState = await this.getPlannerState(plannerId, planner);
+            if (!plannerState.scheduleComplete) {
+                const missingDaysStr = plannerState.scheduleState.missingDays.join(', ');
+                throw new Error(`Incomplete schedule: missing days ${missingDaysStr}, total days ${plannerState.scheduleState.totalDays}`);
+            }
+
+            if (planner.number_of_people > 1) {
+                if (!plannerState.isRealGroup) {
+                    throw new Error('Group trip requires at least 2 joined members');
+                }
+                if (!plannerState.finalLocked) {
+                    throw new Error('Planner must be fully locked before starting group trip');
+                }
+            }
+
             // Start trek (ongoing)
-            await planner.update({ status: 'ongoing' });
+            await planner.update({ status: 'ongoing', is_locked: false });
 
             Logger.info(`Planner ${plannerId} started by user ${userId} (planning -> ongoing)`);
             return this.formatPlannerResponse(planner);
@@ -2267,7 +2368,8 @@ class PlannerService {
                 }
 
                 // ===== VALIDATION: Planner phải có đủ items cho tất cả các ngày =====
-                const continuityCheck = await this.validatePlannerContinuity(plannerId);
+                const plannerState = await this.getPlannerState(plannerId, planner);
+                const continuityCheck = plannerState.scheduleState;
 
                 if (!continuityCheck.isValid) {
                     const missingDaysStr = continuityCheck.missingDays.join(', ');
@@ -2275,7 +2377,21 @@ class PlannerService {
                 }
                 // ===== END: Validation =====
 
-                await planner.update({ status: 'ongoing' });
+                // ===== VALIDATION: Group must be locked before starting =====
+                if (planner.number_of_people > 1) {
+                    if (!plannerState.isRealGroup) {
+                        throw new Error('Group trip requires at least 2 joined members');
+                    }
+                    if (!plannerState.finalLocked) {
+                        throw new Error('Planner must be fully locked before starting group trip');
+                    }
+                }
+                // ===== END: Validation =====
+
+                await planner.update({ 
+                    status: 'ongoing',
+                    is_locked: false // Auto-unlock when trip starts so owner can modify
+                });
 
                 Logger.info(`Planner ${plannerId} started by user ${userId} (planning -> ongoing)`);
             }
@@ -2384,53 +2500,154 @@ class PlannerService {
         }
     }
 
+    static async getJoinedMemberCount(plannerId, options = {}) {
+        return PlannerMember.count({
+            where: {
+                planner_id: plannerId,
+                join_status: 'joined'
+            },
+            transaction: options.transaction
+        });
+    }
+
+    static async getActiveInviteCount(plannerId, options = {}) {
+        const now = options.now || new Date();
+        const where = {
+            planner_id: plannerId,
+            status: { [Op.in]: ['pending', 'awaiting_payment'] },
+            [Op.or]: [
+                { expires_at: null },
+                { expires_at: { [Op.gte]: now } }
+            ]
+        };
+
+        if (options.excludeInviteId) {
+            where.id = { [Op.ne]: options.excludeInviteId };
+        }
+
+        return PlannerInvite.count({
+            where,
+            transaction: options.transaction
+        });
+    }
+
+    static getPlannerJoinDeadline(planner) {
+        if (!planner || planner.status !== 'planning' || !planner.start_date) {
+            return null;
+        }
+
+        const startDate = new Date(planner.start_date);
+        startDate.setHours(0, 0, 0, 0);
+
+        const joinDeadline = new Date(startDate);
+        joinDeadline.setHours(joinDeadline.getHours() - (planner.lock_duration_hours || 24));
+
+        return joinDeadline;
+    }
+
+    static isPlannerJoinWindowClosed(planner, now = new Date()) {
+        const joinDeadline = this.getPlannerJoinDeadline(planner);
+        return Boolean(joinDeadline && now >= joinDeadline);
+    }
+
+    static async getPlannerScheduleState(plannerId, planner = null, options = {}) {
+        const currentPlanner = planner || await Planner.findByPk(plannerId, { transaction: options.transaction });
+
+        if (!currentPlanner) {
+            throw new Error('Planner not found');
+        }
+
+        if (!currentPlanner.start_date || !currentPlanner.end_date) {
+            return {
+                isValid: true,
+                missingDays: [],
+                extraDays: [],
+                totalDays: 0,
+                existingDays: []
+            };
+        }
+
+        const startDate = new Date(currentPlanner.start_date);
+        const endDate = new Date(currentPlanner.end_date);
+        const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+
+        const items = await PlannerItem.findAll({
+            where: { planner_id: plannerId },
+            attributes: ['leg_number'],
+            group: ['leg_number'],
+            raw: true,
+            transaction: options.transaction
+        });
+
+        const existingDays = [...new Set(items.map(item => Number(item.leg_number)).filter(day => !Number.isNaN(day)))].sort((a, b) => a - b);
+        const existingDaysSet = new Set(existingDays);
+        const missingDays = [];
+
+        for (let day = 1; day <= totalDays; day++) {
+            if (!existingDaysSet.has(day)) {
+                missingDays.push(day);
+            }
+        }
+
+        const extraDays = existingDays.filter(day => day < 1 || day > totalDays);
+
+        return {
+            isValid: missingDays.length === 0 && extraDays.length === 0,
+            missingDays,
+            extraDays,
+            totalDays,
+            existingDays
+        };
+    }
+
+    static async getPlannerState(plannerId, planner = null, options = {}) {
+        const currentPlanner = planner || await Planner.findByPk(plannerId, { transaction: options.transaction });
+
+        if (!currentPlanner) {
+            throw new Error('Planner not found');
+        }
+
+        const now = options.now || new Date();
+        const [joinedMemberCount, activeInviteCount, scheduleState] = await Promise.all([
+            this.getJoinedMemberCount(plannerId, options),
+            this.getActiveInviteCount(plannerId, options),
+            this.getPlannerScheduleState(plannerId, currentPlanner, options)
+        ]);
+
+        const isRealGroup = joinedMemberCount >= 2;
+        const hasSharedCommitment = activeInviteCount > 0 || joinedMemberCount > 1;
+        const joinDeadline = this.getPlannerJoinDeadline(currentPlanner);
+        const joinWindowClosed = this.isPlannerJoinWindowClosed(currentPlanner, now);
+        const finalLocked = currentPlanner.status === 'planning' && (
+            currentPlanner.is_locked ||
+            (joinWindowClosed && isRealGroup && scheduleState.isValid)
+        );
+
+        return {
+            planner: currentPlanner,
+            joinedMemberCount,
+            activeInviteCount,
+            committedSlots: joinedMemberCount + activeInviteCount,
+            isRealGroup,
+            hasSharedCommitment,
+            hasDates: Boolean(currentPlanner.start_date && currentPlanner.end_date),
+            joinDeadline,
+            joinWindowClosed,
+            scheduleComplete: scheduleState.isValid,
+            scheduleState,
+            finalLocked
+        };
+    }
+
 
     /**
      * Validate that planner has items for ALL days
      * @param {string} plannerId 
      * @returns {Promise<{isValid: boolean, missingDays: number[], totalDays: number}>}
      */
-    static async validatePlannerContinuity(plannerId) {
+    static async validatePlannerContinuity(plannerId, planner = null, options = {}) {
         try {
-            const planner = await Planner.findByPk(plannerId);
-
-            if (!planner) {
-                throw new Error('Planner not found');
-            }
-
-            // If no dates, skip validation (flexible planner)
-            if (!planner.start_date || !planner.end_date) {
-                return { isValid: true, missingDays: [], totalDays: 0 };
-            }
-
-            // Calculate total days
-            const startDate = new Date(planner.start_date);
-            const endDate = new Date(planner.end_date);
-            const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-
-            // Get all planner items
-            const items = await PlannerItem.findAll({
-                where: { planner_id: plannerId },
-                attributes: ['leg_number'],
-                group: ['leg_number'],
-                raw: true
-            });
-
-            const existingDays = new Set(items.map(item => item.leg_number));
-            const missingDays = [];
-
-            // Check each day from 1 to totalDays
-            for (let day = 1; day <= totalDays; day++) {
-                if (!existingDays.has(day)) {
-                    missingDays.push(day);
-                }
-            }
-
-            return {
-                isValid: missingDays.length === 0,
-                missingDays,
-                totalDays
-            };
+            return await this.getPlannerScheduleState(plannerId, planner, options);
         } catch (error) {
             Logger.error('Validate planner continuity error:', error);
             throw error;
@@ -2571,6 +2788,62 @@ class PlannerService {
         triggerTime.setHours(triggerTime.getHours() - 2);
 
         return now >= triggerTime;
+    }
+
+    /**
+     * Check if a planner is currently in its locked period
+     * Only applies to group journeys (number_of_people >= 2)
+     */
+    static isPlannerLocked(planner) {
+        return Boolean(planner && planner.status === 'planning' && planner.is_locked);
+    }
+
+    /**
+     * Manually toggle planner lock (manual override)
+     */
+    static async togglePlannerLock(plannerId, userId, isLocked) {
+        try {
+            const planner = await Planner.findByPk(plannerId);
+            if (!planner) {
+                throw new Error('Planner not found');
+            }
+
+            // Check ownership
+            if (planner.user_id !== userId) {
+                throw new Error('Forbidden');
+            }
+
+            // Group journeys only (consistent with auto-lock)
+            if (planner.number_of_people < 2) {
+                throw new Error('Only group journeys can be locked');
+            }
+
+            const plannerState = await this.getPlannerState(plannerId, planner);
+
+            if (isLocked) {
+                if (!plannerState.isRealGroup) {
+                    throw new Error('Manual lock requires at least 2 joined members');
+                }
+                if (!plannerState.hasDates || !plannerState.scheduleComplete) {
+                    throw new Error('Manual lock requires complete schedule');
+                }
+            }
+
+            // Cannot unlock once locked (Manual or Auto)
+            if (!isLocked) {
+                if (planner.is_locked || plannerState.finalLocked) {
+                    throw new Error('Cannot unlock once the journey is locked');
+                }
+            }
+
+            await planner.update({ is_locked: isLocked });
+
+            Logger.info(`Planner ${plannerId} manual lock set to ${isLocked} by user ${userId}`);
+            return this.formatPlannerResponse(planner);
+        } catch (error) {
+            Logger.error('Toggle planner lock error:', error);
+            throw error;
+        }
     }
 }
 

@@ -55,6 +55,9 @@ class PlannerController {
             if (error.message === 'End date must be after or equal to start date') {
                 return ResponseUtil.badRequest(res, req.__('planner.invalid_end_date'));
             }
+            if (error.message === 'Group lead time error') {
+                return ResponseUtil.badRequest(res, req.__('planner.group_lead_time_error'));
+            }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
@@ -133,11 +136,23 @@ class PlannerController {
             if (error.message === 'Planner dates overlap') {
                 return ResponseUtil.badRequest(res, req.__('planner.dates_overlap', { dates: error.conflictDates.join(', ') }), { conflict_dates: error.conflictDates });
             }
+            if (error.message === 'Cannot reduce capacity below committed slots') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_reduce_capacity_below_committed', { count: error.requiredSlots || '?' }));
+            }
+            if (error.message === 'Cannot make planner incomplete after sharing') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_break_schedule_after_sharing'));
+            }
             if (error.message === 'Cannot update completed plan') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_update_completed'));
             }
             if (error.message === 'Cannot update expired plan') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_update_expired'));
+            }
+            if (error.message === 'Planner is locked') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));
+            }
+            if (error.message === 'Group lead time error') {
+                return ResponseUtil.badRequest(res, req.__('planner.group_lead_time_error'));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
@@ -171,6 +186,9 @@ class PlannerController {
             if (error.message === 'Cannot delete expired plan') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_expired'));
             }
+            if (error.message === 'Planner is locked') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));
+            }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
@@ -186,7 +204,7 @@ class PlannerController {
             }
 
             let result = await PlannerService.addPlannerItem(req.params.id, req.user?.id, req.body);
-            result = this.localizePlannerItemWarning(req, result);
+            result = PlannerController.localizePlannerItemWarning(req, result);
 
             // If there's a warning, include it in the response
             if (result.warning) {
@@ -214,6 +232,12 @@ class PlannerController {
             }
             if (error.message === 'Cannot add item to expired plan') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_add_expired'));
+            }
+            if (error.message === 'Planner is locked') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));
+            }
+            if (error.message === 'Cannot make planner incomplete after sharing') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_break_schedule_after_sharing'));
             }
             if (error.message === 'Consecutive site not allowed') {
                 return ResponseUtil.badRequest(res, req.__('planner.consecutive_site_same_day', { day: req.body.leg_number || '?' }));
@@ -331,11 +355,17 @@ class PlannerController {
             if (error.message === 'Cannot delete expired plan') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_expired'));
             }
+            if (error.message === 'Planner is locked') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));
+            }
             if (error.message === 'Cannot delete visited site') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_visited'));
             }
             if (error.message === 'Cannot delete skipped site') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_skipped'));
+            }
+            if (error.message === 'Cannot make planner incomplete after sharing') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_break_schedule_after_sharing'));
             }
             if (error.message.startsWith('Cannot delete')) {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_processed'));
@@ -366,7 +396,7 @@ class PlannerController {
                 req.params.itemId,
                 req.body
             );
-            result = this.localizePlannerItemWarning(req, result);
+            result = PlannerController.localizePlannerItemWarning(req, result);
 
             if (result.warning) {
                 return ResponseUtil.success(res, result, req.__('planner.item_update_success_with_warning'));
@@ -406,6 +436,9 @@ class PlannerController {
             }
             if (error.message === 'Cannot update expired plan') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_update_expired'));
+            }
+            if (error.message === 'Planner is locked') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));
             }
             if (error.message === 'Cannot update visited site') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_update_visited'));
@@ -516,6 +549,12 @@ class PlannerController {
             if (error.message === 'Planner must have start_date and end_date to start') {
                 return ResponseUtil.badRequest(res, req.__('planner.missing_dates') || 'Planner must have start date and end date to start');
             }
+            if (error.message === 'Group trip requires at least 2 joined members') {
+                return ResponseUtil.badRequest(res, req.__('planner.group_requires_two_joined'));
+            }
+            if (error.message === 'Planner must be fully locked before starting group trip') {
+                return ResponseUtil.badRequest(res, req.__('planner.group_start_requires_lock'));
+            }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
@@ -573,6 +612,12 @@ class PlannerController {
             }
             if (error.message === 'Planner must have start_date and end_date to start') {
                 return ResponseUtil.badRequest(res, req.__('planner.missing_dates'));
+            }
+            if (error.message === 'Group trip requires at least 2 joined members') {
+                return ResponseUtil.badRequest(res, req.__('planner.group_requires_two_joined'));
+            }
+            if (error.message === 'Planner must be fully locked before starting group trip') {
+                return ResponseUtil.badRequest(res, req.__('planner.group_start_requires_lock'));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
@@ -661,7 +706,44 @@ class PlannerController {
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
+
+    /**
+     * PATCH /planners/:id/lock - Manually toggle planner lock
+     */
+    static async toggleLock(req, res) {
+        try {
+            const { is_locked } = req.body;
+            if (is_locked === undefined) {
+                return ResponseUtil.badRequest(res, 'is_locked is required (true/false)');
+            }
+
+            const result = await PlannerService.togglePlannerLock(req.params.id, req.user.id, !!is_locked);
+            
+            const messageKey = !!is_locked ? 'planner.manual_lock_success' : 'planner.manual_unlock_success';
+            return ResponseUtil.success(res, result, req.__(messageKey));
+        } catch (error) {
+            if (error.message === 'Planner not found') {
+                return ResponseUtil.notFound(res, req.__('planner.not_found'));
+            }
+            if (error.message === 'Forbidden') {
+                return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
+            }
+            if (error.message === 'Only group journeys can be locked') {
+                return ResponseUtil.badRequest(res, req.__('planner.only_group_can_lock'));
+            }
+            if (error.message === 'Manual lock requires at least 2 joined members') {
+                return ResponseUtil.badRequest(res, req.__('planner.manual_lock_requires_group'));
+            }
+            if (error.message === 'Manual lock requires complete schedule') {
+                return ResponseUtil.badRequest(res, req.__('planner.manual_lock_requires_complete_schedule'));
+            }
+            if (error.message === 'Cannot unlock once the journey is locked') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_unlock_once_locked'));
+            }
+
+            return ResponseUtil.error(res, req.__('error.server_error'));
+        }
+    }
 }
 
 module.exports = PlannerController;
-
