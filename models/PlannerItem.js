@@ -46,7 +46,6 @@ const PlannerItem = sequelize.define('PlannerItem', {
     status: {
         type: DataTypes.STRING,
         defaultValue: 'upcoming',
-        field: 'planner_item_status',
         validate: {
             isIn: [
                 ['upcoming', 'visited', 'skipped']
