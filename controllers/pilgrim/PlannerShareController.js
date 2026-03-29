@@ -182,8 +182,8 @@ class PlannerShareController {
             if (error.message === 'Cannot leave completed plan') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_remove_completed'));
             }
-            if (error.message === 'Cannot leave expired plan') {
-                return ResponseUtil.badRequest(res, req.__('planner.cannot_remove_expired'));
+            if (error.message === 'Cannot leave cancelled plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_remove_cancelled'));
             }
             if (error.message === 'Cannot remove owner') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_remove_owner'));

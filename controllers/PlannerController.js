@@ -145,8 +145,8 @@ class PlannerController {
             if (error.message === 'Cannot update completed plan') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_update_completed'));
             }
-            if (error.message === 'Cannot update expired plan') {
-                return ResponseUtil.badRequest(res, req.__('planner.cannot_update_expired'));
+            if (error.message === 'Cannot update cancelled plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_update_cancelled'));
             }
             if (error.message === 'Planner is locked') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));
@@ -183,8 +183,8 @@ class PlannerController {
             if (error.message === 'Cannot delete completed plan') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_completed'));
             }
-            if (error.message === 'Cannot delete expired plan') {
-                return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_expired'));
+            if (error.message === 'Cannot delete cancelled plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_cancelled'));
             }
             if (error.message === 'Planner is locked') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));
@@ -230,8 +230,8 @@ class PlannerController {
             if (error.message === 'Cannot add item to completed plan') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_add_completed'));
             }
-            if (error.message === 'Cannot add item to expired plan') {
-                return ResponseUtil.badRequest(res, req.__('planner.cannot_add_expired'));
+            if (error.message === 'Cannot add item to cancelled plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_add_cancelled'));
             }
             if (error.message === 'Planner is locked') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));
@@ -352,8 +352,8 @@ class PlannerController {
             if (error.message === 'Cannot delete completed plan') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_completed'));
             }
-            if (error.message === 'Cannot delete expired plan') {
-                return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_expired'));
+            if (error.message === 'Cannot delete cancelled plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_cancelled'));
             }
             if (error.message === 'Planner is locked') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));
@@ -434,8 +434,8 @@ class PlannerController {
             if (error.message === 'Cannot update completed plan') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_update_completed'));
             }
-            if (error.message === 'Cannot update expired plan') {
-                return ResponseUtil.badRequest(res, req.__('planner.cannot_update_expired'));
+            if (error.message === 'Cannot update cancelled plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_update_cancelled'));
             }
             if (error.message === 'Planner is locked') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));

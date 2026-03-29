@@ -57,6 +57,14 @@ const PlannerItem = sequelize.define('PlannerItem', {
         type: DataTypes.TEXT,
         allowNull: true
     },
+    skip_reason: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    skipped_at: {
+        type: DataTypes.DATE,
+        allowNull: true
+    },
     // Enhanced planning features
     nearby_amenity_ids: {
         type: DataTypes.ARRAY(DataTypes.UUID),
@@ -81,7 +89,7 @@ const PlannerItem = sequelize.define('PlannerItem', {
     tableName: 'planner_items',
     timestamps: true,
     createdAt: 'created_at',
-    updatedAt: false
+    updatedAt: 'updated_at'
 });
 
 module.exports = PlannerItem;

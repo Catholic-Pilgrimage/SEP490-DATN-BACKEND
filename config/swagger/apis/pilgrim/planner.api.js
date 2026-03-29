@@ -190,6 +190,16 @@
  *       required: false
  *       content:
  *         application/json:
+ *           examples:
+ *             markVisited:
+ *               summary: Chốt điểm đến là visited
+ *               value:
+ *                 status: visited
+ *             markSkipped:
+ *               summary: Bỏ qua điểm đến
+ *               value:
+ *                 status: skipped
+ *                 skip_reason: "Troi mua lon, doan khong the tiep tuc"
  *           schema:
  *             type: object
  *             properties:
@@ -227,9 +237,10 @@
  *     summary: "[Trưởng đoàn] Cập nhật trạng thái điểm đến (visited/skipped)"
  *     description: |
  *       **Chỉ dành cho Trưởng đoàn (Owner)**.
- *       
- *       - Truyền `status: "visited"` (Chốt sổ): Ai chưa check-in sẽ bị hệ thống tự động ghi **missed**. Nếu là điểm cuối thì chuyến đi chuyển sang **completed**.
- *       - Truyền `status: "skipped"` (Bỏ qua): Hệ thống tự ghi **skipped** cho tất cả người chưa check-in. **Không bị phạt**.
+ *
+ *       - Truyền `status: "visited"`: Phải có ít nhất 1 thành viên đã check-in tại điểm này. Những người chưa check-in sẽ bị tự động ghi **missed**. Nếu đây là điểm cuối cùng cần xử lý, planner có thể chuyển sang **completed**.
+ *       - Truyền `status: "skipped"`: Chỉ hợp lệ khi chưa có ai check-in tại điểm này và phải kèm `skip_reason`. Hệ thống đánh dấu điểm đến là **skipped** và gửi thông báo cho các thành viên còn lại.
+ *       - Endpoint chỉ thao tác được khi planner đang **ongoing** và item còn **upcoming**.
  *     tags: [Check-in History - Pilgrim]
  *     security:
  *       - bearerAuth: []
@@ -261,6 +272,10 @@
  *                 type: string
  *                 enum: [visited, skipped]
  *                 description: "Trạng thái mới muốn đổi"
+ *               skip_reason:
+ *                 type: string
+ *                 example: "Troi mua lon, doan khong the tiep tuc"
+ *                 description: "Lý do bỏ qua điểm đến. Bắt buộc khi `status = skipped`, bỏ qua khi `status = visited`"
  *     responses:
  *       200:
  *         description: Cập nhật trạng thái thành công
@@ -272,7 +287,7 @@
  *                 message:
  *                   type: string
  *       400:
- *         description: Điểm đến đã được chốt sổ rồi hoặc Status không hợp lệ
+ *         description: Status không hợp lệ, planner/item không còn cho phép cập nhật, `visited` khi chưa có ai check-in, hoặc `skipped` sau khi đã có người check-in
  *       401:
  *         description: Chưa xác thực
  *       403:

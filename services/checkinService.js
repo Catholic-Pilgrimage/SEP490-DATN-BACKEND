@@ -2,6 +2,58 @@ const { PlannerItem, Site, UserCheckin, Planner, PlannerMember } = require('../m
 const OSRMUtil = require('../utils/osrm.util');
 
 class CheckinService {
+    static async notifyMembersAfterFirstCheckin(planner, plannerItem, currentUserId) {
+        const NotificationService = require('./shared/notificationService');
+
+        const joinedMembers = await PlannerMember.findAll({
+            where: {
+                planner_id: planner.id,
+                join_status: 'joined'
+            },
+            attributes: ['user_id']
+        });
+
+        if (joinedMembers.length === 0) {
+            return;
+        }
+
+        const participantIds = [...new Set([
+            planner.user_id,
+            ...joinedMembers.map(member => member.user_id)
+        ])];
+
+        const memberIds = participantIds.filter(memberId => memberId !== currentUserId);
+
+        if (memberIds.length === 0) {
+            return;
+        }
+
+        const checkedInMembers = await UserCheckin.findAll({
+            where: {
+                planner_item_id: plannerItem.id,
+                user_id: memberIds,
+                status: 'checked_in'
+            },
+            attributes: ['user_id']
+        });
+
+        const checkedInMemberIds = new Set(checkedInMembers.map(record => record.user_id));
+        const pendingMemberIds = memberIds.filter(memberId => !checkedInMemberIds.has(memberId));
+
+        if (pendingMemberIds.length === 0) {
+            return;
+        }
+
+        await Promise.all(pendingMemberIds.map(memberId =>
+            NotificationService.createNotification('planner_first_checkin', memberId, {
+                plannerId: planner.id,
+                plannerItemId: plannerItem.id,
+                plannerName: planner.name || 'Planner',
+                siteName: plannerItem.site?.name || 'diem den'
+            }).catch(() => null)
+        ));
+    }
+
     /**
      * Check in at a planner item with GPS validation
      * @param {string} userId - User ID from JWT
@@ -23,7 +75,7 @@ class CheckinService {
                 {
                     model: Planner,
                     as: 'planner',
-                    attributes: ['id', 'user_id', 'status', 'end_date', 'started_at']
+                    attributes: ['id', 'user_id', 'name', 'status', 'end_date', 'started_at']
                 }
             ]
         });
@@ -201,13 +253,7 @@ class CheckinService {
             });
         }
 
-        // Ghi nhận thời gian bắt đầu thực tế (started_at) vào check-in đầu tiên nếu chưa có
         let newPlannerStatus = planner.status;
-        if (!planner.started_at) {
-            await planner.update({
-                started_at: new Date()
-            });
-        }
 
         // Tự động mark 'visited' nếu TẤT CẢ mọi người (kể cả owner) đều đã check-in
         const membersCount = await PlannerMember.count({ 
@@ -218,6 +264,10 @@ class CheckinService {
         const checkedInCount = await UserCheckin.count({
             where: { planner_item_id: plannerItemId, status: 'checked_in' }
         });
+
+        if (checkedInCount === 1) {
+            await this.notifyMembersAfterFirstCheckin(planner, plannerItem, userId);
+        }
 
         if (checkedInCount >= totalExpected) {
             await plannerItem.update({ status: 'visited' });
@@ -246,13 +296,20 @@ class CheckinService {
     /**
      * Bỏ qua cả địa điểm (Chỉ dành cho Trưởng đoàn). Áp dụng cho cả đoàn, không mất cọc.
      */
-    static async skipItemByOwner(ownerId, plannerItemId) {
+    static async skipItemByOwner(ownerId, plannerItemId, skipReason) {
         const plannerItem = await PlannerItem.findByPk(plannerItemId, {
-            include: [{
-                model: Planner,
-                as: 'planner',
-                attributes: ['id', 'user_id', 'status']
-            }]
+            include: [
+                {
+                    model: Planner,
+                    as: 'planner',
+                    attributes: ['id', 'user_id', 'name', 'status']
+                },
+                {
+                    model: Site,
+                    as: 'site',
+                    attributes: ['id', 'name']
+                }
+            ]
         });
 
         if (!plannerItem) {
@@ -273,7 +330,39 @@ class CheckinService {
             throw new Error('This site is already closed, cannot change');
         }
 
-        await plannerItem.update({ status: 'skipped' });
+        const checkedInCount = await UserCheckin.count({
+            where: {
+                planner_item_id: plannerItemId,
+                status: 'checked_in'
+            }
+        });
+
+        if (checkedInCount > 0) {
+            throw new Error('Cannot skip site after a member has checked in');
+        }
+
+        const normalizedSkipReason = typeof skipReason === 'string' ? skipReason.trim() : '';
+        if (!normalizedSkipReason) {
+            throw new Error('Skip reason is required');
+        }
+
+        await plannerItem.update({
+            status: 'skipped',
+            skip_reason: normalizedSkipReason,
+            skipped_at: new Date()
+        });
+
+        const PlannerService = require('./plannerService');
+        const nextUpcomingItem = await PlannerService.getNextUpcomingPlannerItem(planner.id);
+        const notificationType = nextUpcomingItem ? 'planner_item_skipped' : 'planner_item_skipped_last';
+
+        await PlannerService.notifyOngoingPlannerMembers(planner, notificationType, {
+            plannerId: planner.id,
+            plannerName: planner.name || 'Planner',
+            siteName: plannerItem.site?.name || 'diem den',
+            nextSiteName: nextUpcomingItem?.site?.name || '',
+            reason: normalizedSkipReason
+        }, { excludeUserId: ownerId });
 
         return { message: 'Đã đánh dấu bỏ qua địa điểm này cho toàn đoàn' };
     }
@@ -338,6 +427,10 @@ class CheckinService {
             const checkedInIds = new Set(checkedInUsers.map(c => c.user_id));
 
             // Tìm những người chưa check-in để gán missed
+            if (checkedInIds.size === 0) {
+                throw new Error('At least one member must check in before marking site as visited');
+            }
+
             const missingUsers = allUserIds.filter(id => !checkedInIds.has(id));
 
             if (missingUsers.length > 0) {

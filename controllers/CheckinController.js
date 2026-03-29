@@ -89,10 +89,14 @@ class CheckinController {
         try {
             const plannerItemId = req.params.itemId || req.params.id;
             const userId = req.user.id; // Owner ID
-            const { status } = req.body;
+            const { status, skip_reason } = req.body;
 
             if (!status || !['visited', 'skipped'].includes(status)) {
                 return ResponseUtil.badRequest(res, req.__('validation.failed'));
+            }
+
+            if (status === 'skipped' && (!skip_reason || !String(skip_reason).trim())) {
+                return ResponseUtil.badRequest(res, req.__('checkin.skip_reason_required'));
             }
 
             let result;
@@ -100,7 +104,7 @@ class CheckinController {
                 result = await CheckinService.completeItem(userId, plannerItemId);
                 return ResponseUtil.success(res, result, req.__('checkin.complete_item_success'));
             } else if (status === 'skipped') {
-                result = await CheckinService.skipItemByOwner(userId, plannerItemId);
+                result = await CheckinService.skipItemByOwner(userId, plannerItemId, skip_reason);
                 return ResponseUtil.success(res, result, req.__('checkin.skip_success'));
             }
         } catch (err) {
@@ -116,6 +120,15 @@ class CheckinController {
             }
             if (err.message === 'This site has not started or has finished, cannot complete') {
                 return ResponseUtil.badRequest(res, req.__('checkin.item_not_in_progress'));
+            }
+            if (err.message === 'At least one member must check in before marking site as visited') {
+                return ResponseUtil.badRequest(res, req.__('checkin.visit_requires_checkin'));
+            }
+            if (err.message === 'Cannot skip site after a member has checked in') {
+                return ResponseUtil.badRequest(res, req.__('checkin.cannot_skip_after_checkin'));
+            }
+            if (err.message === 'Skip reason is required') {
+                return ResponseUtil.badRequest(res, req.__('checkin.skip_reason_required'));
             }
             return ResponseUtil.error(res, err.message || req.__('error.server_error'), 500);
         }
