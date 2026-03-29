@@ -443,6 +443,8 @@
     "item_closed": "Địa điểm này đã chốt sổ, không thể thay đổi",
     "item_not_in_progress": "Địa điểm này chưa được bắt đầu hoặc đã kết thúc, không thể hoàn thành",
     "visit_requires_checkin": "Phai co it nhat 1 thanh vien check-in truoc khi chot diem den",
+    "visit_requires_owner_checkin": "Truong doan phai check-in truoc khi chot diem den",
+    "visit_requires_other_member_checkin": "Phai co it nhat 1 thanh vien khac check-in truoc khi chot diem den",
     "cannot_skip_after_checkin": "Khong the bo qua diem den sau khi da co nguoi check-in",
     "skip_reason_required": "Phai nhap ly do khi bo qua diem den",
     "no_permission_view": "Bạn không có quyền xem tiến độ này",

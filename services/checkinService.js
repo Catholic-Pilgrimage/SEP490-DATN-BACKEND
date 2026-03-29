@@ -54,6 +54,22 @@ class CheckinService {
         ));
     }
 
+    static async getJoinedParticipantIds(plannerId, ownerId, options = {}) {
+        const joinedMembers = await PlannerMember.findAll({
+            where: {
+                planner_id: plannerId,
+                join_status: 'joined'
+            },
+            attributes: ['user_id'],
+            transaction: options.transaction
+        });
+
+        return [...new Set([
+            ownerId,
+            ...joinedMembers.map(member => member.user_id)
+        ].filter(Boolean))];
+    }
+
     /**
      * Check in at a planner item with GPS validation
      * @param {string} userId - User ID from JWT
@@ -256,13 +272,15 @@ class CheckinService {
         let newPlannerStatus = planner.status;
 
         // Tự động mark 'visited' nếu TẤT CẢ mọi người (kể cả owner) đều đã check-in
-        const membersCount = await PlannerMember.count({ 
-            where: { planner_id: planner.id, join_status: 'joined' } 
-        });
-        const totalExpected = membersCount + 1; // +1 cho owner
+        const participantIds = await this.getJoinedParticipantIds(planner.id, planner.user_id);
+        const totalExpected = participantIds.length;
 
         const checkedInCount = await UserCheckin.count({
-            where: { planner_item_id: plannerItemId, status: 'checked_in' }
+            where: {
+                planner_item_id: plannerItemId,
+                status: 'checked_in',
+                user_id: participantIds
+            }
         });
 
         if (checkedInCount === 1) {
@@ -408,18 +426,16 @@ class CheckinService {
             }
 
             // Lấy tất cả user đã tham gia chuyến đi
-            const members = await PlannerMember.findAll({
-                where: { planner_id: planner.id, join_status: 'joined' },
-                attributes: ['user_id'],
+            const allUserIds = await this.getJoinedParticipantIds(planner.id, planner.user_id, {
                 transaction: t
             });
-            const allUserIds = [planner.user_id, ...members.map(m => m.user_id)];
 
             // Lấy những người đã check-in
             const checkedInUsers = await UserCheckin.findAll({
                 where: {
                     planner_item_id: plannerItemId,
-                    status: 'checked_in'
+                    status: 'checked_in',
+                    user_id: allUserIds
                 },
                 attributes: ['user_id'],
                 transaction: t
@@ -427,8 +443,17 @@ class CheckinService {
             const checkedInIds = new Set(checkedInUsers.map(c => c.user_id));
 
             // Tìm những người chưa check-in để gán missed
-            if (checkedInIds.size === 0) {
-                throw new Error('At least one member must check in before marking site as visited');
+            const ownerCheckedIn = checkedInIds.has(planner.user_id);
+            const hasOtherMemberCheckedIn = allUserIds.some(
+                userId => userId !== planner.user_id && checkedInIds.has(userId)
+            );
+
+            if (!ownerCheckedIn) {
+                throw new Error('Owner must check in before marking site as visited');
+            }
+
+            if (allUserIds.length > 1 && !hasOtherMemberCheckedIn) {
+                throw new Error('At least one other member must check in before marking site as visited');
             }
 
             const missingUsers = allUserIds.filter(id => !checkedInIds.has(id));
@@ -546,11 +571,7 @@ class CheckinService {
         });
 
         // Lấy tất cả members + owner
-        const members = await PlannerMember.findAll({
-            where: { planner_id: plannerId }
-        });
-
-        const allUserIds = [planner.user_id, ...members.map(m => m.user_id)];
+        const allUserIds = await this.getJoinedParticipantIds(plannerId, planner.user_id);
 
         // Lấy check-ins của tất cả users
         const allCheckins = await UserCheckin.findAll({

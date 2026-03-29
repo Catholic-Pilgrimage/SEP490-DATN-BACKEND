@@ -448,6 +448,8 @@
     "item_closed": "This site is already closed, cannot change",
     "item_not_in_progress": "This site has not started or has already finished, cannot complete",
     "visit_requires_checkin": "At least one member must check in before marking this site as visited",
+    "visit_requires_owner_checkin": "The owner must check in before marking this site as visited",
+    "visit_requires_other_member_checkin": "At least one other member must check in before marking this site as visited",
     "cannot_skip_after_checkin": "Cannot skip this site after a member has checked in",
     "skip_reason_required": "Skip reason is required when marking this site as skipped",
     "no_permission_view": "You do not have permission to view this progress",
