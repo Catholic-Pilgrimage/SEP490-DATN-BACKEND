@@ -592,12 +592,14 @@ CREATE TABLE IF NOT EXISTS planner_items (
     site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
     leg_number INT DEFAULT 1,
     order_index INT DEFAULT 1,
+    event_id UUID REFERENCES events(id) ON DELETE SET NULL,
     status planner_item_status DEFAULT 'upcoming',
     note TEXT,
     -- NEW: Enhanced planning features
     nearby_amenity_ids UUID[], -- Array of nearby_place IDs (optional)
     estimated_time TIME, -- Giờ dự kiến đến địa điểm
     rest_duration INTERVAL, -- Thời gian nghỉ ngơi (e.g., '1 hour', '30 minutes')
+    travel_time_minutes INT, -- Travel time from previous site in minutes
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -715,6 +717,8 @@ CREATE TABLE IF NOT EXISTS journals (
     audio_url TEXT,
     image_url TEXT[],
     video_url TEXT,
+    planner_id UUID REFERENCES planners(id) ON DELETE SET NULL,
+    planner_item_id UUID REFERENCES planner_items(id) ON DELETE SET NULL,
     privacy journal_privacy DEFAULT 'private',
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -723,6 +727,8 @@ CREATE TABLE IF NOT EXISTS journals (
 
 CREATE INDEX IF NOT EXISTS idx_journals_user ON journals(user_id);
 CREATE INDEX IF NOT EXISTS idx_journals_site ON journals(site_id);
+CREATE INDEX IF NOT EXISTS idx_journals_planner ON journals(planner_id) WHERE planner_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_journals_planner_item ON journals(planner_item_id) WHERE planner_item_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_journals_privacy ON journals(privacy) WHERE privacy = 'public';
 CREATE INDEX IF NOT EXISTS idx_journals_active ON journals(is_active) WHERE is_active = true;
 
