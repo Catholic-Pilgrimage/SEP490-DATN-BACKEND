@@ -51,6 +51,26 @@ const Journal = sequelize.define('Journal', {
         validate: {
             isIn: [['private', 'public']]
         }
+    },
+    planner_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'planners',
+            key: 'id'
+        }
+    },
+    planner_item_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'planner_items',
+            key: 'id'
+        }
+    },
+    is_active: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true
     }
 }, {
     tableName: 'journals',

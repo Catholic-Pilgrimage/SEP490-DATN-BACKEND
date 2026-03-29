@@ -28,20 +28,23 @@ class JournalController {
 
             return ResponseUtil.created(res, result, req.__('journal.create_success'));
         } catch (error) {
-            if (error.message === 'Title and content are required') {
-                return ResponseUtil.badRequest(res, req.__('journal.title_content_required'));
+            if (error.message === 'Already exists') {
+                return ResponseUtil.badRequest(res, req.__('journal.already_exists'));
             }
-            if (error.message === 'Maximum 10 images allowed') {
-                return ResponseUtil.badRequest(res, req.__('journal.max_images'));
+            if (error.message === 'Planner not found') {
+                return ResponseUtil.notFound(res, req.__('journal.planner_not_found'));
             }
-            if (error.message.includes('Planner item ID is required')) {
-                return ResponseUtil.badRequest(res, req.__('journal.planner_item_required'));
+            if (error.message === 'You need to complete the journey before writing a summary.') {
+                return ResponseUtil.badRequest(res, req.__('journal.planner_not_completed'));
             }
-            if (error.message.includes('You must check-in at this location')) {
-                return ResponseUtil.badRequest(res, req.__('journal.checkin_required'));
+            if (error.message === 'Summary already exists') {
+                return ResponseUtil.badRequest(res, req.__('journal.summary_already_exists'));
             }
-            if (error.message.includes('This planner item is not associated with a site')) {
-                return ResponseUtil.badRequest(res, req.__('journal.site_not_associated'));
+            if (error.message === 'Planner Item ID or Planner ID is required') {
+                return ResponseUtil.badRequest(res, req.__('journal.id_required'));
+            }
+            if (error.message === 'You can only create a journal for a completed journey.') {
+                return ResponseUtil.badRequest(res, req.__('journal.planner_not_completed'));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
@@ -69,14 +72,35 @@ class JournalController {
      */
     static async getPublicJournals(req, res) {
         try {
-            const errors = validationResult(req);
-            if (!errors.isEmpty()) {
-                return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
-            }
-
             const result = await JournalService.getPublicJournals(req.query);
             return ResponseUtil.success(res, result, req.__('journal.list_success'));
         } catch (error) {
+            // As per instruction, return success with an empty array on error
+            return ResponseUtil.success(res, [], req.__('journal.list_success'));
+        }
+    }
+
+    /**
+     * POST /journals/:id/share - Share journal to community
+     */
+    static async shareToPost(req, res) {
+        try {
+            const journalId = req.params.id;
+            const userId = req.user.id;
+
+            const result = await JournalService.shareJournalToPost(journalId, userId);
+
+            return ResponseUtil.created(res, result, req.__('journal.share_success') || 'Shared to community successfully');
+        } catch (error) {
+            if (error.message === 'Journal not found') {
+                return ResponseUtil.notFound(res, req.__('journal.not_found'));
+            }
+            if (error.message === 'Forbidden') {
+                return ResponseUtil.forbidden(res, req.__('journal.forbidden'));
+            }
+            if (error.message === 'This journal has already been shared to the community') {
+                return ResponseUtil.badRequest(res, error.message);
+            }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }

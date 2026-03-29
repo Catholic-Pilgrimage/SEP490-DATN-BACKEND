@@ -47,6 +47,10 @@ const PostComment = sequelize.define('PostComment', {
     created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
+    },
+    is_active: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true
     }
 }, {
     tableName: 'post_comments',

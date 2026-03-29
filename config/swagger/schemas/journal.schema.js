@@ -20,11 +20,6 @@
  *           format: uuid
  *           description: "ID của planner item đã check-in (bắt buộc)"
  *           example: "550e8400-e29b-41d4-a716-446655440000"
- *         privacy:
- *           type: string
- *           enum: [private, public]
- *           default: private
- *           example: "private"
  *         images:
  *           type: array
  *           items:
@@ -49,9 +44,6 @@
  *         content:
  *           type: string
  *           example: "<p>Nội dung đã được cập nhật...</p>"
- *         privacy:
- *           type: string
- *           enum: [private, public]
  *         images:
  *           type: array
  *           items:
@@ -107,9 +99,6 @@
  *               type: string
  *               format: uri
  *               nullable: true
- *             privacy:
- *               type: string
- *               enum: [private, public]
  *             author:
  *               type: object
  *               properties:

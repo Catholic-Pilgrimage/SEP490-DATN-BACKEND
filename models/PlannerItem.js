@@ -45,16 +45,23 @@ const PlannerItem = sequelize.define('PlannerItem', {
     },
     status: {
         type: DataTypes.STRING,
-        defaultValue: 'planned',
-        field: 'planner_item_status',
+        defaultValue: 'upcoming',
         validate: {
             isIn: [
-                ['planned', 'in_progress', 'visited', 'skipped']
+                ['upcoming', 'visited', 'skipped']
             ]
         }
     },
     note: {
         type: DataTypes.TEXT,
+        allowNull: true
+    },
+    skip_reason: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    skipped_at: {
+        type: DataTypes.DATE,
         allowNull: true
     },
     // Enhanced planning features
@@ -81,7 +88,7 @@ const PlannerItem = sequelize.define('PlannerItem', {
     tableName: 'planner_items',
     timestamps: true,
     createdAt: 'created_at',
-    updatedAt: false
+    updatedAt: 'updated_at'
 });
 
 module.exports = PlannerItem;

@@ -38,11 +38,6 @@
  *                 format: uuid
  *                 description: ID của planner item đã check-in (bắt buộc)
  *                 example: "abc-123-def-456"
- *               privacy:
- *                 type: string
- *                 enum: [private, public]
- *                 default: private
- *                 description: Chế độ riêng tư
  *               images:
  *                 type: array
  *                 items:
@@ -93,27 +88,6 @@
  *         description: Chưa đăng nhập
  */
 
-/**
- * @swagger
- * /api/journals/public:
- *   get:
- *     summary: Lấy danh sách nhật ký công khai
- *     tags: [Journals - Pilgrim]
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           default: 1
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 10
- *     responses:
- *       200:
- *         description: Lấy danh sách thành công
- */
 
 /**
  * @swagger
@@ -156,9 +130,21 @@
  *                 type: string
  *               content:
  *                 type: string
- *               privacy:
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 maxItems: 10
+ *                 description: Thêm ảnh mới
+ *               audio:
  *                 type: string
- *                 enum: [private, public]
+ *                 format: binary
+ *                 description: Thay thế audio
+ *               video:
+ *                 type: string
+ *                 format: binary
+ *                 description: Thay thế video
  *     responses:
  *       200:
  *         description: Cập nhật thành công
@@ -184,6 +170,32 @@
  *         description: Xóa thành công
  *       403:
  *         description: Không có quyền
+ *       404:
+ *         description: Không tìm thấy nhật ký
+ */
+
+/**
+ * @swagger
+ * /api/journals/{id}/share:
+ *   post:
+ *     summary: Chia sẻ nhật ký lên cộng đồng (Posts)
+ *     tags: [Journals - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       201:
+ *         description: Chia sẻ thành công
+ *       400:
+ *         description: Nhật ký đã được chia sẻ trước đó
+ *       403:
+ *         description: Không có quyền chia sẻ nhật ký của người khác
  *       404:
  *         description: Không tìm thấy nhật ký
  */

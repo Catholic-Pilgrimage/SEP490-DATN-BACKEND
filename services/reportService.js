@@ -13,60 +13,84 @@ const reportService = {
       case 'post':
         target = await Post.findByPk(target_id);
         if (!target) {
-          throw new Error('Post not found');
+          const error = new Error('Post not found');
+          error.statusCode = 404;
+          throw error;
         }
         // Không cho tố cáo bài viết của chính mình
         if (target.user_id === userId) {
-          throw new Error('Cannot report your own post');
+          const error = new Error('Cannot report your own post');
+          error.statusCode = 400;
+          throw error;
         }
         break;
 
       case 'comment':
         target = await PostComment.findByPk(target_id);
         if (!target) {
-          throw new Error('Comment not found');
+          const error = new Error('Comment not found');
+          error.statusCode = 404;
+          throw error;
         }
         if (target.user_id === userId) {
-          throw new Error('Cannot report your own comment');
+          const error = new Error('Cannot report your own comment');
+          error.statusCode = 400;
+          throw error;
         }
         break;
 
       case 'journal':
         target = await Journal.findByPk(target_id);
         if (!target) {
-          throw new Error('Journal not found');
+          const error = new Error('Journal not found');
+          error.statusCode = 404;
+          throw error;
         }
         // Chỉ cho tố cáo journal public
         if (target.privacy !== 'public') {
-          throw new Error('Can only report public journals');
+          const error = new Error('Can only report public journals');
+          error.statusCode = 400;
+          throw error;
         }
         if (target.user_id === userId) {
-          throw new Error('Cannot report your own journal');
+          const error = new Error('Cannot report your own journal');
+          error.statusCode = 400;
+          throw error;
         }
         break;
 
       case 'site_review':
         target = await SiteReview.findByPk(target_id);
         if (!target) {
-          throw new Error('Site review not found');
+          const error = new Error('Site review not found');
+          error.statusCode = 404;
+          throw error;
         }
         if (target.user_id === userId) {
-          throw new Error('Cannot report your own review');
+          const error = new Error('Cannot report your own review');
+          error.statusCode = 400;
+          throw error;
         }
         break;
 
       case 'nearby_place_review':
         target = await NearbyPlaceReview.findByPk(target_id);
         if (!target) {
-          throw new Error('Nearby place review not found');
+          const error = new Error('Nearby place review not found');
+          error.statusCode = 404;
+          throw error;
         }
         if (target.user_id === userId) {
-          throw new Error('Cannot report your own review');
+          const error = new Error('Cannot report your own review');
+          error.statusCode = 400;
+          throw error;
         }
         break;
 
       default:
-        throw new Error('Invalid target type');
+        const error = new Error('Invalid target type');
+        error.statusCode = 400;
+        throw error;
     }
 
     // Kiểm tra xem đã tố cáo chưa
@@ -80,7 +104,9 @@ const reportService = {
     });
 
     if (existingReport) {
-      throw new Error('You have already reported this content');
+      const error = new Error('You have already reported this content');
+      error.statusCode = 409;
+      throw error;
     }
 
     // Generate report code: RPSR240324001 (with retry for concurrency)

@@ -2,6 +2,58 @@ const { PlannerItem, Site, UserCheckin, Planner, PlannerMember } = require('../m
 const OSRMUtil = require('../utils/osrm.util');
 
 class CheckinService {
+    static async notifyMembersAfterFirstCheckin(planner, plannerItem, currentUserId) {
+        const NotificationService = require('./shared/notificationService');
+
+        const joinedMembers = await PlannerMember.findAll({
+            where: {
+                planner_id: planner.id,
+                join_status: 'joined'
+            },
+            attributes: ['user_id']
+        });
+
+        if (joinedMembers.length === 0) {
+            return;
+        }
+
+        const participantIds = [...new Set([
+            planner.user_id,
+            ...joinedMembers.map(member => member.user_id)
+        ])];
+
+        const memberIds = participantIds.filter(memberId => memberId !== currentUserId);
+
+        if (memberIds.length === 0) {
+            return;
+        }
+
+        const checkedInMembers = await UserCheckin.findAll({
+            where: {
+                planner_item_id: plannerItem.id,
+                user_id: memberIds,
+                status: 'checked_in'
+            },
+            attributes: ['user_id']
+        });
+
+        const checkedInMemberIds = new Set(checkedInMembers.map(record => record.user_id));
+        const pendingMemberIds = memberIds.filter(memberId => !checkedInMemberIds.has(memberId));
+
+        if (pendingMemberIds.length === 0) {
+            return;
+        }
+
+        await Promise.all(pendingMemberIds.map(memberId =>
+            NotificationService.createNotification('planner_first_checkin', memberId, {
+                plannerId: planner.id,
+                plannerItemId: plannerItem.id,
+                plannerName: planner.name || 'Planner',
+                siteName: plannerItem.site?.name || 'diem den'
+            }).catch(() => null)
+        ));
+    }
+
     /**
      * Check in at a planner item with GPS validation
      * @param {string} userId - User ID from JWT
@@ -23,7 +75,7 @@ class CheckinService {
                 {
                     model: Planner,
                     as: 'planner',
-                    attributes: ['id', 'user_id', 'status', 'end_date', 'started_at']
+                    attributes: ['id', 'user_id', 'name', 'status', 'end_date', 'started_at']
                 }
             ]
         });
@@ -47,14 +99,24 @@ class CheckinService {
             });
             
             if (!member) {
-                throw new Error('Bạn không phải thành viên của kế hoạch này');
+                throw new Error('You are not a member of this plan');
             }
         }
 
+        // ===== VALIDATION: Planner status =====
+        if (['completed', 'cancelled'].includes(planner.status)) {
+            throw new Error(`The plan has been ${planner.status}, cannot check-in`);
+        }
+
+        // ===== VALIDATION: Planner status must be ongoing =====
+        if (planner.status !== 'ongoing') {
+            throw new Error('This plan has not started yet, cannot check-in');
+        }
+
         // ===== VALIDATION: Planner item status =====
-        // Chỉ cho phép check-in nếu item đang in_progress
-        if (plannerItem.status !== 'in_progress') {
-            throw new Error('Địa điểm này chưa bắt đầu hoặc đã đóng, không thể check-in');
+        // Chỉ cho phép check-in nếu item đang upcoming
+        if (plannerItem.status !== 'upcoming') {
+            throw new Error('This site has already been processed, cannot check-in');
         }
 
         // Kiểm tra user đã check-in rồi thì không cho check-in lại
@@ -67,7 +129,7 @@ class CheckinService {
         });
 
         if (existingCheckin) {
-            throw new Error('Bạn đã check-in địa điểm này rồi');
+            throw new Error('You have already checked-in at this site');
         }
 
         // Kiểm tra planner đã hết hạn chưa - BỎ vì không cần ngày cố định
@@ -118,7 +180,7 @@ class CheckinService {
         const currentItemIndex = allPlannerItems.findIndex(item => item.id === plannerItemId);
         
         if (currentItemIndex === -1) {
-            throw new Error('Planner item không thuộc planner này');
+            throw new Error('Planner item does not belong to this planner');
         }
 
         // Kiểm tra xem tất cả items trước đó đã hoàn thành chưa (visited hoặc skipped)
@@ -130,7 +192,7 @@ class CheckinService {
             
             if (prevItemRecord.status !== 'visited' && prevItemRecord.status !== 'skipped') {
                 throw new Error(
-                    `Bạn phải thực hiện tuần tự! Địa điểm Ngày ${previousItem.leg_number}, thứ tự ${previousItem.order_index} vẫn chưa hoàn thành.`
+                    `Sequential required: day ${previousItem.leg_number}, order ${previousItem.order_index}`
                 );
             }
         }
@@ -149,14 +211,14 @@ class CheckinService {
         );
 
         if (!routeInfo || routeInfo.distance == null) {
-            throw new Error('Không thể tính khoảng cách. Vui lòng thử lại.');
+            throw new Error('Cannot calculate distance. Please try again.');
         }
 
         const distance = routeInfo.distance;
 
         // Reject check-in if distance > 500 meters
         if (distance > 500) {
-            throw new Error(`Bạn cách địa điểm ${Math.round(distance)}m. Vui lòng đến gần hơn (trong bán kính 500m) để check-in.`);
+            throw new Error(`Too far: distance ${Math.round(distance)}, radius 500`);
         }
 
         // ===== TẠO HOẶC CẬP NHẬT CHECK-IN =====
@@ -191,13 +253,7 @@ class CheckinService {
             });
         }
 
-        // Ghi nhận thời gian bắt đầu thực tế (started_at) vào check-in đầu tiên nếu chưa có
         let newPlannerStatus = planner.status;
-        if (!planner.started_at) {
-            await planner.update({
-                started_at: new Date()
-            });
-        }
 
         // Tự động mark 'visited' nếu TẤT CẢ mọi người (kể cả owner) đều đã check-in
         const membersCount = await PlannerMember.count({ 
@@ -208,6 +264,10 @@ class CheckinService {
         const checkedInCount = await UserCheckin.count({
             where: { planner_item_id: plannerItemId, status: 'checked_in' }
         });
+
+        if (checkedInCount === 1) {
+            await this.notifyMembersAfterFirstCheckin(planner, plannerItem, userId);
+        }
 
         if (checkedInCount >= totalExpected) {
             await plannerItem.update({ status: 'visited' });
@@ -236,13 +296,20 @@ class CheckinService {
     /**
      * Bỏ qua cả địa điểm (Chỉ dành cho Trưởng đoàn). Áp dụng cho cả đoàn, không mất cọc.
      */
-    static async skipItemByOwner(ownerId, plannerItemId) {
+    static async skipItemByOwner(ownerId, plannerItemId, skipReason) {
         const plannerItem = await PlannerItem.findByPk(plannerItemId, {
-            include: [{
-                model: Planner,
-                as: 'planner',
-                attributes: ['id', 'user_id', 'status']
-            }]
+            include: [
+                {
+                    model: Planner,
+                    as: 'planner',
+                    attributes: ['id', 'user_id', 'name', 'status']
+                },
+                {
+                    model: Site,
+                    as: 'site',
+                    attributes: ['id', 'name']
+                }
+            ]
         });
 
         if (!plannerItem) {
@@ -252,14 +319,50 @@ class CheckinService {
         const planner = plannerItem.planner;
 
         if (planner.user_id !== ownerId) {
-            throw new Error('Chỉ Trưởng đoàn mới có quyền bỏ qua địa điểm này');
+            throw new Error('Only the Leader can perform this action');
+        }
+
+        if (['completed', 'cancelled'].includes(planner.status)) {
+            throw new Error(`The plan has been ${planner.status}, cannot change site status`);
         }
 
         if (plannerItem.status === 'visited' || plannerItem.status === 'skipped') {
-            throw new Error('Địa điểm này đã chốt sổ, không thể thay đổi');
+            throw new Error('This site is already closed, cannot change');
         }
 
-        await plannerItem.update({ status: 'skipped' });
+        const checkedInCount = await UserCheckin.count({
+            where: {
+                planner_item_id: plannerItemId,
+                status: 'checked_in'
+            }
+        });
+
+        if (checkedInCount > 0) {
+            throw new Error('Cannot skip site after a member has checked in');
+        }
+
+        const normalizedSkipReason = typeof skipReason === 'string' ? skipReason.trim() : '';
+        if (!normalizedSkipReason) {
+            throw new Error('Skip reason is required');
+        }
+
+        await plannerItem.update({
+            status: 'skipped',
+            skip_reason: normalizedSkipReason,
+            skipped_at: new Date()
+        });
+
+        const PlannerService = require('./plannerService');
+        const nextUpcomingItem = await PlannerService.getNextUpcomingPlannerItem(planner.id);
+        const notificationType = nextUpcomingItem ? 'planner_item_skipped' : 'planner_item_skipped_last';
+
+        await PlannerService.notifyOngoingPlannerMembers(planner, notificationType, {
+            plannerId: planner.id,
+            plannerName: planner.name || 'Planner',
+            siteName: plannerItem.site?.name || 'diem den',
+            nextSiteName: nextUpcomingItem?.site?.name || '',
+            reason: normalizedSkipReason
+        }, { excludeUserId: ownerId });
 
         return { message: 'Đã đánh dấu bỏ qua địa điểm này cho toàn đoàn' };
     }
@@ -288,11 +391,20 @@ class CheckinService {
             const planner = plannerItem.planner;
 
             if (planner.user_id !== ownerId) {
-                throw new Error('Chỉ Trưởng đoàn mới có quyền hoàn thành địa điểm này');
+                throw new Error('Only the Leader can perform this action');
             }
 
-            if (plannerItem.status !== 'in_progress') {
-                throw new Error('Địa điểm này chưa bắt đầu hoặc đã kết thúc, không thể hoàn thành');
+            if (['completed', 'cancelled'].includes(planner.status)) {
+                throw new Error(`The plan has been ${planner.status}, cannot change site status`);
+            }
+
+            // ===== VALIDATION: Planner status must be ongoing =====
+            if (planner.status !== 'ongoing') {
+                throw new Error('This plan is not active, cannot update site status');
+            }
+
+            if (plannerItem.status !== 'upcoming') {
+                throw new Error('This site has already been processed, cannot update status');
             }
 
             // Lấy tất cả user đã tham gia chuyến đi
@@ -315,6 +427,10 @@ class CheckinService {
             const checkedInIds = new Set(checkedInUsers.map(c => c.user_id));
 
             // Tìm những người chưa check-in để gán missed
+            if (checkedInIds.size === 0) {
+                throw new Error('At least one member must check in before marking site as visited');
+            }
+
             const missingUsers = allUserIds.filter(id => !checkedInIds.has(id));
 
             if (missingUsers.length > 0) {
@@ -414,7 +530,7 @@ class CheckinService {
             });
             
             if (!member) {
-                throw new Error('Bạn không có quyền xem tiến độ này');
+                throw new Error('You do not have permission to view this progress');
             }
         }
 

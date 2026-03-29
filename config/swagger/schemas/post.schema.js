@@ -36,6 +36,21 @@
  *           items:
  *             type: string
  *           example: ["https://example.com/image1.jpg", "https://example.com/image2.jpg"]
+ *         journal_id:
+ *           type: string
+ *           format: uuid
+ *           nullable: true
+ *           description: "ID của nhật ký tâm linh (nếu share từ nhật ký)"
+ *         site_id:
+ *           type: string
+ *           format: uuid
+ *           nullable: true
+ *           description: "ID của địa điểm gắn liền với bài viết"
+ *         planner_id:
+ *           type: string
+ *           format: uuid
+ *           nullable: true
+ *           description: "ID của hành trình (nếu share từ planner)"
  *         likes_count:
  *           type: integer
  *           example: 25

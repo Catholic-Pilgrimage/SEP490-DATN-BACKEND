@@ -36,8 +36,8 @@ DO $$ BEGIN
     CREATE TYPE nearby_place_status AS ENUM ('pending', 'approved', 'rejected');
     
     -- Planner
-    CREATE TYPE planner_status AS ENUM ('planning', 'ongoing', 'completed', 'expired');
-    CREATE TYPE planner_item_status AS ENUM ('planned', 'in_progress', 'visited', 'skipped');
+    CREATE TYPE planner_status AS ENUM ('planning', 'ongoing', 'completed', 'cancelled');
+    CREATE TYPE planner_item_status AS ENUM ('upcoming', 'visited', 'skipped');
 
     CREATE TYPE checkin_status AS ENUM ('checked_in', 'missed', 'pending');
 
@@ -53,7 +53,7 @@ DO $$ BEGIN
     CREATE TYPE ai_source_type AS ENUM ('journal', 'planner', 'post', 'chat');
     
     -- Others
-    CREATE TYPE report_reason AS ENUM ('spam', 'inappropriate', 'harassment', 'other');
+    CREATE TYPE report_reason AS ENUM ('spam', 'harassment', 'hate_speech', 'false_information', 'violence', 'inappropriate', 'other');
     CREATE TYPE report_status AS ENUM ('pending', 'resolved', 'reject');
     CREATE TYPE sos_status AS ENUM ('pending', 'accepted', 'resolved', 'cancelled');
     CREATE TYPE invite_status AS ENUM ('pending', 'awaiting_payment', 'accepted', 'rejected', 'expired');
@@ -585,6 +585,8 @@ CREATE TABLE IF NOT EXISTS planners (
     started_at TIMESTAMP WITH TIME ZONE,
     completed_at TIMESTAMP WITH TIME ZONE,
     is_active BOOLEAN DEFAULT TRUE NOT NULL,
+    lock_duration_hours INTEGER DEFAULT 24,
+    is_locked BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_planner_dates CHECK (end_date IS NULL OR end_date >= start_date)
@@ -625,18 +627,31 @@ CREATE TABLE IF NOT EXISTS planner_items (
     site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
     leg_number INT DEFAULT 1,
     order_index INT DEFAULT 1,
-    status planner_item_status DEFAULT 'planned',
+    event_id UUID REFERENCES events(id) ON DELETE SET NULL,
+    status planner_item_status DEFAULT 'upcoming',
     note TEXT,
     -- NEW: Enhanced planning features
     nearby_amenity_ids UUID[], -- Array of nearby_place IDs (optional)
     estimated_time TIME, -- Giờ dự kiến đến địa điểm
     rest_duration INTERVAL, -- Thời gian nghỉ ngơi (e.g., '1 hour', '30 minutes')
+    travel_time_minutes INT, -- Travel time from previous site in minutes
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE public.planner_items
+    ADD COLUMN IF NOT EXISTS skip_reason TEXT,
+    ADD COLUMN IF NOT EXISTS skipped_at TIMESTAMP WITH TIME ZONE,
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
 
 CREATE INDEX IF NOT EXISTS idx_planner_items_planner ON planner_items(planner_id);
 ALTER TABLE planner_items
 ADD CONSTRAINT uq_planner_items_order UNIQUE (planner_id, leg_number, order_index);
+
+DROP TRIGGER IF EXISTS update_planner_items_updated_at ON planner_items;
+CREATE TRIGGER update_planner_items_updated_at
+    BEFORE UPDATE ON planner_items
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS planner_members (
     planner_id UUID REFERENCES planners(id) ON DELETE CASCADE,
@@ -737,14 +752,20 @@ CREATE TABLE IF NOT EXISTS journals (
     audio_url TEXT,
     image_url TEXT[],
     video_url TEXT,
+    planner_id UUID REFERENCES planners(id) ON DELETE SET NULL,
+    planner_item_id UUID REFERENCES planner_items(id) ON DELETE SET NULL,
     privacy journal_privacy DEFAULT 'private',
+    is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_journals_user ON journals(user_id);
 CREATE INDEX IF NOT EXISTS idx_journals_site ON journals(site_id);
+CREATE INDEX IF NOT EXISTS idx_journals_planner ON journals(planner_id) WHERE planner_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_journals_planner_item ON journals(planner_item_id) WHERE planner_item_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_journals_privacy ON journals(privacy) WHERE privacy = 'public';
+CREATE INDEX IF NOT EXISTS idx_journals_active ON journals(is_active) WHERE is_active = true;
 
 -- Trigger
 DROP TRIGGER IF EXISTS update_journals_updated_at ON journals;
@@ -833,14 +854,22 @@ CREATE TABLE IF NOT EXISTS posts (
     group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
     image_urls TEXT[],
+    journal_id UUID REFERENCES journals(id) ON DELETE SET NULL,
+    site_id UUID REFERENCES sites(id) ON DELETE SET NULL,
+    planner_id UUID REFERENCES planners(id) ON DELETE SET NULL,
     likes_count INT DEFAULT 0,
     status content_status DEFAULT 'published',
+    is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id);
 CREATE INDEX IF NOT EXISTS idx_posts_group ON posts(group_id);
+CREATE INDEX IF NOT EXISTS idx_posts_journal ON posts(journal_id) WHERE journal_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_posts_site ON posts(site_id) WHERE site_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_posts_planner ON posts(planner_id) WHERE planner_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_posts_active ON posts(is_active) WHERE is_active = true;
 
 -- Trigger
 DROP TRIGGER IF EXISTS update_posts_updated_at ON posts;
@@ -870,10 +899,12 @@ CREATE TABLE IF NOT EXISTS post_comments (
     parent_id UUID REFERENCES post_comments(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
     status content_status DEFAULT 'published',
+    is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_post_comments_post ON post_comments(post_id);
+CREATE INDEX IF NOT EXISTS idx_post_comments_active ON post_comments(is_active) WHERE is_active = true;
 
 -- ============================================
 -- 11. MODERATION & REPORTS

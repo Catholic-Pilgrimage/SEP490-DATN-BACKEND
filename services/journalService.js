@@ -10,47 +10,103 @@ class JournalService {
      */
     static async createJournal(userId, journalData, imageFiles = [], audioFile = null, videoFile = null) {
         try {
-            const { title, content, planner_item_id, privacy = 'private' } = journalData;
+            const { title, content, planner_item_id, planner_id } = journalData;
+            const privacy = 'private'; // Always private
 
             // Validate required fields
             if (!title || !content) {
                 throw new Error('Title and content are required');
             }
 
-            // Validate planner_item_id is required
-            if (!planner_item_id) {
-                throw new Error('Planner item ID is required. You must check-in at a location before creating a journal.');
-            }
+            let finalSiteId = null;
+            let finalPlannerId = planner_id;
+            let finalPlannerItemId = planner_item_id;
 
-            // Check if user has checked in at this planner_item
-            const { UserCheckin, PlannerItem } = require('../models');
-            const checkin = await UserCheckin.findOne({
-                where: {
-                    user_id: userId,
-                    planner_item_id: planner_item_id
-                },
-                include: [{
-                    model: PlannerItem,
-                    as: 'plannerItem',
-                    attributes: ['id', 'site_id'],
+            const { UserCheckin, PlannerItem, Planner } = require('../models');
+
+            if (planner_item_id) {
+                // Point Journal logic: Validate check-in and uniqueness
+                const checkin = await UserCheckin.findOne({
+                    where: {
+                        user_id: userId,
+                        planner_item_id: planner_item_id
+                    },
                     include: [{
-                        model: Site,
-                        as: 'site',
-                        attributes: ['id', 'name', 'code']
+                        model: PlannerItem,
+                        as: 'plannerItem',
+                        attributes: ['id', 'site_id', 'planner_id'],
+                        include: [
+                            {
+                                model: Site,
+                                as: 'site',
+                                attributes: ['id', 'name', 'code']
+                            },
+                            {
+                                model: Planner,
+                                as: 'planner',
+                                attributes: ['id', 'status']
+                            }
+                        ]
                     }]
-                }]
-            });
+                });
 
-            if (!checkin) {
-                throw new Error('You must check-in at this location before creating a journal.');
+                if (!checkin) {
+                    throw new Error('You must check-in at this location before creating a journal.');
+                }
+
+                if (!checkin.plannerItem || !checkin.plannerItem.planner) {
+                    throw new Error('Associated planner not found.');
+                }
+
+                if (checkin.plannerItem.planner.status !== 'completed') {
+                    throw new Error('You can only create a journal for a completed journey.');
+                }
+
+                // Check for existing point journal
+                const existingPoint = await Journal.findOne({
+                    where: { 
+                        planner_item_id: planner_item_id,
+                        user_id: userId,
+                        is_active: true
+                    }
+                });
+                if (existingPoint) {
+                    throw new Error('Already exists');
+                }
+
+                finalSiteId = checkin.plannerItem.site_id;
+                finalPlannerId = checkin.plannerItem.planner_id;
+            } else if (planner_id) {
+                // Trip Summary Journal logic: Validate completion and uniqueness
+                const planner = await Planner.findByPk(planner_id);
+                if (!planner) {
+                    throw new Error('Planner not found');
+                }
+
+                if (planner.status !== 'completed') {
+                    throw new Error('You need to complete the journey before writing a summary.');
+                }
+
+                // Check for existing summary journal (planner_id exists but planner_item_id is NULL)
+                const existingSummary = await Journal.findOne({
+                    where: {
+                        planner_id: planner_id,
+                        planner_item_id: null,
+                        user_id: userId,
+                        is_active: true
+                    }
+                });
+                if (existingSummary) {
+                    throw new Error('Summary already exists');
+                }
+                
+                finalPlannerId = planner_id;
+                finalSiteId = null; // Summary can be site-independent
+                finalPlannerItemId = null;
+            } else {
+                throw new Error('Planner Item ID or Planner ID is required');
             }
 
-            // Auto-populate site_id from planner_item
-            const finalSiteId = checkin.plannerItem.site_id;
-
-            if (!finalSiteId) {
-                throw new Error('This planner item is not associated with a site.');
-            }
 
             // Validate image limit (max 10)
             if (imageFiles && imageFiles.length > 10) {
@@ -77,12 +133,15 @@ class JournalService {
             const journal = await Journal.create({
                 user_id: userId,
                 site_id: finalSiteId,
+                planner_id: finalPlannerId,
+                planner_item_id: finalPlannerItemId,
                 title: title.trim(),
                 content: content.trim(),
                 audio_url: audioUrl,
                 image_url: imageUrls,
                 video_url: videoUrl,
-                privacy
+                privacy,
+                is_active: true
             });
 
             // Fetch journal with associations
@@ -110,7 +169,10 @@ class JournalService {
             const offset = (page - 1) * limit;
 
             const { rows: journals, count: total } = await Journal.findAndCountAll({
-                where: { user_id: userId },
+                where: { 
+                    user_id: userId,
+                    is_active: true
+                },
                 include: [
                     { model: User, as: 'author', attributes: ['id', 'full_name', 'email', 'avatar_url'] },
                     { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province'] }
@@ -139,61 +201,10 @@ class JournalService {
      * Get public journals with filters
      */
     static async getPublicJournals(filters = {}) {
-        try {
-            const { page = 1, limit = 10, site_id, keyword, date } = filters;
-            const offset = (page - 1) * limit;
-
-            const where = { privacy: 'public' };
-
-            // Filter by site_id
-            if (site_id) {
-                where.site_id = site_id;
-            }
-
-            // Filter by keyword (search in title and content)
-            if (keyword) {
-                where[Op.or] = [
-                    { title: { [Op.iLike]: `%${keyword}%` } },
-                    { content: { [Op.iLike]: `%${keyword}%` } }
-                ];
-            }
-
-            // Filter by date (YYYY-MM-DD)
-            if (date) {
-                const startOfDay = new Date(date);
-                startOfDay.setHours(0, 0, 0, 0);
-                const endOfDay = new Date(date);
-                endOfDay.setHours(23, 59, 59, 999);
-
-                where.created_at = {
-                    [Op.between]: [startOfDay, endOfDay]
-                };
-            }
-
-            const { rows: journals, count: total } = await Journal.findAndCountAll({
-                where,
-                include: [
-                    { model: User, as: 'author', attributes: ['id', 'full_name', 'email', 'avatar_url'] },
-                    { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province'] }
-                ],
-                limit: parseInt(limit),
-                offset,
-                order: [['created_at', 'DESC']]
-            });
-
-            return {
-                journals: journals.map(j => this.formatJournalResponse(j)),
-                pagination: {
-                    page: parseInt(page),
-                    limit: parseInt(limit),
-                    total,
-                    totalPages: Math.ceil(total / limit)
-                }
-            };
-        } catch (error) {
-            Logger.error('Get public journals error:', error);
-            throw error;
-        }
+        return {
+            journals: [],
+            pagination: { page: 1, limit: 10, total: 0, totalPages: 0 }
+        };
     }
 
     /**
@@ -201,7 +212,11 @@ class JournalService {
      */
     static async getJournalById(journalId, userId = null) {
         try {
-            const journal = await Journal.findByPk(journalId, {
+            const journal = await Journal.findOne({
+                where: { 
+                    id: journalId,
+                    is_active: true
+                },
                 include: [
                     { model: User, as: 'author', attributes: ['id', 'full_name', 'email', 'avatar_url'] },
                     { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province'] }
@@ -212,9 +227,45 @@ class JournalService {
                 throw new Error('Journal not found');
             }
 
-            // If journal is private, only owner can view
-            if (journal.privacy === 'private' && journal.user_id !== userId) {
-                throw new Error('Forbidden');
+            // Permission check: owner or shared publicly
+            if (journal.user_id !== userId) {
+                const { Post, Planner, PlannerItem } = require('../models');
+                
+                // 1. Check if shared directly as a post
+                const directPost = await Post.findOne({
+                    where: { 
+                        journal_id: journal.id, 
+                        status: 'published',
+                        is_active: true 
+                    }
+                });
+
+                if (!directPost) {
+                    // 2. Check if part of a shared journey
+                    const journeyPost = await Post.findOne({
+                        where: { 
+                            user_id: journal.user_id, 
+                            status: 'published',
+                            planner_id: { [Op.ne]: null },
+                            is_active: true
+                        },
+                        include: [{
+                            model: Planner,
+                            as: 'planner',
+                            required: true,
+                            include: [{
+                                model: PlannerItem,
+                                as: 'items',
+                                where: { site_id: journal.site_id },
+                                required: true
+                            }]
+                        }]
+                    });
+
+                    if (!journeyPost) {
+                        throw new Error('Forbidden');
+                    }
+                }
             }
 
             return this.formatJournalResponse(journal);
@@ -229,7 +280,12 @@ class JournalService {
      */
     static async updateJournal(journalId, userId, updateData, imageFiles = [], audioFile = null, videoFile = null) {
         try {
-            const journal = await Journal.findByPk(journalId);
+            const journal = await Journal.findOne({
+                where: { 
+                    id: journalId,
+                    is_active: true
+                }
+            });
 
             if (!journal) {
                 throw new Error('Journal not found');
@@ -260,9 +316,8 @@ class JournalService {
                 dataToUpdate.content = updateData.content.trim();
             }
 
-            if (updateData.privacy !== undefined) {
-                dataToUpdate.privacy = updateData.privacy;
-            }
+            // Note: privacy cannot be changed
+            dataToUpdate.privacy = 'private';
 
             // Note: site_id cannot be changed after creation
 
@@ -270,6 +325,9 @@ class JournalService {
             if (imageFiles && imageFiles.length > 0) {
                 const newImageUrls = imageFiles.map(file => file.path);
                 const existingImages = journal.image_url || [];
+                if (existingImages.length + newImageUrls.length > 10) {
+                    throw new Error('Maximum 10 images allowed');
+                }
                 dataToUpdate.image_url = [...existingImages, ...newImageUrls];
             }
 
@@ -307,7 +365,44 @@ class JournalService {
      */
     static async deleteJournal(journalId, userId) {
         try {
-            const journal = await Journal.findByPk(journalId);
+            const journal = await Journal.findOne({
+                where: { 
+                    id: journalId,
+                    is_active: true
+                }
+            });
+
+            if (!journal) {
+                throw new Error('Journal not found or already deleted');
+            }
+
+            // Check ownership
+            if (journal.user_id !== userId) {
+                throw new Error('Forbidden');
+            }
+
+            // Soft delete
+            await journal.update({ is_active: false });
+
+            Logger.info(`Journal logically deleted by user ${userId}: ${journalId}`);
+            return { id: journalId, message: 'Journal deleted successfully' };
+        } catch (error) {
+            Logger.error('Delete journal error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Share journal to post (community)
+     */
+    static async shareJournalToPost(journalId, userId) {
+        try {
+            const journal = await Journal.findOne({
+                where: { 
+                    id: journalId,
+                    is_active: true
+                }
+            });
 
             if (!journal) {
                 throw new Error('Journal not found');
@@ -318,12 +413,32 @@ class JournalService {
                 throw new Error('Forbidden');
             }
 
-            await journal.destroy();
+            // Check if already shared (optional, but good to have)
+            const { Post } = require('../models');
+            const existingPost = await Post.findOne({
+                where: {
+                    user_id: userId,
+                    journal_id: journalId
+                }
+            });
 
-            Logger.info(`Journal deleted by user ${userId}: ${journalId}`);
-            return { id: journalId, message: 'Journal deleted successfully' };
+            if (existingPost) {
+                throw new Error('This journal has already been shared to the community');
+            }
+
+            // Create post as a reference to the journal
+            const post = await Post.create({
+                user_id: userId,
+                journal_id: journalId,
+                site_id: journal.site_id,
+                content: journal.title, // Use title as fallback or default content
+                status: 'published'
+            });
+
+            Logger.info(`Journal ${journalId} shared to community by user ${userId}: Post ${post.id}`);
+            return post;
         } catch (error) {
-            Logger.error('Delete journal error:', error);
+            Logger.error('Share journal error:', error);
             throw error;
         }
     }
@@ -336,6 +451,8 @@ class JournalService {
             id: journal.id,
             user_id: journal.user_id,
             site_id: journal.site_id,
+            planner_id: journal.planner_id,
+            planner_item_id: journal.planner_item_id,
             title: journal.title,
             content: journal.content,
             audio_url: journal.audio_url,

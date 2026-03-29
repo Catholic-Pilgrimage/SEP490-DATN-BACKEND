@@ -261,6 +261,57 @@ const NOTIFICATION_TEMPLATES = {
         }
     },
 
+    planner_first_checkin: {
+        vi: {
+            title: 'Da co nguoi check-in',
+            message: 'Da co thanh vien check-in tai {{siteName}} trong ke hoach "{{plannerName}}". Hay check-in truoc khi diem den bi chot.'
+        },
+        en: {
+            title: 'Someone checked in',
+            message: 'A group member has checked in at {{siteName}} in planner "{{plannerName}}". Please check in before this stop is closed.'
+        }
+    },
+    planner_item_skipped: {
+        vi: {
+            title: 'Dia diem da duoc bo qua',
+            message: 'Diem {{siteName}} da duoc bo qua. Ly do: {{reason}}. Hay di chuyen toi diem tiep theo {{nextSiteName}}.'
+        },
+        en: {
+            title: 'Stop skipped',
+            message: '{{siteName}} was skipped. Reason: {{reason}}. Please move to the next stop: {{nextSiteName}}.'
+        }
+    },
+    planner_item_skipped_last: {
+        vi: {
+            title: 'Dia diem da duoc bo qua',
+            message: 'Diem {{siteName}} da duoc bo qua. Ly do: {{reason}}.'
+        },
+        en: {
+            title: 'Stop skipped',
+            message: '{{siteName}} was skipped. Reason: {{reason}}.'
+        }
+    },
+    planner_item_added: {
+        vi: {
+            title: 'Lich trinh da duoc cap nhat',
+            message: 'Lich trinh da duoc cap nhat: them {{siteName}} vao ngay {{day}} luc {{time}}.'
+        },
+        en: {
+            title: 'Itinerary updated',
+            message: 'The itinerary was updated: {{siteName}} was added on day {{day}} at {{time}}.'
+        }
+    },
+    planner_schedule_changed: {
+        vi: {
+            title: 'Lich trinh da thay doi',
+            message: 'Lich trinh da thay doi. Diem tiep theo la {{siteName}} luc {{time}}.'
+        },
+        en: {
+            title: 'Schedule changed',
+            message: 'The itinerary has changed. The next stop is {{siteName}} at {{time}}.'
+        }
+    },
+
     // SOS notifications
     sos_created: {
         vi: {

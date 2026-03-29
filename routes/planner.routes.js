@@ -80,6 +80,13 @@ router.patch(
     PlannerController.updatePlannerStatus
 );
 
+router.patch(
+    '/:id/lock',
+    authenticate,
+    PlannerValidator.validatePlannerId,
+    PlannerController.toggleLock
+);
+
 router.post(
     '/:id/items/:itemId/checkin',
     authenticate,
@@ -171,6 +178,13 @@ router.get(
     authenticate,
     PlannerValidator.validatePlannerId,
     PlannerController.getPlannerProgress
+);
+
+router.post(
+    '/:id/share',
+    authenticate,
+    PlannerValidator.validatePlannerId,
+    PlannerController.shareToPost
 );
 
 // Offline Mode Routes

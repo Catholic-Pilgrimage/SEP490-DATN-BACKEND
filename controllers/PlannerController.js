@@ -4,6 +4,26 @@ const { validationResult } = require('express-validator');
 const { formatValidationErrors } = require('../utils/validation.util');
 
 class PlannerController {
+    static localizePlannerItemWarning(req, result) {
+        if (!result?.warning || typeof result.warning === 'string') {
+            return result;
+        }
+
+        if (result.warning.code === 'event_time_window') {
+            return {
+                ...result,
+                warning: req.__('planner.event_time_warning', {
+                    time: result.warning.time || '',
+                    eventName: result.warning.eventName || 'Event',
+                    startTime: result.warning.startTime || '--:--',
+                    endTime: result.warning.endTime || '--:--'
+                })
+            };
+        }
+
+        return result;
+    }
+
     /**
      * POST /planners - Create a new planner
      */
@@ -34,6 +54,9 @@ class PlannerController {
             }
             if (error.message === 'End date must be after or equal to start date') {
                 return ResponseUtil.badRequest(res, req.__('planner.invalid_end_date'));
+            }
+            if (error.message === 'Group lead time error') {
+                return ResponseUtil.badRequest(res, req.__('planner.group_lead_time_error'));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
@@ -113,6 +136,24 @@ class PlannerController {
             if (error.message === 'Planner dates overlap') {
                 return ResponseUtil.badRequest(res, req.__('planner.dates_overlap', { dates: error.conflictDates.join(', ') }), { conflict_dates: error.conflictDates });
             }
+            if (error.message === 'Cannot reduce capacity below committed slots') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_reduce_capacity_below_committed', { count: error.requiredSlots || '?' }));
+            }
+            if (error.message === 'Cannot make planner incomplete after sharing') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_break_schedule_after_sharing'));
+            }
+            if (error.message === 'Cannot update completed plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_update_completed'));
+            }
+            if (error.message === 'Cannot update cancelled plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_update_cancelled'));
+            }
+            if (error.message === 'Planner is locked') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));
+            }
+            if (error.message === 'Group lead time error') {
+                return ResponseUtil.badRequest(res, req.__('planner.group_lead_time_error'));
+            }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
@@ -136,6 +177,18 @@ class PlannerController {
             if (error.message === 'Forbidden') {
                 return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
             }
+            if (error.message === 'Cannot delete ongoing journey') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_ongoing'));
+            }
+            if (error.message === 'Cannot delete completed plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_completed'));
+            }
+            if (error.message === 'Cannot delete cancelled plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_cancelled'));
+            }
+            if (error.message === 'Planner is locked') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));
+            }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
@@ -150,7 +203,8 @@ class PlannerController {
                 return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
             }
 
-            const result = await PlannerService.addPlannerItem(req.params.id, req.user?.id, req.body);
+            let result = await PlannerService.addPlannerItem(req.params.id, req.user?.id, req.body);
+            result = PlannerController.localizePlannerItemWarning(req, result);
 
             // If there's a warning, include it in the response
             if (result.warning) {
@@ -173,8 +227,20 @@ class PlannerController {
             if (error.message.includes('Invalid day number')) {
                 return ResponseUtil.badRequest(res, req.__('planner.invalid_leg_number_range', { max: error.message.match(/\d+/)?.[0] || '?' }));
             }
-            if (error.message.includes('Cannot add the same site consecutively')) {
-                return ResponseUtil.badRequest(res, error.message);
+            if (error.message === 'Cannot add item to completed plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_add_completed'));
+            }
+            if (error.message === 'Cannot add item to cancelled plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_add_cancelled'));
+            }
+            if (error.message === 'Planner is locked') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));
+            }
+            if (error.message === 'Cannot make planner incomplete after sharing') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_break_schedule_after_sharing'));
+            }
+            if (error.message === 'Consecutive site not allowed') {
+                return ResponseUtil.badRequest(res, req.__('planner.consecutive_site_same_day', { day: req.body.leg_number || '?' }));
             }
             if (error.message.includes('Quãng đường quá xa')) {
                 return ResponseUtil.badRequest(res, req.__('planner.distance_too_far'));
@@ -197,43 +263,54 @@ class PlannerController {
                 return ResponseUtil.badRequest(res, req.__('planner.total_time_exceeds_24h', { day: dayMatch, hours: hoursMatch }));
             }
             if (error.message === 'Estimated time is required') {
-                return ResponseUtil.badRequest(res, 'Giờ dự kiến không được để trống');
+                return ResponseUtil.badRequest(res, req.__('planner.estimated_time_required'));
             }
             if (error.message === 'Rest duration is required') {
-                return ResponseUtil.badRequest(res, 'Thời gian nghỉ ngơi không được để trống');
+                return ResponseUtil.badRequest(res, req.__('planner.rest_duration_required'));
             }
-            if (error.message.includes('Thời gian di chuyển quá dài')) {
-                return ResponseUtil.badRequest(res, error.message);
+            if (error.message === 'Event time after end') {
+                return ResponseUtil.badRequest(res, req.__('planner.event_time_after_end', {
+                    time: error.time || req.body.estimated_time || '',
+                    eventName: error.eventName || 'Event',
+                    endTime: error.endTime || '--:--'
+                }));
             }
-            if (error.message.includes('Thời gian di chuyển từ ngày')) {
-                return ResponseUtil.badRequest(res, error.message);
+            if (error.message.startsWith('Missing preceding days:')) {
+                const parts = error.message.replace('Missing preceding days: ', '').split(', missing days ');
+                const day = parts[0].replace('current day ', '');
+                const missingDays = parts[1];
+                return ResponseUtil.badRequest(res, req.__('planner.missing_preceding_days', { day, missingDays }));
             }
-            if (error.message.includes('Thời gian đến')) {
-                return ResponseUtil.badRequest(res, error.message);
+            if (error.message.startsWith('Invalid arrival time:')) {
+                const parts = error.message.replace('Invalid arrival time: ', '').split(', departure: ');
+                const time = parts[0];
+                const departureTime = parts[1];
+                return ResponseUtil.badRequest(res, req.__('planner.invalid_arrival_time', { time, departureTime }));
             }
-            if (error.message.includes('Bạn sẽ đến khoảng')) {
-                return ResponseUtil.badRequest(res, error.message);
+            if (error.message.startsWith('Arrival time past midnight:')) {
+                const parts = error.message.replace('Arrival time past midnight: ', '').split(', ');
+                const departureTime = parts[0].replace('departure ', '');
+                const travelTime = parts[1].replace('travel ', '');
+                const day = parts[2].replace('day ', '');
+                return ResponseUtil.badRequest(res, req.__('planner.arrival_time_next_day', { departureTime, travelTime, day }));
             }
-            if (error.message.includes('không hợp lệ')) {
-                return ResponseUtil.badRequest(res, error.message);
+            if (error.message.startsWith('Invalid arrival time suggested:')) {
+                const parts = error.message.replace('Invalid arrival time suggested: ', '').split(', ');
+                const time = parts[0];
+                const departureTime = parts[1].replace('departure ', '');
+                const travelTime = parts[2].replace('travel ', '');
+                const suggestedTime = parts[3].replace('suggested ', '');
+                return ResponseUtil.badRequest(res, req.__('planner.arrival_time_suggested', { time, departureTime, travelTime, suggestedTime }));
             }
-            if (error.message.includes('Vượt quá ngày hiện tại')) {
-                return ResponseUtil.badRequest(res, error.message);
+            if (error.message.startsWith('Duplicate time in day:')) {
+                const parts = error.message.replace('Duplicate time in day: ', '').split(', ');
+                const time = parts[0];
+                const day = parts[1].replace('day ', '');
+                return ResponseUtil.badRequest(res, req.__('planner.duplicate_time_in_day', { time, day }));
             }
-            if (error.message.includes('Bạn không thể thêm địa điểm cho Ngày')) {
-                return ResponseUtil.badRequest(res, error.message);
-            }
-            if (error.message.includes('Ngày')) {
-                return ResponseUtil.badRequest(res, error.message);
-            }
-            if (error.message.includes('Sự kiện')) {
-                return ResponseUtil.badRequest(res, error.message);
-            }
-            if (error.message.includes('Đã có địa điểm khác với giờ')) {
-                return ResponseUtil.badRequest(res, error.message);
-            }
-            if (error.message.includes('closed on') || error.message.includes('Site is closed at')) {
-                return ResponseUtil.badRequest(res, error.message);
+            if (error.message.startsWith('Consecutive site same day:')) {
+                const day = error.message.replace('Consecutive site same day: day ', '');
+                return ResponseUtil.badRequest(res, req.__('planner.consecutive_site_same_day', { day }));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
@@ -269,14 +346,35 @@ class PlannerController {
             if (error.message === 'Item does not belong to this planner') {
                 return ResponseUtil.badRequest(res, req.__('planner.item_not_belong'));
             }
-            if (error.message === 'Không thể xóa địa điểm đang trong quá trình thực hiện') {
-                return ResponseUtil.badRequest(res, error.message);
+            if (error.message === 'Cannot delete ongoing journey') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_ongoing'));
             }
-            if (error.message.startsWith('Invalid day number')) {
-                return ResponseUtil.badRequest(res, error.message);
+            if (error.message === 'Cannot delete completed plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_completed'));
             }
-            if (error.message === 'Day number must be at least 1') {
-                return ResponseUtil.badRequest(res, error.message);
+            if (error.message === 'Cannot delete cancelled plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_cancelled'));
+            }
+            if (error.message === 'Planner is locked') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));
+            }
+            if (error.message === 'Cannot delete visited site') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_visited'));
+            }
+            if (error.message === 'Cannot delete skipped site') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_skipped'));
+            }
+            if (error.message === 'Cannot make planner incomplete after sharing') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_break_schedule_after_sharing'));
+            }
+            if (error.message.startsWith('Cannot delete')) {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_processed'));
+            }
+            if (error.message.startsWith('Cannot delete last item gap:')) {
+                const parts = error.message.replace('Cannot delete last item gap: ', '').split(', ');
+                const day = parts[0].replace('day ', '');
+                const higherDay = parts[1].replace('higherDay ', '');
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_last_item_gap', { day, higherDay }));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
@@ -292,12 +390,17 @@ class PlannerController {
                 return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
             }
 
-            const result = await PlannerService.updatePlannerItem(
+            let result = await PlannerService.updatePlannerItem(
                 req.params.id,
                 req.user?.id,
                 req.params.itemId,
                 req.body
             );
+            result = PlannerController.localizePlannerItemWarning(req, result);
+
+            if (result.warning) {
+                return ResponseUtil.success(res, result, req.__('planner.item_update_success_with_warning'));
+            }
 
             return ResponseUtil.success(res, result, req.__('planner.item_update_success'));
         } catch (error) {
@@ -318,12 +421,76 @@ class PlannerController {
             if (error.message === 'Can only update estimated_time for the first item of the day') {
                 return ResponseUtil.badRequest(res, req.__('planner.only_first_item_estimated_time'));
             }
-            if (error.message.includes('closed on') || error.message.includes('Site is closed at')) {
-                return ResponseUtil.badRequest(res, error.message);
+            if (error.message.startsWith('Site is closed on')) {
+                const day = error.message.replace('Site is closed on ', '').replace('s', '');
+                return ResponseUtil.badRequest(res, req.__('planner.site_closed_on_day', { day }));
             }
-            // Catch time validation errors (Vietnamese)
-            if (error.message.includes('không hợp lệ') || error.message.includes('Đã có địa điểm khác với giờ')) {
-                return ResponseUtil.badRequest(res, error.message);
+            if (error.message.startsWith('Site is closed at')) {
+                const parts = error.message.replace('Site is closed at ', '').split('. Opening hours: ');
+                const time = parts[0];
+                const hours = parts[1];
+                return ResponseUtil.badRequest(res, req.__('planner.site_closed_at', { time, hours }));
+            }
+            if (error.message === 'Cannot update completed plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_update_completed'));
+            }
+            if (error.message === 'Cannot update cancelled plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_update_cancelled'));
+            }
+            if (error.message === 'Planner is locked') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));
+            }
+            if (error.message === 'Cannot update visited site') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_update_visited'));
+            }
+            if (error.message === 'Cannot update skipped site') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_update_skipped'));
+            }
+            if (error.message === 'Event time after end') {
+                return ResponseUtil.badRequest(res, req.__('planner.event_time_after_end', {
+                    time: error.time || req.body.estimated_time || '',
+                    eventName: error.eventName || 'Event',
+                    endTime: error.endTime || '--:--'
+                }));
+            }
+
+            if (error.message.startsWith('Invalid arrival time:')) {
+                const parts = error.message.replace('Invalid arrival time: ', '').split(', departure: ');
+                const time = parts[0];
+                const departureTime = parts[1];
+                return ResponseUtil.badRequest(res, req.__('planner.invalid_arrival_time', { time, departureTime }));
+            }
+            if (error.message.startsWith('Arrival time past midnight:')) {
+                const parts = error.message.replace('Arrival time past midnight: ', '').split(', ');
+                const departureTime = parts[0].replace('departure ', '');
+                const travelTime = parts[1].replace('travel ', '');
+                const day = parts[2].replace('day ', '');
+                return ResponseUtil.badRequest(res, req.__('planner.arrival_time_next_day', { departureTime, travelTime, day }));
+            }
+            if (error.message.startsWith('Invalid arrival time suggested:')) {
+                const parts = error.message.replace('Invalid arrival time suggested: ', '').split(', ');
+                const time = parts[0];
+                const departureTime = parts[1].replace('departure ', '');
+                const travelTime = parts[2].replace('travel ', '');
+                const suggestedTime = parts[3].replace('suggested ', '');
+                return ResponseUtil.badRequest(res, req.__('planner.arrival_time_suggested', { time, departureTime, travelTime, suggestedTime }));
+            }
+            if (error.message.startsWith('Duplicate time in day:')) {
+                const parts = error.message.replace('Duplicate time in day: ', '').split(', ');
+                const time = parts[0];
+                const day = parts[1].replace('day ', '');
+                return ResponseUtil.badRequest(res, req.__('planner.duplicate_time_in_day', { time, day }));
+            }
+
+            if (error.message.startsWith('Site is closed on')) {
+                const day = error.message.replace('Site is closed on ', '').replace('s', '');
+                return ResponseUtil.badRequest(res, req.__('planner.site_closed_on_day', { day }));
+            }
+            if (error.message.startsWith('Site is closed at')) {
+                const parts = error.message.replace('Site is closed at ', '').split('. Opening hours: ');
+                const time = parts[0];
+                const hours = parts[1];
+                return ResponseUtil.badRequest(res, req.__('planner.site_closed_at', { time, hours }));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
@@ -337,13 +504,18 @@ class PlannerController {
             const result = await PlannerService.completePlanner(req.params.id, req.user.id);
 
             // Customize message based on final status
-            let message = 'Đã hoàn thành kế hoạch hành hương';
-            if (result.status === 'expir') {
-                message = 'Kế hoạch đã hết hạn (checkin dưới 80%)';
-            }
+            const message = result.status === 'cancelled'
+                ? req.__('planner.cancelled_zero_visited')
+                : req.__('planner.complete_success');
 
             return ResponseUtil.success(res, result, message);
         } catch (error) {
+            if (error.message.startsWith('Incomplete schedule:')) {
+                const parts = error.message.replace('Incomplete schedule: ', '').split(', ');
+                const missingDays = parts[0].replace('missing days ', '');
+                const totalDays = parts[1].replace('total days ', '');
+                return ResponseUtil.badRequest(res, req.__('planner.incomplete_schedule', { missingDays, totalDays }));
+            }
             if (error.message === 'Planner not found') {
                 return ResponseUtil.notFound(res, req.__('planner.not_found'));
             }
@@ -351,7 +523,7 @@ class PlannerController {
                 return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
             }
             if (error.message === 'Planner is not ongoing') {
-                return ResponseUtil.badRequest(res, 'Chỉ có thể hoàn thành kế hoạch đang tiến hành');
+                return ResponseUtil.badRequest(res, req.__('planner.not_ongoing'));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
@@ -363,7 +535,7 @@ class PlannerController {
     static async startPlanner(req, res) {
         try {
             const result = await PlannerService.startPlanner(req.params.id, req.user.id);
-            return ResponseUtil.success(res, result, 'Đã bắt đầu kế hoạch hành hương');
+            return ResponseUtil.success(res, result, req.__('planner.start_success'));
         } catch (error) {
             if (error.message === 'Planner not found') {
                 return ResponseUtil.notFound(res, req.__('planner.not_found'));
@@ -372,10 +544,16 @@ class PlannerController {
                 return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
             }
             if (error.message === 'Planner is not in planning status') {
-                return ResponseUtil.badRequest(res, 'Chỉ có thể bắt đầu kế hoạch đang trong trạng thái lập kế hoạch');
+                return ResponseUtil.badRequest(res, req.__('planner.not_planning') || 'Trips can only be started when in planning status');
             }
             if (error.message === 'Planner must have start_date and end_date to start') {
-                return ResponseUtil.badRequest(res, 'Kế hoạch phải có ngày bắt đầu và ngày kết thúc để bắt đầu');
+                return ResponseUtil.badRequest(res, req.__('planner.missing_dates') || 'Planner must have start date and end date to start');
+            }
+            if (error.message === 'Group trip requires at least 2 joined members') {
+                return ResponseUtil.badRequest(res, req.__('planner.group_requires_two_joined'));
+            }
+            if (error.message === 'Planner must be fully locked before starting group trip') {
+                return ResponseUtil.badRequest(res, req.__('planner.group_start_requires_lock'));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
@@ -383,29 +561,28 @@ class PlannerController {
 
     /**
      * PATCH /planners/:id/status - Update planner status (start/complete)
-     * Body: { status: 'ongoing' | 'completed' | 'expired' }
+     * Body: { status: 'ongoing' | 'completed' | 'cancelled' }
      */
     static async updatePlannerStatus(req, res) {
         try {
             const { status } = req.body;
 
             // Validate status
-            const validStatuses = ['ongoing', 'completed', 'expired'];
+            const validStatuses = ['ongoing', 'completed', 'cancelled'];
             if (!status || !validStatuses.includes(status)) {
-                return ResponseUtil.badRequest(res, `Status không hợp lệ. Chọn: ${validStatuses.join(', ')}`);
+                return ResponseUtil.badRequest(res, req.__('planner.invalid_status_options', { options: validStatuses.join(', ') }));
             }
 
             const result = await PlannerService.updatePlannerStatus(req.params.id, req.user.id, status);
 
-            // Customize message based on status
-            let message = 'Cập nhật trạng thái thành công';
-            if (status === 'ongoing') {
-                message = 'Đã bắt đầu kế hoạch hành hương';
-            } else if (status === 'completed') {
-                message = 'Đã hoàn thành kế hoạch hành hương';
-            } else if (status === 'expired') {
-                message = 'Kế hoạch đã hết hạn (checkin dưới 80%)';
-            }
+            // Customize message based on status (map results to correct messages)
+            const message = status === 'ongoing'
+                ? req.__('planner.start_success')
+                : result.status === 'completed'
+                    ? req.__('planner.complete_success')
+                    : result.status === 'cancelled'
+                        ? req.__('planner.cancelled_zero_visited')
+                        : req.__('planner.status_update_success');
 
             return ResponseUtil.success(res, result, message);
         } catch (error) {
@@ -415,17 +592,32 @@ class PlannerController {
             if (error.message === 'Forbidden') {
                 return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
             }
-            if (error.message.startsWith('Không thể chuyển trạng thái')) {
-                return ResponseUtil.badRequest(res, error.message);
+            if (error.message.startsWith('Cannot transition status:')) {
+                const parts = error.message.replace('Cannot transition status: from ', '').split(' to ');
+                const from = parts[0];
+                const to = parts[1];
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_transition_status', { from, to }));
+            }
+            if (error.message.startsWith('Incomplete schedule:')) {
+                const parts = error.message.replace('Incomplete schedule: ', '').split(', ');
+                const missingDays = parts[0].replace('missing days ', '');
+                const totalDays = parts[1].replace('total days ', '');
+                return ResponseUtil.badRequest(res, req.__('planner.incomplete_schedule', { missingDays, totalDays }));
+            }
+            if (error.message.startsWith('Plan cancelled:') || error.message.includes('0 sites visited')) {
+                return ResponseUtil.badRequest(res, req.__('planner.cancelled_zero_visited'));
+            }
+            if (error.message.startsWith('Minimum check-in required:') || error.message.includes('0 sites visited')) {
+                return ResponseUtil.badRequest(res, req.__('planner.min_visited_required'));
             }
             if (error.message === 'Planner must have start_date and end_date to start') {
-                return ResponseUtil.badRequest(res, 'Kế hoạch phải có ngày bắt đầu và ngày kết thúc để bắt đầu');
+                return ResponseUtil.badRequest(res, req.__('planner.missing_dates'));
             }
-            if (error.message.startsWith('Không thể hoàn thành kế hoạch')) {
-                return ResponseUtil.badRequest(res, error.message);
+            if (error.message === 'Group trip requires at least 2 joined members') {
+                return ResponseUtil.badRequest(res, req.__('planner.group_requires_two_joined'));
             }
-            if (error.message.startsWith('Chỉ có thể hoàn thành kế hoạch')) {
-                return ResponseUtil.badRequest(res, error.message);
+            if (error.message === 'Planner must be fully locked before starting group trip') {
+                return ResponseUtil.badRequest(res, req.__('planner.group_start_requires_lock'));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
@@ -443,13 +635,13 @@ class PlannerController {
                 req.params.id,
                 req.user.id
             );
-            return ResponseUtil.success(res, result, 'Lấy tiến độ thành công');
+            return ResponseUtil.success(res, result, req.__('planner.get_progress_success'));
         } catch (error) {
             if (error.message === 'Planner not found') {
                 return ResponseUtil.notFound(res, req.__('planner.not_found'));
             }
-            if (error.message.includes('Không có quyền')) {
-                return ResponseUtil.forbidden(res, error.message);
+            if (error.message === 'Forbidden' || error.message.includes('permission')) {
+                return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
             }
             return ResponseUtil.error(res, error.message || req.__('error.server_error'));
         }
@@ -488,12 +680,70 @@ class PlannerController {
             // Lấy transaction từ WalletService
             const WalletService = require('../services/pilgrim/walletService');
             const result = await WalletService.getPlannerTransactions(plannerId, req.query);
-            return ResponseUtil.success(res, result, 'Lấy sao kê quỹ nhóm thành công');
+            return ResponseUtil.success(res, result, req.__('planner.get_transactions_success'));
         } catch (error) {
+            return ResponseUtil.error(res, req.__('error.server_error'));
+        }
+    }
+
+    /**
+     * POST /planners/:id/share - Share journey to community post
+     */
+    static async shareToPost(req, res) {
+        try {
+            const result = await PlannerService.sharePlannerToPost(req.user.id, req.params.id);
+            return ResponseUtil.created(res, result, req.__('planner.share_success'));
+        } catch (error) {
+            if (error.message === 'Planner not found') {
+                return ResponseUtil.notFound(res, req.__('planner.not_found'));
+            }
+            if (error.statusCode === 403) {
+                return ResponseUtil.forbidden(res, error.message);
+            }
+            if (error.statusCode === 400) {
+                return ResponseUtil.badRequest(res, error.message);
+            }
+            return ResponseUtil.error(res, req.__('error.server_error'));
+        }
+    }
+
+    /**
+     * PATCH /planners/:id/lock - Manually toggle planner lock
+     */
+    static async toggleLock(req, res) {
+        try {
+            const { is_locked } = req.body;
+            if (is_locked === undefined) {
+                return ResponseUtil.badRequest(res, 'is_locked is required (true/false)');
+            }
+
+            const result = await PlannerService.togglePlannerLock(req.params.id, req.user.id, !!is_locked);
+            
+            const messageKey = !!is_locked ? 'planner.manual_lock_success' : 'planner.manual_unlock_success';
+            return ResponseUtil.success(res, result, req.__(messageKey));
+        } catch (error) {
+            if (error.message === 'Planner not found') {
+                return ResponseUtil.notFound(res, req.__('planner.not_found'));
+            }
+            if (error.message === 'Forbidden') {
+                return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
+            }
+            if (error.message === 'Only group journeys can be locked') {
+                return ResponseUtil.badRequest(res, req.__('planner.only_group_can_lock'));
+            }
+            if (error.message === 'Manual lock requires at least 2 joined members') {
+                return ResponseUtil.badRequest(res, req.__('planner.manual_lock_requires_group'));
+            }
+            if (error.message === 'Manual lock requires complete schedule') {
+                return ResponseUtil.badRequest(res, req.__('planner.manual_lock_requires_complete_schedule'));
+            }
+            if (error.message === 'Cannot unlock once the journey is locked') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_unlock_once_locked'));
+            }
+
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
 }
 
 module.exports = PlannerController;
-

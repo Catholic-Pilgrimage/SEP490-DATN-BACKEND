@@ -130,16 +130,24 @@
  *         site_id:
  *           type: string
  *           format: uuid
+ *         event_id:
+ *           type: string
+ *           format: uuid
+ *           nullable: true
  *         leg_number:
  *           type: integer
  *         order_index:
  *           type: integer
  *         status:
  *           type: string
- *           enum: [planned, in_progress, visited, skipped]
+ *           enum: [upcoming, visited, skipped]
  *           description: "Trạng thái của điểm đến trong lịch trình"
  *         note:
  *           type: string
+ *         skip_reason:
+ *           type: string
+ *           nullable: true
+ *           description: "Lý do bỏ qua điểm đến, chỉ có khi status = skipped"
  *         nearby_amenity_ids:
  *           type: array
  *           items:
@@ -164,10 +172,23 @@
  *         checkin_distance_meters:
  *           type: integer
  *           description: "Khoảng cách khi checkin (mét)"
+ *         checkin_latitude:
+ *           type: number
+ *           format: double
+ *           nullable: true
+ *         checkin_longitude:
+ *           type: number
+ *           format: double
+ *           nullable: true
  *         checked_in_at:
  *           type: string
  *           format: date-time
  *           description: "Thời điểm checkin"
+ *         skipped_at:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *           description: "Thời điểm trưởng đoàn bỏ qua điểm đến"
  *         site:
  *           type: object
  *           properties:
@@ -187,6 +208,9 @@
  *             cover_image:
  *               type: string
  *         created_at:
+ *           type: string
+ *           format: date-time
+ *         updated_at:
  *           type: string
  *           format: date-time
  *
