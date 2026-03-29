@@ -35,6 +35,90 @@ class PlannerService {
         return new Date(`${dateValue}T${timeValue || fallbackTime}`);
     }
 
+    static async markPlannerAsOngoing(planner, options = {}) {
+        const updateData = {
+            status: 'ongoing',
+            is_locked: false
+        };
+
+        if (!planner.started_at) {
+            updateData.started_at = new Date();
+        }
+
+        await planner.update(updateData, options);
+        planner.status = 'ongoing';
+        planner.is_locked = false;
+
+        if (updateData.started_at) {
+            planner.started_at = updateData.started_at;
+        }
+
+        return planner;
+    }
+
+    static normalizePlannerTimeValue(timeValue) {
+        if (!timeValue) {
+            return '--';
+        }
+
+        const rawValue = String(timeValue);
+        return rawValue.length >= 5 ? rawValue.slice(0, 5) : rawValue;
+    }
+
+    static async getNextUpcomingPlannerItem(plannerId, options = {}) {
+        return PlannerItem.findOne({
+            where: {
+                planner_id: plannerId,
+                status: 'upcoming'
+            },
+            include: [
+                { model: Site, as: 'site', attributes: ['id', 'name'] }
+            ],
+            order: [
+                ['leg_number', 'ASC'],
+                ['order_index', 'ASC']
+            ],
+            transaction: options.transaction
+        });
+    }
+
+    static async notifyOngoingPlannerMembers(planner, type, data = {}, options = {}) {
+        if (!planner || planner.status !== 'ongoing') {
+            return [];
+        }
+
+        const NotificationService = require('./shared/notificationService');
+        const joinedMembers = await PlannerMember.findAll({
+            where: {
+                planner_id: planner.id,
+                join_status: 'joined'
+            },
+            attributes: ['user_id'],
+            transaction: options.transaction
+        });
+
+        const participantIds = [...new Set([
+            planner.user_id,
+            ...joinedMembers.map(member => member.user_id)
+        ])].filter(userId => userId && userId !== options.excludeUserId);
+
+        if (participantIds.length === 0) {
+            return [];
+        }
+
+        const notifications = [];
+        for (const receiverId of participantIds) {
+            try {
+                const notification = await NotificationService.createNotification(type, receiverId, data);
+                notifications.push(notification);
+            } catch (error) {
+                Logger.warn(`Failed to notify planner member ${receiverId} for ${type}: ${error.message}`);
+            }
+        }
+
+        return notifications;
+    }
+
     static validateEventTimingForPlannerItem(planner, legNumber, estimatedTime, event) {
         const itemTime = this.parseTimeValue(estimatedTime);
         if (!event || !itemTime) {
@@ -415,9 +499,7 @@ class PlannerService {
                 if (canAutoStart) {
                     const shouldBeOngoing = await this.shouldPlannerBeOngoing(planner);
                     if (shouldBeOngoing) {
-                        await planner.update({ status: 'ongoing', is_locked: false });
-                        planner.status = 'ongoing';
-                        planner.is_locked = false;
+                        await this.markPlannerAsOngoing(planner);
                         Logger.info(`Planner ${plannerId} auto-updated status from 'planning' to 'ongoing' (triggered by first task time)`);
                     }
                 }
@@ -1378,6 +1460,15 @@ class PlannerService {
                     response.warning = eventTimeWarning;
                 }
 
+                const firstAddedItem = results[0];
+                await this.notifyOngoingPlannerMembers(planner, 'planner_item_added', {
+                    plannerId: planner.id,
+                    plannerName: planner.name || 'Planner',
+                    siteName: firstAddedItem?.site?.name || site.name || 'diem den',
+                    day: firstAddedItem?.leg_number || leg_number,
+                    time: this.normalizePlannerTimeValue(firstAddedItem?.estimated_time)
+                }, { excludeUserId: userId });
+
                 return response;
             }
 
@@ -1435,6 +1526,14 @@ class PlannerService {
                     end_time: eventInfo.end_time
                 };
             }
+
+            await this.notifyOngoingPlannerMembers(planner, 'planner_item_added', {
+                plannerId: planner.id,
+                plannerName: planner.name || 'Planner',
+                siteName: result.site?.name || site.name || 'diem den',
+                day: result.leg_number,
+                time: this.normalizePlannerTimeValue(result.estimated_time)
+            }, { excludeUserId: userId });
 
             if (eventTimeWarning) {
                 response.warning = eventTimeWarning;
@@ -1718,6 +1817,11 @@ class PlannerService {
             const dataToUpdate = {};
             let eventInfo = null;
             let eventTimeWarning = null;
+            const shouldNotifyScheduleChange = planner.status === 'ongoing' && (
+                updateData.estimated_time !== undefined ||
+                updateData.rest_duration !== undefined ||
+                updateData.travel_time_minutes !== undefined
+            );
 
             // Update note
             if (updateData.note !== undefined) {
@@ -1894,6 +1998,18 @@ class PlannerService {
                 response.warning = eventTimeWarning;
             }
 
+            if (shouldNotifyScheduleChange) {
+                const nextUpcomingItem = await this.getNextUpcomingPlannerItem(plannerId);
+                if (nextUpcomingItem) {
+                    await this.notifyOngoingPlannerMembers(planner, 'planner_schedule_changed', {
+                        plannerId: planner.id,
+                        plannerName: planner.name || 'Planner',
+                        siteName: nextUpcomingItem.site?.name || 'diem den',
+                        time: this.normalizePlannerTimeValue(nextUpcomingItem.estimated_time)
+                    }, { excludeUserId: userId });
+                }
+            }
+
             return response;
         } catch (error) {
             if (transaction && !transaction.finished) {
@@ -1986,6 +2102,8 @@ class PlannerService {
             order_index: item.order_index,
             status: item.status,
             note: item.note,
+            skip_reason: item.skip_reason,
+            skipped_at: item.skipped_at,
             nearby_amenity_ids: item.nearby_amenity_ids || [],
             estimated_time: item.estimated_time,
             rest_duration: item.rest_duration,
@@ -2005,7 +2123,8 @@ class PlannerService {
                 longitude: item.site.longitude,
                 cover_image: item.site.cover_image
             } : null,
-            created_at: item.created_at
+            created_at: item.created_at,
+            updated_at: item.updated_at
         };
     }
 
@@ -2193,10 +2312,7 @@ class PlannerService {
 
                 const shouldBeOngoing = await this.shouldPlannerBeOngoing(planner);
                 if (shouldBeOngoing) {
-                    await planner.update({ 
-                        status: 'ongoing',
-                        is_locked: false // Auto-unlock when trip starts so owner can modify
-                    });
+                    await this.markPlannerAsOngoing(planner);
                     startedCount++;
                     
                     // Trigger notification for all members
@@ -2323,7 +2439,7 @@ class PlannerService {
             }
 
             // Start trek (ongoing)
-            await planner.update({ status: 'ongoing', is_locked: false });
+            await this.markPlannerAsOngoing(planner);
 
             Logger.info(`Planner ${plannerId} started by user ${userId} (planning -> ongoing)`);
             return this.formatPlannerResponse(planner);
@@ -2388,10 +2504,7 @@ class PlannerService {
                 }
                 // ===== END: Validation =====
 
-                await planner.update({ 
-                    status: 'ongoing',
-                    is_locked: false // Auto-unlock when trip starts so owner can modify
-                });
+                await this.markPlannerAsOngoing(planner);
 
                 Logger.info(`Planner ${plannerId} started by user ${userId} (planning -> ongoing)`);
             }

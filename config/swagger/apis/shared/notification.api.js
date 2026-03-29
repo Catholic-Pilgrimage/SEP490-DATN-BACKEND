@@ -374,7 +374,18 @@
  *                   - sos_resolved
  *                   - planner_invite
  *                   - planner_joined
+ *                   - planner_kicked
+ *                   - planner_deposit_refunded
+ *                   - planner_member_left
+ *                   - planner_first_checkin
+ *                   - planner_item_skipped
+ *                   - planner_item_skipped_last
+ *                   - planner_item_added
+ *                   - planner_schedule_changed
  *                   - favorite_site_update
+ *                   - sos_planner_alert
+ *                   - narrative_approved
+ *                   - narrative_rejected
  *                   - verification_submitted
  *                   - site_registration_submitted
  *                   - media_submitted
@@ -382,6 +393,11 @@
  *                   - schedule_submitted
  *                   - nearby_place_submitted
  *                   - shift_submitted
+ *                   - new_site_review
+ *                   - new_nearby_place_review
+ *                   - review_replied
+ *                   - content_deleted
+ *                   - content_warning
  *                 example: media_submitted
  *                 description: Loại notification cần test
  *               user_id:
@@ -454,7 +470,7 @@
  * /api/notifications/test/all:
  *   post:
  *     summary: 🧪 TEST - Gửi TẤT CẢ notification types
- *     description: Gửi tất cả 30 loại notification cùng lúc để test UI (chỉ dùng cho development). Có thể chỉ định user_id để test cho user khác.
+ *     description: Gửi tất cả notification types hiện được hệ thống hỗ trợ để test UI (chỉ dùng cho development). Có thể chỉ định user_id để test cho user khác.
  *     tags: [Notifications]
  *     security:
  *       - bearerAuth: []

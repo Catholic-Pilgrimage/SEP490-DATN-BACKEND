@@ -601,9 +601,20 @@ CREATE TABLE IF NOT EXISTS planner_items (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE public.planner_items
+    ADD COLUMN IF NOT EXISTS skip_reason TEXT,
+    ADD COLUMN IF NOT EXISTS skipped_at TIMESTAMP WITH TIME ZONE,
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+
 CREATE INDEX IF NOT EXISTS idx_planner_items_planner ON planner_items(planner_id);
 ALTER TABLE planner_items
 ADD CONSTRAINT uq_planner_items_order UNIQUE (planner_id, leg_number, order_index);
+
+DROP TRIGGER IF EXISTS update_planner_items_updated_at ON planner_items;
+CREATE TRIGGER update_planner_items_updated_at
+    BEFORE UPDATE ON planner_items
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS planner_members (
     planner_id UUID REFERENCES planners(id) ON DELETE CASCADE,

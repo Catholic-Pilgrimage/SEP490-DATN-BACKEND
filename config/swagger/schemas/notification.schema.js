@@ -18,6 +18,7 @@
  *           enum:
  *             - local_guide_created
  *             - local_guide_disabled
+ *             - local_guide_removed
  *             - shift_assigned
  *             - shift_rejected
  *             - site_update_submitted
@@ -30,12 +31,37 @@
  *             - event_rejected
  *             - schedule_approved
  *             - schedule_rejected
+ *             - nearby_place_approved
+ *             - nearby_place_rejected
  *             - sos_created
  *             - sos_assigned
  *             - sos_resolved
  *             - planner_invite
  *             - planner_joined
+ *             - planner_kicked
+ *             - planner_deposit_refunded
+ *             - planner_member_left
+ *             - planner_first_checkin
+ *             - planner_item_skipped
+ *             - planner_item_skipped_last
+ *             - planner_item_added
+ *             - planner_schedule_changed
  *             - favorite_site_update
+ *             - sos_planner_alert
+ *             - narrative_approved
+ *             - narrative_rejected
+ *             - verification_submitted
+ *             - site_registration_submitted
+ *             - media_submitted
+ *             - event_submitted
+ *             - schedule_submitted
+ *             - nearby_place_submitted
+ *             - shift_submitted
+ *             - new_site_review
+ *             - new_nearby_place_review
+ *             - review_replied
+ *             - content_deleted
+ *             - content_warning
  *           description: Type of notification
  *         title:
  *           type: string
@@ -116,6 +142,7 @@
  *       enum:
  *         - local_guide_created
  *         - local_guide_disabled
+ *         - local_guide_removed
  *         - shift_assigned
  *         - shift_rejected
  *         - site_update_submitted
@@ -128,12 +155,37 @@
  *         - event_rejected
  *         - schedule_approved
  *         - schedule_rejected
+ *         - nearby_place_approved
+ *         - nearby_place_rejected
  *         - sos_created
  *         - sos_assigned
  *         - sos_resolved
  *         - planner_invite
  *         - planner_joined
+ *         - planner_kicked
+ *         - planner_deposit_refunded
+ *         - planner_member_left
+ *         - planner_first_checkin
+ *         - planner_item_skipped
+ *         - planner_item_skipped_last
+ *         - planner_item_added
+ *         - planner_schedule_changed
  *         - favorite_site_update
+ *         - sos_planner_alert
+ *         - narrative_approved
+ *         - narrative_rejected
+ *         - verification_submitted
+ *         - site_registration_submitted
+ *         - media_submitted
+ *         - event_submitted
+ *         - schedule_submitted
+ *         - nearby_place_submitted
+ *         - shift_submitted
+ *         - new_site_review
+ *         - new_nearby_place_review
+ *         - review_replied
+ *         - content_deleted
+ *         - content_warning
  *       description: |
  *         Available notification types:
  *         - **local_guide_created**: Manager tạo local guide mới
@@ -156,6 +208,32 @@
  *         - **planner_invite**: Lời mời tham gia planner
  *         - **planner_joined**: User tham gia planner
  *         - **favorite_site_update**: Site yêu thích có cập nhật
+ *         - **local_guide_removed**: Local guide bị xóa
+ *         - **nearby_place_approved**: Nearby place được duyệt
+ *         - **nearby_place_rejected**: Nearby place bị từ chối
+ *         - **planner_kicked**: Thành viên bị mời ra khỏi planner
+ *         - **planner_deposit_refunded**: Thành viên được hoàn cọc
+ *         - **planner_member_left**: Thành viên rời planner
+ *         - **planner_first_checkin**: Đã có người check-in đầu tiên tại điểm đến
+ *         - **planner_item_skipped**: Điểm đến bị bỏ qua và còn điểm tiếp theo
+ *         - **planner_item_skipped_last**: Điểm đến cuối cùng bị bỏ qua
+ *         - **planner_item_added**: Planner được thêm địa điểm mới
+ *         - **planner_schedule_changed**: Lịch trình planner thay đổi
+ *         - **sos_planner_alert**: Cảnh báo SOS liên quan planner
+ *         - **narrative_approved**: Narrative được duyệt
+ *         - **narrative_rejected**: Narrative bị từ chối
+ *         - **verification_submitted**: Yêu cầu xác minh được gửi
+ *         - **site_registration_submitted**: Đăng ký site được gửi
+ *         - **media_submitted**: Media mới được gửi duyệt
+ *         - **event_submitted**: Event mới được gửi duyệt
+ *         - **schedule_submitted**: Schedule mới được gửi duyệt
+ *         - **nearby_place_submitted**: Nearby place mới được gửi duyệt
+ *         - **shift_submitted**: Shift mới được gửi duyệt
+ *         - **new_site_review**: Có đánh giá site mới
+ *         - **new_nearby_place_review**: Có đánh giá nearby place mới
+ *         - **review_replied**: Đánh giá đã được phản hồi
+ *         - **content_deleted**: Nội dung bị xóa
+ *         - **content_warning**: Cảnh báo về nội dung
  */
 
 module.exports = {};

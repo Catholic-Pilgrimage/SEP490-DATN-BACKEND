@@ -706,6 +706,8 @@ class PlannerShareService {
             if (['ongoing', 'completed', 'cancelled'].includes(planner.status)) {
                 if (planner.status === 'ongoing') {
                     throw new Error('Cannot leave ongoing journey');
+                } else if (planner.status === 'completed') {
+                    throw new Error('Cannot leave completed plan');
                 } else {
                     throw new Error('Cannot leave cancelled plan');
                 }
