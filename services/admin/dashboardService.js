@@ -147,6 +147,7 @@ class AdminDashboardService {
 
             const plannersStatusMap = {
                 planning: 0,
+                locked: 0,
                 ongoing: 0,
                 completed: 0
             };

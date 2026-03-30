@@ -59,6 +59,8 @@
  * /api/planners:
  *   post:
  *     summary: Tạo kế hoạch mới
+ *     description: |
+ *       Tạo planner mới.
  *     tags: [Planners - Pilgrim]
  *     security:
  *       - bearerAuth: []
@@ -199,7 +201,7 @@
  *               summary: Bỏ qua điểm đến
  *               value:
  *                 status: skipped
- *                 skip_reason: "Troi mua lon, doan khong the tiep tuc"
+ *                 skip_reason: "Trời mưa lớn, đoàn không thể tiếp tục"
  *           schema:
  *             type: object
  *             properties:
@@ -274,7 +276,7 @@
  *                 description: "Trạng thái mới muốn đổi"
  *               skip_reason:
  *                 type: string
- *                 example: "Troi mua lon, doan khong the tiep tuc"
+ *                 example: "Trời mưa lớn, đoàn không thể tiếp tục"
  *                 description: "Lý do bỏ qua điểm đến. Bắt buộc khi `status = skipped`, bỏ qua khi `status = visited`"
  *     responses:
  *       200:
@@ -295,8 +297,6 @@
  *       404:
  *         description: Không tìm thấy kế hoạch hoặc item
  */
-
-
 
 /**
  * @swagger
@@ -336,7 +336,6 @@
  *         description: Không có quyền - không phải chủ sở hữu
  *       404:
  *         description: Không tìm thấy kế hoạch
-
  */
 
 /**
@@ -432,13 +431,13 @@
  *         description: Item ID
  *     responses:
  *       200:
- *         description: Item deleted successfully
+ *         description: Xóa địa điểm thành công
  *       401:
- *         description: Unauthorized
+ *         description: Chưa xác thực
  *       403:
- *         description: Forbidden - not the owner
+ *         description: Không có quyền - không phải chủ sở hữu
  *       404:
- *         description: Planner or item not found
+ *         description: Không tìm thấy kế hoạch hoặc địa điểm
  */
 
 /**
@@ -494,25 +493,27 @@
  *       400:
  *         description: Lỗi xác thực hoặc không thể cập nhật estimated_time cho điểm không phải đầu tiên
  *       401:
- *         description: Unauthorized
+ *         description: Chưa xác thực
  *       403:
- *         description: Forbidden - not the owner
+ *         description: Không có quyền - không phải chủ sở hữu
  *       404:
- *         description: Planner or item not found
+ *         description: Không tìm thấy kế hoạch hoặc địa điểm
  */
 
 /**
  * @swagger
  * /api/planners/{id}/status:
  *   patch:
- *     summary: Cập nhật trạng thái kế hoạch (API gộp - start/complete)
+ *     summary: Cập nhật trạng thái kế hoạch (lock/start/complete/cancel)
  *     description: |
  *       Cập nhật trạng thái kế hoạch với các giá trị:
- *       - **ongoing**: Bắt đầu kế hoạch (từ 'planning' → 'ongoing')
- *         - Yêu cầu kế hoạch phải có start_date và end_date
- *       - **completed**: Hoàn thành kế hoạch (từ 'ongoing' → 'completed')
- *         - Yêu cầu checkin >= 80% địa điểm
- *         - Nếu checkin === 0 → tự động chuyển sang 'cancelled'
+ *       - **locked**: Chuyển planner sang trạng thái khoá để demo hoặc chốt planner sớm (planning -> locked)
+ *         - Backend sẽ set status = locked và is_locked = true
+ *       - **ongoing**: Bắt đầu kế hoạch (locked -> ongoing)
+ *         - Yêu cầu planner có start_date, end_date, lịch trình hợp lệ và planner đã ở trạng thái locked
+ *       - **completed**: Hoàn thành kế hoạch (ongoing -> completed)
+ *         - Nếu 0 địa điểm đã visit thì hệ thống sẽ chuyển sang cancelled
+ *       - **cancelled**: Huỷ planner khi transition hợp lệ
  *     tags: [Planners - Pilgrim]
  *     security:
  *       - bearerAuth: []
@@ -535,12 +536,14 @@
  *             properties:
  *               status:
  *                 type: string
- *                 enum: [ongoing, completed]
+ *                 enum: [locked, ongoing, completed, cancelled]
  *                 description: |
- *                   - 'ongoing': Bắt đầu kế hoạch (planning → ongoing)
- *                   - 'completed': Hoàn thành kế hoạch (ongoing → completed)
+ *                   - 'locked': Chốt planner và đặt is_locked = true
+ *                   - 'ongoing': Bắt đầu kế hoạch (locked -> ongoing)
+ *                   - 'completed': Hoàn thành kế hoạch (ongoing -> completed)
+ *                   - 'cancelled': Huỷ planner
  *           example:
- *             status: "ongoing"
+ *             status: "locked"
  *     responses:
  *       200:
  *         description: Cập nhật trạng thái thành công
@@ -554,12 +557,14 @@
  *                 message:
  *                   type: string
  *                 data:
- *                   $ref: '#/components/schemas/PlannerResponse'
+ *                   $ref: '#/components/schemas/Planner'
  *       400:
  *         description: |
  *           - Kế hoạch không ở trạng thái hợp lệ
+ *           - Transition status không hợp lệ
  *           - Thiếu start_date/end_date khi chuyển sang ongoing
- *           - Checkin dưới 80% khi hoàn thành
+ *           - Planner chưa ở trạng thái locked nhưng cố gắng chuyển sang ongoing
+ *           - Check-in không hợp lệ khi hoàn thành
  *       401:
  *         description: Chưa xác thực
  *       403:
@@ -572,12 +577,10 @@
  * @swagger
  * /api/planners/{id}/lock:
  *   patch:
- *     summary: "[Trưởng đoàn] Tạm khóa/Mở khóa hành trình (Manual Lock/Unlock)"
+ *     summary: "[Trưởng đoàn] Khóa chỉnh sửa planner (Edit Lock)"
  *     description: |
  *       **Chỉ dành cho Trưởng đoàn (Owner)**.
- *       
- *       Dùng để chủ động khóa hoặc mở khóa hành trình nhằm chặn các thay đổi (lịch trình, thành viên) đối với hành trình nhóm (từ 2 người trở lên).
- *       Hữu ích cho việc chốt lịch sớm hoặc testing.
+ *       Endpoint này chỉ đổi is_locked = true
  *     tags: [Planners - Pilgrim]
  *     security:
  *       - bearerAuth: []
@@ -601,8 +604,8 @@
  *               is_locked:
  *                 type: boolean
  *                 description: |
- *                   - `true`: Khóa hành trình
- *                   - `false`: Mở khóa hành trình
+ *                   - true: Khoá chỉnh sửa planner (is_locked = true)
+ *                   - false: Mở khoá chỉnh sửa planner (is_locked = false)
  *     responses:
  *       200:
  *         description: Cập nhật thành công
@@ -616,7 +619,7 @@
  *                 message:
  *                   type: string
  *                 data:
- *                   $ref: '#/components/schemas/PlannerResponse'
+ *                   $ref: '#/components/schemas/Planner'
  *       400:
  *         description: Lỗi xác thực hoặc không phải hành trình nhóm
  *       401:
@@ -645,9 +648,16 @@
  *         schema:
  *           type: string
  *           format: uuid
+ *         description: ID của kế hoạch
  *     responses:
  *       200:
- *         description: Thông tin tiến độ
+ *         description: Thông tin tiến độ check-in của các thành viên
+ *       401:
+ *         description: Chưa xác thực
+ *       403:
+ *         description: Không phải owner hoặc thành viên
+ *       404:
+ *         description: Không tìm thấy kế hoạch
  */
 
 module.exports = {};

@@ -43,6 +43,12 @@
  *           maximum: 100
  *           example: 10
  *           description: "Phần trăm phạt khi rút khỏi nhóm (0-100)"
+ *         edit_lock_at:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *           example: "2026-04-30T00:00:00.000Z"
+ *           description: "Field này hiển thị trên Swagger để FE biết cấu trúc dữ liệu. Backend chưa áp dụng edit_lock_at ở bước tạo mới; chỉ dùng khi cập nhật planner nhóm sau khi đủ điều kiện"
  *
  *     UpdatePlannerRequest:
  *       type: object
@@ -79,6 +85,12 @@
  *           maximum: 100
  *           example: 10
  *           description: "Phần trăm phạt khi rút khỏi nhóm (0-100)"
+ *         edit_lock_at:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *           example: "2026-04-30T00:00:00.000Z"
+ *           description: "Mốc khóa chỉnh sửa cho planner nhóm. Chỉ được set sau 12 giờ từ invite đầu tiên và không được muộn hơn planner_lock_at. Gửi null để bỏ mốc custom và quay về lock_duration_hours mặc định"
  *
  *     AddPlannerItemRequest:
  *       type: object
@@ -252,6 +264,20 @@
  *           description: "Phần trăm phạt khi rút khỏi nhóm (0-100)"
  *         status:
  *           type: string
+ *           enum: [planning, locked, ongoing, completed, cancelled]
+ *         planner_lock_at:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *           description: "Mốc planner chuyển sang trạng thái locked theo rule thời gian hoặc dùng để tham chiếu khi demo"
+ *         edit_lock_at:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *           description: "Mốc khóa chỉnh sửa hiệu lực của planner"
+ *         is_locked:
+ *           type: boolean
+ *           description: "Cho biết planner hiện đang bị khóa chỉnh sửa hay không"
  *         share_token:
  *           type: string
  *         qr_code_url:
@@ -281,6 +307,19 @@
  *         - $ref: '#/components/schemas/Planner'
  *         - type: object
  *           properties:
+ *             first_invite_at:
+ *               type: string
+ *               format: date-time
+ *               nullable: true
+ *               description: "Thời điểm invite đầu tiên của planner nhóm"
+ *             edit_lock_available_at:
+ *               type: string
+ *               format: date-time
+ *               nullable: true
+ *               description: "Sau mốc này owner mới được set edit_lock_at"
+ *             can_set_edit_lock_at:
+ *               type: boolean
+ *               description: "Cho biết owner có thể set edit_lock_at ở thời điểm hiện tại hay chưa"
  *             items_by_day:
  *               type: object
  *               additionalProperties:
