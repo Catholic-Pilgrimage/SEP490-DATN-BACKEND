@@ -148,8 +148,32 @@ class PlannerController {
             if (error.message === 'Cannot update cancelled plan') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_update_cancelled'));
             }
+            if (error.message === 'Planner dates can only be set during creation') {
+                return ResponseUtil.badRequest(res, req.__('planner.dates_only_on_create'));
+            }
             if (error.message === 'Planner is locked') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));
+            }
+            if (error.message === 'Only group journeys can schedule an edit lock') {
+                return ResponseUtil.badRequest(res, req.__('planner.edit_lock_requires_group'));
+            }
+            if (error.message === 'Edit lock requires complete schedule') {
+                return ResponseUtil.badRequest(res, req.__('planner.edit_lock_requires_complete_schedule'));
+            }
+            if (error.message === 'Edit lock requires first invite') {
+                return ResponseUtil.badRequest(res, req.__('planner.edit_lock_requires_first_invite'));
+            }
+            if (error.message === 'Edit lock requires discussion period') {
+                return ResponseUtil.badRequest(res, req.__('planner.edit_lock_requires_discussion_period'));
+            }
+            if (error.message === 'Edit lock must be after discussion period') {
+                return ResponseUtil.badRequest(res, req.__('planner.edit_lock_must_be_after_discussion_period'));
+            }
+            if (error.message === 'Edit lock must be on or before planner lock time') {
+                return ResponseUtil.badRequest(res, req.__('planner.edit_lock_must_be_before_planner_lock'));
+            }
+            if (error.message === 'Invalid edit lock time') {
+                return ResponseUtil.badRequest(res, req.__('validation.failed'));
             }
             if (error.message === 'Group lead time error') {
                 return ResponseUtil.badRequest(res, req.__('planner.group_lead_time_error'));
@@ -185,6 +209,9 @@ class PlannerController {
             }
             if (error.message === 'Cannot delete cancelled plan') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_cancelled'));
+            }
+            if (error.message === 'Cannot delete shared group planner') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_shared_group'));
             }
             if (error.message === 'Planner is locked') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));
@@ -552,23 +579,23 @@ class PlannerController {
             if (error.message === 'Group trip requires at least 2 joined members') {
                 return ResponseUtil.badRequest(res, req.__('planner.group_requires_two_joined'));
             }
-            if (error.message === 'Planner must be fully locked before starting group trip') {
-                return ResponseUtil.badRequest(res, req.__('planner.group_start_requires_lock'));
+            if (error.message === 'Planner must be locked before starting' || error.message === 'Planner must be fully locked before starting group trip') {
+                return ResponseUtil.badRequest(res, req.__('planner.start_requires_lock'));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
 
     /**
-     * PATCH /planners/:id/status - Update planner status (start/complete)
-     * Body: { status: 'ongoing' | 'completed' | 'cancelled' }
+     * PATCH /planners/:id/status - Update planner status (lock/start/complete/cancel)
+     * Body: { status: 'locked' | 'ongoing' | 'completed' | 'cancelled' }
      */
     static async updatePlannerStatus(req, res) {
         try {
             const { status } = req.body;
 
             // Validate status
-            const validStatuses = ['ongoing', 'completed', 'cancelled'];
+            const validStatuses = ['locked', 'ongoing', 'completed', 'cancelled'];
             if (!status || !validStatuses.includes(status)) {
                 return ResponseUtil.badRequest(res, req.__('planner.invalid_status_options', { options: validStatuses.join(', ') }));
             }
@@ -576,7 +603,9 @@ class PlannerController {
             const result = await PlannerService.updatePlannerStatus(req.params.id, req.user.id, status);
 
             // Customize message based on status (map results to correct messages)
-            const message = status === 'ongoing'
+            const message = status === 'locked'
+                ? req.__('planner.manual_lock_success')
+                : status === 'ongoing'
                 ? req.__('planner.start_success')
                 : result.status === 'completed'
                     ? req.__('planner.complete_success')
@@ -616,8 +645,8 @@ class PlannerController {
             if (error.message === 'Group trip requires at least 2 joined members') {
                 return ResponseUtil.badRequest(res, req.__('planner.group_requires_two_joined'));
             }
-            if (error.message === 'Planner must be fully locked before starting group trip') {
-                return ResponseUtil.badRequest(res, req.__('planner.group_start_requires_lock'));
+            if (error.message === 'Planner must be locked before starting' || error.message === 'Planner must be fully locked before starting group trip') {
+                return ResponseUtil.badRequest(res, req.__('planner.start_requires_lock'));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
@@ -717,9 +746,12 @@ class PlannerController {
                 return ResponseUtil.badRequest(res, 'is_locked is required (true/false)');
             }
 
-            const result = await PlannerService.togglePlannerLock(req.params.id, req.user.id, !!is_locked);
+            const normalizedLockValue = typeof is_locked === 'boolean'
+                ? is_locked
+                : String(is_locked).toLowerCase() === 'true';
+            const result = await PlannerService.togglePlannerLock(req.params.id, req.user.id, normalizedLockValue);
             
-            const messageKey = !!is_locked ? 'planner.manual_lock_success' : 'planner.manual_unlock_success';
+            const messageKey = normalizedLockValue ? 'planner.manual_lock_success' : 'planner.manual_unlock_success';
             return ResponseUtil.success(res, result, req.__(messageKey));
         } catch (error) {
             if (error.message === 'Planner not found') {
@@ -731,11 +763,23 @@ class PlannerController {
             if (error.message === 'Only group journeys can be locked') {
                 return ResponseUtil.badRequest(res, req.__('planner.only_group_can_lock'));
             }
-            if (error.message === 'Manual lock requires at least 2 joined members') {
-                return ResponseUtil.badRequest(res, req.__('planner.manual_lock_requires_group'));
+            if (error.message === 'Planner is locked') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));
             }
-            if (error.message === 'Manual lock requires complete schedule') {
-                return ResponseUtil.badRequest(res, req.__('planner.manual_lock_requires_complete_schedule'));
+            if (error.message === 'Edit lock requires complete schedule') {
+                return ResponseUtil.badRequest(res, req.__('planner.edit_lock_requires_complete_schedule'));
+            }
+            if (error.message === 'Edit lock requires first invite') {
+                return ResponseUtil.badRequest(res, req.__('planner.edit_lock_requires_first_invite'));
+            }
+            if (error.message === 'Edit lock requires discussion period') {
+                return ResponseUtil.badRequest(res, req.__('planner.edit_lock_requires_discussion_period'));
+            }
+            if (error.message === 'Edit lock must be after discussion period') {
+                return ResponseUtil.badRequest(res, req.__('planner.edit_lock_must_be_after_discussion_period'));
+            }
+            if (error.message === 'Edit lock must be on or before planner lock time') {
+                return ResponseUtil.badRequest(res, req.__('planner.edit_lock_must_be_before_planner_lock'));
             }
             if (error.message === 'Cannot unlock once the journey is locked') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_unlock_once_locked'));

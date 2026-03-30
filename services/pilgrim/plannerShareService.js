@@ -83,11 +83,6 @@ class PlannerShareService {
                 throw new Error('Forbidden');
             }
 
-            // Only allow inviting when planner is in planning status
-            if (planner.status !== 'planning') {
-                throw new Error('Can only invite when planner is in planning status');
-            }
-
             // Sweep ALL expired active invites (pending + awaiting_payment) before counting slots
             // Prevents stale invites from falsely blocking available slots or re-inviting same email
             const now = new Date();
@@ -122,11 +117,11 @@ class PlannerShareService {
             }
 
             const plannerState = await PlannerService.getPlannerState(plannerId, planner);
-            if (plannerState.finalLocked) {
-                throw new Error('Planner is locked');
-            }
             if (plannerState.joinWindowClosed) {
                 throw new Error('Planner join window is closed');
+            }
+            if (planner.status !== 'planning') {
+                throw new Error('Can only invite when planner is in planning status');
             }
             if (!planner.start_date || !planner.end_date) {
                 throw new Error('Planner must have start_date and end_date before inviting members');
@@ -348,6 +343,13 @@ class PlannerShareService {
                 throw new Error('Invite already processed');
             }
 
+            const invitePlannerState = await PlannerService.getPlannerState(invite.planner.id, invite.planner);
+
+            if (invitePlannerState.joinWindowClosed) {
+                await invite.update({ status: 'expired' });
+                throw new Error('Planner join window is closed');
+            }
+
             // Check if planner is still in planning status
             if (invite.planner.status !== 'planning') {
                 await invite.update({ status: 'expired' });
@@ -369,15 +371,6 @@ class PlannerShareService {
             if (action === 'accept') {
                 const planner = invite.planner;
                 const plannerState = await PlannerService.getPlannerState(planner.id, planner);
-
-                if (plannerState.finalLocked) {
-                    throw new Error('Planner is locked');
-                }
-
-                if (plannerState.joinWindowClosed) {
-                    await invite.update({ status: 'expired' });
-                    throw new Error('Planner join window is closed');
-                }
                 if (!planner.start_date || !planner.end_date) {
                     await invite.update({ status: 'expired' });
                     throw new Error('Planner must have start_date and end_date before inviting members');
@@ -715,15 +708,6 @@ class PlannerShareService {
 
             const plannerState = await PlannerService.getPlannerState(plannerId, planner, { transaction: t });
 
-            // Check final lock
-            if (plannerState.finalLocked) {
-                throw new Error('Planner is locked');
-            }
-
-            if (plannerState.joinWindowClosed) {
-                throw new Error('Planner member changes are closed');
-            }
-
             // Cannot remove owner
             if (memberId === planner.user_id) {
                 throw new Error('Cannot remove owner');
@@ -791,6 +775,7 @@ class PlannerShareService {
             }
 
             await member.save({ transaction: t });
+            await PlannerService.syncPlannerLockState(planner, { transaction: t });
 
             await t.commit();
 
@@ -988,8 +973,7 @@ class PlannerShareService {
                 !currentPlanner.start_date ||
                 !currentPlanner.end_date ||
                 !plannerState.scheduleComplete ||
-                plannerState.joinWindowClosed ||
-                plannerState.finalLocked
+                plannerState.joinWindowClosed
             ) {
                 await inviteByEmail.update({ status: 'expired' }, { transaction: t });
                 await t.commit();

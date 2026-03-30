@@ -86,7 +86,7 @@ class PilgrimDashboardService {
             const upcomingPlan = await Planner.findOne({
                 where: {
                     user_id: pilgrimId,
-                    status: 'planning',
+                    status: { [Op.in]: ['planning', 'locked'] },
                     is_active: true,
                     start_date: { [Op.gte]: now }
                 },

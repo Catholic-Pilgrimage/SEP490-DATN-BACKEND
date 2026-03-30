@@ -62,7 +62,9 @@ const Planner = sequelize.define('Planner', {
     status: {
         type: DataTypes.STRING,
         defaultValue: 'planning',
-            isIn: [['planning', 'ongoing', 'completed', 'cancelled']]
+        validate: {
+            isIn: [['planning', 'locked', 'ongoing', 'completed', 'cancelled']]
+        }
     },
     started_at: {
         type: DataTypes.DATE,
@@ -81,10 +83,12 @@ const Planner = sequelize.define('Planner', {
         type: DataTypes.INTEGER,
         defaultValue: 24,
         allowNull: false,
-        validate: {
-            min: 24,
-            max: 48
-        }
+        comment: 'Fallback giờ khóa chỉnh sửa khi chưa đặt edit_lock_at'
+    },
+    edit_lock_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        comment: 'Thời điểm bắt đầu khóa chỉnh sửa kế hoạch'
     },
     is_locked: {
         type: DataTypes.BOOLEAN,

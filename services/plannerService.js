@@ -7,6 +7,10 @@ const EmailService = require('./shared/emailService');
 const QRCode = require('qrcode');
 const { calculateEstimatedTime, parseDurationToMinutes, isWithinOpeningHours } = require('../utils/timeCalculation.util');
 
+const PLANNER_STATUS_LOCK_HOURS = 12;
+const PLANNER_DEFAULT_LOCK_DURATION_HOURS = 24;
+const PLANNER_EDIT_LOCK_DISCUSSION_HOURS = 12;
+
 class PlannerService {
 
     static parseTimeValue(timeValue) {
@@ -33,6 +37,23 @@ class PlannerService {
         }
 
         return new Date(`${dateValue}T${timeValue || fallbackTime}`);
+    }
+
+    static normalizeDateOnlyValue(value) {
+        if (value === undefined) {
+            return undefined;
+        }
+
+        if (value === null) {
+            return null;
+        }
+
+        if (value instanceof Date) {
+            return Number.isNaN(value.getTime()) ? null : value.toISOString().slice(0, 10);
+        }
+
+        const stringValue = String(value);
+        return stringValue.length >= 10 ? stringValue.slice(0, 10) : stringValue;
     }
 
     static async markPlannerAsOngoing(planner, options = {}) {
@@ -430,6 +451,8 @@ class PlannerService {
                 ]
             });
 
+            await Promise.all(planners.map(planner => this.syncPlannerLockState(planner)));
+
             return {
                 planners: planners.map(p => this.formatPlannerResponse(p)),
                 pagination: {
@@ -489,12 +512,16 @@ class PlannerService {
                 }
             }
 
+            await this.syncPlannerLockState(planner);
+
+            let plannerState = null;
+
             // Auto-update status to 'ongoing' based on first task time (Trigger: 2 hours before first task)
-            if (planner.status === 'planning' && planner.start_date) {
-                const plannerState = await this.getPlannerState(plannerId, planner);
-                const canAutoStart = planner.number_of_people <= 1
-                    ? plannerState.scheduleComplete
-                    : (plannerState.isRealGroup && plannerState.finalLocked);
+            if (['planning', 'locked'].includes(planner.status) && planner.start_date) {
+                plannerState = await this.getPlannerState(plannerId, planner);
+                const canAutoStart = plannerState.scheduleComplete
+                    && plannerState.finalLocked
+                    && (planner.number_of_people <= 1 || plannerState.isRealGroup);
 
                 if (canAutoStart) {
                     const shouldBeOngoing = await this.shouldPlannerBeOngoing(planner);
@@ -505,7 +532,15 @@ class PlannerService {
                 }
             }
 
-            return this.formatPlannerWithItems(planner);
+            const response = this.formatPlannerWithItems(planner);
+
+            if (plannerState && ['planning', 'locked'].includes(planner.status)) {
+                response.first_invite_at = plannerState.firstInviteAt;
+                response.edit_lock_available_at = plannerState.editLockAvailableAt;
+                response.can_set_edit_lock_at = plannerState.canSetEditLockAt;
+            }
+
+            return response;
         } catch (error) {
             Logger.error('Get planner by ID error:', error);
             throw error;
@@ -535,8 +570,12 @@ class PlannerService {
 
             const plannerState = await this.getPlannerState(plannerId, planner);
 
+            if (['completed', 'cancelled'].includes(planner.status)) {
+                throw new Error(`Cannot update ${planner.status} plan`);
+            }
+
             // Check final lock
-            if (plannerState.finalLocked) {
+            if (plannerState.editLocked) {
                 throw new Error('Planner is locked');
             }
 
@@ -548,21 +587,75 @@ class PlannerService {
             }
 
             // Cập nhật start_date và end_date
-            if (updateData.start_date !== undefined) {
-                dataToUpdate.start_date = updateData.start_date;
-            }
-            if (updateData.end_date !== undefined) {
-                dataToUpdate.end_date = updateData.end_date;
+            const requestedStartDate = this.normalizeDateOnlyValue(updateData.start_date);
+            const requestedEndDate = this.normalizeDateOnlyValue(updateData.end_date);
+            const currentStartDate = this.normalizeDateOnlyValue(planner.start_date);
+            const currentEndDate = this.normalizeDateOnlyValue(planner.end_date);
+
+            if (
+                (requestedStartDate !== undefined && requestedStartDate !== currentStartDate) ||
+                (requestedEndDate !== undefined && requestedEndDate !== currentEndDate)
+            ) {
+                throw new Error('Planner dates can only be set during creation');
             }
 
-            if (updateData.lock_duration_hours !== undefined) {
-                const effectiveNumPeople = updateData.number_of_people ?? planner.number_of_people ?? 1;
-                if (effectiveNumPeople > 1) {
-                    if (updateData.lock_duration_hours < 24 || updateData.lock_duration_hours > 48) {
-                        throw new Error('Group lock duration must be between 24 and 48 hours');
+            if (updateData.edit_lock_at !== undefined) {
+                if (updateData.edit_lock_at === null) {
+                    dataToUpdate.edit_lock_at = null;
+                    dataToUpdate.is_locked = false;
+                } else {
+                    const requestNow = new Date();
+                    const requestedNumPeople = updateData.number_of_people ?? planner.number_of_people ?? 1;
+                    if (requestedNumPeople < 2) {
+                        throw new Error('Only group journeys can schedule an edit lock');
                     }
+
+                    const plannerLockReference = {
+                        ...planner.get({ plain: true }),
+                        ...dataToUpdate,
+                        number_of_people: requestedNumPeople
+                    };
+
+                    if (!plannerLockReference.start_date || !plannerLockReference.end_date) {
+                        throw new Error('Edit lock requires complete schedule');
+                    }
+
+                    const requestedScheduleState = await this.getPlannerScheduleState(plannerId, plannerLockReference);
+                    if (!requestedScheduleState.isValid) {
+                        throw new Error('Edit lock requires complete schedule');
+                    }
+
+                    const requestedEditLockAt = new Date(updateData.edit_lock_at);
+                    if (Number.isNaN(requestedEditLockAt.getTime())) {
+                        throw new Error('Invalid edit lock time');
+                    }
+
+                    const firstInviteAt = await this.getPlannerFirstInviteAt(plannerId);
+                    if (!firstInviteAt) {
+                        throw new Error('Edit lock requires first invite');
+                    }
+
+                    const editLockAvailableAt = this.getPlannerEditLockAvailableAt(firstInviteAt);
+                    if (!editLockAvailableAt || requestNow < editLockAvailableAt) {
+                        const error = new Error('Edit lock requires discussion period');
+                        error.editLockAvailableAt = editLockAvailableAt;
+                        throw error;
+                    }
+
+                    if (requestedEditLockAt < editLockAvailableAt) {
+                        const error = new Error('Edit lock must be after discussion period');
+                        error.editLockAvailableAt = editLockAvailableAt;
+                        throw error;
+                    }
+
+                    const plannerLockAt = this.getPlannerStatusLockAt(plannerLockReference);
+                    if (plannerLockAt && requestedEditLockAt > plannerLockAt) {
+                        throw new Error('Edit lock must be on or before planner lock time');
+                    }
+
+                    dataToUpdate.edit_lock_at = requestedEditLockAt;
+                    dataToUpdate.is_locked = requestedEditLockAt <= requestNow;
                 }
-                dataToUpdate.lock_duration_hours = updateData.lock_duration_hours;
             }
 
             // Validate start date must be >= tomorrow (chỉ check khi có sửa đổi start_date)
@@ -632,12 +725,21 @@ class PlannerService {
             if (effectiveNumPeople <= 1) {
                 dataToUpdate.deposit_amount = 0;
                 dataToUpdate.penalty_percentage = 0;
+                dataToUpdate.edit_lock_at = null;
+                dataToUpdate.is_locked = false;
             }
 
             const nextPlannerSnapshot = {
                 ...planner.get({ plain: true }),
                 ...dataToUpdate
             };
+
+            if (effectiveNumPeople > 1 && nextPlannerSnapshot.edit_lock_at) {
+                const nextPlannerLockAt = this.getPlannerStatusLockAt(nextPlannerSnapshot);
+                if (nextPlannerLockAt && new Date(nextPlannerSnapshot.edit_lock_at) > nextPlannerLockAt) {
+                    throw new Error('Edit lock must be on or before planner lock time');
+                }
+            }
 
             if (plannerState.hasSharedCommitment) {
                 if (!nextPlannerSnapshot.start_date || !nextPlannerSnapshot.end_date) {
@@ -695,8 +797,16 @@ class PlannerService {
 
             const plannerState = await this.getPlannerState(plannerId, planner, { transaction: t });
 
+            if (planner.status === 'cancelled') {
+                throw new Error('Cannot delete cancelled plan');
+            }
+
+            if (this.isGroupPlanner(planner) && plannerState.firstInviteAt) {
+                throw new Error('Cannot delete shared group planner');
+            }
+
             // Check final lock
-            if (plannerState.finalLocked) {
+            if (plannerState.editLocked) {
                 throw new Error('Planner is locked');
             }
 
@@ -1076,8 +1186,12 @@ class PlannerService {
 
             const plannerState = await this.getPlannerState(plannerId, planner, { transaction });
 
+            if (planner.status === 'cancelled') {
+                throw new Error('Cannot add item to cancelled plan');
+            }
+
             // Check final lock
-            if (plannerState.finalLocked) {
+            if (plannerState.editLocked) {
                 throw new Error('Planner is locked');
             }
 
@@ -1563,8 +1677,12 @@ class PlannerService {
 
             const plannerState = await this.getPlannerState(plannerId, planner, { transaction });
 
+            if (planner.status === 'cancelled') {
+                throw new Error('Cannot reorder cancelled plan');
+            }
+
             // Check final lock
-            if (plannerState.finalLocked) {
+            if (plannerState.editLocked) {
                 throw new Error('Planner is locked');
             }
 
@@ -1663,8 +1781,12 @@ class PlannerService {
 
             const plannerState = await this.getPlannerState(plannerId, planner, { transaction });
 
+            if (planner.status === 'cancelled') {
+                throw new Error('Cannot delete cancelled plan');
+            }
+
             // Check final lock
-            if (plannerState.finalLocked) {
+            if (plannerState.editLocked) {
                 throw new Error('Planner is locked');
             }
 
@@ -1785,8 +1907,12 @@ class PlannerService {
 
             const plannerState = await this.getPlannerState(plannerId, planner, { transaction });
 
+            if (planner.status === 'cancelled') {
+                throw new Error('Cannot update cancelled plan');
+            }
+
             // Check final lock
-            if (plannerState.finalLocked) {
+            if (plannerState.editLocked) {
                 throw new Error('Planner is locked');
             }
 
@@ -2032,6 +2158,9 @@ class PlannerService {
             numberOfDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
         }
 
+        const effectiveEditLockAt = this.getPlannerEffectiveEditLockAt(planner);
+        const statusLockAt = this.getPlannerStatusLockAt(planner);
+
         return {
             id: planner.id,
             user_id: planner.user_id,
@@ -2043,7 +2172,10 @@ class PlannerService {
             transportation: planner.transportation,
             deposit_amount: planner.deposit_amount,
             penalty_percentage: planner.penalty_percentage,
-            status: planner.status,
+            status: this.getPlannerCurrentStatus(planner),
+            planner_lock_at: statusLockAt,
+            edit_lock_at: effectiveEditLockAt,
+            is_locked: this.isPlannerLocked(planner),
             share_token: planner.share_token,
             qr_code_url: planner.qr_code_url,
             owner: planner.owner ? {
@@ -2292,7 +2424,7 @@ class PlannerService {
             // Tìm các planner đang 'planning' và đã đến start_date
             const readyPlanners = await Planner.findAll({
                 where: {
-                    status: 'planning',
+                    status: { [Op.in]: ['planning', 'locked'] },
                     start_date: {
                         [Op.lte]: today
                     }
@@ -2302,11 +2434,18 @@ class PlannerService {
             let startedCount = 0;
             for (const planner of readyPlanners) {
                 const plannerState = await this.getPlannerState(planner.id, planner);
+                if (!['planning', 'locked'].includes(planner.status)) {
+                    continue;
+                }
                 if (!plannerState.scheduleComplete) {
                     continue;
                 }
 
-                if (planner.number_of_people > 1 && (!plannerState.isRealGroup || !plannerState.finalLocked)) {
+                if (!plannerState.finalLocked) {
+                    continue;
+                }
+
+                if (planner.number_of_people > 1 && !plannerState.isRealGroup) {
                     continue;
                 }
 
@@ -2415,7 +2554,7 @@ class PlannerService {
                 throw new Error('Forbidden');
             }
 
-            if (planner.status !== 'planning') {
+            if (!['planning', 'locked'].includes(planner.status)) {
                 throw new Error('Planner is not in planning status');
             }
 
@@ -2424,18 +2563,19 @@ class PlannerService {
             }
 
             const plannerState = await this.getPlannerState(plannerId, planner);
+            if (!['planning', 'locked'].includes(planner.status)) {
+                throw new Error('Planner is not in planning status');
+            }
             if (!plannerState.scheduleComplete) {
                 const missingDaysStr = plannerState.scheduleState.missingDays.join(', ');
                 throw new Error(`Incomplete schedule: missing days ${missingDaysStr}, total days ${plannerState.scheduleState.totalDays}`);
             }
 
-            if (planner.number_of_people > 1) {
-                if (!plannerState.isRealGroup) {
-                    throw new Error('Group trip requires at least 2 joined members');
-                }
-                if (!plannerState.finalLocked) {
-                    throw new Error('Planner must be fully locked before starting group trip');
-                }
+            if (planner.number_of_people > 1 && !plannerState.isRealGroup) {
+                throw new Error('Group trip requires at least 2 joined members');
+            }
+            if (!plannerState.finalLocked) {
+                throw new Error('Planner must be locked before starting');
             }
 
             // Start trek (ongoing)
@@ -2450,10 +2590,10 @@ class PlannerService {
     }
 
     /**
-     * Update planner status (unified endpoint for start/complete)
+     * Update planner status (unified endpoint for lock/start/complete)
      * @param {string} plannerId - Planner ID
      * @param {string} userId - User ID
-     * @param {string} status - New status: 'ongoing' | 'completed' | 'cancelled'
+     * @param {string} status - New status: 'locked' | 'ongoing' | 'completed' | 'cancelled'
      */
     static async updatePlannerStatus(plannerId, userId, status) {
         try {
@@ -2469,7 +2609,8 @@ class PlannerService {
 
             // Validate status transitions
             const validTransitions = {
-                'planning': ['ongoing', 'cancelled'],
+                'planning': ['locked', 'ongoing', 'cancelled'],
+                'locked': ['ongoing', 'cancelled'],
                 'ongoing': ['completed', 'cancelled']
             };
 
@@ -2477,14 +2618,25 @@ class PlannerService {
                 throw new Error(`Cannot transition status: from ${planner.status} to ${status}`);
             }
 
+            if (status === 'locked') {
+                await planner.update({
+                    status: 'locked',
+                    is_locked: true
+                });
+
+                Logger.info(`Planner ${plannerId} manually locked by user ${userId} (planning -> locked)`);
+            }
             // Handle 'ongoing' status (start planner)
-            if (status === 'ongoing') {
+            else if (status === 'ongoing') {
                 if (!planner.start_date || !planner.end_date) {
                     throw new Error('Planner must have start_date and end_date to start');
                 }
 
                 // ===== VALIDATION: Planner phải có đủ items cho tất cả các ngày =====
                 const plannerState = await this.getPlannerState(plannerId, planner);
+                if (!['planning', 'locked'].includes(planner.status)) {
+                    throw new Error('Planner is not in planning status');
+                }
                 const continuityCheck = plannerState.scheduleState;
 
                 if (!continuityCheck.isValid) {
@@ -2494,13 +2646,11 @@ class PlannerService {
                 // ===== END: Validation =====
 
                 // ===== VALIDATION: Group must be locked before starting =====
-                if (planner.number_of_people > 1) {
-                    if (!plannerState.isRealGroup) {
-                        throw new Error('Group trip requires at least 2 joined members');
-                    }
-                    if (!plannerState.finalLocked) {
-                        throw new Error('Planner must be fully locked before starting group trip');
-                    }
+                if (planner.number_of_people > 1 && !plannerState.isRealGroup) {
+                    throw new Error('Group trip requires at least 2 joined members');
+                }
+                if (!plannerState.finalLocked) {
+                    throw new Error('Planner must be locked before starting');
                 }
                 // ===== END: Validation =====
 
@@ -2644,21 +2794,159 @@ class PlannerService {
         });
     }
 
-    static getPlannerJoinDeadline(planner) {
-        if (!planner || planner.status !== 'planning' || !planner.start_date) {
+    static async getPlannerFirstInviteAt(plannerId, options = {}) {
+        const firstInvite = await PlannerInvite.findOne({
+            where: { planner_id: plannerId },
+            attributes: ['created_at'],
+            order: [['created_at', 'ASC']],
+            raw: true,
+            transaction: options.transaction
+        });
+
+        if (!firstInvite?.created_at) {
             return null;
         }
 
-        const startDate = new Date(planner.start_date);
-        startDate.setHours(0, 0, 0, 0);
+        const firstInviteAt = new Date(firstInvite.created_at);
+        return Number.isNaN(firstInviteAt.getTime()) ? null : firstInviteAt;
+    }
 
-        const joinDeadline = new Date(startDate);
-        joinDeadline.setHours(joinDeadline.getHours() - (planner.lock_duration_hours || 24));
+    static async hasPlannerItems(plannerId, options = {}) {
+        const itemCount = await PlannerItem.count({
+            where: { planner_id: plannerId },
+            transaction: options.transaction
+        });
 
-        return joinDeadline;
+        return itemCount > 0;
+    }
+
+    static async expireActivePlannerInvites(plannerId, options = {}) {
+        await PlannerInvite.update(
+            { status: 'expired' },
+            {
+                where: {
+                    planner_id: plannerId,
+                    status: { [Op.in]: ['pending', 'awaiting_payment'] }
+                },
+                transaction: options.transaction
+            }
+        );
+    }
+
+    static buildSoloFallbackUpdateData(planner, now = new Date()) {
+        const soloPlannerSnapshot = {
+            ...planner.get({ plain: true }),
+            number_of_people: 1
+        };
+        const soloLockAt = this.getPlannerStatusLockAt(soloPlannerSnapshot);
+        const hasReachedSoloLock = Boolean(soloLockAt && now >= soloLockAt);
+
+        return {
+            status: hasReachedSoloLock ? 'locked' : 'planning',
+            is_locked: hasReachedSoloLock,
+            number_of_people: 1,
+            deposit_amount: 0,
+            penalty_percentage: 0,
+            edit_lock_at: null
+        };
+    }
+
+    static isGroupPlanner(planner) {
+        return Boolean(planner && Number(planner.number_of_people) > 1);
+    }
+
+    static getPlannerEditLockAvailableAt(firstInviteAt) {
+        if (!firstInviteAt) {
+            return null;
+        }
+
+        const editLockAvailableAt = new Date(firstInviteAt);
+        editLockAvailableAt.setHours(editLockAvailableAt.getHours() + PLANNER_EDIT_LOCK_DISCUSSION_HOURS);
+        return editLockAvailableAt;
+    }
+
+    static getPlannerStartBoundary(planner) {
+        if (!planner || !planner.start_date) {
+            return null;
+        }
+
+        const startBoundary = new Date(planner.start_date);
+        startBoundary.setHours(0, 0, 0, 0);
+        return Number.isNaN(startBoundary.getTime()) ? null : startBoundary;
+    }
+
+    static getPlannerStatusLockAt(planner) {
+        const startBoundary = this.getPlannerStartBoundary(planner);
+        if (!startBoundary) {
+            return null;
+        }
+
+        const statusLockAt = new Date(startBoundary);
+        if (this.isGroupPlanner(planner)) {
+            statusLockAt.setHours(statusLockAt.getHours() - PLANNER_STATUS_LOCK_HOURS);
+        }
+        return statusLockAt;
+    }
+
+    static getPlannerDefaultEditLockAt(planner) {
+        const startBoundary = this.getPlannerStartBoundary(planner);
+        if (!startBoundary) {
+            return null;
+        }
+
+        const rawLockDurationHours = Number(planner?.lock_duration_hours);
+        const lockDurationHours = Number.isFinite(rawLockDurationHours) && rawLockDurationHours > 0
+            ? rawLockDurationHours
+            : PLANNER_DEFAULT_LOCK_DURATION_HOURS;
+
+        const editLockAt = new Date(startBoundary);
+        editLockAt.setHours(editLockAt.getHours() - lockDurationHours);
+        return editLockAt;
+    }
+
+    static getPlannerExplicitEditLockAt(planner) {
+        if (!planner || !planner.edit_lock_at) {
+            return null;
+        }
+
+        const editLockAt = new Date(planner.edit_lock_at);
+        return Number.isNaN(editLockAt.getTime()) ? null : editLockAt;
+    }
+
+    static getPlannerEffectiveEditLockAt(planner) {
+        if (!this.isGroupPlanner(planner)) {
+            return null;
+        }
+
+        return this.getPlannerExplicitEditLockAt(planner) || this.getPlannerDefaultEditLockAt(planner);
+    }
+
+    static getPlannerCurrentStatus(planner, now = new Date()) {
+        if (!planner) {
+            return null;
+        }
+
+        if (planner.status !== 'planning') {
+            return planner.status;
+        }
+
+        const statusLockAt = this.getPlannerStatusLockAt(planner);
+        return Boolean(statusLockAt && now >= statusLockAt) ? 'locked' : 'planning';
+    }
+
+    static getPlannerJoinDeadline(planner) {
+        return this.getPlannerStatusLockAt(planner);
     }
 
     static isPlannerJoinWindowClosed(planner, now = new Date()) {
+        if (!planner || !this.isGroupPlanner(planner)) {
+            return false;
+        }
+
+        if (planner.status === 'locked') {
+            return true;
+        }
+
         const joinDeadline = this.getPlannerJoinDeadline(planner);
         return Boolean(joinDeadline && now >= joinDeadline);
     }
@@ -2721,19 +3009,32 @@ class PlannerService {
         }
 
         const now = options.now || new Date();
-        const [joinedMemberCount, activeInviteCount, scheduleState] = await Promise.all([
+        await this.syncPlannerLockState(currentPlanner, options);
+
+        const [joinedMemberCount, activeInviteCount, scheduleState, firstInviteAt] = await Promise.all([
             this.getJoinedMemberCount(plannerId, options),
             this.getActiveInviteCount(plannerId, options),
-            this.getPlannerScheduleState(plannerId, currentPlanner, options)
+            this.getPlannerScheduleState(plannerId, currentPlanner, options),
+            this.getPlannerFirstInviteAt(plannerId, options)
         ]);
 
         const isRealGroup = joinedMemberCount >= 2;
         const hasSharedCommitment = activeInviteCount > 0 || joinedMemberCount > 1;
+        const hasDates = Boolean(currentPlanner.start_date && currentPlanner.end_date);
         const joinDeadline = this.getPlannerJoinDeadline(currentPlanner);
         const joinWindowClosed = this.isPlannerJoinWindowClosed(currentPlanner, now);
-        const finalLocked = currentPlanner.status === 'planning' && (
-            currentPlanner.is_locked ||
-            (joinWindowClosed && isRealGroup && scheduleState.isValid)
+        const effectiveStatus = this.getPlannerCurrentStatus(currentPlanner, now);
+        const finalLocked = effectiveStatus === 'locked';
+        const editLocked = this.isPlannerLocked(currentPlanner, now);
+        const editLockAvailableAt = this.getPlannerEditLockAvailableAt(firstInviteAt);
+        const canSetEditLockAt = Boolean(
+            this.isGroupPlanner(currentPlanner) &&
+            hasDates &&
+            scheduleState.isValid &&
+            !editLocked &&
+            !joinWindowClosed &&
+            editLockAvailableAt &&
+            now >= editLockAvailableAt
         );
 
         return {
@@ -2743,11 +3044,18 @@ class PlannerService {
             committedSlots: joinedMemberCount + activeInviteCount,
             isRealGroup,
             hasSharedCommitment,
-            hasDates: Boolean(currentPlanner.start_date && currentPlanner.end_date),
+            hasDates,
+            effectiveStatus,
+            plannerLockAt: joinDeadline,
+            editLockAt: this.getPlannerEffectiveEditLockAt(currentPlanner),
+            editLocked,
             joinDeadline,
             joinWindowClosed,
             scheduleComplete: scheduleState.isValid,
             scheduleState,
+            firstInviteAt,
+            editLockAvailableAt,
+            canSetEditLockAt,
             finalLocked
         };
     }
@@ -2856,7 +3164,7 @@ class PlannerService {
      * If no tasks or no time, defaults to 00:00 of start_date
      */
     static async shouldPlannerBeOngoing(planner) {
-        if (!planner || planner.status !== 'planning' || !planner.start_date) {
+        if (!planner || !['planning', 'locked'].includes(planner.status) || !planner.start_date) {
             return false;
         }
 
@@ -2905,10 +3213,87 @@ class PlannerService {
 
     /**
      * Check if a planner is currently in its locked period
-     * Only applies to group journeys (number_of_people >= 2)
      */
-    static isPlannerLocked(planner) {
-        return Boolean(planner && planner.status === 'planning' && planner.is_locked);
+    static isPlannerLocked(planner, now = new Date()) {
+        if (!planner || !['planning', 'locked'].includes(planner.status)) {
+            return false;
+        }
+
+        if (planner.status === 'locked') {
+            return true;
+        }
+
+        const statusLockAt = this.getPlannerStatusLockAt(planner);
+        if (!this.isGroupPlanner(planner)) {
+            return Boolean(statusLockAt && now >= statusLockAt);
+        }
+
+        if (planner.is_locked) {
+            return true;
+        }
+
+        const editLockAt = this.getPlannerEffectiveEditLockAt(planner);
+        if (!editLockAt) {
+            return false;
+        }
+
+        return now >= editLockAt;
+    }
+
+    static async syncPlannerLockState(planner, options = {}) {
+        if (!planner || !['planning', 'locked'].includes(planner.status)) {
+            return planner;
+        }
+
+        const now = options.now || new Date();
+        const isGroupPlanner = this.isGroupPlanner(planner);
+        const editLockAt = isGroupPlanner ? this.getPlannerEffectiveEditLockAt(planner) : null;
+        const statusLockAt = this.getPlannerStatusLockAt(planner);
+        const updateData = {};
+
+        if (isGroupPlanner && !planner.is_locked && editLockAt && now >= editLockAt) {
+            updateData.is_locked = true;
+        }
+
+        if (statusLockAt && now >= statusLockAt) {
+            const hasPlannerItems = await this.hasPlannerItems(planner.id, options);
+
+            if (!hasPlannerItems) {
+                updateData.status = 'cancelled';
+                updateData.is_locked = false;
+            } else if (isGroupPlanner) {
+                const [joinedMemberCount, activeInviteCount] = await Promise.all([
+                    this.getJoinedMemberCount(planner.id, options),
+                    this.getActiveInviteCount(planner.id, options)
+                ]);
+
+                if (joinedMemberCount <= 1) {
+                    if (activeInviteCount > 0) {
+                        await this.expireActivePlannerInvites(planner.id, options);
+                    }
+                    Object.assign(updateData, this.buildSoloFallbackUpdateData(planner, now));
+                } else if (planner.status === 'planning') {
+                    updateData.status = 'locked';
+                    updateData.is_locked = true;
+                }
+            } else if (planner.status === 'planning') {
+                updateData.status = 'locked';
+                updateData.is_locked = true;
+            }
+        }
+
+        if (Object.keys(updateData).length === 0) {
+            return planner;
+        }
+
+        const updateOptions = {};
+        if (options.transaction) {
+            updateOptions.transaction = options.transaction;
+        }
+
+        await planner.update(updateData, updateOptions);
+        Object.assign(planner, updateData);
+        return planner;
     }
 
     /**
@@ -2934,22 +3319,38 @@ class PlannerService {
             const plannerState = await this.getPlannerState(plannerId, planner);
 
             if (isLocked) {
-                if (!plannerState.isRealGroup) {
-                    throw new Error('Manual lock requires at least 2 joined members');
+                if (plannerState.editLocked) {
+                    throw new Error('Planner is locked');
                 }
-                if (!plannerState.hasDates || !plannerState.scheduleComplete) {
-                    throw new Error('Manual lock requires complete schedule');
-                }
-            }
 
-            // Cannot unlock once locked (Manual or Auto)
-            if (!isLocked) {
-                if (planner.is_locked || plannerState.finalLocked) {
+                if (!plannerState.hasDates || !plannerState.scheduleComplete) {
+                    throw new Error('Edit lock requires complete schedule');
+                }
+
+                if (!plannerState.firstInviteAt) {
+                    throw new Error('Edit lock requires first invite');
+                }
+
+                if (!plannerState.editLockAvailableAt || !plannerState.canSetEditLockAt) {
+                    const error = new Error('Edit lock requires discussion period');
+                    error.editLockAvailableAt = plannerState.editLockAvailableAt;
+                    throw error;
+                }
+
+                await planner.update({
+                    is_locked: true,
+                    edit_lock_at: new Date()
+                });
+            } else {
+                if (planner.status === 'locked' || this.isPlannerLocked(planner)) {
                     throw new Error('Cannot unlock once the journey is locked');
                 }
-            }
 
-            await planner.update({ is_locked: isLocked });
+                await planner.update({
+                    is_locked: false,
+                    edit_lock_at: null
+                });
+            }
 
             Logger.info(`Planner ${plannerId} manual lock set to ${isLocked} by user ${userId}`);
             return this.formatPlannerResponse(planner);
