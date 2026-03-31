@@ -3331,12 +3331,6 @@ class PlannerService {
                     throw new Error('Edit lock requires first invite');
                 }
 
-                if (!plannerState.editLockAvailableAt || !plannerState.canSetEditLockAt) {
-                    const error = new Error('Edit lock requires discussion period');
-                    error.editLockAvailableAt = plannerState.editLockAvailableAt;
-                    throw error;
-                }
-
                 await planner.update({
                     is_locked: true,
                     edit_lock_at: new Date()
