@@ -89,7 +89,19 @@ class CheckinController {
         try {
             const plannerItemId = req.params.itemId || req.params.id;
             const userId = req.user.id; // Owner ID
-            const { status, skip_reason } = req.body;
+            const {
+                status,
+                skip_reason,
+                confirm_missed,
+                requires_confirmation,
+                confirmed
+            } = req.body;
+            const isTrueValue = (value) => value === true || (typeof value === 'string' && value.toLowerCase() === 'true');
+            const isFalseValue = (value) => value === false || (typeof value === 'string' && value.toLowerCase() === 'false');
+            const shouldConfirmMissed =
+                isTrueValue(confirm_missed) ||
+                isTrueValue(confirmed) ||
+                isFalseValue(requires_confirmation);
 
             if (!status || !['visited', 'skipped'].includes(status)) {
                 return ResponseUtil.badRequest(res, req.__('validation.failed'));
@@ -101,8 +113,16 @@ class CheckinController {
 
             let result;
             if (status === 'visited') {
-                result = await CheckinService.completeItem(userId, plannerItemId);
-                return ResponseUtil.success(res, result, req.__('checkin.complete_item_success'));
+                result = await CheckinService.completeItem(userId, plannerItemId, skip_reason, {
+                    confirmMissed: shouldConfirmMissed
+                });
+                return ResponseUtil.success(
+                    res,
+                    result,
+                    result.requires_confirmation
+                        ? 'Còn thành viên khác chưa check-in, cần xác nhận sau khi hoàn tất'
+                        : req.__('checkin.complete_item_success')
+                );
             } else if (status === 'skipped') {
                 result = await CheckinService.skipItemByOwner(userId, plannerItemId, skip_reason);
                 return ResponseUtil.success(res, result, req.__('checkin.skip_success'));

@@ -1,4 +1,4 @@
-const { PlannerItem, Site, UserCheckin, Planner, PlannerMember } = require('../models');
+const { PlannerItem, Site, UserCheckin, Planner, PlannerMember, User } = require('../models');
 const OSRMUtil = require('../utils/osrm.util');
 
 class CheckinService {
@@ -49,7 +49,7 @@ class CheckinService {
                 plannerId: planner.id,
                 plannerItemId: plannerItem.id,
                 plannerName: planner.name || 'Planner',
-                siteName: plannerItem.site?.name || 'diem den'
+                siteName: plannerItem.site?.name || 'điểm đến'
             }).catch(() => null)
         ));
     }
@@ -68,6 +68,10 @@ class CheckinService {
             ownerId,
             ...joinedMembers.map(member => member.user_id)
         ].filter(Boolean))];
+    }
+
+    static normalizeReason(reason) {
+        return typeof reason === 'string' ? reason.trim() : '';
     }
 
     /**
@@ -377,7 +381,7 @@ class CheckinService {
         await PlannerService.notifyOngoingPlannerMembers(planner, notificationType, {
             plannerId: planner.id,
             plannerName: planner.name || 'Planner',
-            siteName: plannerItem.site?.name || 'diem den',
+            siteName: plannerItem.site?.name || 'điểm đến',
             nextSiteName: nextUpcomingItem?.site?.name || '',
             reason: normalizedSkipReason
         }, { excludeUserId: ownerId });
@@ -388,17 +392,26 @@ class CheckinService {
     /**
      * Hoàn thành điểm đến (Chỉ Trưởng đoàn). Đánh dấu 'visited' và quét 'missed' những ai chưa check-in.
      */
-    static async completeItem(ownerId, plannerItemId) {
+    static async completeItem(ownerId, plannerItemId, skipReason = null, options = {}) {
         const sequelize = require('../config/database');
         const t = await sequelize.transaction();
 
         try {
+            const shouldConfirmMissed = options.confirmMissed === true;
+            const normalizedSkipReason = this.normalizeReason(skipReason);
             const plannerItem = await PlannerItem.findByPk(plannerItemId, {
-                include: [{
-                    model: Planner,
-                    as: 'planner',
-                    attributes: ['id', 'user_id', 'status']
-                }],
+                include: [
+                    {
+                        model: Planner,
+                        as: 'planner',
+                        attributes: ['id', 'user_id', 'name', 'status']
+                    },
+                    {
+                        model: Site,
+                        as: 'site',
+                        attributes: ['id', 'name']
+                    }
+                ],
                 transaction: t
             });
 
@@ -452,11 +465,41 @@ class CheckinService {
                 throw new Error('Owner must check in before marking site as visited');
             }
 
-            if (allUserIds.length > 1 && !hasOtherMemberCheckedIn) {
+            if (allUserIds.length > 2 && !hasOtherMemberCheckedIn) {
                 throw new Error('At least one other member must check in before marking site as visited');
             }
 
             const missingUsers = allUserIds.filter(id => !checkedInIds.has(id));
+            if (missingUsers.length > 0 && !shouldConfirmMissed) {
+                const missingMembers = await User.findAll({
+                    where: { id: missingUsers },
+                    attributes: ['id', 'full_name', 'avatar_url'],
+                    transaction: t
+                });
+
+                await t.rollback();
+
+                return {
+                    requires_confirmation: true,
+                    site: plannerItem.site ? {
+                        id: plannerItem.site.id,
+                        name: plannerItem.site.name
+                    } : null,
+                    stats: {
+                        checked_in: checkedInIds.size,
+                        missed: missingUsers.length
+                    },
+                    missing_members: missingMembers.map(member => ({
+                        user_id: member.id,
+                        full_name: member.full_name,
+                        avatar_url: member.avatar_url
+                    })),
+                    skip_reason_required: true
+                };
+            }
+            if (missingUsers.length > 0 && !normalizedSkipReason) {
+                throw new Error('Skip reason is required');
+            }
 
             if (missingUsers.length > 0) {
                 const missedRecords = missingUsers.map(uid => ({
@@ -467,10 +510,24 @@ class CheckinService {
                     note: 'Hệ thống tự động ghi vắng mặt khi trưởng đoàn chốt sổ'
                 }));
                 await UserCheckin.bulkCreate(missedRecords, { transaction: t });
+                await UserCheckin.update(
+                    { note: normalizedSkipReason },
+                    {
+                        where: {
+                            planner_item_id: plannerItemId,
+                            user_id: missingUsers,
+                            status: 'missed'
+                        },
+                        transaction: t
+                    }
+                );
             }
 
             // Update item to visited
-            await plannerItem.update({ status: 'visited' }, { transaction: t });
+            await plannerItem.update({
+                status: 'visited',
+                skip_reason: missingUsers.length > 0 ? normalizedSkipReason : null
+            }, { transaction: t });
 
             // Autocomplete planner if this was the last item
             const allItems = await PlannerItem.findAll({ where: { planner_id: planner.id }, attributes: ['status'], transaction: t });
@@ -481,9 +538,24 @@ class CheckinService {
 
             await t.commit();
 
+            if (missingUsers.length > 0) {
+                const NotificationService = require('./shared/notificationService');
+
+                await Promise.all(missingUsers.map(userId =>
+                    NotificationService.createNotification('planner_item_missed', userId, {
+                        plannerId: planner.id,
+                        plannerItemId,
+                        plannerName: planner.name || 'Planner',
+                        siteName: plannerItem.site?.name || 'điểm đến',
+                        reason: normalizedSkipReason
+                    }).catch(() => null)
+                ));
+            }
+
             return { 
                 message: 'Đã hoàn thành điểm đến', 
-                stats: { checked_in: checkedInIds.size, missed: missingUsers.length } 
+                stats: { checked_in: checkedInIds.size, missed: missingUsers.length },
+                skip_reason: missingUsers.length > 0 ? normalizedSkipReason : null
             };
         } catch (error) {
             await t.rollback();
