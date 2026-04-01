@@ -251,6 +251,9 @@ class PlannerController {
             if (error.message === 'Site not found') {
                 return ResponseUtil.notFound(res, req.__('planner.site_not_found'));
             }
+            if (error.message === 'Group planner patron saint mismatch') {
+                return ResponseUtil.badRequest(res, `Kế hoạch nhóm này đang theo bổn mạng "${error.anchorPatronSaint || ''}" từ địa điểm đầu tiên "${error.anchorSiteName || ''}". Không thể thêm địa điểm "${error.currentSiteName || ''}" có bổn mạng "${error.currentPatronSaint || ''}".`);
+            }
             if (error.message.includes('Invalid day number')) {
                 return ResponseUtil.badRequest(res, req.__('planner.invalid_leg_number_range', { max: error.message.match(/\d+/)?.[0] || '?' }));
             }
