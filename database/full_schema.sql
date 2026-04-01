@@ -36,7 +36,7 @@ DO $$ BEGIN
     CREATE TYPE nearby_place_status AS ENUM ('pending', 'approved', 'rejected');
     
     -- Planner
-    CREATE TYPE planner_status AS ENUM ('planning', 'ongoing', 'completed', 'cancelled');
+    CREATE TYPE planner_status AS ENUM ('planning', 'locked', 'ongoing', 'completed', 'cancelled');
     CREATE TYPE planner_item_status AS ENUM ('upcoming', 'visited', 'skipped');
 
     CREATE TYPE checkin_status AS ENUM ('checked_in', 'missed', 'pending');
@@ -68,6 +68,12 @@ DO $$ BEGIN
     -- Push Notifications
     CREATE TYPE push_token_status AS ENUM ('active', 'revoked', 'expired');
     
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    ALTER TYPE planner_status ADD VALUE IF NOT EXISTS 'locked';
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
@@ -586,11 +592,21 @@ CREATE TABLE IF NOT EXISTS planners (
     completed_at TIMESTAMP WITH TIME ZONE,
     is_active BOOLEAN DEFAULT TRUE NOT NULL,
     lock_duration_hours INTEGER DEFAULT 24,
+    edit_lock_at TIMESTAMP WITH TIME ZONE,
     is_locked BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_planner_dates CHECK (end_date IS NULL OR end_date >= start_date)
 );
+
+ALTER TABLE planners
+ADD COLUMN IF NOT EXISTS lock_duration_hours INTEGER DEFAULT 24;
+
+ALTER TABLE planners
+ADD COLUMN IF NOT EXISTS edit_lock_at TIMESTAMP WITH TIME ZONE;
+
+ALTER TABLE planners
+DROP COLUMN IF EXISTS discussion_started_at;
 
 CREATE INDEX IF NOT EXISTS idx_planners_user ON planners(user_id);
 

@@ -121,6 +121,12 @@ class CheckinController {
             if (err.message === 'This site has not started or has finished, cannot complete') {
                 return ResponseUtil.badRequest(res, req.__('checkin.item_not_in_progress'));
             }
+            if (err.message === 'Owner must check in before marking site as visited') {
+                return ResponseUtil.badRequest(res, req.__('checkin.visit_requires_owner_checkin'));
+            }
+            if (err.message === 'At least one other member must check in before marking site as visited') {
+                return ResponseUtil.badRequest(res, req.__('checkin.visit_requires_other_member_checkin'));
+            }
             if (err.message === 'At least one member must check in before marking site as visited') {
                 return ResponseUtil.badRequest(res, req.__('checkin.visit_requires_checkin'));
             }

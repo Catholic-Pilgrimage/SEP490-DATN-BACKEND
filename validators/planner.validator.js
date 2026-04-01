@@ -67,7 +67,8 @@ class PlannerValidator {
                     throw new Error('Không thể đặt tỷ lệ phạt khi đi một mình (số người = 1)');
                 }
                 return true;
-            })
+            }),
+
     ];
 
     // Validate update planner
@@ -136,7 +137,12 @@ class PlannerValidator {
                     throw new Error('Solo planner cannot have a penalty percentage');
                 }
                 return true;
-            })
+            }),
+
+        body('edit_lock_at')
+            .optional({ nullable: true })
+            .isISO8601().withMessage('Thời gian khóa chỉnh sửa phải có định dạng quốc tế')
+            .toDate()
     ];
 
     // Validate add planner item
