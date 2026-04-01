@@ -338,6 +338,16 @@ class PlannerController {
                 const day = parts[1].replace('day ', '');
                 return ResponseUtil.badRequest(res, req.__('planner.duplicate_time_in_day', { time, day }));
             }
+            if (error.message.startsWith('Site is closed on')) {
+                const day = error.message.replace('Site is closed on ', '').replace('s', '');
+                return ResponseUtil.badRequest(res, req.__('planner.site_closed_on_day', { day }));
+            }
+            if (error.message.startsWith('Site is closed at')) {
+                const parts = error.message.replace('Site is closed at ', '').split('. Opening hours: ');
+                const time = parts[0];
+                const hours = parts[1];
+                return ResponseUtil.badRequest(res, req.__('planner.site_closed_at', { time, hours }));
+            }
             if (error.message.startsWith('Consecutive site same day:')) {
                 const day = error.message.replace('Consecutive site same day: day ', '');
                 return ResponseUtil.badRequest(res, req.__('planner.consecutive_site_same_day', { day }));
