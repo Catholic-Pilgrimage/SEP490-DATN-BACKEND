@@ -14,6 +14,7 @@
     "invalid_credentials": "Invalid email or password",
     "account_banned": "Account is banned",
     "current_password_incorrect": "Current password is incorrect",
+    "current_password_required": "Current password is required",
     "email_not_found": "Email not found",
     "invalid_otp": "Invalid OTP",
     "otp_expired": "OTP has expired",

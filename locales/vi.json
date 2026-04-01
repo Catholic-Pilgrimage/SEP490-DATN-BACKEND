@@ -14,6 +14,7 @@
     "invalid_credentials": "Email hoặc mật khẩu không đúng",
     "account_banned": "Tài khoản đã bị khóa",
     "current_password_incorrect": "Mật khẩu hiện tại không đúng",
+    "current_password_required": "Vui lòng nhập mật khẩu hiện tại",
     "email_not_found": "Email không tồn tại",
     "invalid_otp": "Mã OTP không hợp lệ",
     "otp_expired": "Mã OTP đã hết hạn",
