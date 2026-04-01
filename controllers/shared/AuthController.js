@@ -123,6 +123,12 @@ exports.getProfile = async (req, res) => {
 // Update  profile
 exports.updateProfile = async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const formattedErrors = formatValidationErrors(errors.array());
+      return ResponseUtil.badRequest(res, req.__('validation.failed'), formattedErrors);
+    }
+
     const updateData = req.body;
 
     // Nếu có upload avatar
@@ -133,6 +139,9 @@ exports.updateProfile = async (req, res) => {
     const result = await AuthService.updateProfile(req.user.id, updateData);
     return ResponseUtil.success(res, result, req.__('auth.profile_updated'));
   } catch (error) {
+    if (error.message === 'Invalid date of birth') {
+      return ResponseUtil.badRequest(res, req.__('validation.date_of_birth_invalid'));
+    }
     return ResponseUtil.error(res, req.__('error.server_error'));
   }
 };
@@ -153,6 +162,9 @@ exports.changePassword = async (req, res) => {
   } catch (error) {
     if (error.message === 'Current password is incorrect') {
       return ResponseUtil.unauthorized(res, req.__('auth.current_password_incorrect'));
+    }
+    if (error.message === 'Current password is required') {
+      return ResponseUtil.badRequest(res, req.__('auth.current_password_required'));
     }
     return ResponseUtil.error(res, req.__('error.server_error'));
   }

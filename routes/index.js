@@ -24,6 +24,7 @@ const walletRoutes = require('./wallet.routes');
 const aiRoutes = require('./ai.routes');
 const webhookRoutes = require('./webhook.routes');
 const reviewRoutes = require('./review.routes');
+const friendshipRoutes = require('./friendship.routes');
 
 router.get('/', (req, res) => {
   res.json({
@@ -55,7 +56,8 @@ router.get('/', (req, res) => {
       reports: '/api/reports',
       wallet: '/api/wallet',
       ai: '/api/ai',
-      reviews: '/api/sites/:siteId/reviews'
+      reviews: '/api/sites/:siteId/reviews',
+      friendships: '/api/friendships'
     }
   });
 });
@@ -149,6 +151,9 @@ router.use('/ai', aiRoutes);
 
 // Webhook routes (no auth - called by external services)
 router.use('/webhooks', webhookRoutes);
+
+// Friendship routes
+router.use('/friendships', friendshipRoutes);
 
 
 module.exports = router;

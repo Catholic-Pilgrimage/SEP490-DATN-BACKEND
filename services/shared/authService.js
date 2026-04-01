@@ -207,6 +207,19 @@ class AuthService {
                 }
             });
 
+            // Validate date_of_birth nếu có
+            if (dataToUpdate.date_of_birth !== undefined) {
+                const date = new Date(dataToUpdate.date_of_birth);
+                if (isNaN(date.getTime())) {
+                    throw new Error('Invalid date of birth');
+                }
+            }
+
+            // Loại bỏ phone rỗng
+            if (dataToUpdate.phone !== undefined && dataToUpdate.phone.trim() === '') {
+                dataToUpdate.phone = null;
+            }
+
             await user.update(dataToUpdate);
 
             Logger.info(`Profile updated: ${userId}`);
@@ -244,9 +257,15 @@ class AuthService {
             }
 
 
-            const isValidPassword = await bcrypt.compare(currentPassword, user.password_hash);
-            if (!isValidPassword) {
-                throw new Error('Current password is incorrect');
+            // User đăng ký bằng Google (chưa có password) -> cho phép đặt password mới mà không cần current_password
+            if (user.password_hash) {
+                if (!currentPassword) {
+                    throw new Error('Current password is required');
+                }
+                const isValidPassword = await bcrypt.compare(currentPassword, user.password_hash);
+                if (!isValidPassword) {
+                    throw new Error('Current password is incorrect');
+                }
             }
 
 

@@ -546,6 +546,35 @@ CREATE INDEX IF NOT EXISTS idx_guide_shifts_submission ON guide_shifts(submissio
 CREATE INDEX IF NOT EXISTS idx_guide_shifts_day ON guide_shifts(day_of_week);
 
 -- ============================================
+-- 6.5 FRIENDSHIPS
+-- ============================================
+CREATE TABLE IF NOT EXISTS friendships (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    requester_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    addressee_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'accepted', 'rejected', 'blocked')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_not_self CHECK (requester_id <> addressee_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_friendships_requester ON friendships(requester_id);
+CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON friendships(addressee_id);
+CREATE INDEX IF NOT EXISTS idx_friendships_status ON friendships(status);
+
+-- Canonical unique: prevent both A->B and B->A from existing
+CREATE UNIQUE INDEX IF NOT EXISTS uq_friendships_pair
+    ON friendships (LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id));
+
+-- Trigger
+DROP TRIGGER IF EXISTS update_friendships_updated_at ON friendships;
+CREATE TRIGGER update_friendships_updated_at
+    BEFORE UPDATE ON friendships
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================
 -- 7. PLANNER MODULE
 -- ============================================
 CREATE TABLE IF NOT EXISTS planners (
@@ -595,12 +624,18 @@ CREATE TABLE IF NOT EXISTS planner_invites (
     email VARCHAR(255) NOT NULL,
     token VARCHAR(100) NOT NULL,
 
+    invite_type VARCHAR(20) NOT NULL DEFAULT 'external'
+        CHECK (invite_type IN ('friend', 'external')),
+    invitee_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+
     status invite_status DEFAULT 'pending',
     expires_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_planner_invites_token ON planner_invites(token);
+CREATE INDEX IF NOT EXISTS idx_planner_invites_type ON planner_invites(invite_type);
+CREATE INDEX IF NOT EXISTS idx_planner_invites_invitee_user ON planner_invites(invitee_user_id);
 
 CREATE TABLE IF NOT EXISTS planner_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
