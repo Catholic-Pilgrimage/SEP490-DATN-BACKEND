@@ -369,6 +369,7 @@
     "member_not_found": "Không tìm thấy thành viên",
     "member_already_left": "Thành viên này đã rời nhóm hoặc đã bị xóa trước đó",
     "get_members_success": "Lấy danh sách thành viên thành công",
+    "get_my_invites_success": "Lấy danh sách lời mời thành công",
     "cannot_delete_ongoing": "Hành trình đang diễn ra, bạn không thể xóa địa điểm. Vui lòng sử dụng tính năng \"Bỏ qua\" địa điểm.",
     "cannot_delete_completed": "Không thể xóa địa điểm của kế hoạch đã hoàn thành",
     "cannot_delete_cancelled": "Không thể xóa địa điểm của kế hoạch đã bị hủy",

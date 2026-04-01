@@ -28,6 +28,12 @@ router.get(
 );
 
 router.get(
+    '/my-invites',
+    authenticate,
+    PilgrimPlannerShareController.getMyInvites
+);
+
+router.get(
     '/:id',
     authenticate,
     PlannerValidator.validatePlannerId,

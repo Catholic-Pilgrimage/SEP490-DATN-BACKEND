@@ -55,6 +55,95 @@
  *         description: Không tìm thấy lời mời
  */
 
+/**
+ * @swagger
+ * /api/planners/my-invites:
+ *   get:
+ *     summary: Lấy danh sách các lời mời đang chờ của người dùng
+ *     description: |
+ *       Trả về danh sách các kế hoạch mà người dùng được mời (friend hoặc external) chưa được xử lý hoặc đang chờ thanh toán cọc.
+ *       Trạng thái trả về: `pending`, `awaiting_payment`.
+ *       Không trả về `accepted`, `rejected`, `expired`.
+ *       FE sẽ dùng `token` trả về để gọi lại `GET /api/planners/invite/{token}` và xem màn hình chi tiết.
+ *     tags: [Pilgrim - Planner Share]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       token:
+ *                         type: string
+ *                         description: Dùng token này để mở trang chi tiết lời mời
+ *                       invite_type:
+ *                         type: string
+ *                         enum: [friend, external]
+ *                       status:
+ *                         type: string
+ *                         enum: [pending, awaiting_payment]
+ *                       expires_at:
+ *                         type: string
+ *                         format: date-time
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *                       planner:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                           start_date:
+ *                             type: string
+ *                           end_date:
+ *                             type: string
+ *                           status:
+ *                             type: string
+ *                           number_of_people:
+ *                             type: integer
+ *                           transportation:
+ *                             type: string
+ *                           deposit_amount:
+ *                             type: number
+ *                           penalty_percentage:
+ *                             type: number
+ *                           is_locked:
+ *                             type: boolean
+ *                           created_at:
+ *                             type: string
+ *                           updated_at:
+ *                             type: string
+ *                       inviter:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           full_name:
+ *                             type: string
+ *                           email:
+ *                             type: string
+ *                           avatar_url:
+ *                             type: string
+ *       401:
+ *         description: Chưa xác thực
+ *       500:
+ *         description: Lỗi máy chủ
+ */
+
 
 
 /**

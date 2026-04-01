@@ -296,6 +296,17 @@ class PlannerShareController {
             return ResponseUtil.error(res, 'Lỗi khi huỷ thanh toán cọc');
         }
     }
+    /**
+     * GET /planners/my-invites - Get pending invites for the current user
+     */
+    static async getMyInvites(req, res) {
+        try {
+            const result = await PlannerShareService.getMyInvites(req.user.id, req.user.email);
+            return ResponseUtil.success(res, result, req.__('planner.get_my_invites_success'));
+        } catch (error) {
+            return ResponseUtil.error(res, req.__('error.server_error'));
+        }
+    }
 }
 
 module.exports = PlannerShareController;

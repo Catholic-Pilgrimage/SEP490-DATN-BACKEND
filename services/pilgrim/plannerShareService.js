@@ -222,6 +222,17 @@ class PlannerShareService {
 
             Logger.info(`Invite sent to ${email} for planner ${plannerId}`);
 
+            // Send in-app notification if invitee already has an account
+            if (existingUser) {
+                const NotificationService = require('../shared/notificationService');
+                NotificationService.createNotification('planner_invite', existingUser.id, {
+                    inviterName,
+                    plannerName: planner.name,
+                    token: invite.token,
+                    planner_id: plannerId
+                }).catch(e => Logger.warn(`Failed to send invite notification: ${e.message}`));
+            }
+
             const baseUrl = process.env.FRONTEND_URL || 'pilgrimapp:/';
             const inviteLink = `${baseUrl}/planners/invite/${token}`;
 
@@ -1341,6 +1352,72 @@ class PlannerShareService {
         } catch (error) {
             await t.rollback();
             Logger.error('Cancel deposit error:', error);
+            throw error;
+        }
+    }
+    /**
+     * Get pending invites for the current user (by email or user_id)
+     */
+    static async getMyInvites(userId, email) {
+        try {
+            const normalizedEmail = email ? email.toLowerCase().trim() : '';
+            const now = new Date();
+
+            const invites = await PlannerInvite.findAll({
+                where: {
+                    status: { [Op.in]: ['pending', 'awaiting_payment'] },
+                    [Op.and]: [
+                        // Match recipient by email (case-insensitive) OR invitee_user_id
+                        {
+                            [Op.or]: [
+                                sequelize.where(
+                                    sequelize.fn('LOWER', sequelize.col('PlannerInvite.email')),
+                                    normalizedEmail
+                                ),
+                                { invitee_user_id: userId }
+                            ]
+                        },
+                        // Not expired
+                        {
+                            [Op.or]: [
+                                { expires_at: null },
+                                { expires_at: { [Op.gte]: now } }
+                            ]
+                        }
+                    ]
+                },
+                include: [
+                    {
+                        model: Planner,
+                        as: 'planner',
+                        attributes: [
+                            'id', 'name', 'start_date', 'end_date', 'status',
+                            'number_of_people', 'transportation',
+                            'deposit_amount', 'penalty_percentage', 'is_locked',
+                            'created_at', 'updated_at'
+                        ]
+                    },
+                    {
+                        model: User,
+                        as: 'inviter',
+                        attributes: ['id', 'full_name', 'email', 'avatar_url']
+                    }
+                ],
+                order: [['created_at', 'DESC']]
+            });
+
+            return invites.map(invite => ({
+                id: invite.id,
+                token: invite.token,
+                invite_type: invite.invite_type,
+                status: invite.status,
+                expires_at: invite.expires_at,
+                created_at: invite.created_at,
+                planner: invite.planner,
+                inviter: invite.inviter
+            }));
+        } catch (error) {
+            Logger.error('Get my invites error:', error);
             throw error;
         }
     }
