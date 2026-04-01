@@ -70,7 +70,11 @@ const Notification = sequelize.define('Notification', {
                 'review_replied',
                 // Report penalty notifications
                 'content_deleted',
-                'content_warning'
+                'content_warning',
+                // Friendship notifications
+                'friend_request',
+                'friend_accepted',
+                'planner_friend_invite'
             ]]
         }
     },

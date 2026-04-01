@@ -39,8 +39,9 @@
  *                           type: string
  *                         email:
  *                           type: string
- *                         role:
+ *                         invite_type:
  *                           type: string
+ *                           enum: [friend, external]
  *                         status:
  *                           type: string
  *                         expires_at:
@@ -52,6 +53,95 @@
  *         description: Lời mời đã hết hạn
  *       404:
  *         description: Không tìm thấy lời mời
+ */
+
+/**
+ * @swagger
+ * /api/planners/my-invites:
+ *   get:
+ *     summary: Lấy danh sách các lời mời đang chờ của người dùng
+ *     description: |
+ *       Trả về danh sách các kế hoạch mà người dùng được mời (friend hoặc external) chưa được xử lý hoặc đang chờ thanh toán cọc.
+ *       Trạng thái trả về: `pending`, `awaiting_payment`.
+ *       Không trả về `accepted`, `rejected`, `expired`.
+ *       FE sẽ dùng `token` trả về để gọi lại `GET /api/planners/invite/{token}` và xem màn hình chi tiết.
+ *     tags: [Pilgrim - Planner Share]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       token:
+ *                         type: string
+ *                         description: Dùng token này để mở trang chi tiết lời mời
+ *                       invite_type:
+ *                         type: string
+ *                         enum: [friend, external]
+ *                       status:
+ *                         type: string
+ *                         enum: [pending, awaiting_payment]
+ *                       expires_at:
+ *                         type: string
+ *                         format: date-time
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *                       planner:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                           start_date:
+ *                             type: string
+ *                           end_date:
+ *                             type: string
+ *                           status:
+ *                             type: string
+ *                           number_of_people:
+ *                             type: integer
+ *                           transportation:
+ *                             type: string
+ *                           deposit_amount:
+ *                             type: number
+ *                           penalty_percentage:
+ *                             type: number
+ *                           is_locked:
+ *                             type: boolean
+ *                           created_at:
+ *                             type: string
+ *                           updated_at:
+ *                             type: string
+ *                       inviter:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           full_name:
+ *                             type: string
+ *                           email:
+ *                             type: string
+ *                           avatar_url:
+ *                             type: string
+ *       401:
+ *         description: Chưa xác thực
+ *       500:
+ *         description: Lỗi máy chủ
  */
 
 
@@ -101,15 +191,104 @@
 
 /**
  * @swagger
+ * /api/planners/{id}/invite-friend:
+ *   post:
+ *     summary: Mời bạn bè vào kế hoạch (không cần cọc)
+ *     description: |
+ *       Mời một người bạn (đã kết bạn) tham gia kế hoạch.
+ *       - Chỉ chủ sở hữu mới có quyền mời.
+ *       - Hai người phải đã là bạn bè (status = accepted).
+ *       - Tạo lời mời kiểu `friend` với `status = pending`.
+ *       - Người được mời sẽ nhận notification và vẫn phải accept/reject qua token.
+ *       - Khi accept, người được mời join **không cần đặt cọc**.
+ *     tags: [Pilgrim - Planner Share]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID kế hoạch
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - friend_id
+ *             properties:
+ *               friend_id:
+ *                 type: string
+ *                 format: uuid
+ *                 description: ID của bạn bè muốn mời
+ *     responses:
+ *       200:
+ *         description: Đã gửi lời mời bạn bè thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       format: uuid
+ *                     invite_type:
+ *                       type: string
+ *                       enum: [friend]
+ *                     friend:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                         full_name:
+ *                           type: string
+ *                         email:
+ *                           type: string
+ *                     token:
+ *                       type: string
+ *                     expires_at:
+ *                       type: string
+ *                       format: date-time
+ *                     planner_name:
+ *                       type: string
+ *       400:
+ *         description: Lỗi - chưa là bạn, planner đầy, hoặc đã mời
+ *       401:
+ *         description: Chưa xác thực
+ *       403:
+ *         description: Không có quyền - không phải chủ sở hữu
+ *       404:
+ *         description: Không tìm thấy kế hoạch hoặc người dùng
+ */
+
+/**
+ * @swagger
  * /api/planners/invite/{token}:
  *   post:
  *     summary: Phản hồi lời mời (Chấp nhận/Từ chối)
  *     description: |
- *       Người được mời phản hồi lời mời bằng token.
- *       - **accept**: invite chuyển sang `awaiting_payment`. Nếu planner có `deposit_amount > 0`, trả về link PayOS để thanh toán cọc ngay. Nếu không yêu cầu cọc, user được join ngay.
- *       - **reject**: invite chuyển sang `rejected`.
- *       
- *       **Lưu ý:** Trong giai đoạn `pending` và `awaiting_payment`, người được mời vẫn có thể vào chat thảo luận trước khi thanh toán.
+ *       Người được mời phản hồi lời mời bằng token. Behavior phụ thuộc vào `invite_type`:
+ *
+ *       **Friend invite (`invite_type = friend`):**
+ *       - **accept**: Join nhóm ngay, không cần cọc. Response trả `deposit_required = false, joined = true`.
+ *       - **reject**: Invite chuyển sang `rejected`.
+ *       - Xác thực bằng `invitee_user_id` (không phải email).
+ *
+ *       **External invite (`invite_type = external`):**
+ *       - **accept**: Invite chuyển sang `awaiting_payment`.
+ *         - Nếu ví đủ tiền → tự trừ, join luôn. Response: `deposit_required = false, paid_from_wallet = true`.
+ *         - Nếu ví không đủ → trả link PayOS. Response: `deposit_required = true, checkout_url = ...`.
+ *       - **reject**: Invite chuyển sang `rejected`.
+ *       - Xác thực bằng email khớp với invite.
  *     tags: [Pilgrim - Planner Share]
  *     security:
  *       - bearerAuth: []
@@ -135,7 +314,11 @@
  *                 description: Hành động (chấp nhận hoặc từ chối)
  *     responses:
  *       200:
- *         description: Phản hồi lời mời thành công
+ *         description: |
+ *           Phản hồi thành công. Response khác nhau tùy invite_type:
+ *           - **Friend**: `{ deposit_required: false, joined: true, planner_name, message }`
+ *           - **External (wallet)**: `{ deposit_required: false, paid_from_wallet: true, transaction_id, wallet_balance_after }`
+ *           - **External (PayOS)**: `{ deposit_required: true, checkout_url, order_code, qr_code, amount }`
  *         content:
  *           application/json:
  *             schema:
@@ -147,11 +330,14 @@
  *                     deposit_required:
  *                       type: boolean
  *                       description: |
- *                         - `false`: Đã trừ cọc từ ví thành công (xem paid_from_wallet) hoặc không yêu cầu cọc
- *                         - `true`: Cần thanh toán qua PayOS
+ *                         - `false`: Friend invite (join thẳng) hoặc đã trừ cọc từ ví
+ *                         - `true`: Cần thanh toán qua PayOS (chỉ external invite)
+ *                     joined:
+ *                       type: boolean
+ *                       description: true nếu đã join nhóm (chỉ friend invite)
  *                     paid_from_wallet:
  *                       type: boolean
- *                       description: true nếu đã trừ tiền từ ví (chỉ có khi deposit_required = false)
+ *                       description: true nếu đã trừ tiền từ ví (chỉ external invite)
  *                     transaction_id:
  *                       type: string
  *                       format: uuid
@@ -161,14 +347,14 @@
  *                       description: Số dư ví sau khi trừ (khi paid_from_wallet = true)
  *                     checkout_url:
  *                       type: string
- *                       description: Link PayOS (chỉ có khi deposit_required = true)
+ *                       description: Link PayOS (chỉ khi deposit_required = true)
  *                     order_code:
  *                       type: number
  *                     qr_code:
  *                       type: string
  *                     wallet_balance:
  *                       type: number
- *                       description: Số dư ví hiện tại (khi deposit_required = true, để FE hiển thị)
+ *                       description: Số dư ví hiện tại (khi deposit_required = true)
  *                     amount:
  *                       type: number
  *                     planner_name:
@@ -180,7 +366,7 @@
  *       401:
  *         description: Chưa xác thực
  *       403:
- *         description: Không có quyền (Email không khớp)
+ *         description: Không có quyền (Email không khớp hoặc invitee_user_id không khớp)
  *       404:
  *         description: Không tìm thấy lời mời
  */

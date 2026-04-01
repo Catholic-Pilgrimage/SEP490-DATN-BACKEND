@@ -28,6 +28,12 @@ router.get(
 );
 
 router.get(
+    '/my-invites',
+    authenticate,
+    PilgrimPlannerShareController.getMyInvites
+);
+
+router.get(
     '/:id',
     authenticate,
     PlannerValidator.validatePlannerId,
@@ -119,6 +125,14 @@ router.post(
     authenticate,
     PlannerValidator.inviteUser,
     PilgrimPlannerShareController.inviteUser
+);
+
+// Friend invite (no deposit)
+router.post(
+    '/:id/invite-friend',
+    authenticate,
+    PlannerValidator.inviteFriend,
+    PilgrimPlannerShareController.inviteFriend
 );
 
 router.post(
