@@ -20,7 +20,7 @@ class PlannerCalendarController {
                 req.user.id
             );
 
-            return ResponseUtil.success(res, result, req.__('planner.calendar_sync.success'));
+            return ResponseUtil.success(res, result, req.__('calendar_sync.success'));
         } catch (error) {
             if (error.message === 'Planner not found') {
                 return ResponseUtil.notFound(res, req.__('planner.not_found'));
@@ -29,7 +29,7 @@ class PlannerCalendarController {
                 return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
             }
             if (error.message === 'Planner must have start_date and end_date for calendar sync') {
-                return ResponseUtil.badRequest(res, req.__('planner.calendar_sync.missing_dates'));
+                return ResponseUtil.badRequest(res, req.__('calendar_sync.missing_dates'));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }

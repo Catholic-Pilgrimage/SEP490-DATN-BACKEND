@@ -981,6 +981,10 @@ class PlannerService {
 
             return {
                 id: plannerId,
+                messageKey: 'planner.delete_success_named',
+                messageParams: {
+                    name: planner.name
+                },
                 message: `Đã xóa kế hoạch "${planner.name}"`,
                 members_refunded: refundResults.length,
                 members_kicked: allKickedUserIds.length,
@@ -1942,7 +1946,11 @@ class PlannerService {
 
             Logger.info(`Item ${itemId} deleted from planner ${plannerId} by user ${userId}`);
 
-            return { id: itemId, message: 'Item deleted successfully' };
+            return {
+                id: itemId,
+                messageKey: 'planner.item_delete_success',
+                message: 'Item deleted successfully'
+            };
         } catch (error) {
             await transaction.rollback();
             Logger.error('Delete planner item error:', error);

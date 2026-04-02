@@ -4,6 +4,20 @@ const { validationResult } = require('express-validator');
 const { formatValidationErrors } = require('../utils/validation.util');
 
 class JournalController {
+    static localizeJournalResult(req, result) {
+        if (!result || typeof result !== 'object' || Array.isArray(result)) {
+            return result;
+        }
+
+        const localizedResult = { ...result };
+
+        if (localizedResult.message === 'Journal deleted successfully') {
+            localizedResult.message = req.__('journal.delete_success');
+        }
+
+        return localizedResult;
+    }
+
     /**
      * POST /journals - Create a new journal
      */
@@ -28,10 +42,16 @@ class JournalController {
 
             return ResponseUtil.created(res, result, req.__('journal.create_success'));
         } catch (error) {
+            if (error.message === 'Title and content are required') {
+                return ResponseUtil.badRequest(res, req.__('journal.title_content_required'));
+            }
             if (error.message === 'Already exists') {
                 return ResponseUtil.badRequest(res, req.__('journal.already_exists'));
             }
             if (error.message === 'Planner not found') {
+                return ResponseUtil.notFound(res, req.__('journal.planner_not_found'));
+            }
+            if (error.message === 'Associated planner not found.') {
                 return ResponseUtil.notFound(res, req.__('journal.planner_not_found'));
             }
             if (error.message === 'You need to complete the journey before writing a summary.') {
@@ -44,16 +64,19 @@ class JournalController {
                 return ResponseUtil.badRequest(res, req.__('journal.id_required'));
             }
             if (error.message === 'Only one of planner_item_id or planner_id is allowed') {
-                return ResponseUtil.badRequest(res, error.message);
+                return ResponseUtil.badRequest(res, req.__('journal.only_one_id_allowed'));
             }
             if (error.message === 'You can only create a journal for a completed journey.') {
                 return ResponseUtil.badRequest(res, req.__('journal.planner_not_completed'));
             }
             if (error.message === 'You must check-in at this location before creating a journal.') {
-                return ResponseUtil.badRequest(res, error.message);
+                return ResponseUtil.badRequest(res, req.__('journal.checkin_required'));
             }
             if (error.message === 'You must check-in at least one location in this journey before creating a summary.') {
-                return ResponseUtil.badRequest(res, error.message);
+                return ResponseUtil.badRequest(res, req.__('journal.summary_checkin_required'));
+            }
+            if (error.message === 'Maximum 10 images allowed') {
+                return ResponseUtil.badRequest(res, req.__('journal.max_images'));
             }
             if (error.message === 'Forbidden') {
                 return ResponseUtil.forbidden(res, req.__('journal.forbidden'));
@@ -102,7 +125,7 @@ class JournalController {
 
             const result = await JournalService.shareJournalToPost(journalId, userId);
 
-            return ResponseUtil.created(res, result, req.__('journal.share_success') || 'Shared to community successfully');
+            return ResponseUtil.created(res, result, req.__('journal.share_success'));
         } catch (error) {
             if (error.message === 'Journal not found') {
                 return ResponseUtil.notFound(res, req.__('journal.not_found'));
@@ -111,7 +134,7 @@ class JournalController {
                 return ResponseUtil.forbidden(res, req.__('journal.forbidden'));
             }
             if (error.message === 'This journal has already been shared to the community') {
-                return ResponseUtil.badRequest(res, error.message);
+                return ResponseUtil.badRequest(res, req.__('journal.already_shared'));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
@@ -179,10 +202,14 @@ class JournalController {
      */
     static async deleteJournal(req, res) {
         try {
-            const result = await JournalService.deleteJournal(req.params.id, req.user.id);
+            let result = await JournalService.deleteJournal(req.params.id, req.user.id);
+            result = JournalController.localizeJournalResult(req, result);
             return ResponseUtil.success(res, result, req.__('journal.delete_success'));
         } catch (error) {
             if (error.message === 'Journal not found') {
+                return ResponseUtil.notFound(res, req.__('journal.not_found'));
+            }
+            if (error.message === 'Journal not found or already deleted') {
                 return ResponseUtil.notFound(res, req.__('journal.not_found'));
             }
             if (error.message === 'Forbidden') {
