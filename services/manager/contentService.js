@@ -26,7 +26,11 @@ class ManagerContentService {
             const limit = parseInt(filters.limit) || 10;
             const offset = (page - 1) * limit;
 
-            const where = { site_id: user.site_id };
+            // By default, manager only reviews active media.
+            const where = {
+                site_id: user.site_id,
+                is_active: true
+            };
 
             if (filters.type && ['image', 'video', 'model_3d'].includes(filters.type)) {
                 where.type = filters.type;
@@ -185,7 +189,11 @@ class ManagerContentService {
             }
 
             const media = await SiteMedia.findOne({
-                where: { id: mediaId, site_id: user.site_id }
+                where: {
+                    id: mediaId,
+                    site_id: user.site_id,
+                    is_active: true
+                }
             });
 
             if (!media) {
