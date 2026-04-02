@@ -24,7 +24,7 @@ class FriendshipValidator {
             .isUUID().withMessage('ID bạn bè không hợp lệ')
     ];
 
-    // Validate pagination
+    // Validate pagination + status filter
     static listPagination = [
         query('page')
             .optional()
@@ -32,7 +32,11 @@ class FriendshipValidator {
 
         query('limit')
             .optional()
-            .isInt({ min: 1, max: 100 }).withMessage('Limit phải từ 1-100')
+            .isInt({ min: 1, max: 100 }).withMessage('Limit phải từ 1-100'),
+
+        query('status')
+            .optional()
+            .isIn(['accepted', 'pending']).withMessage('Status phải là accepted hoặc pending')
     ];
 }
 

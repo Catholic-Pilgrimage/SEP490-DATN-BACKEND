@@ -140,12 +140,22 @@
  * @swagger
  * /api/friendships:
  *   get:
- *     summary: Lấy danh sách bạn bè
- *     description: Trả về danh sách bạn bè đã accepted, có phân trang.
+ *     summary: Lấy danh sách bạn bè / lời mời kết bạn
+ *     description: |
+ *       Trả về danh sách friendships, có phân trang.
+ *       - `status=accepted` (mặc định): danh sách bạn bè đã chấp nhận.
+ *       - `status=pending`: danh sách lời mời kết bạn mà người dùng hiện tại nhận được (addressee).
  *     tags: [Pilgrim - Friendship]
  *     security:
  *       - bearerAuth: []
  *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [accepted, pending]
+ *           default: accepted
+ *         description: Lọc theo trạng thái friendship
  *       - in: query
  *         name: page
  *         schema:
@@ -161,7 +171,7 @@
  *           default: 20
  *     responses:
  *       200:
- *         description: Danh sách bạn bè
+ *         description: Danh sách friendships
  *         content:
  *           application/json:
  *             schema:
@@ -172,7 +182,7 @@
  *                 data:
  *                   type: object
  *                   properties:
- *                     friends:
+ *                     items:
  *                       type: array
  *                       items:
  *                         type: object
@@ -180,74 +190,12 @@
  *                           friendship_id:
  *                             type: string
  *                             format: uuid
- *                           friend:
- *                             type: object
- *                             properties:
- *                               id:
- *                                 type: string
- *                               full_name:
- *                                 type: string
- *                               email:
- *                                 type: string
- *                               avatar_url:
- *                                 type: string
- *                           since:
+ *                           status:
  *                             type: string
- *                             format: date-time
- *                     total:
- *                       type: integer
- *                     totalPages:
- *                       type: integer
- *                     currentPage:
- *                       type: integer
- */
-
-/**
- * @swagger
- * /api/friendships/pending:
- *   get:
- *     summary: Lấy danh sách lời mời kết bạn chờ xử lý
- *     description: Trả về danh sách lời mời kết bạn mà người dùng hiện tại nhận được (addressee), có phân trang.
- *     tags: [Pilgrim - Friendship]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           minimum: 1
- *           default: 1
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           minimum: 1
- *           maximum: 100
- *           default: 20
- *     responses:
- *       200:
- *         description: Danh sách lời mời chờ
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: object
- *                   properties:
- *                     requests:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           id:
- *                             type: string
- *                             format: uuid
- *                           requester:
+ *                             enum: [accepted, pending]
+ *                           user:
  *                             type: object
+ *                             description: Thông tin người kia (bạn bè hoặc người gửi lời mời)
  *                             properties:
  *                               id:
  *                                 type: string
@@ -258,6 +206,9 @@
  *                               avatar_url:
  *                                 type: string
  *                           created_at:
+ *                             type: string
+ *                             format: date-time
+ *                           updated_at:
  *                             type: string
  *                             format: date-time
  *                     total:

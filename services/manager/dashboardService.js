@@ -153,16 +153,18 @@ class ManagerDashboardService {
                 sosStatusMap[item.status] = parseInt(item.count);
             });
 
-            // Content stats (total, pending, approved, rejected)
-            const totalMedia = await SiteMedia.count({ where: { site_id: siteId } });
+            // Content stats only count active media so soft-deleted drafts do not appear.
+            const totalMedia = await SiteMedia.count({
+                where: { site_id: siteId, is_active: true }
+            });
             const pendingMedia = await SiteMedia.count({
-                where: { site_id: siteId, status: 'pending' }
+                where: { site_id: siteId, status: 'pending', is_active: true }
             });
             const approvedMedia = await SiteMedia.count({
-                where: { site_id: siteId, status: 'approved' }
+                where: { site_id: siteId, status: 'approved', is_active: true }
             });
             const rejectedMedia = await SiteMedia.count({
-                where: { site_id: siteId, status: 'rejected' }
+                where: { site_id: siteId, status: 'rejected', is_active: true }
             });
             
             const totalSchedules = await MassSchedule.count({ where: { site_id: siteId } });
