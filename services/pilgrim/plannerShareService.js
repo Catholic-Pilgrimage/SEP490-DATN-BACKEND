@@ -319,6 +319,11 @@ class PlannerShareService {
                 Logger.info(`Slot sweep: expired invite ${expiredInvite.id} for planner ${plannerId}`);
             }
 
+            const plannerState = await PlannerService.getPlannerState(plannerId, planner);
+            if (plannerState.joinWindowClosed) {
+                throw new Error('Planner join window is closed');
+            }
+
             // Slot counting
             const currentMemberCount = await PlannerMember.count({
                 where: {

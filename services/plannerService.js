@@ -740,6 +740,23 @@ class PlannerService {
                 if (updateData.number_of_people < 1) {
                     throw new Error('Number of people must be at least 1');
                 }
+
+                const currentNumPeople = parseInt(planner.number_of_people) || 1;
+                const requestedNumPeople = parseInt(updateData.number_of_people) || 1;
+
+                if (currentNumPeople <= 1 && requestedNumPeople >= 2 && planner.start_date) {
+                    const now = new Date();
+                    const startDateObj = new Date(planner.start_date);
+                    startDateObj.setHours(0, 0, 0, 0);
+
+                    const minLeadTime = new Date(now);
+                    minLeadTime.setHours(minLeadTime.getHours() + 48);
+
+                    if (startDateObj < minLeadTime) {
+                        throw new Error('Group lead time error');
+                    }
+                }
+
                 if (updateData.number_of_people < plannerState.committedSlots) {
                     const error = new Error('Cannot reduce capacity below committed slots');
                     error.requiredSlots = plannerState.committedSlots;
