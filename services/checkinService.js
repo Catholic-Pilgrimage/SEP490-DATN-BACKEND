@@ -375,6 +375,14 @@ class CheckinService {
         });
 
         const PlannerService = require('./plannerService');
+        const checkinStats = await PlannerService.getCheckinStats(planner.id);
+
+        const shouldAutoCancelPlanner =
+            planner.status === 'ongoing' &&
+            checkinStats.totalItems > 0 &&
+            checkinStats.checkedInItems === checkinStats.totalItems &&
+            checkinStats.visitedCount === 0;
+
         const nextUpcomingItem = await PlannerService.getNextUpcomingPlannerItem(planner.id);
         const notificationType = nextUpcomingItem ? 'planner_item_skipped' : 'planner_item_skipped_last';
 
@@ -385,6 +393,10 @@ class CheckinService {
             nextSiteName: nextUpcomingItem?.site?.name || '',
             reason: normalizedSkipReason
         }, { excludeUserId: ownerId });
+
+        if (shouldAutoCancelPlanner) {
+            await planner.update({ status: 'cancelled' });
+        }
 
         return { message: 'Đã đánh dấu bỏ qua địa điểm này cho toàn đoàn' };
     }

@@ -855,28 +855,18 @@ class PlannerService {
             }
 
             // Only allow deletion during planning phase
-            if (['ongoing', 'completed', 'cancelled'].includes(planner.status)) {
+            if (['ongoing', 'completed'].includes(planner.status)) {
                 if (planner.status === 'ongoing') {
                     throw new Error('Cannot delete ongoing journey');
-                } else if (planner.status === 'completed') {
-                    throw new Error('Cannot delete completed plan');
                 } else {
-                    throw new Error('Cannot delete cancelled plan');
+                    throw new Error('Cannot delete completed plan');
                 }
             }
 
             const plannerState = await this.getPlannerState(plannerId, planner, { transaction: t });
 
-            if (planner.status === 'cancelled') {
-                throw new Error('Cannot delete cancelled plan');
-            }
-
-            if (this.isGroupPlanner(planner) && plannerState.firstInviteAt) {
-                throw new Error('Cannot delete shared group planner');
-            }
-
-            // Check final lock
-            if (plannerState.editLocked) {
+            // Only allow soft delete before the planner reaches its lock window
+            if (planner.status !== 'cancelled' && (plannerState.editLocked || plannerState.joinWindowClosed)) {
                 throw new Error('Planner is locked');
             }
 
