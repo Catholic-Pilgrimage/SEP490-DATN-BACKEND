@@ -1258,7 +1258,7 @@ class PlannerService {
                 throw new Error('Site not found');
             }
 
-            await this.validateGroupPlannerPatronSaintScope(plannerId, planner, site, { transaction });
+            // await this.validateGroupPlannerPatronSaintScope(plannerId, planner, site, { transaction });
 
             // Validate leg_number (if planner has date range)
             if (planner.start_date && planner.end_date) {
