@@ -111,6 +111,9 @@ class PlannerShareController {
             if (error.message === 'User is already a member') {
                 return ResponseUtil.badRequest(res, req.__('planner.already_member'));
             }
+            if (error.message === 'Planner join window is closed') {
+                return ResponseUtil.badRequest(res, req.__('planner.join_window_closed'));
+            }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
