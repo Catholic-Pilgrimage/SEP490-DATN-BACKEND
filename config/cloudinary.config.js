@@ -73,13 +73,23 @@ const journalVideoStorage = new CloudinaryStorage({
     }
 });
 
-// Post image storage
-const postImageStorage = new CloudinaryStorage({
+// Post media storage
+const postMediaStorage = new CloudinaryStorage({
     cloudinary: cloudinary,
-    params: {
-        folder: 'catholic_pilgrimage/posts',
-        allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
-        transformation: [{ width: 1200, height: 1200, crop: 'limit', quality: 'auto' }]
+    params: async (req, file) => {
+        if (file.fieldname === 'video') {
+            return {
+                folder: 'catholic_pilgrimage/posts/videos',
+                allowed_formats: ['mp4', 'mov', 'avi', 'webm'],
+                resource_type: 'video'
+            };
+        }
+
+        return {
+            folder: 'catholic_pilgrimage/posts/images',
+            allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+            transformation: [{ width: 1200, height: 1200, crop: 'limit', quality: 'auto' }]
+        };
     }
 });
 
@@ -106,11 +116,38 @@ const uploadJournalVideo = multer({
     limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit for video
 });
 
-// Post images upload (max 10 images, 10MB each)
-const uploadPostImages = multer({
-    storage: postImageStorage,
-    limits: { fileSize: 10 * 1024 * 1024 } // 10MB max per image
-}).array('images', 10); // Max 10 images per post
+const postMediaFileFilter = (req, file, cb) => {
+    const imageMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+    const videoMimeTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm'];
+
+    if (file.fieldname === 'images') {
+        if (imageMimeTypes.includes(file.mimetype)) {
+            return cb(null, true);
+        }
+
+        return cb(new Error('Invalid image format. Allowed: jpg, png, jpeg, webp'), false);
+    }
+
+    if (file.fieldname === 'video') {
+        if (videoMimeTypes.includes(file.mimetype)) {
+            return cb(null, true);
+        }
+
+        return cb(new Error('Invalid video format. Allowed: mp4, mov, avi, webm'), false);
+    }
+
+    return cb(new Error('Invalid upload field for post media'), false);
+};
+
+// Post media upload (max 10 images and 1 video)
+const uploadPostMedia = multer({
+    storage: postMediaStorage,
+    limits: { fileSize: 100 * 1024 * 1024 },
+    fileFilter: postMediaFileFilter
+}).fields([
+    { name: 'images', maxCount: 10 },
+    { name: 'video', maxCount: 1 }
+]);
 
 // Review image storage (max 5 images per review)
 const reviewImageStorage = new CloudinaryStorage({
@@ -149,7 +186,7 @@ module.exports = {
     uploadJournalImages,
     uploadJournalAudio,
     uploadJournalVideo,
-    uploadPostImages,
+    uploadPostMedia,
     uploadReviewImages,
     uploadNarrativeAudio
 };
