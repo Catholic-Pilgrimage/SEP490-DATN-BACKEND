@@ -336,6 +336,11 @@ class PlannerShareService {
 
             const now = new Date();
 
+            const plannerState = await PlannerService.getPlannerState(plannerId, planner);
+            if (plannerState.joinWindowClosed) {
+                throw new Error('Planner join window is closed');
+            }
+
             // Slot counting
             const currentMemberCount = await PlannerMember.count({
                 where: {

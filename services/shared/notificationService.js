@@ -271,6 +271,16 @@ const NOTIFICATION_TEMPLATES = {
             message: 'A group member has checked in at {{siteName}} in planner "{{plannerName}}". Please check in before this stop is closed.'
         }
     },
+    planner_item_missed: {
+        vi: {
+            title: 'Bạn đã bị đánh dấu là không đến',
+            message: 'Truong doan da chot diem {{siteName}} trong ke hoach "{{plannerName}}" khi ban chua check-in. Ly do: {{reason}}.'
+        },
+        en: {
+            title: 'You were marked missed',
+            message: 'The leader closed stop {{siteName}} in planner "{{plannerName}}" before you checked in. Reason: {{reason}}.'
+        }
+    },
     planner_item_skipped: {
         vi: {
             title: 'Dia diem da duoc bo qua',

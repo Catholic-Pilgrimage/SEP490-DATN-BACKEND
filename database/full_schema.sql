@@ -870,6 +870,7 @@ CREATE TABLE IF NOT EXISTS posts (
     group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
     image_urls TEXT[],
+    video_url TEXT,
     journal_id UUID REFERENCES journals(id) ON DELETE SET NULL,
     site_id UUID REFERENCES sites(id) ON DELETE SET NULL,
     planner_id UUID REFERENCES planners(id) ON DELETE SET NULL,

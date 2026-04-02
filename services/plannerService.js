@@ -86,6 +86,59 @@ class PlannerService {
         return rawValue.length >= 5 ? rawValue.slice(0, 5) : rawValue;
     }
 
+    static normalizePatronSaintValue(value) {
+        return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[\u0111\u0110]/g, char => (char === '\u0111' ? 'd' : 'D'))
+            .trim()
+            .replace(/\s+/g, ' ')
+            .toLocaleLowerCase('vi-VN');
+    }
+
+    static async validateGroupPlannerPatronSaintScope(plannerId, planner, site, options = {}) {
+        if (!this.isGroupPlanner(planner) || !site) {
+            return;
+        }
+
+        const firstPlannerItem = await PlannerItem.findOne({
+            where: { planner_id: plannerId },
+            include: [
+                {
+                    model: Site,
+                    as: 'site',
+                    attributes: ['id', 'name', 'patron_saint']
+                }
+            ],
+            order: [
+                ['leg_number', 'ASC'],
+                ['order_index', 'ASC']
+            ],
+            transaction: options.transaction
+        });
+
+        if (!firstPlannerItem?.site) {
+            return;
+        }
+
+        const firstPatronSaint = this.normalizePatronSaintValue(firstPlannerItem.site.patron_saint);
+        if (!firstPatronSaint) {
+            return;
+        }
+
+        const currentPatronSaint = this.normalizePatronSaintValue(site.patron_saint);
+        if (currentPatronSaint === firstPatronSaint) {
+            return;
+        }
+
+        const error = new Error('Group planner patron saint mismatch');
+        error.anchorSiteName = firstPlannerItem.site.name || '';
+        error.anchorPatronSaint = firstPlannerItem.site.patron_saint || '';
+        error.currentSiteName = site.name || '';
+        error.currentPatronSaint = site.patron_saint || '';
+        throw error;
+    }
+
     static async getNextUpcomingPlannerItem(plannerId, options = {}) {
         return PlannerItem.findOne({
             where: {
@@ -482,7 +535,7 @@ class PlannerService {
                         model: PlannerItem,
                         as: 'items',
                         include: [
-                            { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image'] }
+                            { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image', 'patron_saint'] }
                         ],
                         order: [
                             ['leg_number', 'ASC'],
@@ -687,6 +740,23 @@ class PlannerService {
                 if (updateData.number_of_people < 1) {
                     throw new Error('Number of people must be at least 1');
                 }
+
+                const currentNumPeople = parseInt(planner.number_of_people) || 1;
+                const requestedNumPeople = parseInt(updateData.number_of_people) || 1;
+
+                if (currentNumPeople <= 1 && requestedNumPeople >= 2 && planner.start_date) {
+                    const now = new Date();
+                    const startDateObj = new Date(planner.start_date);
+                    startDateObj.setHours(0, 0, 0, 0);
+
+                    const minLeadTime = new Date(now);
+                    minLeadTime.setHours(minLeadTime.getHours() + 48);
+
+                    if (startDateObj < minLeadTime) {
+                        throw new Error('Group lead time error');
+                    }
+                }
+
                 if (updateData.number_of_people < plannerState.committedSlots) {
                     const error = new Error('Cannot reduce capacity below committed slots');
                     error.requiredSlots = plannerState.committedSlots;
@@ -1205,6 +1275,8 @@ class PlannerService {
                 throw new Error('Site not found');
             }
 
+            // await this.validateGroupPlannerPatronSaintScope(plannerId, planner, site, { transaction });
+
             // Validate leg_number (if planner has date range)
             if (planner.start_date && planner.end_date) {
                 const startDate = new Date(planner.start_date);
@@ -1553,7 +1625,7 @@ class PlannerService {
                         }
                     },
                     include: [
-                        { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image'] }
+                        { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image', 'patron_saint'] }
                     ],
                     order: [
                         ['leg_number', 'ASC'],
@@ -1621,7 +1693,7 @@ class PlannerService {
             // Fetch item with site details
             const result = await PlannerItem.findByPk(item.id, {
                 include: [
-                    { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image'] }
+                    { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image', 'patron_saint'] }
                 ]
             });
 
@@ -1704,7 +1776,7 @@ class PlannerService {
                     leg_number: legNumber
                 },
                 include: [
-                    { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image', 'opening_hours'] }
+                    { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image', 'patron_saint', 'opening_hours'] }
                 ],
                 order: [['order_index', 'ASC']]
             });
@@ -1745,7 +1817,7 @@ class PlannerService {
                     leg_number: legNumber
                 },
                 include: [
-                    { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image'] }
+                    { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image', 'patron_saint'] }
                 ],
                 order: [['order_index', 'ASC']]
             });
@@ -2113,7 +2185,7 @@ class PlannerService {
             // Fetch updated item
             const result = await PlannerItem.findByPk(itemId, {
                 include: [
-                    { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image'] }
+                    { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image', 'patron_saint'] }
                 ]
             });
 
@@ -2253,7 +2325,8 @@ class PlannerService {
                 province: item.site.province,
                 latitude: item.site.latitude,
                 longitude: item.site.longitude,
-                cover_image: item.site.cover_image
+                cover_image: item.site.cover_image,
+                patron_saint: item.site.patron_saint
             } : null,
             created_at: item.created_at,
             updated_at: item.updated_at
@@ -2619,6 +2692,10 @@ class PlannerService {
             }
 
             if (status === 'locked') {
+                if (this.isGroupPlanner(planner) && !planner.is_locked) {
+                    throw new Error('Group planner must be edit locked before locking');
+                }
+
                 await planner.update({
                     status: 'locked',
                     is_locked: true
@@ -2930,6 +3007,10 @@ class PlannerService {
             return planner.status;
         }
 
+        if (this.isGroupPlanner(planner)) {
+            return 'planning';
+        }
+
         const statusLockAt = this.getPlannerStatusLockAt(planner);
         return Boolean(statusLockAt && now >= statusLockAt) ? 'locked' : 'planning';
     }
@@ -3148,7 +3229,7 @@ class PlannerService {
 
             // Return updated item with site info
             const updatedItem = await PlannerItem.findByPk(itemId, {
-                include: [{ model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province'] }]
+                include: [{ model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'patron_saint'] }]
             });
 
             return this.formatPlannerItemResponse(updatedItem);
@@ -3228,16 +3309,7 @@ class PlannerService {
             return Boolean(statusLockAt && now >= statusLockAt);
         }
 
-        if (planner.is_locked) {
-            return true;
-        }
-
-        const editLockAt = this.getPlannerEffectiveEditLockAt(planner);
-        if (!editLockAt) {
-            return false;
-        }
-
-        return now >= editLockAt;
+        return Boolean(planner.is_locked);
     }
 
     static async syncPlannerLockState(planner, options = {}) {
@@ -3247,11 +3319,10 @@ class PlannerService {
 
         const now = options.now || new Date();
         const isGroupPlanner = this.isGroupPlanner(planner);
-        const editLockAt = isGroupPlanner ? this.getPlannerEffectiveEditLockAt(planner) : null;
         const statusLockAt = this.getPlannerStatusLockAt(planner);
         const updateData = {};
 
-        if (isGroupPlanner && !planner.is_locked && editLockAt && now >= editLockAt) {
+        if (isGroupPlanner && planner.status === 'locked' && !planner.is_locked) {
             updateData.is_locked = true;
         }
 
@@ -3272,9 +3343,6 @@ class PlannerService {
                         await this.expireActivePlannerInvites(planner.id, options);
                     }
                     Object.assign(updateData, this.buildSoloFallbackUpdateData(planner, now));
-                } else if (planner.status === 'planning') {
-                    updateData.status = 'locked';
-                    updateData.is_locked = true;
                 }
             } else if (planner.status === 'planning') {
                 updateData.status = 'locked';

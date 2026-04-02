@@ -20,7 +20,12 @@ const postValidator = {
         body('image_urls.*')
             .optional()
             .isURL()
-            .withMessage('Each image URL must be a valid URL')
+            .withMessage('Each image URL must be a valid URL'),
+
+        body('video_url')
+            .optional()
+            .isURL()
+            .withMessage('Video URL must be a valid URL')
     ],
 
     /**
@@ -47,7 +52,12 @@ const postValidator = {
         body('image_urls.*')
             .optional()
             .isURL()
-            .withMessage('Each image URL must be a valid URL')
+            .withMessage('Each image URL must be a valid URL'),
+
+        body('video_url')
+            .optional()
+            .isURL()
+            .withMessage('Video URL must be a valid URL')
     ],
 
     /**

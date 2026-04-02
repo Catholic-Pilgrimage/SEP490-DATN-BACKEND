@@ -1,8 +1,110 @@
-const { Journal, User, Site } = require('../models');
+const { Journal, User, Site, SiteMedia, UserCheckin, PlannerItem, Planner, PlannerMember } = require('../models');
 const { Op } = require('sequelize');
 const Logger = require('../utils/logger.util');
 
 class JournalService {
+    static formatModel3D(media) {
+        if (!media) {
+            return null;
+        }
+
+        return {
+            id: media.id,
+            code: media.code,
+            url: media.url,
+            type: media.type,
+            caption: media.caption,
+            created_at: media.created_at
+        };
+    }
+
+    static async getApprovedModel3DMap(siteIds = []) {
+        const normalizedSiteIds = [...new Set(siteIds.filter(Boolean))];
+        if (normalizedSiteIds.length === 0) {
+            return new Map();
+        }
+
+        const mediaList = await SiteMedia.findAll({
+            where: {
+                site_id: normalizedSiteIds,
+                type: 'model_3d',
+                status: 'approved',
+                is_active: true
+            },
+            attributes: ['id', 'site_id', 'code', 'url', 'type', 'caption', 'created_at'],
+            order: [['created_at', 'DESC']]
+        });
+
+        const mediaMap = new Map();
+        for (const media of mediaList) {
+            if (!mediaMap.has(media.site_id)) {
+                mediaMap.set(media.site_id, this.formatModel3D(media));
+            }
+        }
+
+        return mediaMap;
+    }
+
+    static async getCheckedInPlannerSites(userId, plannerId) {
+        const checkins = await UserCheckin.findAll({
+            where: {
+                user_id: userId,
+                status: 'checked_in'
+            },
+            include: [{
+                model: PlannerItem,
+                as: 'plannerItem',
+                required: true,
+                where: { planner_id: plannerId },
+                attributes: ['id', 'site_id', 'leg_number', 'order_index'],
+                include: [{
+                    model: Site,
+                    as: 'site',
+                    attributes: ['id', 'name', 'code', 'province', 'cover_image']
+                }]
+            }],
+            order: [
+                ['checkin_date', 'ASC'],
+                [{ model: PlannerItem, as: 'plannerItem' }, 'leg_number', 'ASC'],
+                [{ model: PlannerItem, as: 'plannerItem' }, 'order_index', 'ASC']
+            ]
+        });
+
+        const model3DMap = await this.getApprovedModel3DMap(
+            checkins.map(checkin => checkin.plannerItem?.site_id)
+        );
+
+        return checkins.map(checkin => ({
+            planner_item_id: checkin.planner_item_id,
+            site_id: checkin.plannerItem?.site_id || null,
+            leg_number: checkin.plannerItem?.leg_number || null,
+            order_index: checkin.plannerItem?.order_index || null,
+            checkin_date: checkin.checkin_date,
+            model_3d: model3DMap.get(checkin.plannerItem?.site_id) || null,
+            site: checkin.plannerItem?.site ? {
+                id: checkin.plannerItem.site.id,
+                name: checkin.plannerItem.site.name,
+                code: checkin.plannerItem.site.code,
+                province: checkin.plannerItem.site.province,
+                cover_image: checkin.plannerItem.site.cover_image
+            } : null
+        }));
+    }
+
+    static async buildJournalResponse(journal) {
+        const response = this.formatJournalResponse(journal);
+
+        if (response.site_id) {
+            const model3DMap = await this.getApprovedModel3DMap([response.site_id]);
+            response.model_3d = model3DMap.get(response.site_id) || null;
+        }
+
+        if (journal?.planner_id && !journal?.planner_item_id) {
+            response.checked_in_sites = await this.getCheckedInPlannerSites(journal.user_id, journal.planner_id);
+        }
+
+        return response;
+    }
 
     /**
      * Create a new journal
@@ -22,14 +124,13 @@ class JournalService {
             let finalPlannerId = planner_id;
             let finalPlannerItemId = planner_item_id;
 
-            const { UserCheckin, PlannerItem, Planner } = require('../models');
-
             if (planner_item_id) {
                 // Point Journal logic: Validate check-in and uniqueness
                 const checkin = await UserCheckin.findOne({
                     where: {
                         user_id: userId,
-                        planner_item_id: planner_item_id
+                        planner_item_id: planner_item_id,
+                        status: 'checked_in'
                     },
                     include: [{
                         model: PlannerItem,
@@ -83,8 +184,27 @@ class JournalService {
                     throw new Error('Planner not found');
                 }
 
+                if (planner.user_id !== userId) {
+                    const member = await PlannerMember.findOne({
+                        where: {
+                            planner_id,
+                            user_id: userId,
+                            join_status: 'joined'
+                        }
+                    });
+
+                    if (!member) {
+                        throw new Error('Forbidden');
+                    }
+                }
+
                 if (planner.status !== 'completed') {
                     throw new Error('You need to complete the journey before writing a summary.');
+                }
+
+                const checkedInSites = await this.getCheckedInPlannerSites(userId, planner_id);
+                if (checkedInSites.length === 0) {
+                    throw new Error('You must check-in at least one location in this journey before creating a summary.');
                 }
 
                 // Check for existing summary journal (planner_id exists but planner_item_id is NULL)
@@ -153,7 +273,7 @@ class JournalService {
             });
 
             Logger.info(`Journal created by user ${userId} at site ${finalSiteId}: ${journal.id}`);
-            return this.formatJournalResponse(result);
+            return this.buildJournalResponse(result);
         } catch (error) {
             Logger.error('Create journal error:', error);
             throw error;
@@ -183,7 +303,7 @@ class JournalService {
             });
 
             return {
-                journals: journals.map(j => this.formatJournalResponse(j)),
+                journals: await Promise.all(journals.map(j => this.buildJournalResponse(j))),
                 pagination: {
                     page: parseInt(page),
                     limit: parseInt(limit),
@@ -268,7 +388,7 @@ class JournalService {
                 }
             }
 
-            return this.formatJournalResponse(journal);
+            return this.buildJournalResponse(journal);
         } catch (error) {
             Logger.error('Get journal by ID error:', error);
             throw error;
@@ -353,7 +473,7 @@ class JournalService {
             });
 
             Logger.info(`Journal updated by user ${userId}: ${journalId}`);
-            return this.formatJournalResponse(result);
+            return this.buildJournalResponse(result);
         } catch (error) {
             Logger.error('Update journal error:', error);
             throw error;

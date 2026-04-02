@@ -47,6 +47,7 @@ const Notification = sequelize.define('Notification', {
                 'planner_deposit_refunded',
                 'planner_member_left',
                 'planner_first_checkin',
+                'planner_item_missed',
                 'planner_item_skipped',
                 'planner_item_skipped_last',
                 'planner_item_added',

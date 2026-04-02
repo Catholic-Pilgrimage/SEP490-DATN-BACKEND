@@ -32,6 +32,10 @@
  *                   type: string
  *                   format: binary
  *                 description: Tối đa 10 ảnh, mỗi ảnh tối đa 10MB
+ *               video:
+ *                 type: string
+ *                 format: binary
+ *                 description: 1 video tối đa 100MB (mp4, mov, avi, webm)
  *     responses:
  *       201:
  *         description: Tạo bài viết thành công
@@ -166,6 +170,10 @@
  *                   type: string
  *                   format: binary
  *                 description: Ảnh mới (sẽ thay thế ảnh cũ)
+ *               video:
+ *                 type: string
+ *                 format: binary
+ *                 description: Video mới (sẽ thay thế video cũ)
  *     responses:
  *       200:
  *         description: Cập nhật thành công
