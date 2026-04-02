@@ -643,6 +643,7 @@ class PlannerShareService {
                         deposit_required: false,
                         joined: true,
                         planner_name: planner.name,
+                        messageKey: 'planner.friend_joined_success',
                         message: 'Đã tham gia nhóm thành công (bạn bè - không cần cọc)'
                     };
                 }
@@ -766,6 +767,7 @@ class PlannerShareService {
                                     amount: depositAmount,
                                     wallet_balance_after: confirmedBalance - depositAmount,
                                     planner_name: planner.name,
+                                    messageKey: 'planner.deposit_paid_and_joined_success',
                                     message: 'Đã trừ tiền cọc từ ví và tham gia thành công'
                                 };
                             }
@@ -828,7 +830,10 @@ class PlannerShareService {
 
                 Logger.info(`User ${userId} rejected invite for planner ${invite.planner_id}`);
 
-                return { message: 'Invite rejected successfully' };
+                return {
+                    messageKey: 'planner.invite_rejected',
+                    message: 'Invite rejected successfully'
+                };
             }
         } catch (error) {
             Logger.error('Respond to invite error:', error);
@@ -1128,6 +1133,37 @@ class PlannerShareService {
                     : `Đã rời khỏi nhóm "${planner.name}" thành công`;
             }
 
+            if (depositAmount > 0 && (member.deposit_status === 'refunded' || member.deposit_status === 'penalized')) {
+                if (isKicked) {
+                    response.messageKey = 'planner.member_removed_refunded';
+                    response.messageParams = {
+                        plannerName: planner.name,
+                        amount: response.refund_amount
+                    };
+                } else if (member.deposit_status === 'penalized') {
+                    response.messageKey = 'planner.member_left_penalized';
+                    response.messageParams = {
+                        plannerName: planner.name,
+                        penaltyPercentage: response.penalty_percentage,
+                        penaltyAmount: response.penalty_amount,
+                        refundAmount: response.refund_amount
+                    };
+                } else {
+                    response.messageKey = 'planner.member_left_refunded';
+                    response.messageParams = {
+                        plannerName: planner.name,
+                        amount: response.refund_amount
+                    };
+                }
+            } else {
+                response.messageKey = isKicked
+                    ? 'planner.member_removed_named'
+                    : 'planner.member_left_success_named';
+                response.messageParams = {
+                    plannerName: planner.name
+                };
+            }
+
             return response;
         } catch (error) {
             await t.rollback();
@@ -1152,7 +1188,11 @@ class PlannerShareService {
             if (!verifiedData || verifiedData.code !== '00') {
                 Logger.warn('Deposit webhook: payment not successful', { code: verifiedData?.code });
                 await t.rollback();
-                return { success: false, message: 'Payment not successful' };
+                return {
+                    success: false,
+                    messageKey: 'planner.deposit_payment_not_successful',
+                    message: 'Payment not successful'
+                };
             }
 
             const orderCode = String(verifiedData.data?.orderCode || verifiedData.orderCode);
@@ -1171,21 +1211,33 @@ class PlannerShareService {
             if (!transaction) {
                 Logger.warn(`Deposit webhook: No deposit transaction found for orderCode ${orderCode}`);
                 await t.rollback();
-                return { success: false, message: 'Transaction not found' };
+                return {
+                    success: false,
+                    messageKey: 'planner.deposit_transaction_not_found',
+                    message: 'Transaction not found'
+                };
             }
 
             // Idempotency: if already completed, return success immediately
             if (transaction.status === 'completed') {
                 Logger.info(`Deposit webhook: already processed for orderCode ${orderCode} — no-op`);
                 await t.rollback();
-                return { success: true, message: 'Already processed' };
+                return {
+                    success: true,
+                    messageKey: 'planner.deposit_already_processed',
+                    message: 'Already processed'
+                };
             }
 
             // Block cancelled transactions — prevent resurrection of intentionally cancelled payments
             if (transaction.status === 'cancelled') {
                 Logger.warn(`Deposit webhook: orderCode ${orderCode} was cancelled — ignoring late webhook`);
                 await t.rollback();
-                return { success: false, message: 'Transaction was cancelled' };
+                return {
+                    success: false,
+                    messageKey: 'planner.deposit_transaction_cancelled',
+                    message: 'Transaction was cancelled'
+                };
             }
 
             // Parse reference_id: "plannerId:userId:orderCode"
@@ -1226,7 +1278,11 @@ class PlannerShareService {
                 // Do NOT create member — handle refund separately.
                 await t.commit();
                 Logger.warn(`Webhook: No awaiting_payment invite found for user=${userId}, planner=${plannerId}. Transaction marked completed but member NOT created — needs manual refund.`);
-                return { success: true, message: 'Payment received but invite expired. Refund needed.' };
+                return {
+                    success: true,
+                    messageKey: 'planner.deposit_invite_expired_refund_needed',
+                    message: 'Payment received but invite expired. Refund needed.'
+                };
             }
 
             const currentPlanner = await Planner.findByPk(plannerId, { transaction: t });
@@ -1245,7 +1301,11 @@ class PlannerShareService {
                 await inviteByEmail.update({ status: 'expired' }, { transaction: t });
                 await t.commit();
                 Logger.warn(`Webhook: payment received after planner closed for user=${userId}, planner=${plannerId}. Member NOT created - needs manual refund.`);
-                return { success: true, message: 'Payment received but planner is closed. Refund needed.' };
+                return {
+                    success: true,
+                    messageKey: 'planner.deposit_planner_closed_refund_needed',
+                    message: 'Payment received but planner is closed. Refund needed.'
+                };
             }
 
             if (!existingMember) {
@@ -1290,7 +1350,11 @@ class PlannerShareService {
                 }).catch(() => { });
             }
 
-            return { success: true, amount: parseFloat(transaction.amount) };
+            return {
+                success: true,
+                amount: parseFloat(transaction.amount),
+                messageKey: 'planner.deposit_webhook_processed'
+            };
         } catch (error) {
             await t.rollback();
             Logger.error('Handle deposit webhook error:', error);
@@ -1352,7 +1416,9 @@ class PlannerShareService {
             Logger.info(`Deposit cancelled: user=${userId}, planner=${plannerId}, invite=${newStatus}`);
 
             return {
-                messageKey: reject ? 'invite_rejected' : 'deposit_cancelled'
+                messageKey: reject
+                    ? 'planner.invite_rejected_after_deposit_cancel'
+                    : 'planner.deposit_cancelled'
             };
         } catch (error) {
             await t.rollback();
