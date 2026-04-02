@@ -28,6 +28,10 @@ const Post = sequelize.define('Post', {
         type: DataTypes.ARRAY(DataTypes.TEXT),
         defaultValue: []
     },
+    video_url: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
     likes_count: {
         type: DataTypes.INTEGER,
         defaultValue: 0

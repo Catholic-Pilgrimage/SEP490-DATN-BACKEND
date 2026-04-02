@@ -10,9 +10,15 @@ class PostController {
         try {
             const userId = req.user.id;
 
-            // If images were uploaded, use Cloudinary URLs
-            if (req.files && req.files.length > 0) {
-                req.body.image_urls = req.files.map(file => file.path);
+            const imageFiles = req.files?.images || [];
+            const videoFile = req.files?.video?.[0] || null;
+
+            if (imageFiles.length > 0) {
+                req.body.image_urls = imageFiles.map(file => file.path);
+            }
+
+            if (videoFile) {
+                req.body.video_url = videoFile.path || videoFile.url;
             }
 
             const post = await postService.createPost(userId, req.body);
@@ -72,9 +78,15 @@ class PostController {
             const userId = req.user.id;
             const { id } = req.params;
 
-            // If new images were uploaded, use Cloudinary URLs
-            if (req.files && req.files.length > 0) {
-                req.body.image_urls = req.files.map(file => file.path);
+            const imageFiles = req.files?.images || [];
+            const videoFile = req.files?.video?.[0] || null;
+
+            if (imageFiles.length > 0) {
+                req.body.image_urls = imageFiles.map(file => file.path);
+            }
+
+            if (videoFile) {
+                req.body.video_url = videoFile.path || videoFile.url;
             }
 
             const post = await postService.updatePost(id, userId, req.body);

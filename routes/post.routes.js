@@ -4,13 +4,13 @@ const PostController = require('../controllers/PostController');
 const postValidator = require('../validators/post.validator');
 const authenticate = require('../middlewares/auth.middleware');
 const validate = require('../middlewares/validation.middleware');
-const { uploadPostImages } = require('../config/cloudinary.config');
+const { uploadPostMedia } = require('../config/cloudinary.config');
 
 // Swagger documentation is in config/swagger/apis/shared/post.api.js
 
 router.post('/',
     authenticate,
-    uploadPostImages,
+    uploadPostMedia,
     postValidator.createPost,
     validate,
     PostController.createPost
@@ -32,7 +32,7 @@ router.get('/:id',
 
 router.put('/:id',
     authenticate,
-    uploadPostImages,
+    uploadPostMedia,
     postValidator.updatePost,
     validate,
     PostController.updatePost

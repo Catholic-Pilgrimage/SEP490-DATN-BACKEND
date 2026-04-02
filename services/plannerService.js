@@ -2986,6 +2986,10 @@ class PlannerService {
             return planner.status;
         }
 
+        if (this.isGroupPlanner(planner)) {
+            return planner.is_locked ? 'locked' : 'planning';
+        }
+
         const statusLockAt = this.getPlannerStatusLockAt(planner);
         return Boolean(statusLockAt && now >= statusLockAt) ? 'locked' : 'planning';
     }
@@ -3284,16 +3288,7 @@ class PlannerService {
             return Boolean(statusLockAt && now >= statusLockAt);
         }
 
-        if (planner.is_locked) {
-            return true;
-        }
-
-        const editLockAt = this.getPlannerEffectiveEditLockAt(planner);
-        if (!editLockAt) {
-            return false;
-        }
-
-        return now >= editLockAt;
+        return Boolean(planner.is_locked);
     }
 
     static async syncPlannerLockState(planner, options = {}) {
@@ -3303,12 +3298,11 @@ class PlannerService {
 
         const now = options.now || new Date();
         const isGroupPlanner = this.isGroupPlanner(planner);
-        const editLockAt = isGroupPlanner ? this.getPlannerEffectiveEditLockAt(planner) : null;
         const statusLockAt = this.getPlannerStatusLockAt(planner);
         const updateData = {};
 
-        if (isGroupPlanner && !planner.is_locked && editLockAt && now >= editLockAt) {
-            updateData.is_locked = true;
+        if (isGroupPlanner && planner.is_locked && planner.status === 'planning') {
+            updateData.status = 'locked';
         }
 
         if (statusLockAt && now >= statusLockAt) {
@@ -3328,9 +3322,6 @@ class PlannerService {
                         await this.expireActivePlannerInvites(planner.id, options);
                     }
                     Object.assign(updateData, this.buildSoloFallbackUpdateData(planner, now));
-                } else if (planner.status === 'planning') {
-                    updateData.status = 'locked';
-                    updateData.is_locked = true;
                 }
             } else if (planner.status === 'planning') {
                 updateData.status = 'locked';
@@ -3389,7 +3380,8 @@ class PlannerService {
 
                 await planner.update({
                     is_locked: true,
-                    edit_lock_at: new Date()
+                    edit_lock_at: new Date(),
+                    status: 'locked'
                 });
             } else {
                 if (planner.status === 'locked' || this.isPlannerLocked(planner)) {

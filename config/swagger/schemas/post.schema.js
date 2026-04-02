@@ -36,6 +36,10 @@
  *           items:
  *             type: string
  *           example: ["https://example.com/image1.jpg", "https://example.com/image2.jpg"]
+ *         video_url:
+ *           type: string
+ *           nullable: true
+ *           example: "https://example.com/post-video.mp4"
  *         journal_id:
  *           type: string
  *           format: uuid

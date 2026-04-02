@@ -43,8 +43,20 @@ class JournalController {
             if (error.message === 'Planner Item ID or Planner ID is required') {
                 return ResponseUtil.badRequest(res, req.__('journal.id_required'));
             }
+            if (error.message === 'Only one of planner_item_id or planner_id is allowed') {
+                return ResponseUtil.badRequest(res, error.message);
+            }
             if (error.message === 'You can only create a journal for a completed journey.') {
                 return ResponseUtil.badRequest(res, req.__('journal.planner_not_completed'));
+            }
+            if (error.message === 'You must check-in at this location before creating a journal.') {
+                return ResponseUtil.badRequest(res, error.message);
+            }
+            if (error.message === 'You must check-in at least one location in this journey before creating a summary.') {
+                return ResponseUtil.badRequest(res, error.message);
+            }
+            if (error.message === 'Forbidden') {
+                return ResponseUtil.forbidden(res, req.__('journal.forbidden'));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }

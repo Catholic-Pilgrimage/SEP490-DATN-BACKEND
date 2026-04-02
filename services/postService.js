@@ -1,13 +1,55 @@
-const { Post, PostLike, PostComment, User, Journal, Site, Planner, PlannerItem, sequelize } = require('../models');
+const { Post, PostLike, PostComment, User, Journal, Site, Planner, PlannerItem, UserCheckin, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 class PostService {
+    async enrichJournalForPost(journal) {
+        if (!journal) {
+            return null;
+        }
+
+        const JournalService = require('./journalService');
+        return JournalService.buildJournalResponse(journal);
+    }
+
+    async enrichPlannerJourneyForPost(post) {
+        if (!post?.planner) {
+            return null;
+        }
+
+        const JournalService = require('./journalService');
+        const journey = post.planner.toJSON();
+        const model3DMap = await JournalService.getApprovedModel3DMap(
+            journey.items.map(item => item.site_id)
+        );
+
+        const itemsWithJournals = await Promise.all(
+            journey.items.map(async (item) => {
+                const journal = await Journal.findOne({
+                    where: {
+                        user_id: post.user_id,
+                        planner_item_id: item.id,
+                        planner_id: post.planner_id,
+                        is_active: true
+                    }
+                });
+
+                return {
+                    ...item,
+                    model_3d: model3DMap.get(item.site_id) || null,
+                    journal: journal ? await this.enrichJournalForPost(journal) : null
+                };
+            })
+        );
+
+        return { ...journey, items: itemsWithJournals };
+    }
+
     /**
      * Create a new post
      */
     async createPost(userId, data) {
         try {
-            const { content, image_urls, site_id } = data;
+            const { content, image_urls, video_url, site_id } = data;
 
             // If site_id is provided, validate check-in
             if (site_id) {
@@ -31,6 +73,7 @@ class PostService {
                 user_id: userId,
                 content,
                 image_urls: image_urls || [],
+                video_url: video_url || null,
                 site_id: site_id || null,
                 status: 'published'
             });
@@ -66,7 +109,21 @@ class PostService {
                     {
                         model: Journal,
                         as: 'sourceJournal',
-                        attributes: ['id', 'title', 'content', 'image_url', 'audio_url', 'video_url']
+                        attributes: [
+                            'id',
+                            'user_id',
+                            'site_id',
+                            'planner_id',
+                            'planner_item_id',
+                            'title',
+                            'content',
+                            'image_url',
+                            'audio_url',
+                            'video_url',
+                            'privacy',
+                            'created_at',
+                            'updated_at'
+                        ]
                     },
                     {
                         model: Site,
@@ -121,30 +178,16 @@ class PostService {
 
                     // If shared from journal, override content/images if they are empty in post
                     if (post.journal_id && post.sourceJournal) {
-                        postData.content = post.sourceJournal.content;
-                        postData.image_urls = post.sourceJournal.image_url || [];
-                        postData.title = post.sourceJournal.title; // Extra info
+                        postData.sourceJournal = await this.enrichJournalForPost(post.sourceJournal);
+                        postData.content = postData.sourceJournal.content;
+                        postData.image_urls = postData.sourceJournal.image_url || [];
+                        postData.video_url = postData.sourceJournal.video_url || null;
+                        postData.title = postData.sourceJournal.title;
                     }
 
                     // If shared from planner, enrich journey data with journals
                     if (post.planner_id && post.planner) {
-                        const journey = post.planner.toJSON();
-                        // For each item, find matching journal if any
-                        const itemsWithJournals = await Promise.all(
-                            journey.items.map(async (item) => {
-                                const journal = await Journal.findOne({
-                                    where: {
-                                        user_id: post.user_id,
-                                        site_id: item.site_id,
-                                        is_active: true
-                                        // Optional: filter by date if needed
-                                    },
-                                    attributes: ['id', 'title', 'content', 'image_url', 'audio_url', 'video_url']
-                                });
-                                return { ...item, journal: journal };
-                            })
-                        );
-                        postData.journey = { ...journey, items: itemsWithJournals };
+                        postData.journey = await this.enrichPlannerJourneyForPost(post);
                     }
 
                     return {
@@ -188,7 +231,21 @@ class PostService {
                     {
                         model: Journal,
                         as: 'sourceJournal',
-                        attributes: ['id', 'title', 'content', 'image_url', 'audio_url', 'video_url']
+                        attributes: [
+                            'id',
+                            'user_id',
+                            'site_id',
+                            'planner_id',
+                            'planner_item_id',
+                            'title',
+                            'content',
+                            'image_url',
+                            'audio_url',
+                            'video_url',
+                            'privacy',
+                            'created_at',
+                            'updated_at'
+                        ]
                     },
                     {
                         model: Site,
@@ -233,26 +290,16 @@ class PostService {
 
             const postData = post.toJSON();
             if (post.journal_id && post.sourceJournal) {
-                postData.content = post.sourceJournal.content;
-                postData.image_urls = post.sourceJournal.image_url || [];
-                postData.title = post.sourceJournal.title;
+                postData.sourceJournal = await this.enrichJournalForPost(post.sourceJournal);
+                postData.content = postData.sourceJournal.content;
+                postData.image_urls = postData.sourceJournal.image_url || [];
+                postData.video_url = postData.sourceJournal.video_url || null;
+                postData.title = postData.sourceJournal.title;
             }
 
             // If shared from planner, enrich journey data with journals
             if (post.planner_id && post.planner) {
-                const journey = post.planner.toJSON();
-                const itemsWithJournals = await Promise.all(
-                    journey.items.map(async (item) => {
-                        const journal = await Journal.findOne({
-                            where: {
-                                user_id: post.user_id,
-                                site_id: item.site_id
-                            },
-                        });
-                        return { ...item, journal: journal ? journal.toJSON() : null };
-                    })
-                );
-                postData.journey = { ...journey, items: itemsWithJournals };
+                postData.journey = await this.enrichPlannerJourneyForPost(post);
             }
 
             return {
@@ -289,11 +336,11 @@ class PostService {
                 throw error;
             }
 
-            const { content, image_urls } = data;
+            const { content, image_urls, video_url } = data;
 
             // Protection: Shared journals/planners should not have their content edited via Post API
             if (post.journal_id || post.planner_id) {
-                if (content !== undefined || image_urls !== undefined) {
+                if (content !== undefined || image_urls !== undefined || video_url !== undefined) {
                     const type = post.journal_id ? 'nhật ký' : 'hành trình';
                     const error = new Error(`Không thể chỉnh sửa nội dung của ${type} đã chia sẻ thông qua từ nhật ký tâm linh. Vui lòng chỉnh sửa bản gốc.`);
                     error.statusCode = 400;
@@ -304,6 +351,7 @@ class PostService {
             await post.update({
                 content: content !== undefined ? content : post.content,
                 image_urls: image_urls !== undefined ? image_urls : post.image_urls,
+                video_url: video_url !== undefined ? video_url : post.video_url,
                 updated_at: new Date()
             });
 

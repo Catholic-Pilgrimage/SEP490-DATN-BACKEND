@@ -1,27 +1,44 @@
 const { body, query } = require('express-validator');
 
 class JournalValidator {
-    // Validate create journal
     static createJournal = [
         body('title')
-            .notEmpty().withMessage('Tiêu đề không được để trống')
-            .isLength({ max: 500 }).withMessage('Tiêu đề không quá 500 ký tự')
+            .notEmpty().withMessage('Title is required')
+            .isLength({ max: 500 }).withMessage('Title must be at most 500 characters')
             .trim(),
 
         body('content')
-            .notEmpty().withMessage('Nội dung không được để trống')
+            .notEmpty().withMessage('Content is required')
             .trim(),
 
         body('planner_item_id')
-            .notEmpty().withMessage('Planner item ID là bắt buộc')
-            .isUUID().withMessage('Planner item ID không hợp lệ')
+            .optional()
+            .isUUID().withMessage('Planner item ID is invalid'),
+
+        body('planner_id')
+            .optional()
+            .isUUID().withMessage('Planner ID is invalid'),
+
+        body().custom((value, { req }) => {
+            const hasPlannerItemId = Boolean(req.body?.planner_item_id);
+            const hasPlannerId = Boolean(req.body?.planner_id);
+
+            if (!hasPlannerItemId && !hasPlannerId) {
+                throw new Error('Planner Item ID or Planner ID is required');
+            }
+
+            if (hasPlannerItemId && hasPlannerId) {
+                throw new Error('Only one of planner_item_id or planner_id is allowed');
+            }
+
+            return true;
+        })
     ];
 
-    // Validate update journal
     static updateJournal = [
         body('title')
             .optional()
-            .isLength({ max: 500 }).withMessage('Tiêu đề không quá 500 ký tự')
+            .isLength({ max: 500 }).withMessage('Title must be at most 500 characters')
             .trim(),
 
         body('content')
@@ -30,21 +47,19 @@ class JournalValidator {
 
         body('site_id')
             .optional()
-            .isString().withMessage('Site ID phải là chuỗi')
+            .isString().withMessage('Site ID must be a string')
     ];
 
-    // getPublicJournals is deprecated
     static getPublicJournals = [];
 
-    // Validate filters for user journals
     static getUserJournals = [
         query('page')
             .optional()
-            .isInt({ min: 1 }).withMessage('Page phải là số nguyên dương'),
+            .isInt({ min: 1 }).withMessage('Page must be a positive integer'),
 
         query('limit')
             .optional()
-            .isInt({ min: 1, max: 100 }).withMessage('Limit phải từ 1-100')
+            .isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1 and 100')
     ];
 }
 
