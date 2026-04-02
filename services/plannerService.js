@@ -2675,6 +2675,10 @@ class PlannerService {
             }
 
             if (status === 'locked') {
+                if (this.isGroupPlanner(planner) && !planner.is_locked) {
+                    throw new Error('Group planner must be edit locked before locking');
+                }
+
                 await planner.update({
                     status: 'locked',
                     is_locked: true
@@ -2987,7 +2991,7 @@ class PlannerService {
         }
 
         if (this.isGroupPlanner(planner)) {
-            return planner.is_locked ? 'locked' : 'planning';
+            return 'planning';
         }
 
         const statusLockAt = this.getPlannerStatusLockAt(planner);
@@ -3301,8 +3305,8 @@ class PlannerService {
         const statusLockAt = this.getPlannerStatusLockAt(planner);
         const updateData = {};
 
-        if (isGroupPlanner && planner.is_locked && planner.status === 'planning') {
-            updateData.status = 'locked';
+        if (isGroupPlanner && planner.status === 'locked' && !planner.is_locked) {
+            updateData.is_locked = true;
         }
 
         if (statusLockAt && now >= statusLockAt) {
@@ -3380,8 +3384,7 @@ class PlannerService {
 
                 await planner.update({
                     is_locked: true,
-                    edit_lock_at: new Date(),
-                    status: 'locked'
+                    edit_lock_at: new Date()
                 });
             } else {
                 if (planner.status === 'locked' || this.isPlannerLocked(planner)) {

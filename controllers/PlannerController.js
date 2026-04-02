@@ -592,6 +592,9 @@ class PlannerController {
             if (error.message === 'Group trip requires at least 2 joined members') {
                 return ResponseUtil.badRequest(res, req.__('planner.group_requires_two_joined'));
             }
+            if (error.message === 'Group planner must be edit locked before locking') {
+                return ResponseUtil.badRequest(res, 'Planner nhóm phải đóng chỉnh sửa trước khi khóa hành trình');
+            }
             if (error.message === 'Planner must be locked before starting' || error.message === 'Planner must be fully locked before starting group trip') {
                 return ResponseUtil.badRequest(res, req.__('planner.start_requires_lock'));
             }
