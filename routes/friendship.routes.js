@@ -20,20 +20,12 @@ router.post(
     FriendshipController.respondToFriendRequest
 );
 
-// GET /api/friendships - Danh sách bạn bè
+// GET /api/friendships - Danh sách bạn bè (filter by status: accepted | pending)
 router.get(
     '/',
     authenticate,
     FriendshipValidator.listPagination,
     FriendshipController.getFriendsList
-);
-
-// GET /api/friendships/pending - Lời mời chờ
-router.get(
-    '/pending',
-    authenticate,
-    FriendshipValidator.listPagination,
-    FriendshipController.getPendingRequests
 );
 
 // DELETE /api/friendships/:friendId - Hủy kết bạn

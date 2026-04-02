@@ -12,6 +12,73 @@ const sequelize = require('../../config/database');
 
 class PlannerShareService {
     /**
+     * SHARED HELPER: Sweep all expired active invites for a planner.
+     * Cancels pending PayOS payment links and transactions before marking invites as expired.
+     * Used by both inviteUserToPlanner and inviteFriendToPlanner before slot counting.
+     */
+    static async expireActiveInvitesForPlanner(plannerId) {
+        const now = new Date();
+        const expiredActiveInvites = await PlannerInvite.findAll({
+            where: {
+                planner_id: plannerId,
+                status: { [Op.in]: ['pending', 'awaiting_payment'] },
+                expires_at: { [Op.lt]: now }
+            }
+        });
+        for (const expiredInvite of expiredActiveInvites) {
+            if (expiredInvite.status === 'awaiting_payment') {
+                // Cancel pending transaction precisely by invitee userId
+                const invitee = expiredInvite.invitee_user_id
+                    ? { id: expiredInvite.invitee_user_id }
+                    : await User.findOne({
+                        where: sequelize.where(
+                            sequelize.fn('LOWER', sequelize.col('email')),
+                            expiredInvite.email.toLowerCase()
+                        ),
+                        attributes: ['id']
+                    });
+                if (invitee) {
+                    const staleTx = await Transaction.findOne({
+                        where: {
+                            reference_type: 'planner_deposit',
+                            reference_id: { [Op.like]: `${plannerId}:${invitee.id}:%` },
+                            type: 'escrow_lock',
+                            status: 'pending'
+                        }
+                    });
+                    if (staleTx) {
+                        try { await PayOSService.cancelPaymentLink(staleTx.reference_id.split(':')[2]); } catch { }  // best-effort
+                        await staleTx.update({ status: 'cancelled' });
+                    }
+                }
+            }
+            await expiredInvite.update({ status: 'expired' });
+            Logger.info(`Slot sweep: expired ${expiredInvite.status} invite ${expiredInvite.id} for planner ${plannerId}`);
+        }
+    }
+
+    /**
+     * SHARED HELPER: Validate that a planner is in a state that allows inviting new members.
+     * Checks: joinWindowClosed, planning status, start/end dates, schedule completeness.
+     * Used by both inviteUserToPlanner and inviteFriendToPlanner.
+     */
+    static async validatePlannerCanInviteMembers(plannerId, planner) {
+        const plannerState = await PlannerService.getPlannerState(plannerId, planner);
+        if (plannerState.joinWindowClosed) {
+            throw new Error('Planner join window is closed');
+        }
+        if (planner.status !== 'planning') {
+            throw new Error('Can only invite when planner is in planning status');
+        }
+        if (!planner.start_date || !planner.end_date) {
+            throw new Error('Planner must have start_date and end_date before inviting members');
+        }
+        if (!plannerState.scheduleComplete) {
+            throw new Error('Planner schedule must be complete before inviting members');
+        }
+    }
+
+    /**
      * Get planner preview by invite token (public - no auth required)
      * Returns planner info + invite status so FE can show preview before login/register
      */
@@ -67,6 +134,8 @@ class PlannerShareService {
      * Invite user to planner via email
      */
     static async inviteUserToPlanner(plannerId, userId, email) {
+        // Normalize email early — all downstream writes & comparisons use this
+        email = email.toLowerCase().trim();
         try {
             const planner = await Planner.findByPk(plannerId, {
                 include: [{
@@ -84,52 +153,11 @@ class PlannerShareService {
                 throw new Error('Forbidden');
             }
 
-            // Sweep ALL expired active invites (pending + awaiting_payment) before counting slots
-            // Prevents stale invites from falsely blocking available slots or re-inviting same email
-            const now = new Date();
-            const expiredActiveInvites = await PlannerInvite.findAll({
-                where: {
-                    planner_id: plannerId,
-                    status: { [Op.in]: ['pending', 'awaiting_payment'] },
-                    expires_at: { [Op.lt]: now }
-                }
-            });
-            for (const expiredInvite of expiredActiveInvites) {
-                if (expiredInvite.status === 'awaiting_payment') {
-                    // Cancel pending transaction precisely by invitee userId
-                    const invitee = await User.findOne({ where: { email: expiredInvite.email }, attributes: ['id'] });
-                    if (invitee) {
-                        const staleTx = await Transaction.findOne({
-                            where: {
-                                reference_type: 'planner_deposit',
-                                reference_id: { [Op.like]: `${plannerId}:${invitee.id}:%` },
-                                type: 'escrow_lock',
-                                status: 'pending'
-                            }
-                        });
-                        if (staleTx) {
-                            try { await PayOSService.cancelPaymentLink(staleTx.reference_id.split(':')[2]); } catch { }  // best-effort
-                            await staleTx.update({ status: 'cancelled' });
-                        }
-                    }
-                }
-                await expiredInvite.update({ status: 'expired' });
-                Logger.info(`Slot sweep: expired ${expiredInvite.status} invite ${expiredInvite.id} for planner ${plannerId}`);
-            }
+            // Sweep expired invites + cancel stale payments, then validate planner readiness
+            await PlannerShareService.expireActiveInvitesForPlanner(plannerId);
+            await PlannerShareService.validatePlannerCanInviteMembers(plannerId, planner);
 
-            const plannerState = await PlannerService.getPlannerState(plannerId, planner);
-            if (plannerState.joinWindowClosed) {
-                throw new Error('Planner join window is closed');
-            }
-            if (planner.status !== 'planning') {
-                throw new Error('Can only invite when planner is in planning status');
-            }
-            if (!planner.start_date || !planner.end_date) {
-                throw new Error('Planner must have start_date and end_date before inviting members');
-            }
-            if (!plannerState.scheduleComplete) {
-                throw new Error('Planner schedule must be complete before inviting members');
-            }
+            const now = new Date();
 
             // Slot counting: joined members (excluding owner) + active non-expired invites
             const currentMemberCount = await PlannerMember.count({
@@ -161,7 +189,7 @@ class PlannerShareService {
             const existingInvite = await PlannerInvite.findOne({
                 where: {
                     planner_id: plannerId,
-                    email,
+                    [Op.and]: [sequelize.where(sequelize.fn('LOWER', sequelize.col('PlannerInvite.email')), email)],
                     status: { [Op.in]: ['pending', 'awaiting_payment'] },
                     [Op.or]: [
                         { expires_at: null },
@@ -175,7 +203,9 @@ class PlannerShareService {
             }
 
             // If user exists, check if they are already an active member
-            const existingUser = await User.findOne({ where: { email } });
+            const existingUser = await User.findOne({
+                where: sequelize.where(sequelize.fn('LOWER', sequelize.col('email')), email)
+            });
             if (existingUser) {
                 const existingMember = await PlannerMember.findOne({
                     where: {
@@ -283,10 +313,9 @@ class PlannerShareService {
                 throw new Error('Forbidden');
             }
 
-            // Only allow inviting when planner is in planning status
-            if (planner.status !== 'planning') {
-                throw new Error('Can only invite when planner is in planning status');
-            }
+            // Sweep expired invites + cancel stale payments, then validate planner readiness
+            await PlannerShareService.expireActiveInvitesForPlanner(plannerId);
+            await PlannerShareService.validatePlannerCanInviteMembers(plannerId, planner);
 
             // Cannot invite yourself
             if (ownerId === friendId) {
@@ -305,19 +334,7 @@ class PlannerShareService {
                 throw new Error('User not found');
             }
 
-            // Sweep expired active invites before counting slots
             const now = new Date();
-            const expiredActiveInvites = await PlannerInvite.findAll({
-                where: {
-                    planner_id: plannerId,
-                    status: { [Op.in]: ['pending', 'awaiting_payment'] },
-                    expires_at: { [Op.lt]: now }
-                }
-            });
-            for (const expiredInvite of expiredActiveInvites) {
-                await expiredInvite.update({ status: 'expired' });
-                Logger.info(`Slot sweep: expired invite ${expiredInvite.id} for planner ${plannerId}`);
-            }
 
             const plannerState = await PlannerService.getPlannerState(plannerId, planner);
             if (plannerState.joinWindowClosed) {
@@ -453,7 +470,13 @@ class PlannerShareService {
                 const isExpired = invite.expires_at && new Date() > new Date(invite.expires_at);
                 if (isExpired) {
                     // Resolve the invitee by email to get their userId for a precise transaction match
-                    const invitee = await User.findOne({ where: { email: invite.email }, attributes: ['id'] });
+                    const invitee = await User.findOne({
+                        where: sequelize.where(
+                            sequelize.fn('LOWER', sequelize.col('email')),
+                            invite.email.toLowerCase()
+                        ),
+                        attributes: ['id']
+                    });
                     if (invitee) {
                         const staleTransaction = await Transaction.findOne({
                             where: {
@@ -549,7 +572,7 @@ class PlannerShareService {
                     throw new Error('This friend invite is for another user');
                 }
             } else {
-                if (user.email !== invite.email) {
+                if (user.email.toLowerCase() !== invite.email.toLowerCase()) {
                     throw new Error('Email mismatch. This invite is for another user');
                 }
             }
@@ -1215,7 +1238,11 @@ class PlannerShareService {
             const user = await User.findByPk(userId);
             const inviteByEmail = user
                 ? await PlannerInvite.findOne({
-                    where: { planner_id: plannerId, email: user.email, status: 'awaiting_payment' },
+                    where: {
+                        planner_id: plannerId,
+                        status: 'awaiting_payment',
+                        [Op.and]: [sequelize.where(sequelize.fn('LOWER', sequelize.col('PlannerInvite.email')), user.email.toLowerCase())]
+                    },
                     transaction: t
                 })
                 : null;
@@ -1314,8 +1341,8 @@ class PlannerShareService {
             const invite = await PlannerInvite.findOne({
                 where: {
                     planner_id: plannerId,
-                    email: user.email,
-                    status: 'awaiting_payment'
+                    status: 'awaiting_payment',
+                    [Op.and]: [sequelize.where(sequelize.fn('LOWER', sequelize.col('PlannerInvite.email')), user.email.toLowerCase())]
                 },
                 transaction: t
             });
