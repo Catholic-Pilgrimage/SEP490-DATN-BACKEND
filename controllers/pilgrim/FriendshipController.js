@@ -70,7 +70,7 @@ class FriendshipController {
     }
 
     /**
-     * GET /friendships - Get friends list
+     * GET /friendships - Get friendships (filter by status)
      */
     static async getFriendsList(req, res) {
         try {
@@ -81,27 +81,9 @@ class FriendshipController {
 
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 20;
-            const result = await FriendshipService.getFriendsList(req.user.id, page, limit);
-            return ResponseUtil.success(res, result, 'Lấy danh sách bạn bè thành công');
-        } catch (error) {
-            return ResponseUtil.error(res, req.__('error.server_error'));
-        }
-    }
-
-    /**
-     * GET /friendships/pending - Get pending friend requests
-     */
-    static async getPendingRequests(req, res) {
-        try {
-            const errors = validationResult(req);
-            if (!errors.isEmpty()) {
-                return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
-            }
-
-            const page = parseInt(req.query.page) || 1;
-            const limit = parseInt(req.query.limit) || 20;
-            const result = await FriendshipService.getPendingRequests(req.user.id, page, limit);
-            return ResponseUtil.success(res, result, 'Lấy danh sách lời mời chờ thành công');
+            const status = req.query.status || 'accepted';
+            const result = await FriendshipService.getFriendships(req.user.id, status, page, limit);
+            return ResponseUtil.success(res, result, 'Lấy danh sách thành công');
         } catch (error) {
             return ResponseUtil.error(res, req.__('error.server_error'));
         }

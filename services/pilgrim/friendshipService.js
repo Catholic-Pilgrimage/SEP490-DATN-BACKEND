@@ -188,95 +188,66 @@ class FriendshipService {
     }
 
     /**
-     * Get friends list (accepted friendships)
+     * Get friendships filtered by status
+     * @param {string} userId
+     * @param {string} status - 'accepted' or 'pending'
+     * @param {number} page
+     * @param {number} limit
      */
-    static async getFriendsList(userId, page = 1, limit = 20) {
+    static async getFriendships(userId, status = 'accepted', page = 1, limit = 20) {
         try {
             const offset = (page - 1) * limit;
 
+            // Build where clause based on status
+            const whereClause = { status };
+
+            if (status === 'accepted') {
+                // Both directions
+                whereClause[Op.or] = [
+                    { requester_id: userId },
+                    { addressee_id: userId }
+                ];
+            } else {
+                // Pending: only where user is addressee (incoming requests)
+                whereClause.addressee_id = userId;
+            }
+
             const { count, rows } = await Friendship.findAndCountAll({
-                where: {
-                    status: 'accepted',
-                    [Op.or]: [
-                        { requester_id: userId },
-                        { addressee_id: userId }
-                    ]
-                },
+                where: whereClause,
                 include: [
                     { model: User, as: 'requester', attributes: ['id', 'full_name', 'email', 'avatar_url'] },
                     { model: User, as: 'addressee', attributes: ['id', 'full_name', 'email', 'avatar_url'] }
                 ],
-                order: [['updated_at', 'DESC']],
+                order: [[status === 'accepted' ? 'updated_at' : 'created_at', 'DESC']],
                 limit,
                 offset
             });
 
-            // Map to return the friend (not self)
-            const friends = rows.map(f => {
-                const friend = f.requester_id === userId ? f.addressee : f.requester;
+            // Map to unified structure — "user" is always the other person
+            const items = rows.map(f => {
+                const user = f.requester_id === userId ? f.addressee : f.requester;
                 return {
                     friendship_id: f.id,
-                    friend: {
-                        id: friend.id,
-                        full_name: friend.full_name,
-                        email: friend.email,
-                        avatar_url: friend.avatar_url
+                    status: f.status,
+                    user: {
+                        id: user.id,
+                        full_name: user.full_name,
+                        email: user.email,
+                        avatar_url: user.avatar_url
                     },
-                    since: f.updated_at
+                    created_at: f.created_at,
+                    updated_at: f.updated_at
                 };
             });
 
             return {
-                friends,
+                items,
                 total: count,
                 totalPages: Math.ceil(count / limit),
                 currentPage: page
             };
         } catch (error) {
-            Logger.error('Get friends list error:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Get pending friend requests (where user is addressee)
-     */
-    static async getPendingRequests(userId, page = 1, limit = 20) {
-        try {
-            const offset = (page - 1) * limit;
-
-            const { count, rows } = await Friendship.findAndCountAll({
-                where: {
-                    addressee_id: userId,
-                    status: 'pending'
-                },
-                include: [
-                    { model: User, as: 'requester', attributes: ['id', 'full_name', 'email', 'avatar_url'] }
-                ],
-                order: [['created_at', 'DESC']],
-                limit,
-                offset
-            });
-
-            const requests = rows.map(f => ({
-                id: f.id,
-                requester: {
-                    id: f.requester.id,
-                    full_name: f.requester.full_name,
-                    email: f.requester.email,
-                    avatar_url: f.requester.avatar_url
-                },
-                created_at: f.created_at
-            }));
-
-            return {
-                requests,
-                total: count,
-                totalPages: Math.ceil(count / limit),
-                currentPage: page
-            };
-        } catch (error) {
-            Logger.error('Get pending requests error:', error);
+            Logger.error('Get friendships error:', error);
             throw error;
         }
     }
