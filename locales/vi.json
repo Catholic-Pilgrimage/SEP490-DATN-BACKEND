@@ -634,5 +634,11 @@
     "not_found": "Không tìm thấy đánh giá",
     "not_authorized": "Bạn không có quyền thực hiện hành động này",
     "reply_already_exists": "Đánh giá này đã có phản hồi"
+  },
+  "ai": {
+    "generate_article_success": "Tạo bài viết bằng AI thành công",
+    "summarize_reviews_success": "Tóm tắt đánh giá thành công",
+    "suggest_events_success": "Gợi ý sự kiện bằng AI thành công",
+    "no_reviews": "Chưa có đánh giá nào để AI tóm tắt"
   }
 }

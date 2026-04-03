@@ -505,5 +505,11 @@
     "read_all_success": "Read all notification successfully",
     "delete_success": "Delete notification successfully",
     "count_unread_success": "Count unread notification successfully"
+  },
+  "ai": {
+    "generate_article_success": "AI article generated successfully",
+    "summarize_reviews_success": "Reviews summarized successfully",
+    "suggest_events_success": "AI event suggestions generated successfully",
+    "no_reviews": "There are no reviews to summarize"
   }
 }
