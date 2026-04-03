@@ -1,12 +1,12 @@
 const { generateJSON } = require('../../config/googleai.config');
-const { Site, Event } = require('../../models');
+const { Site, Event, SiteReview, User } = require('../../models');
 const { Op } = require('sequelize');
 const Logger = require('../../utils/logger.util');
 
 /**
  * Google AI Service — AI features for Local Guides
  * 1. AI Article Writer (with style, summary, full site context)
- * 2. AI Translator (multi-lang, auto-detect, context-aware)
+ * 2. AI Review Summarizer (summarize recent site reviews)
  * 3. AI Event Recommender (aligned with Event model schema)
  */
 class GoogleAiService {
@@ -100,73 +100,102 @@ Return JSON:
     }
 
     /**
-     * 2. Translate content (multi-language support with auto-detect)
-     * Supported: vi, en, zh, ko, ja, fr
-     * @param {string} text - Text to translate
-     * @param {string} targetLang - Target language code
-     * @param {object} options - { context }
-     * @returns {Promise<{original, translated, source_lang, target_lang}>}
+     * 2. Summarize recent reviews for a site
+     * Fetches up to 20 most recent reviews and asks AI to summarize
+     * @param {string} siteId - Site UUID
+     * @param {object} params - { language }
+     * @returns {Promise<{site_name, total_reviews, average_rating, summary, strengths[], weaknesses[], metadata}>}
      */
-    static async translateContent(text, targetLang = 'en', options = {}) {
-        if (!text || text.trim().length < 2) {
-            throw new Error('Text to translate must be at least 2 characters');
-        }
-        if (text.length > 10000) {
-            throw new Error('Text must not exceed 10000 characters');
-        }
+    static async summarizeReviews(siteId, params = {}) {
+        const { language = 'vi' } = params;
 
-        const langMap = {
-            vi: 'Vietnamese',
-            en: 'English',
-            zh: 'Chinese (Simplified)',
-            ko: 'Korean',
-            ja: 'Japanese',
-            fr: 'French'
-        };
-
-        const targetName = langMap[targetLang];
-        if (!targetName) {
-            throw new Error(`Unsupported target language: ${targetLang}. Supported: ${Object.keys(langMap).join(', ')}`);
+        const site = await Site.findByPk(siteId);
+        if (!site) {
+            throw new Error('Site not found');
         }
 
-        const contextInstruction = options.context
-            ? `Context/Domain: ${options.context}. Use this context to correctly translate proper nouns and domain-specific terms.`
-            : '';
+        // Get overall stats for the entire site (all reviews)
+        const sequelize = require('../../config/database');
+        const [siteStats] = await SiteReview.findAll({
+            where: { site_id: siteId, is_active: true },
+            attributes: [
+                [sequelize.fn('COUNT', sequelize.col('id')), 'total_count'],
+                [sequelize.fn('AVG', sequelize.col('rating')), 'avg_rating']
+            ],
+            raw: true
+        });
 
-        const prompt = `You are a professional translator specializing in Catholic/religious terminology.
-Translate the following text to ${targetName}.
+        const totalReviews = parseInt(siteStats.total_count) || 0;
+        const averageRating = siteStats.avg_rating ? Math.round(parseFloat(siteStats.avg_rating) * 10) / 10 : 0;
 
-Rules:
-- First, detect the source language of the text
-- If the source language is the same as the target language (${targetLang}), still provide the text as-is in "translated" but set "same_language" to true
-- Preserve the devotional and reverent tone
-- Keep proper nouns (place names, saint names) in their commonly known form in ${targetName}
-- Use standard ${targetName} Catholic terminology
-- Preserve paragraph formatting and line breaks
-- Only return the translation, no commentary
-${contextInstruction}
+        if (totalReviews === 0) {
+            throw new Error('No reviews found for this site');
+        }
 
-Text to translate:
-"""
-${text}
-"""
+        // Fetch recent reviews (up to 20) for AI analysis
+        const reviews = await SiteReview.findAll({
+            where: { site_id: siteId, is_active: true },
+            include: [{
+                model: User,
+                as: 'reviewer',
+                attributes: ['full_name']
+            }],
+            order: [['created_at', 'DESC']],
+            limit: 20
+        });
+
+        // Build review text for AI
+        const reviewText = reviews.map((r, i) => {
+            const name = r.reviewer?.full_name || 'Ẩn danh';
+            return `Review ${i + 1} (${name}, ${r.rating}/5 sao): ${r.feedback || '(không có nhận xét)'}`;
+        }).join('\n');
+
+        const langInstruction = language === 'en'
+            ? 'Write the summary in English.'
+            : 'Viết tóm tắt bằng tiếng Việt.';
+
+        const prompt = `You are a review analyst for a Catholic pilgrimage site in Vietnam.
+
+Site: ${site.name}
+Type: ${site.type} (${this._typeLabel(site.type)})
+Total reviews on site: ${totalReviews}
+Overall average rating: ${averageRating}/5
+Reviews analyzed below: ${reviews.length} (most recent)
+
+Here are the recent reviews:
+${reviewText}
+
+${langInstruction}
+
+Analyze these reviews and provide a structured summary. Focus on:
+1. Overall impression from visitors
+2. Key strengths mentioned repeatedly
+3. Key weaknesses or areas for improvement
+4. A concise overall summary (2-3 sentences)
 
 Return JSON:
 {
-  "translated": "the translated text",
-  "source_lang": "detected source language code (vi, en, zh, ko, ja, fr, or other)",
-  "same_language": false
+  "overall_summary": "Tóm tắt tổng quan 2-3 câu về trải nghiệm khách hành hương",
+  "strengths": ["Ưu điểm 1", "Ưu điểm 2", "Ưu điểm 3"],
+  "weaknesses": ["Nhược điểm 1", "Nhược điểm 2"],
+  "sentiment": "positive | neutral | negative",
+  "highlights": ["Điểm nổi bật 1 được nhiều người nhắc đến", "Điểm nổi bật 2"]
 }`;
 
-        Logger.info(`Google AI: Translating ${text.length} chars to ${targetLang}`);
-        const result = await generateJSON('translate', prompt, { temperature: 0.3 });
+        Logger.info(`Google AI: Summarizing ${reviews.length} reviews for site=${siteId} (total: ${totalReviews})`);
+        const result = await generateJSON('review_summary', prompt, { temperature: 0.4 });
 
         return {
-            original: text,
-            translated: result.translated,
-            source_lang: result.source_lang || 'unknown',
-            target_lang: targetLang,
-            same_language: result.same_language || false
+            site_name: site.name,
+            total_reviews: totalReviews,
+            average_rating: averageRating,
+            reviews_analyzed: reviews.length,
+            overall_summary: result.overall_summary || '',
+            strengths: result.strengths || [],
+            weaknesses: result.weaknesses || [],
+            sentiment: result.sentiment || 'neutral',
+            highlights: result.highlights || [],
+            metadata: { generated_by: 'google_ai', language, reviews_analyzed: reviews.length }
         };
     }
 

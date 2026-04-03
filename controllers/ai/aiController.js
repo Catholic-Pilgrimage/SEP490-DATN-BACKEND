@@ -59,12 +59,11 @@ exports.suggestRoute = async (req, res) => {
 // ========================
 
 /**
- * Get the authenticated Local Guide's site_id.
- * If FE sends site_id, verify it matches the guide's assigned site.
- * If FE omits site_id, use user.site_id from DB.
+ * Get the authenticated Local Guide's context.
+ * If FE sends a site_id, verify it matches the guide's assigned site.
  */
-async function resolveGuideSiteId(userId, requestedSiteId) {
-    const user = await User.findByPk(userId, { attributes: ['id', 'role', 'site_id'] });
+async function resolveGuideContext(userId, requestedSiteId) {
+    const user = await User.findByPk(userId, { attributes: ['id', 'role', 'site_id', 'language'] });
 
     if (!user || user.role !== 'local_guide') {
         throw new Error('Unauthorized');
@@ -79,7 +78,10 @@ async function resolveGuideSiteId(userId, requestedSiteId) {
         throw new Error('You can only use AI features for your assigned site');
     }
 
-    return user.site_id;
+    return {
+        site_id: user.site_id,
+        language: user.language || 'vi'
+    };
 }
 
 // ========================
@@ -92,9 +94,9 @@ async function resolveGuideSiteId(userId, requestedSiteId) {
  */
 exports.generateArticle = async (req, res) => {
     try {
-        const { site_id, topic, additional_context, language, length, style } = req.body;
+        const { topic, additional_context, language, length, style } = req.body;
 
-        const siteId = await resolveGuideSiteId(req.user.id, site_id);
+        const { site_id: siteId } = await resolveGuideContext(req.user.id);
 
         const result = await GoogleAiService.generateArticle(req.user.id, siteId, {
             topic,
@@ -130,27 +132,36 @@ exports.generateArticle = async (req, res) => {
 };
 
 // ========================
-// LOCAL GUIDE: AI Translator
+// LOCAL GUIDE: AI Review Summarizer
 // ========================
 
 /**
- * POST /api/ai/translate
- * Translate posts/content (multi-language support)
+ * POST /api/ai/summarize-reviews
+ * Summarize recent reviews for a site (AI-powered)
  */
-exports.translateContent = async (req, res) => {
+exports.summarizeReviews = async (req, res) => {
     try {
-        const { text, target_lang, context } = req.body;
+        const { site_id: siteId, language } = await resolveGuideContext(req.user.id);
 
-        const result = await GoogleAiService.translateContent(text, target_lang || 'en', { context });
+        const result = await GoogleAiService.summarizeReviews(siteId, { language });
 
-        return ResponseUtil.success(res, result, req.__('ai.translate_success') || 'Translation completed');
+        return ResponseUtil.success(res, result, req.__('ai.summarize_reviews_success') || 'Reviews summarized successfully');
     } catch (error) {
-        Logger.error(`AI Translator Error: ${error.message}`);
+        Logger.error(`AI Review Summarizer Error: ${error.message}`);
         if (error.message.includes('GOOGLE_AI_KEY')) {
             return ResponseUtil.error(res, 'AI service is not configured', 503);
         }
-        if (error.message.includes('at least 2 characters') || error.message.includes('exceed 10000') || error.message.includes('Unsupported target language')) {
+        if (error.message.includes('Unauthorized') || error.message.includes('only use AI features')) {
+            return ResponseUtil.forbidden(res, error.message);
+        }
+        if (error.message.includes('no site assigned')) {
             return ResponseUtil.badRequest(res, error.message);
+        }
+        if (error.message.includes('No reviews found')) {
+            return ResponseUtil.badRequest(res, req.__('ai.no_reviews') || error.message);
+        }
+        if (error.message.includes('Site not found')) {
+            return ResponseUtil.notFound(res, error.message);
         }
         if (error.message.includes('AI returned invalid JSON')) {
             return ResponseUtil.error(res, 'AI service returned unexpected format. Please try again.', 502);
@@ -172,9 +183,9 @@ exports.translateContent = async (req, res) => {
  */
 exports.suggestEvents = async (req, res) => {
     try {
-        const { site_id, current_date, count } = req.body;
+        const { current_date, count } = req.body || {};
 
-        const siteId = await resolveGuideSiteId(req.user.id, site_id);
+        const { site_id: siteId } = await resolveGuideContext(req.user.id);
 
         const result = await GoogleAiService.suggestEvents(req.user.id, siteId, {
             currentDate: current_date,
