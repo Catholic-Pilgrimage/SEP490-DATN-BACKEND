@@ -3,6 +3,48 @@ const { Op } = require('sequelize');
 const PlannerService = require('./plannerService');
 
 class PostService {
+    sortPlannerItems(items = []) {
+        return [...items].sort((left, right) => {
+            const leftLeg = Number(left?.leg_number || 0);
+            const rightLeg = Number(right?.leg_number || 0);
+
+            if (leftLeg !== rightLeg) {
+                return leftLeg - rightLeg;
+            }
+
+            return Number(left?.order_index || 0) - Number(right?.order_index || 0);
+        });
+    }
+
+    buildPlannerJourneySummary(journey, formattedItems = []) {
+        const totalStops = formattedItems.length;
+        const visitedStops = formattedItems.filter(item => item.status === 'visited').length;
+        const skippedStops = formattedItems.filter(item => item.status === 'skipped').length;
+        const upcomingStops = formattedItems.filter(item => item.status === 'upcoming').length;
+        const coverItem = formattedItems.find(item => item?.site?.cover_image) || formattedItems[0] || null;
+
+        let totalDays = 1;
+        if (journey?.start_date && journey?.end_date) {
+            totalDays = Math.max(
+                1,
+                Math.ceil((new Date(journey.end_date) - new Date(journey.start_date)) / (1000 * 60 * 60 * 24)) + 1
+            );
+        } else if (formattedItems.length > 0) {
+            totalDays = Math.max(...formattedItems.map(item => Number(item.leg_number || 0)), 1);
+        }
+
+        return {
+            total_days: totalDays,
+            total_stops: totalStops,
+            visited_stops: visitedStops,
+            skipped_stops: skippedStops,
+            upcoming_stops: upcomingStops,
+            visited_percentage: totalStops > 0 ? Math.round((visitedStops / totalStops) * 100) : 0,
+            cover_image: coverItem?.site?.cover_image || null,
+            can_clone: true
+        };
+    }
+
     async enrichJournalForPost(journal) {
         if (!journal) {
             return null;
@@ -19,7 +61,7 @@ class PostService {
 
         const JournalService = require('./journalService');
         const journey = post.planner.toJSON();
-        const sortedItems = PlannerService.sortPlannerItems(journey.items || []);
+        const sortedItems = this.sortPlannerItems(journey.items || []);
         const model3DMap = await JournalService.getApprovedModel3DMap(
             sortedItems.map(item => item.site_id)
         );
@@ -45,7 +87,7 @@ class PostService {
             end_date: journey.end_date,
             status: PlannerService.getPlannerCurrentStatus(journey),
             cloneable: true,
-            summary: PlannerService.buildCommunitySharedSummary(journey, formattedItems),
+            summary: this.buildPlannerJourneySummary(journey, formattedItems),
             items: formattedItems,
             items_by_day: itemsByDay
         };
