@@ -2,6 +2,21 @@ const postService = require('../services/postService');
 const ResponseUtil = require('../utils/response.util');
 
 class PostController {
+    constructor() {
+        this.createPost = this.createPost.bind(this);
+        this.getPosts = this.getPosts.bind(this);
+        this.getPostById = this.getPostById.bind(this);
+        this.updatePost = this.updatePost.bind(this);
+        this.deletePost = this.deletePost.bind(this);
+        this.likePost = this.likePost.bind(this);
+        this.unlikePost = this.unlikePost.bind(this);
+        this.addComment = this.addComment.bind(this);
+        this.replyComment = this.replyComment.bind(this);
+        this.getComments = this.getComments.bind(this);
+        this.updateComment = this.updateComment.bind(this);
+        this.deleteComment = this.deleteComment.bind(this);
+    }
+
     localizePostResult(req, result) {
         if (!result || typeof result !== 'object' || Array.isArray(result)) {
             return result;
