@@ -1,5 +1,6 @@
 const { PlannerItem, Site, UserCheckin, Planner, PlannerMember, User } = require('../models');
 const OSRMUtil = require('../utils/osrm.util');
+const Logger = require('../utils/logger.util');
 
 class CheckinService {
     static async notifyMembersAfterFirstCheckin(planner, plannerItem, currentUserId) {
@@ -302,6 +303,8 @@ class CheckinService {
             const allFinished = allItems.every(i => i.status === 'visited' || i.status === 'skipped');
             if (allFinished && newPlannerStatus !== 'completed') {
                 await planner.update({ status: 'completed', completed_at: new Date() });
+                const PlannerAntiFraudService = require('./pilgrim/plannerAntiFraudService');
+                await PlannerAntiFraudService.verifyAndSettlePlanner(planner.id);
                 newPlannerStatus = 'completed';
                 Logger.info(`Planner ${planner.id} auto-completed after final check-in by all members`);
             }
@@ -546,6 +549,8 @@ class CheckinService {
             const allFinished = allItems.every(i => i.status === 'visited' || i.status === 'skipped');
             if (allFinished) {
                 await planner.update({ status: 'completed', completed_at: new Date() }, { transaction: t });
+                const PlannerAntiFraudService = require('./pilgrim/plannerAntiFraudService');
+                await PlannerAntiFraudService.verifyAndSettlePlanner(planner.id, t);
             }
 
             await t.commit();

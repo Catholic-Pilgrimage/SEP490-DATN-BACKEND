@@ -11,11 +11,6 @@ class PlannerAntiFraudService {
 
         try {
             const planner = await Planner.findByPk(plannerId, {
-                include: [{
-                    model: User,
-                    as: 'owner',
-                    attributes: ['id', 'full_name', 'email']
-                }],
                 transaction: t,
                 lock: true
             });
@@ -24,8 +19,8 @@ class PlannerAntiFraudService {
                 throw new Error('Planner not found');
             }
 
-            if (planner.status !== 'completed') {
-                throw new Error('Planner must be completed before settlement');
+            if (planner.status !== 'completed' && planner.status !== 'cancelled') {
+                throw new Error('Planner must be completed or cancelled before settlement');
             }
 
             const members = await PlannerMember.findAll({
@@ -35,11 +30,6 @@ class PlannerAntiFraudService {
                         [Op.ne]: planner.user_id
                     }
                 },
-                include: [{
-                    model: User,
-                    as: 'user',
-                    attributes: ['id', 'full_name', 'email']
-                }],
                 transaction: t
             });
 
