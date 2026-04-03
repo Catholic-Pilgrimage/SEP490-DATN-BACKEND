@@ -192,30 +192,26 @@
  *       required: false
  *       content:
  *         application/json:
- *           examples:
- *             markVisited:
- *               summary: Chốt điểm đến là visited
- *               value:
- *                 status: visited
- *             markSkipped:
- *               summary: Bỏ qua điểm đến
- *               value:
- *                 status: skipped
- *                 skip_reason: "Trời mưa lớn, đoàn không thể tiếp tục"
  *           schema:
  *             type: object
  *             properties:
- *               checkin_latitude:
+ *               latitude:
  *                 type: number
  *                 description: Vĩ độ GPS của người check-in
  *                 example: 10.7769
- *               checkin_longitude:
+ *               longitude:
  *                 type: number
  *                 description: Kinh độ GPS của người check-in
  *                 example: 106.7009
  *               note:
  *                 type: string
  *                 description: Ghi chú khi check-in
+ *           examples:
+ *             gpsCheckin:
+ *               summary: Thành viên check-in với GPS
+ *               value:
+ *                 latitude: 10.7769
+ *                 longitude: 106.7009
  *     responses:
  *       200:
  *         description: Check-in thành công
@@ -278,6 +274,16 @@
  *                 type: string
  *                 example: "Trời mưa lớn, đoàn không thể tiếp tục"
  *                 description: "Lý do bỏ qua điểm đến. Bắt buộc khi `status = skipped`, bỏ qua khi `status = visited`"
+ *           examples:
+ *             markVisited:
+ *               summary: Trưởng đoàn chốt điểm đến là visited
+ *               value:
+ *                 status: visited
+ *             markSkipped:
+ *               summary: Trưởng đoàn bỏ qua điểm đến
+ *               value:
+ *                 status: skipped
+ *                 skip_reason: "Trời mưa lớn, đoàn không thể tiếp tục"
  *     responses:
  *       200:
  *         description: Cập nhật trạng thái thành công

@@ -64,7 +64,9 @@ class PostService {
                 });
 
                 if (!checkin) {
-                    throw new Error('You must check-in at this site before tagging it in your post.');
+                    const error = new Error('You must check-in at this site before tagging it in your post.');
+                    error.statusCode = 400;
+                    throw error;
                 }
             }
 

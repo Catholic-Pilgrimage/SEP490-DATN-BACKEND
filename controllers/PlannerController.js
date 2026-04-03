@@ -4,24 +4,33 @@ const { validationResult } = require('express-validator');
 const { formatValidationErrors } = require('../utils/validation.util');
 
 class PlannerController {
-    static localizePlannerItemWarning(req, result) {
-        if (!result?.warning || typeof result.warning === 'string') {
+    static localizePlannerResult(req, result) {
+        if (!result || typeof result !== 'object' || Array.isArray(result)) {
             return result;
         }
 
-        if (result.warning.code === 'event_time_window') {
-            return {
-                ...result,
-                warning: req.__('planner.event_time_warning', {
-                    time: result.warning.time || '',
-                    eventName: result.warning.eventName || 'Event',
-                    startTime: result.warning.startTime || '--:--',
-                    endTime: result.warning.endTime || '--:--'
-                })
-            };
+        const localizedResult = { ...result };
+
+        if (localizedResult.messageKey) {
+            localizedResult.message = req.__(localizedResult.messageKey, localizedResult.messageParams || {});
+            delete localizedResult.messageKey;
+            delete localizedResult.messageParams;
         }
 
-        return result;
+        if (!localizedResult.warning || typeof localizedResult.warning === 'string') {
+            return localizedResult;
+        }
+
+        if (localizedResult.warning.code === 'event_time_window') {
+            localizedResult.warning = req.__('planner.event_time_warning', {
+                time: localizedResult.warning.time || '',
+                eventName: localizedResult.warning.eventName || 'Event',
+                startTime: localizedResult.warning.startTime || '--:--',
+                endTime: localizedResult.warning.endTime || '--:--'
+            });
+        }
+
+        return localizedResult;
     }
 
     /**
@@ -39,6 +48,9 @@ class PlannerController {
         } catch (error) {
             if (error.message === 'Name is required') {
                 return ResponseUtil.badRequest(res, req.__('planner.name_required'));
+            }
+            if (error.message === 'Ngày bắt đầu kế hoạch phải từ ngày mai trở đi') {
+                return ResponseUtil.badRequest(res, req.__('planner.start_date_from_tomorrow'));
             }
             if (error.message === 'Number of days must be at least 1') {
                 return ResponseUtil.badRequest(res, req.__('planner.invalid_days'));
@@ -121,6 +133,9 @@ class PlannerController {
             if (error.message === 'Forbidden') {
                 return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
             }
+            if (error.message === 'Ngày bắt đầu kế hoạch phải từ ngày mai trở đi') {
+                return ResponseUtil.badRequest(res, req.__('planner.start_date_from_tomorrow'));
+            }
             if (error.message === 'Number of days must be at least 1') {
                 return ResponseUtil.badRequest(res, req.__('planner.invalid_days'));
             }
@@ -141,6 +156,12 @@ class PlannerController {
             }
             if (error.message === 'Cannot make planner incomplete after sharing') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_break_schedule_after_sharing'));
+            }
+            if (error.message === 'Solo planner cannot have a deposit amount') {
+                return ResponseUtil.badRequest(res, req.__('planner.solo_deposit_not_allowed'));
+            }
+            if (error.message === 'Solo planner cannot have a penalty percentage') {
+                return ResponseUtil.badRequest(res, req.__('planner.solo_penalty_not_allowed'));
             }
             if (error.message === 'Cannot update completed plan') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_update_completed'));
@@ -192,7 +213,8 @@ class PlannerController {
                 return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
             }
 
-            const result = await PlannerService.deletePlanner(req.params.id, req.user.id);
+            let result = await PlannerService.deletePlanner(req.params.id, req.user.id);
+            result = PlannerController.localizePlannerResult(req, result);
             return ResponseUtil.success(res, result, req.__('planner.delete_success'));
         } catch (error) {
             if (error.message === 'Planner not found') {
@@ -231,7 +253,7 @@ class PlannerController {
             }
 
             let result = await PlannerService.addPlannerItem(req.params.id, req.user?.id, req.body);
-            result = PlannerController.localizePlannerItemWarning(req, result);
+            result = PlannerController.localizePlannerResult(req, result);
 
             // If there's a warning, include it in the response
             if (result.warning) {
@@ -248,14 +270,28 @@ class PlannerController {
             if (error.message === 'Forbidden') {
                 return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
             }
+            if (error.message === 'Group planner patron saint mismatch') {
+                return ResponseUtil.badRequest(res, req.__('planner.group_patron_saint_mismatch', {
+                    anchorPatronSaint: error.anchorPatronSaint || '',
+                    anchorSiteName: error.anchorSiteName || '',
+                    currentSiteName: error.currentSiteName || '',
+                    currentPatronSaint: error.currentPatronSaint || ''
+                }));
+            }
             if (error.message === 'Site not found') {
                 return ResponseUtil.notFound(res, req.__('planner.site_not_found'));
             }
-            if (error.message === 'Group planner patron saint mismatch') {
-                return ResponseUtil.badRequest(res, `Kế hoạch nhóm này đang theo bổn mạng "${error.anchorPatronSaint || ''}" từ địa điểm đầu tiên "${error.anchorSiteName || ''}". Không thể thêm địa điểm "${error.currentSiteName || ''}" có bổn mạng "${error.currentPatronSaint || ''}".`);
+            if (error.message === 'Event not found') {
+                return ResponseUtil.notFound(res, req.__('planner.event_not_found'));
+            }
+            if (error.message === 'Event is not available') {
+                return ResponseUtil.badRequest(res, req.__('planner.event_not_available'));
             }
             if (error.message.includes('Invalid day number')) {
                 return ResponseUtil.badRequest(res, req.__('planner.invalid_leg_number_range', { max: error.message.match(/\d+/)?.[0] || '?' }));
+            }
+            if (error.message === 'Day number must be at least 1') {
+                return ResponseUtil.badRequest(res, req.__('planner.invalid_leg_number_min'));
             }
             if (error.message === 'Cannot add item to completed plan') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_add_completed'));
@@ -366,11 +402,12 @@ class PlannerController {
                 return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
             }
 
-            const result = await PlannerService.deletePlannerItem(
+            let result = await PlannerService.deletePlannerItem(
                 req.params.id,
                 req.user.id,
                 req.params.itemId
             );
+            result = PlannerController.localizePlannerResult(req, result);
 
             return ResponseUtil.success(res, result, req.__('planner.item_delete_success'));
         } catch (error) {
@@ -436,7 +473,7 @@ class PlannerController {
                 req.params.itemId,
                 req.body
             );
-            result = PlannerController.localizePlannerItemWarning(req, result);
+            result = PlannerController.localizePlannerResult(req, result);
 
             if (result.warning) {
                 return ResponseUtil.success(res, result, req.__('planner.item_update_success_with_warning'));
@@ -593,7 +630,7 @@ class PlannerController {
                 return ResponseUtil.badRequest(res, req.__('planner.group_requires_two_joined'));
             }
             if (error.message === 'Group planner must be edit locked before locking') {
-                return ResponseUtil.badRequest(res, 'Planner nhóm phải đóng chỉnh sửa trước khi khóa hành trình');
+                return ResponseUtil.badRequest(res, req.__('planner.group_edit_lock_required_before_lock'));
             }
             if (error.message === 'Planner must be locked before starting' || error.message === 'Planner must be fully locked before starting group trip') {
                 return ResponseUtil.badRequest(res, req.__('planner.start_requires_lock'));
@@ -660,6 +697,9 @@ class PlannerController {
             }
             if (error.message === 'Group trip requires at least 2 joined members') {
                 return ResponseUtil.badRequest(res, req.__('planner.group_requires_two_joined'));
+            }
+            if (error.message === 'Group planner must be edit locked before locking') {
+                return ResponseUtil.badRequest(res, req.__('planner.group_edit_lock_required_before_lock'));
             }
             if (error.message === 'Planner must be locked before starting' || error.message === 'Planner must be fully locked before starting group trip') {
                 return ResponseUtil.badRequest(res, req.__('planner.start_requires_lock'));
@@ -742,11 +782,14 @@ class PlannerController {
             if (error.message === 'Planner not found') {
                 return ResponseUtil.notFound(res, req.__('planner.not_found'));
             }
-            if (error.statusCode === 403) {
-                return ResponseUtil.forbidden(res, error.message);
+            if (error.message === 'You can only share your own planners') {
+                return ResponseUtil.forbidden(res, req.__('planner.share_only_owner'));
             }
-            if (error.statusCode === 400) {
-                return ResponseUtil.badRequest(res, error.message);
+            if (error.message === 'You can only share a completed journey') {
+                return ResponseUtil.badRequest(res, req.__('planner.share_only_completed'));
+            }
+            if (error.message === 'This journey has already been shared to the community') {
+                return ResponseUtil.badRequest(res, req.__('planner.already_shared_to_community'));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
@@ -759,7 +802,7 @@ class PlannerController {
         try {
             const { is_locked } = req.body;
             if (is_locked === undefined) {
-                return ResponseUtil.badRequest(res, 'is_locked is required (true/false)');
+                return ResponseUtil.badRequest(res, req.__('planner.is_locked_required'));
             }
 
             const normalizedLockValue = typeof is_locked === 'boolean'

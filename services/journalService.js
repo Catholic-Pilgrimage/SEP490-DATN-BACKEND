@@ -233,10 +233,6 @@ class JournalService {
                 throw new Error('Maximum 10 images allowed');
             }
 
-            // Debug: Log file objects
-            console.log('Audio file:', audioFile);
-            console.log('Video file:', videoFile);
-
             // Prepare image URLs array - Cloudinary returns URL in 'path' property
             const imageUrls = imageFiles ? imageFiles.map(file => file.path) : [];
 
@@ -245,9 +241,6 @@ class JournalService {
 
             // Prepare video URL - check both 'path' and 'url' properties  
             const videoUrl = videoFile ? (videoFile.path || videoFile.url) : null;
-
-            console.log('Audio URL:', audioUrl);
-            console.log('Video URL:', videoUrl);
 
             // Create journal
             const journal = await Journal.create({
@@ -493,7 +486,7 @@ class JournalService {
             });
 
             if (!journal) {
-                throw new Error('Journal not found or already deleted');
+                throw new Error('Journal not found');
             }
 
             // Check ownership
@@ -505,7 +498,10 @@ class JournalService {
             await journal.update({ is_active: false });
 
             Logger.info(`Journal logically deleted by user ${userId}: ${journalId}`);
-            return { id: journalId, message: 'Journal deleted successfully' };
+            return {
+                id: journalId,
+                message: 'Journal deleted successfully'
+            };
         } catch (error) {
             Logger.error('Delete journal error:', error);
             throw error;
