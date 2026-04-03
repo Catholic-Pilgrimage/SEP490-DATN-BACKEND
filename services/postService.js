@@ -1,5 +1,6 @@
 const { Post, PostLike, PostComment, User, Journal, Site, Planner, PlannerItem, UserCheckin, sequelize } = require('../models');
 const { Op } = require('sequelize');
+const PlannerService = require('./plannerService');
 
 class PostService {
     async enrichJournalForPost(journal) {
@@ -18,30 +19,36 @@ class PostService {
 
         const JournalService = require('./journalService');
         const journey = post.planner.toJSON();
+        const sortedItems = PlannerService.sortPlannerItems(journey.items || []);
         const model3DMap = await JournalService.getApprovedModel3DMap(
-            journey.items.map(item => item.site_id)
+            sortedItems.map(item => item.site_id)
         );
 
-        const itemsWithJournals = await Promise.all(
-            journey.items.map(async (item) => {
-                const journal = await Journal.findOne({
-                    where: {
-                        user_id: post.user_id,
-                        planner_item_id: item.id,
-                        planner_id: post.planner_id,
-                        is_active: true
-                    }
-                });
+        const formattedItems = sortedItems.map(item => ({
+            ...PlannerService.formatPlannerItemResponse(item),
+            model_3d: model3DMap.get(item.site_id) || null
+        }));
+        const itemsByDay = {};
 
-                return {
-                    ...item,
-                    model_3d: model3DMap.get(item.site_id) || null,
-                    journal: journal ? await this.enrichJournalForPost(journal) : null
-                };
-            })
-        );
+        formattedItems.forEach(item => {
+            if (!itemsByDay[item.leg_number]) {
+                itemsByDay[item.leg_number] = [];
+            }
 
-        return { ...journey, items: itemsWithJournals };
+            itemsByDay[item.leg_number].push(item);
+        });
+
+        return {
+            id: journey.id,
+            name: journey.name,
+            start_date: journey.start_date,
+            end_date: journey.end_date,
+            status: PlannerService.getPlannerCurrentStatus(journey),
+            cloneable: true,
+            summary: PlannerService.buildCommunitySharedSummary(journey, formattedItems),
+            items: formattedItems,
+            items_by_day: itemsByDay
+        };
     }
 
     /**
@@ -102,6 +109,7 @@ class PostService {
 
             const { count, rows: posts } = await Post.findAndCountAll({
                 where: whereClause,
+                distinct: true,
                 include: [
                     {
                         model: User,
@@ -170,8 +178,7 @@ class PostService {
                         PostComment.count({
                             where: {
                                 post_id: post.id,
-                                status: 'published',
-                                is_active: true
+                                status: 'published'
                             }
                         })
                     ]);
@@ -494,8 +501,14 @@ class PostService {
             }
 
             if (parentId) {
-                const parentComment = await PostComment.findByPk(parentId);
-                if (!parentComment || parentComment.post_id !== postId) {
+                const parentComment = await PostComment.findOne({
+                    where: {
+                        id: parentId,
+                        post_id: postId,
+                        status: 'published'
+                    }
+                });
+                if (!parentComment) {
                     const error = new Error('Parent comment not found in this post');
                     error.statusCode = 404;
                     throw error;
@@ -544,8 +557,7 @@ class PostService {
             const { count, rows: comments } = await PostComment.findAndCountAll({
                 where: {
                     post_id: postId,
-                    status: 'published',
-                    is_active: true
+                    status: 'published'
                 },
                 include: [
                     {
@@ -581,11 +593,12 @@ class PostService {
             const comment = await PostComment.findOne({
                 where: {
                     id: commentId,
-                    is_active: true
+                    post_id: postId,
+                    status: 'published'
                 }
             });
 
-            if (!comment || comment.post_id !== postId) {
+            if (!comment) {
                 const error = new Error('Comment not found');
                 error.statusCode = 404;
                 throw error;
@@ -620,9 +633,15 @@ class PostService {
      */
     async deleteComment(postId, commentId, userId, userRole) {
         try {
-            const comment = await PostComment.findByPk(commentId);
+            const comment = await PostComment.findOne({
+                where: {
+                    id: commentId,
+                    post_id: postId,
+                    status: 'published'
+                }
+            });
 
-            if (!comment || comment.post_id !== postId) {
+            if (!comment) {
                 const error = new Error('Comment not found');
                 error.statusCode = 404;
                 throw error;
@@ -641,8 +660,8 @@ class PostService {
                 throw error;
             }
 
-            // Soft delete instead of destroy
-            await comment.update({ is_active: false });
+            // Hide comment by status because some environments do not have post_comments.is_active
+            await comment.update({ status: 'rejected' });
 
             return { message: 'Comment deleted successfully' };
         } catch (error) {
