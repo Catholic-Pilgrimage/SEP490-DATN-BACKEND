@@ -325,12 +325,12 @@ class PlannerService {
                 startDateObj.setHours(0, 0, 0, 0);
 
                 const numPeople = parseInt(number_of_people) || 1;
-                
+
                 if (numPeople >= 2) {
                     // Group coordination lead time: 48h (2 days)
                     const minLeadTime = new Date(now);
                     minLeadTime.setHours(minLeadTime.getHours() + 48);
-                    
+
                     if (startDateObj < minLeadTime) {
                         throw new Error('Group lead time error');
                     }
@@ -615,7 +615,7 @@ class PlannerService {
             if (planner.user_id !== userId) {
                 throw new Error('Forbidden');
             }
-            
+
             // Block modifications if planner is completed or cancelled
             if (['completed', 'cancelled'].includes(planner.status)) {
                 throw new Error(`Cannot update ${planner.status} plan`);
@@ -1383,7 +1383,7 @@ class PlannerService {
                     if (arrivalMinutes > 1440 && newItemEstimatedMinutes < arrivalMinutesInNewDay) {
                         const travelHours = Math.floor(travel_time_minutes / 60);
                         const travelMinsPart = travel_time_minutes % 60;
-                        
+
                         throw new Error(`Invalid arrival time suggested: ${estimated_time}, departure ${lastItemPreviousDay.estimated_time}, travel ${travelHours}h ${travelMinsPart}m, suggested ${arrivalTimeStr}`);
                     }
 
@@ -2379,6 +2379,8 @@ class PlannerService {
                 Logger.info(`Planner ${plannerId} completed (${visitedCount} sites visited)`);
             } else {
                 await planner.update({ status: 'cancelled' }, { transaction: t });
+                const PlannerAntiFraudService = require('./pilgrim/plannerAntiFraudService');
+                await PlannerAntiFraudService.verifyAndSettlePlanner(plannerId, t);
                 Logger.info(`Planner ${plannerId} cancelled (0 sites visited)`);
             }
 
@@ -2417,7 +2419,7 @@ class PlannerService {
         if (items.length === 0) {
             return {
                 isValid: false,
-                missingDays: totalDays > 0 ? Array.from({length: totalDays}, (_, i) => i + 1) : [1],
+                missingDays: totalDays > 0 ? Array.from({ length: totalDays }, (_, i) => i + 1) : [1],
                 totalDays: totalDays || 1
             };
         }
@@ -2524,7 +2526,7 @@ class PlannerService {
                 if (shouldBeOngoing) {
                     await this.markPlannerAsOngoing(planner);
                     startedCount++;
-                    
+
                     // Trigger notification for all members
                     try {
                         const NotificationService = require('./shared/notificationService');
@@ -2532,12 +2534,12 @@ class PlannerService {
                             where: { planner_id: planner.id, join_status: 'joined' },
                             attributes: ['user_id']
                         });
-                        
+
                         // Notify owner
                         await NotificationService.createNotification('planner_started', planner.user_id, {
                             plannerName: planner.name
                         });
-                        
+
                         // Notify members
                         for (const member of members) {
                             if (member.user_id !== planner.user_id) {
@@ -2549,7 +2551,7 @@ class PlannerService {
                     } catch (notifError) {
                         Logger.warn(`Failed to send start notifications for planner ${planner.id}: ${notifError.message}`);
                     }
-                    
+
                     Logger.info(`Planner ${planner.id} auto-started (start_date: ${planner.start_date}, triggered by items)`);
                 }
             }
@@ -2567,6 +2569,7 @@ class PlannerService {
      * Called by cron job
      */
     static async autoExpireExpiredPlanners() {
+        const t = await sequelize.transaction();
         try {
             const now = new Date();
             now.setHours(0, 0, 0, 0); // Start of today
@@ -2578,7 +2581,9 @@ class PlannerService {
                     end_date: {
                         [Op.lt]: now
                     }
-                }
+                },
+                transaction: t,
+                lock: true
             });
 
             let expiredCount = 0;
@@ -2588,7 +2593,11 @@ class PlannerService {
 
                 if (stats.visitedCount === 0) {
                     // 0 items visited → cancel
-                    await planner.update({ status: 'cancelled' });
+                    await planner.update({ status: 'cancelled' }, { transaction: t });
+
+                    const PlannerAntiFraudService = require('./pilgrim/plannerAntiFraudService');
+                    await PlannerAntiFraudService.verifyAndSettlePlanner(planner.id, t);
+
                     expiredCount++;
                     Logger.info(`Planner ${planner.id} auto-cancelled (end_date: ${planner.end_date}, 0 sites visited)`);
                 } else {
@@ -2596,14 +2605,20 @@ class PlannerService {
                     await planner.update({
                         status: 'completed',
                         completed_at: new Date()
-                    });
+                    }, { transaction: t });
+
+                    const PlannerAntiFraudService = require('./pilgrim/plannerAntiFraudService');
+                    await PlannerAntiFraudService.verifyAndSettlePlanner(planner.id, t);
+
                     Logger.info(`Planner ${planner.id} auto-completed (end_date: ${planner.end_date}, ${stats.visitedCount} sites visited)`);
                 }
             }
 
+            await t.commit();
             Logger.info(`Auto-processed ${expiredCount} expired planners`);
             return expiredCount;
         } catch (error) {
+            await t.rollback();
             Logger.error('Auto expire expired planners error:', error);
             throw error;
         }
@@ -2667,8 +2682,9 @@ class PlannerService {
      * @param {string} status - New status: 'locked' | 'ongoing' | 'completed' | 'cancelled'
      */
     static async updatePlannerStatus(plannerId, userId, status) {
+        const t = await sequelize.transaction();
         try {
-            const planner = await Planner.findByPk(plannerId);
+            const planner = await Planner.findByPk(plannerId, { transaction: t, lock: true });
 
             if (!planner) {
                 throw new Error('Planner not found');
@@ -2697,7 +2713,7 @@ class PlannerService {
                 await planner.update({
                     status: 'locked',
                     is_locked: true
-                });
+                }, { transaction: t });
 
                 Logger.info(`Planner ${plannerId} manually locked by user ${userId} (planning -> locked)`);
             }
@@ -2729,7 +2745,8 @@ class PlannerService {
                 }
                 // ===== END: Validation =====
 
-                await this.markPlannerAsOngoing(planner);
+                // Pass transaction correctly to start planner
+                await this.markPlannerAsOngoing(planner, { transaction: t });
 
                 Logger.info(`Planner ${plannerId} started by user ${userId} (planning -> ongoing)`);
             }
@@ -2760,13 +2777,18 @@ class PlannerService {
                     updateData.completed_at = new Date();
                 }
 
-                await planner.update(updateData);
+                await planner.update(updateData, { transaction: t });
+
+                const PlannerAntiFraudService = require('./pilgrim/plannerAntiFraudService');
+                await PlannerAntiFraudService.verifyAndSettlePlanner(plannerId, t);
 
                 Logger.info(`Planner ${plannerId} status updated to ${finalStatus} by user ${userId} (${visitedCount} sites visited)`);
             }
 
+            await t.commit();
             return this.formatPlannerResponse(planner);
         } catch (error) {
+            await t.rollback();
             Logger.error('Update planner status error:', error);
             throw error;
         }
@@ -2819,6 +2841,10 @@ class PlannerService {
                         Logger.info(`Planner ${planner.id} auto-completed (${stats.visitedCount} sites visited)`);
                     } else {
                         await currentPlanner.update({ status: 'cancelled' }, { transaction: t });
+
+                        const PlannerAntiFraudService2 = require('./pilgrim/plannerAntiFraudService');
+                        await PlannerAntiFraudService2.verifyAndSettlePlanner(currentPlanner.id, t);
+
                         expiredCount++;
                         Logger.info(`Planner ${planner.id} auto-cancelled (0 sites visited)`);
                     }
@@ -3279,11 +3305,11 @@ class PlannerService {
 
         // firstItem.estimated_time is "HH:mm:ss"
         const [hours, minutes, seconds] = firstItem.estimated_time.split(':').map(Number);
-        
+
         // Combine start_date with estimated_time
         const triggerTime = new Date(startDate);
         triggerTime.setHours(hours, minutes, seconds || 0, 0);
-        
+
         // Subtract 2 hours
         triggerTime.setHours(triggerTime.getHours() - 2);
 
