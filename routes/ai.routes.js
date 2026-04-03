@@ -29,12 +29,12 @@ router.post(
     AiController.generateArticle
 );
 
-// POST /api/ai/translate - AI Translator
+// POST /api/ai/summarize-reviews - AI Review Summarizer
 router.post(
-    '/translate',
+    '/summarize-reviews',
     authMiddleware,
     authMiddleware.authorize('local_guide'),
-    AiController.translateContent
+    AiController.summarizeReviews
 );
 
 // POST /api/ai/suggest-events - AI Event Recommender

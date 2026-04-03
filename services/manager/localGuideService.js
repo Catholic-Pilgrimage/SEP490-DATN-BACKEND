@@ -353,6 +353,11 @@ class ManagerLocalGuideService {
                     {
                         model: GuideShift,
                         as: 'shifts'
+                    },
+                    {
+                        model: User,
+                        as: 'approver',
+                        attributes: ['id', 'full_name', 'email']
                     }
                 ],
                 order: [['created_at', 'DESC']],
@@ -400,6 +405,11 @@ class ManagerLocalGuideService {
                     {
                         model: GuideShift,
                         as: 'shifts'
+                    },
+                    {
+                        model: User,
+                        as: 'approver',
+                        attributes: ['id', 'full_name', 'email']
                     }
                 ]
             });

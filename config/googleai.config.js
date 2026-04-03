@@ -6,16 +6,16 @@ const Logger = require('../utils/logger.util');
  * Each feature gets its own quota to maximize free tier usage
  * 
  * Keys:
- *   GOOGLE_AI_KEY_ROUTE     → suggest-route (Pilgrim)
- *   GOOGLE_AI_KEY_ARTICLE   → generate-article (Local Guide)
- *   GOOGLE_AI_KEY_TRANSLATE  → translate (Local Guide)
- *   GOOGLE_AI_KEY_EVENTS    → suggest-events (Local Guide)
+ *   GOOGLE_AI_KEY_ROUTE           → suggest-route (Pilgrim)
+ *   GOOGLE_AI_KEY_ARTICLE         → generate-article (Local Guide)
+ *   GOOGLE_AI_KEY_REVIEW_SUMMARY  → summarize-reviews (Local Guide)
+ *   GOOGLE_AI_KEY_EVENTS          → suggest-events (Local Guide)
  */
 
 const AI_KEYS = {
     route: process.env.GOOGLE_AI_KEY_ROUTE,
     article: process.env.GOOGLE_AI_KEY_ARTICLE,
-    translate: process.env.GOOGLE_AI_KEY_TRANSLATE,
+    review_summary: process.env.GOOGLE_AI_KEY_REVIEW_SUMMARY,
     events: process.env.GOOGLE_AI_KEY_EVENTS,
 };
 
@@ -29,7 +29,7 @@ const modelCache = {};
 
 /**
  * Get JSON model for a specific feature
- * @param {'route'|'article'|'translate'|'events'} feature
+ * @param {'route'|'article'|'review_summary'|'events'} feature
  * @returns {GenerativeModel}
  */
 function getModelForFeature(feature) {
@@ -114,7 +114,7 @@ function extractJSON(text) {
 
 /**
  * Generate JSON content using a feature-specific API key
- * @param {'route'|'article'|'translate'|'events'} feature - Which feature key to use
+ * @param {'route'|'article'|'review_summary'|'events'} feature - Which feature key to use
  * @param {string} prompt - The prompt
  * @param {object} options - { temperature, topP, maxTokens }
  * @returns {Promise<object>}

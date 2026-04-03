@@ -301,11 +301,18 @@ class LocalGuideShiftService {
 
         return await GuideShiftSubmission.findAll({
             where,
-            include: [{
-                model: GuideShift,
-                as: 'shifts',
-                order: [['day_of_week', 'ASC'], ['start_time', 'ASC']]
-            }],
+            include: [
+                {
+                    model: GuideShift,
+                    as: 'shifts',
+                    order: [['day_of_week', 'ASC'], ['start_time', 'ASC']]
+                },
+                {
+                    model: User,
+                    as: 'approver',
+                    attributes: ['id', 'full_name', 'email']
+                }
+            ],
             order: [['created_at', 'DESC']]
         });
     }
@@ -316,11 +323,18 @@ class LocalGuideShiftService {
     static async getSubmissionDetail(userId, submissionId) {
         const submission = await GuideShiftSubmission.findOne({
             where: { id: submissionId, guide_id: userId },
-            include: [{
-                model: GuideShift,
-                as: 'shifts',
-                order: [['day_of_week', 'ASC'], ['start_time', 'ASC']]
-            }]
+            include: [
+                {
+                    model: GuideShift,
+                    as: 'shifts',
+                    order: [['day_of_week', 'ASC'], ['start_time', 'ASC']]
+                },
+                {
+                    model: User,
+                    as: 'approver',
+                    attributes: ['id', 'full_name', 'email']
+                }
+            ]
         });
 
         if (!submission) {

@@ -1,12 +1,12 @@
-/**
+﻿/**
  * @swagger
  * tags:
  *   - name: AI - Route Suggestion
  *     description: AI gợi ý lộ trình hành hương (Pilgrim)
  *   - name: AI - Article Writer
  *     description: AI viết bài mô tả địa điểm (Local Guide)
- *   - name: AI - Translator
- *     description: AI dịch nội dung đa ngôn ngữ (Local Guide)
+ *   - name: AI - Review Summarizer
+ *     description: AI tóm tắt đánh giá (Local Guide)
  *   - name: AI - Event Recommender
  *     description: AI gợi ý sự kiện theo mùa phụng vụ (Local Guide)
  */
@@ -17,9 +17,9 @@
  *   post:
  *     summary: AI gợi ý lộ trình hành hương tối ưu
  *     description: |
- *       Pilgrim chọn nhiều địa điểm → AI sắp xếp lộ trình tối ưu theo ngày.
- *       
- *       **Cải tiến:**
+ *       Pilgrim chọn nhiều địa điểm, AI sẽ sắp xếp lộ trình tối ưu theo ngày.
+ *
+ *       Cải tiến:
  *       - Tính khoảng cách Haversine giữa các điểm để ước tính travel time chính xác hơn
  *       - Validate UUID format trước khi query DB
  *       - Output có `order_index` tương thích trực tiếp với PlannerService
@@ -71,7 +71,7 @@
  *                 example: 2
  *               patron_saint:
  *                 type: string
- *                 description: Bổn mạng của pilgrim — AI sẽ ưu tiên site liên quan và thêm ghi chú tâm linh
+ *                 description: Bổn mạng của pilgrim, AI sẽ ưu tiên site liên quan và thêm ghi chú tâm linh
  *                 example: "Đức Mẹ Maria"
  *     responses:
  *       200:
@@ -169,7 +169,7 @@
  *       502:
  *         description: AI trả kết quả không hợp lệ
  *       503:
- *         description: AI service chưa được cấu hình (thiếu GOOGLE_AI_KEY)
+ *         description: AI service chưa được cấu hình
  */
 
 /**
@@ -178,13 +178,14 @@
  *   post:
  *     summary: AI viết bài mô tả địa điểm hành hương (Local Guide only)
  *     description: |
- *       Tạo bài viết về một địa điểm hành hương với nhiều phong cách.
- *       AI sẽ tự lấy thông tin site (bao gồm history đầy đủ) từ DB.
- *       
- *       **Cải tiến:**
+ *       Tạo bài viết về địa điểm hành hương với nhiều phong cách.
+ *       AI sẽ tự lấy thông tin site, bao gồm history đầy đủ, theo site được gán cho Local Guide.
+ *
+ *       Cải tiến:
  *       - Thêm param `style` để chọn phong cách viết
- *       - Lấy full site.history thay vì cắt 500 chars
+ *       - Lấy full `site.history` thay vì cắt 500 ký tự
  *       - Output có thêm `summary` cho FE preview
+ *       - Không cần truyền `site_id`, hệ thống tự resolve từ tài khoản Local Guide
  *     tags: [AI - Article Writer]
  *     security:
  *       - bearerAuth: []
@@ -201,10 +202,6 @@
  *                 type: string
  *                 description: Chủ đề bài viết
  *                 example: "Lịch sử và kiến trúc nhà thờ"
- *               site_id:
- *                 type: string
- *                 format: uuid
- *                 description: UUID của site (tự detect từ guide's assigned site nếu bỏ trống)
  *               additional_context:
  *                 type: string
  *                 description: Thông tin thêm từ Local Guide
@@ -273,7 +270,7 @@
  *       400:
  *         description: Topic không hợp lệ hoặc guide chưa được gán site
  *       403:
- *         description: Unauthorized hoặc site không thuộc quyền quản lý
+ *         description: Chỉ Local Guide được dùng endpoint này
  *       502:
  *         description: AI trả kết quả không hợp lệ
  *       503:
@@ -282,48 +279,24 @@
 
 /**
  * @swagger
- * /api/ai/translate:
+ * /api/ai/summarize-reviews:
  *   post:
- *     summary: AI dịch nội dung đa ngôn ngữ (Local Guide only)
+ *     summary: AI tóm tắt đánh giá gần đây (Local Guide only)
  *     description: |
- *       Dịch nội dung với hỗ trợ đa ngôn ngữ, sử dụng thuật ngữ Công Giáo chuẩn.
- *       
- *       **Cải tiến:**
- *       - Hỗ trợ 6 ngôn ngữ: vi, en, zh, ko, ja, fr
- *       - Auto-detect ngôn ngữ nguồn
- *       - Cảnh báo khi source = target language
- *       - Thêm `context` để dịch chính xác proper nouns
- *     tags: [AI - Translator]
+ *       Lấy tối đa 20 đánh giá mới nhất của địa điểm và dùng AI phân tích:
+ *       - Tóm tắt tổng quan
+ *       - Ưu điểm nổi bật
+ *       - Nhược điểm cần cải thiện
+ *       - Sentiment (positive, neutral, negative)
+ *
+ *       Hệ thống tự resolve `site_id` và ngôn ngữ phản hồi từ tài khoản Local Guide.
+ *       Endpoint này không cần request body.
+ *     tags: [AI - Review Summarizer]
  *     security:
  *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - text
- *             properties:
- *               text:
- *                 type: string
- *                 description: Nội dung cần dịch (2-10.000 ký tự)
- *                 example: "Nhà thờ được xây dựng từ năm 1880, mang phong cách kiến trúc Gothic."
- *               target_lang:
- *                 type: string
- *                 enum: [vi, en]
- *                 default: en
- *                 description: |
- *                   Ngôn ngữ đích:
- *                   - vi: Tiếng Việt
- *                   - en: English
- *               context:
- *                 type: string
- *                 description: Context/domain để dịch chính xác proper nouns (tên nhà thờ, tên thánh...)
- *                 example: "Nhà thờ Đức Bà Sài Gòn, Thánh Nữ Têrêsa"
  *     responses:
  *       200:
- *         description: Dịch thành công
+ *         description: Tóm tắt đánh giá thành công
  *         content:
  *           application/json:
  *             schema:
@@ -334,24 +307,58 @@
  *                 data:
  *                   type: object
  *                   properties:
- *                     original:
+ *                     site_name:
  *                       type: string
- *                     translated:
+ *                       example: "Nhà Thờ Đức Bà Sài Gòn"
+ *                     total_reviews:
+ *                       type: integer
+ *                       description: Tổng số đánh giá của toàn bộ site
+ *                       example: 42
+ *                     average_rating:
+ *                       type: number
+ *                       description: Điểm trung bình của toàn bộ site
+ *                       example: 4.3
+ *                     reviews_analyzed:
+ *                       type: integer
+ *                       description: Số lượng đánh giá gần nhất được AI phân tích (tối đa 20)
+ *                       example: 20
+ *                     overall_summary:
  *                       type: string
- *                       example: "The church was built in 1880, featuring Gothic architectural style."
- *                     source_lang:
+ *                       description: Tóm tắt tổng quan 2-3 câu
+ *                       example: "Nhà thờ được đánh giá cao về kiến trúc và không gian tâm linh..."
+ *                     strengths:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: ["Kiến trúc đẹp", "Không gian yên tĩnh", "Hướng dẫn viên nhiệt tình"]
+ *                     weaknesses:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: ["Bãi đỗ xe hạn chế", "Đông đúc vào cuối tuần"]
+ *                     sentiment:
  *                       type: string
- *                       description: Ngôn ngữ nguồn được auto-detect
- *                       example: "vi"
- *                     target_lang:
- *                       type: string
- *                       example: "en"
- *                     same_language:
- *                       type: boolean
- *                       description: true nếu ngôn ngữ nguồn trùng với ngôn ngữ đích
- *                       example: false
+ *                       enum: [positive, neutral, negative]
+ *                       example: "positive"
+ *                     highlights:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       description: Điểm nổi bật được nhiều người nhắc đến
+ *                       example: ["Kiến trúc Gothic ấn tượng", "Thánh lễ trang nghiêm"]
+ *                     metadata:
+ *                       type: object
+ *                       properties:
+ *                         generated_by:
+ *                           type: string
+ *                         language:
+ *                           type: string
+ *                         reviews_analyzed:
+ *                           type: integer
  *       400:
- *         description: Nội dung quá ngắn, quá dài, hoặc ngôn ngữ không được hỗ trợ
+ *         description: Guide chưa được gán site hoặc chưa có đánh giá nào
+ *       403:
+ *         description: Chỉ Local Guide được dùng endpoint này
  *       502:
  *         description: AI trả kết quả không hợp lệ
  *       503:
@@ -365,26 +372,22 @@
  *     summary: AI gợi ý sự kiện theo mùa phụng vụ (Local Guide only)
  *     description: |
  *       Dựa trên ngày hiện tại, AI xác định mùa phụng vụ và gợi ý sự kiện phù hợp.
- *       
- *       **Cải tiến:**
- *       - Output aligned với Event model: trả `start_date`, `end_date`, `start_time`, `end_time`, `location`, `category`
+ *
+ *       Cải tiến:
+ *       - Output aligned với Event model: `start_date`, `end_date`, `start_time`, `end_time`, `location`, `category`
  *       - Có thể dùng trực tiếp để tạo event không cần map lại
- *       - Fetch 15 recent events để avoid trùng lặp
+ *       - Fetch 15 recent events để tránh trùng lặp
  *       - Tối đa 10 suggestions
  *     tags: [AI - Event Recommender]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
- *       required: true
+ *       required: false
  *       content:
  *         application/json:
  *           schema:
  *             type: object
  *             properties:
- *               site_id:
- *                 type: string
- *                 format: uuid
- *                 description: UUID của site (tự detect từ guide's assigned site nếu bỏ trống)
  *               current_date:
  *                 type: string
  *                 format: date
@@ -471,7 +474,7 @@
  *       400:
  *         description: Guide chưa được gán site
  *       403:
- *         description: Unauthorized hoặc site không thuộc quyền quản lý
+ *         description: Chỉ Local Guide được dùng endpoint này
  *       502:
  *         description: AI trả kết quả không hợp lệ
  *       503:
