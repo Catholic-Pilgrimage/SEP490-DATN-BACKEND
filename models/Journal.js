@@ -61,12 +61,9 @@ const Journal = sequelize.define('Journal', {
         }
     },
     planner_item_id: {
-        type: DataTypes.UUID,
+        type: DataTypes.ARRAY(DataTypes.UUID),
         allowNull: true,
-        references: {
-            model: 'planner_items',
-            key: 'id'
-        }
+        defaultValue: []
     },
     is_active: {
         type: DataTypes.BOOLEAN,

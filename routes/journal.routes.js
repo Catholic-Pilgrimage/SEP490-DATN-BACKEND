@@ -64,6 +64,7 @@ router.get(
 
 router.get(
     '/:id',
+    authenticate.optional,
     JournalController.getJournalById
 );
 
