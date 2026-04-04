@@ -268,6 +268,8 @@ class LocalGuideMediaService {
             if (media.status === 'rejected') {
                 dataToUpdate.status = 'pending';
                 dataToUpdate.rejection_reason = null;
+                dataToUpdate.reviewed_by = null;
+                dataToUpdate.reviewed_at = null;
             }
 
             await media.update(dataToUpdate);

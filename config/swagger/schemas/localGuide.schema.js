@@ -244,6 +244,14 @@
  *           type: boolean
  *           example: true
  *           description: Trạng thái active (false = đã ẩn/xóa mềm)
+ *         reviewed_by:
+ *           type: string
+ *           format: uuid
+ *           nullable: true
+ *         reviewed_at:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
  *         audio_url:
  *           type: string
  *           format: uri
@@ -271,6 +279,14 @@
  *           nullable: true
  *           example: null
  *           description: Lý do từ chối thuyết minh (nếu narrative_status = rejected)
+ *         narrative_reviewed_by:
+ *           type: string
+ *           format: uuid
+ *           nullable: true
+ *         narrative_reviewed_at:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
  *         created_by:
  *           type: string
  *           format: uuid

@@ -299,6 +299,14 @@
  *         is_active:
  *           type: boolean
  *           description: Trạng thái active (false = đã ẩn)
+ *         reviewed_by:
+ *           type: string
+ *           format: uuid
+ *           nullable: true
+ *         reviewed_at:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
  *         audio_url:
  *           type: string
  *           nullable: true
@@ -316,6 +324,14 @@
  *           type: string
  *           nullable: true
  *           description: Lý do từ chối thuyết minh
+ *         narrative_reviewed_by:
+ *           type: string
+ *           format: uuid
+ *           nullable: true
+ *         narrative_reviewed_at:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
  *         created_by:
  *           type: string
  *           format: uuid
@@ -333,6 +349,30 @@
  *           properties:
  *             creator:
  *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                   format: uuid
+ *                 full_name:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                   format: email
+ *             mediaReviewer:
+ *               type: object
+ *               nullable: true
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                   format: uuid
+ *                 full_name:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                   format: email
+ *             narrativeReviewer:
+ *               type: object
+ *               nullable: true
  *               properties:
  *                 id:
  *                   type: string

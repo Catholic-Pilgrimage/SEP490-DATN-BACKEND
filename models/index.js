@@ -65,6 +65,14 @@ SiteMedia.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
 User.hasMany(SiteMedia, { foreignKey: 'created_by', as: 'createdMedia' });
 SiteMedia.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
 
+// SiteMedia - User (reviewed_by for media)
+User.hasMany(SiteMedia, { foreignKey: 'reviewed_by', as: 'reviewedMedia' });
+SiteMedia.belongsTo(User, { foreignKey: 'reviewed_by', as: 'mediaReviewer' });
+
+// SiteMedia - User (narrative_reviewed_by)
+User.hasMany(SiteMedia, { foreignKey: 'narrative_reviewed_by', as: 'reviewedNarratives' });
+SiteMedia.belongsTo(User, { foreignKey: 'narrative_reviewed_by', as: 'narrativeReviewer' });
+
 // Site - MassSchedule
 Site.hasMany(MassSchedule, { foreignKey: 'site_id', as: 'massSchedules' });
 MassSchedule.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
