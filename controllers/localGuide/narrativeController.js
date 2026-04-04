@@ -74,7 +74,9 @@ exports.updateNarrative = async (req, res) => {
             await media.update({
                 narration_text: narration_text,
                 narrative_status: 'processing',
-                narrative_rejection_reason: null
+                narrative_rejection_reason: null,
+                narrative_reviewed_by: null,
+                narrative_reviewed_at: null
             });
 
             Logger.info(`Narrative: Media ${id} TTS submitted (request_id=${result.request_id}), status=processing`);
@@ -96,7 +98,9 @@ exports.updateNarrative = async (req, res) => {
                 audio_url: audioUrl,
                 narration_text: narrationText,
                 narrative_status: 'pending',
-                narrative_rejection_reason: null
+                narrative_rejection_reason: null,
+                narrative_reviewed_by: null,
+                narrative_reviewed_at: null
             });
 
             Logger.info(`Narrative: Media ${id} audio uploaded, narrative_status set to pending`);
@@ -196,7 +200,9 @@ exports.deleteNarrative = async (req, res) => {
             audio_url: null,
             narration_text: null,
             narrative_status: null,
-            narrative_rejection_reason: null
+            narrative_rejection_reason: null,
+            narrative_reviewed_by: null,
+            narrative_reviewed_at: null
         });
 
         Logger.info(`Narrative: Local Guide ${req.user.id} deleted narrative for media ${id}`);

@@ -3,6 +3,8 @@ const router = express.Router();
 const AiController = require('../controllers/ai/aiController');
 const authMiddleware = require('../middlewares/auth.middleware');
 const i18nMiddleware = require('../middlewares/i18n.middleware');
+const AiValidator = require('../validators/ai.validator');
+const validate = require('../middlewares/validation.middleware');
 
 router.use(i18nMiddleware);
 
@@ -14,7 +16,18 @@ router.use(i18nMiddleware);
 router.post(
     '/suggest-route',
     authMiddleware,
+    AiValidator.suggestRoute,
+    validate,
     AiController.suggestRoute
+);
+
+// POST /api/ai/suggest-prayer - AI Prayer Suggestion for Journal
+router.post(
+    '/suggest-prayer',
+    authMiddleware,
+    AiValidator.suggestPrayer,
+    validate,
+    AiController.suggestPrayer
 );
 
 // ========================
@@ -26,6 +39,8 @@ router.post(
     '/generate-article',
     authMiddleware,
     authMiddleware.authorize('local_guide'),
+    AiValidator.generateArticle,
+    validate,
     AiController.generateArticle
 );
 
@@ -42,6 +57,8 @@ router.post(
     '/suggest-events',
     authMiddleware,
     authMiddleware.authorize('local_guide'),
+    AiValidator.suggestEvents,
+    validate,
     AiController.suggestEvents
 );
 

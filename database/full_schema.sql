@@ -47,17 +47,12 @@ DO $$ BEGIN
     CREATE TYPE content_status AS ENUM ('draft', 'published', 'pending', 'approved', 'rejected');
     CREATE TYPE group_privacy AS ENUM ('public', 'private');
     CREATE TYPE group_member_role AS ENUM ('admin', 'member');
-    
-    -- AI (UPDATED - removed prayer/verse)
-    CREATE TYPE ai_type AS ENUM ('summary', 'sentiment', 'rewrite', 'topic_suggestion');
-    CREATE TYPE ai_source_type AS ENUM ('journal', 'planner', 'post', 'chat');
-    
     -- Others
     CREATE TYPE report_reason AS ENUM ('spam', 'harassment', 'hate_speech', 'false_information', 'violence', 'inappropriate', 'other');
     CREATE TYPE report_status AS ENUM ('pending', 'resolved', 'reject');
     CREATE TYPE sos_status AS ENUM ('pending', 'accepted', 'resolved', 'cancelled');
     CREATE TYPE invite_status AS ENUM ('pending', 'awaiting_payment', 'accepted', 'rejected', 'expired');
-    CREATE TYPE participant_status AS ENUM ('going', 'interested');
+
     
     -- Verification (Manager Application)
     CREATE TYPE verification_status AS ENUM ('pending', 'approved', 'rejected');
@@ -388,21 +383,7 @@ CREATE TRIGGER update_verification_requests_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- ============================================
--- 4. AI GENERATED CONTENTS
--- ============================================
-CREATE TABLE IF NOT EXISTS ai_generated_contents (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    type ai_type NOT NULL,
-    source_type ai_source_type,
-    source_id UUID,
-    prompt TEXT,
-    result TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
 
-CREATE INDEX IF NOT EXISTS idx_ai_contents_user ON ai_generated_contents(user_id);
 
 -- ============================================
 -- 5. SITE MODULE TABLES
@@ -412,12 +393,23 @@ CREATE INDEX IF NOT EXISTS idx_ai_contents_user ON ai_generated_contents(user_id
 CREATE TABLE IF NOT EXISTS site_media (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
-    code VARCHAR(15) UNIQUE NOT NULL,
+    code VARCHAR(20) UNIQUE NOT NULL,
     url TEXT NOT NULL,
     type media_type DEFAULT 'image',
     caption VARCHAR(255),
     status site_content_status DEFAULT 'pending',
     rejection_reason VARCHAR(500),
+    reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    reviewed_at TIMESTAMP WITH TIME ZONE,
+    
+    -- Narrative fields
+    audio_url TEXT,
+    narration_text TEXT,
+    narrative_status VARCHAR(20),
+    narrative_rejection_reason TEXT,
+    narrative_reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    narrative_reviewed_at TIMESTAMP WITH TIME ZONE,
+
     is_active BOOLEAN DEFAULT TRUE,
     is_main BOOLEAN DEFAULT FALSE,
     created_by UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -477,13 +469,7 @@ CREATE INDEX IF NOT EXISTS idx_events_site ON events(site_id);
 CREATE INDEX IF NOT EXISTS idx_events_status ON events(status);
 CREATE INDEX IF NOT EXISTS idx_events_start_date ON events(start_date);
 
-CREATE TABLE IF NOT EXISTS event_participants (
-    event_id UUID REFERENCES events(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    status participant_status DEFAULT 'going',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (event_id, user_id)
-);
+
 
 -- ============================================
 -- 6. GUIDE SHIFT SUBMISSIONS

@@ -81,6 +81,30 @@ const SiteMedia = sequelize.define('SiteMedia', {
             model: 'users',
             key: 'id'
         }
+    },
+    reviewed_by: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'users',
+            key: 'id'
+        }
+    },
+    reviewed_at: {
+        type: DataTypes.DATE,
+        allowNull: true
+    },
+    narrative_reviewed_by: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'users',
+            key: 'id'
+        }
+    },
+    narrative_reviewed_at: {
+        type: DataTypes.DATE,
+        allowNull: true
     }
 }, {
     tableName: 'site_media',

@@ -121,6 +121,15 @@ class PlannerShareController {
             if (error.message === 'Planner join window is closed') {
                 return ResponseUtil.badRequest(res, req.__('planner.join_window_closed'));
             }
+            if (error.message === 'Planner must have start_date and end_date before inviting members') {
+                return ResponseUtil.badRequest(res, req.__('planner.invite_requires_dates'));
+            }
+            if (error.message === 'Planner schedule must be complete before inviting members') {
+                return ResponseUtil.badRequest(res, req.__('planner.invite_requires_complete_schedule'));
+            }
+            if (error.message === 'Planner is locked') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));
+            }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
