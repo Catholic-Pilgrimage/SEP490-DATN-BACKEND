@@ -178,6 +178,24 @@ Rules for items:
     Logger.info(`Google AI: Route for ${sites.length} sites, mode=${transport_mode}, priority=${priority}`);
     const result = await generateJSON('route', prompt, { temperature: 0.7 });
 
+    // Output guard: validate AI returned a valid route schema
+    if (!result.planner || typeof result.planner.name !== 'string') {
+      throw new Error('AI returned invalid route schema: missing planner.name');
+    }
+    if (!Array.isArray(result.daily_itinerary) || result.daily_itinerary.length === 0) {
+      throw new Error('AI returned invalid route schema: missing daily_itinerary');
+    }
+    for (const day of result.daily_itinerary) {
+      if (!Array.isArray(day.items) || day.items.length === 0) {
+        throw new Error('AI returned invalid route schema: day missing items array');
+      }
+      for (const item of day.items) {
+        if (!item.site_id || !item.day_number || !item.order_index) {
+          throw new Error('AI returned invalid route schema: item missing site_id/day_number/order_index');
+        }
+      }
+    }
+
     return {
       ...result,
       metadata: {

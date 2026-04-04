@@ -1,5 +1,6 @@
 const GoogleAiService = require('../../services/ai/googleAiService');
 const PlannerAiService = require('../../services/ai/plannerAiService');
+const JournalService = require('../../services/journalService');
 const ResponseUtil = require('../../utils/response.util');
 const Logger = require('../../utils/logger.util');
 const { User } = require('../../models');
@@ -9,6 +10,12 @@ function isQuotaError(error) {
     return error.message.includes('429') || error.message.includes('quota') || error.message.includes('Too Many Requests') || error.message.includes('Resource has been exhausted');
 }
 const QUOTA_MSG = 'AI service quota exceeded. Please try again later.';
+
+// Helper: Check if error is an AI schema/parse error (output guard or JSON parse failure)
+function isInvalidAiSchemaError(error) {
+    return error.message.includes('AI returned invalid JSON') || error.message.includes('AI returned invalid');
+}
+const SCHEMA_MSG = 'AI service returned unexpected format. Please try again.';
 
 // ========================
 // PILGRIM: AI Route Suggestion
@@ -44,8 +51,57 @@ exports.suggestRoute = async (req, res) => {
         if (error.message.includes('At least 2') || error.message.includes('Maximum 15') || error.message.includes('Could not find enough') || error.message.includes('Invalid site ID format')) {
             return ResponseUtil.badRequest(res, error.message);
         }
-        if (error.message.includes('AI returned invalid JSON')) {
-            return ResponseUtil.error(res, 'AI service returned unexpected format. Please try again.', 502);
+        if (isInvalidAiSchemaError(error)) {
+            return ResponseUtil.error(res, SCHEMA_MSG, 502);
+        }
+        if (isQuotaError(error)) {
+            return ResponseUtil.error(res, QUOTA_MSG, 429);
+        }
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
+
+// ========================
+// PILGRIM: AI Prayer Suggestion
+// ========================
+
+/**
+ * POST /api/ai/suggest-prayer
+ * AI suggests a personalized prayer based on journal context
+ */
+exports.suggestPrayer = async (req, res) => {
+    try {
+        const { planner_item_id, planner_id, current_text, mood, intention } = req.body;
+        const language = req.user.language || 'vi';
+
+        // 1. Validate and resolve journal context (same rules as journal creation)
+        const context = await JournalService.resolveJournalContextForAi(req.user.id, { planner_item_id, planner_id });
+
+        // 2. Generate prayer using AI
+        const result = await GoogleAiService.suggestPrayer(req.user.id, context, {
+            current_text, mood, intention, language
+        });
+
+        return ResponseUtil.success(res, result, req.__('ai.suggest_prayer_success') || 'Prayer suggestion generated successfully');
+    } catch (error) {
+        Logger.error(`AI Prayer Suggestion Error: ${error.message}`);
+        if (error.message.includes('GOOGLE_AI_KEY')) {
+            return ResponseUtil.error(res, 'AI service is not configured', 503);
+        }
+        if (error.message.includes('Planner not found') || error.message.includes('Associated planner not found')) {
+            return ResponseUtil.notFound(res, req.__('ai.invalid_journal_context') || error.message);
+        }
+        if (error.message.includes('Forbidden')) {
+            return ResponseUtil.forbidden(res, req.__('ai.invalid_journal_context') || error.message);
+        }
+        if (error.message.includes('check-in') || error.message.includes('completed')) {
+            return ResponseUtil.badRequest(res, req.__('ai.invalid_journal_context') || error.message);
+        }
+        if (error.message.includes('Either planner_item_id or planner_id') || error.message.includes('Cannot provide both')) {
+            return ResponseUtil.badRequest(res, req.__('ai.prayer_context_required') || error.message);
+        }
+        if (isInvalidAiSchemaError(error)) {
+            return ResponseUtil.error(res, SCHEMA_MSG, 502);
         }
         if (isQuotaError(error)) {
             return ResponseUtil.error(res, QUOTA_MSG, 429);
@@ -121,8 +177,8 @@ exports.generateArticle = async (req, res) => {
         if (error.message.includes('no site assigned')) {
             return ResponseUtil.badRequest(res, error.message);
         }
-        if (error.message.includes('AI returned invalid JSON')) {
-            return ResponseUtil.error(res, 'AI service returned unexpected format. Please try again.', 502);
+        if (isInvalidAiSchemaError(error)) {
+            return ResponseUtil.error(res, SCHEMA_MSG, 502);
         }
         if (isQuotaError(error)) {
             return ResponseUtil.error(res, QUOTA_MSG, 429);
@@ -163,8 +219,8 @@ exports.summarizeReviews = async (req, res) => {
         if (error.message.includes('Site not found')) {
             return ResponseUtil.notFound(res, error.message);
         }
-        if (error.message.includes('AI returned invalid JSON')) {
-            return ResponseUtil.error(res, 'AI service returned unexpected format. Please try again.', 502);
+        if (isInvalidAiSchemaError(error)) {
+            return ResponseUtil.error(res, SCHEMA_MSG, 502);
         }
         if (isQuotaError(error)) {
             return ResponseUtil.error(res, QUOTA_MSG, 429);
@@ -204,8 +260,8 @@ exports.suggestEvents = async (req, res) => {
         if (error.message.includes('no site assigned')) {
             return ResponseUtil.badRequest(res, error.message);
         }
-        if (error.message.includes('AI returned invalid JSON')) {
-            return ResponseUtil.error(res, 'AI service returned unexpected format. Please try again.', 502);
+        if (isInvalidAiSchemaError(error)) {
+            return ResponseUtil.error(res, SCHEMA_MSG, 502);
         }
         if (isQuotaError(error)) {
             return ResponseUtil.error(res, QUOTA_MSG, 429);
@@ -213,3 +269,4 @@ exports.suggestEvents = async (req, res) => {
         return ResponseUtil.error(res, req.__('error.server_error') || 'Server error');
     }
 };
+
