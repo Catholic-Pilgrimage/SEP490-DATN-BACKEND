@@ -62,6 +62,14 @@ class ManagerContentService {
                     model: User,
                     as: 'creator',
                     attributes: ['id', 'full_name', 'email']
+                }, {
+                    model: User,
+                    as: 'mediaReviewer',
+                    attributes: ['id', 'full_name', 'email']
+                }, {
+                    model: User,
+                    as: 'narrativeReviewer',
+                    attributes: ['id', 'full_name', 'email']
                 }],
                 order: [['created_at', 'DESC']],
                 limit,
@@ -204,7 +212,11 @@ class ManagerContentService {
                 throw new Error('Already reviewed');
             }
 
-            const updateData = { status };
+            const updateData = {
+                status,
+                reviewed_by: userId,
+                reviewed_at: new Date()
+            };
             if (status === 'rejected') {
                 updateData.rejection_reason = rejectionReason;
             }
@@ -837,7 +849,11 @@ class ManagerContentService {
                 throw new Error('No narrative to review');
             }
 
-            const updateData = { narrative_status: status };
+            const updateData = {
+                narrative_status: status,
+                narrative_reviewed_by: userId,
+                narrative_reviewed_at: new Date()
+            };
             if (status === 'rejected') {
                 updateData.narrative_rejection_reason = rejectionReason;
             } else {

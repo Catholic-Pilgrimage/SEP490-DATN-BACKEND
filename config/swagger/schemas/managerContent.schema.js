@@ -59,6 +59,14 @@
  *           type: boolean
  *           example: true
  *           description: Trạng thái active (false = đã ẩn/xóa mềm)
+ *         reviewed_by:
+ *           type: string
+ *           format: uuid
+ *           nullable: true
+ *         reviewed_at:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
  *         audio_url:
  *           type: string
  *           format: uri
@@ -86,6 +94,14 @@
  *           nullable: true
  *           example: null
  *           description: Lý do từ chối thuyết minh (nếu narrative_status = rejected)
+ *         narrative_reviewed_by:
+ *           type: string
+ *           format: uuid
+ *           nullable: true
+ *         narrative_reviewed_at:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
  *         creator:
  *           type: object
  *           description: Thông tin người upload (Local Guide)
@@ -100,6 +116,30 @@
  *               type: string
  *               format: email
  *               example: "localguide@example.com"
+ *         mediaReviewer:
+ *           type: object
+ *           nullable: true
+ *           properties:
+ *             id:
+ *               type: string
+ *               format: uuid
+ *             full_name:
+ *               type: string
+ *             email:
+ *               type: string
+ *               format: email
+ *         narrativeReviewer:
+ *           type: object
+ *           nullable: true
+ *           properties:
+ *             id:
+ *               type: string
+ *               format: uuid
+ *             full_name:
+ *               type: string
+ *             email:
+ *               type: string
+ *               format: email
  *         created_by:
  *           type: string
  *           format: uuid

@@ -393,12 +393,23 @@ CREATE TRIGGER update_verification_requests_updated_at
 CREATE TABLE IF NOT EXISTS site_media (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
-    code VARCHAR(15) UNIQUE NOT NULL,
+    code VARCHAR(20) UNIQUE NOT NULL,
     url TEXT NOT NULL,
     type media_type DEFAULT 'image',
     caption VARCHAR(255),
     status site_content_status DEFAULT 'pending',
     rejection_reason VARCHAR(500),
+    reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    reviewed_at TIMESTAMP WITH TIME ZONE,
+    
+    -- Narrative fields
+    audio_url TEXT,
+    narration_text TEXT,
+    narrative_status VARCHAR(20),
+    narrative_rejection_reason TEXT,
+    narrative_reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    narrative_reviewed_at TIMESTAMP WITH TIME ZONE,
+
     is_active BOOLEAN DEFAULT TRUE,
     is_main BOOLEAN DEFAULT FALSE,
     created_by UUID REFERENCES users(id) ON DELETE SET NULL,
