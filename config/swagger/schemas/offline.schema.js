@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @swagger
  * components:
  *   schemas:
@@ -232,6 +232,12 @@
  *         note:
  *           type: string
  *           description: "Dành cho hành động CHECK_IN (Ghi chú)"
+ *         photo_url:
+ *           type: string
+ *           description: "Dành cho hành động CHECK_IN. URL ảnh check-in đã upload sẵn"
+ *         photo_base64:
+ *           type: string
+ *           description: "Dành cho hành động CHECK_IN. Ảnh check-in dưới dạng data URL base64"
  *         title:
  *           type: string
  *           description: "Dành cho hành động CREATE_JOURNAL (Tiêu đề nhật ký)"
@@ -283,6 +289,9 @@
  *         distance_meters:
  *           type: integer
  *           description: "Khoảng cách tính bằng mét (Trả về khi CHECK_IN)"
+ *         photo_url:
+ *           type: string
+ *           description: "URL ảnh check-in đã lưu"
  *         journal_id:
  *           type: string
  *           format: uuid
@@ -292,4 +301,8 @@
  *           description: "Thông báo lỗi nếu trạng thái (status) là failed"
  */
 
+module.exports = {}; */
+
 module.exports = {};
+
+

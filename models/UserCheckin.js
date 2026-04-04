@@ -50,6 +50,10 @@ const UserCheckin = sequelize.define('UserCheckin', {
     note: {
         type: DataTypes.TEXT,
         allowNull: true
+    },
+    photo_url: {
+        type: DataTypes.TEXT,
+        allowNull: true
     }
 }, {
     tableName: 'user_checkins',

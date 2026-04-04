@@ -9,8 +9,10 @@ const {
 } = require('../controllers/pilgrim');
 const PlannerValidator = require('../validators/planner.validator');
 const OfflineValidator = require('../validators/offline.validator');
+const CheckinUploadValidator = require('../validators/checkin-upload.validator');
 const authenticate = require('../middlewares/auth.middleware');
 const CheckinController = require('../controllers/CheckinController');
+const { uploadCheckinPhoto } = require('../config/cloudinary.config');
 
 
 router.post(
@@ -96,6 +98,8 @@ router.patch(
 router.post(
     '/:id/items/:itemId/checkin',
     authenticate,
+    uploadCheckinPhoto.single('photo'),
+    CheckinUploadValidator.checkin,
     CheckinController.checkin
 );
 
