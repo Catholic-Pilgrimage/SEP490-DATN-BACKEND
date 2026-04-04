@@ -225,6 +225,8 @@ class OfflineSyncService {
         const journal = await Journal.create({
             user_id: userId,
             site_id: plannerItem.site_id,
+            planner_id: plannerItem.planner_id,
+            planner_item_id: [planner_item_id],
             title,
             content,
             privacy: privacy || 'private',

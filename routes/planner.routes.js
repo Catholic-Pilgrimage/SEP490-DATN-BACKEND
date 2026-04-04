@@ -66,6 +66,13 @@ router.post(
 );
 
 router.delete(
+    '/:id/items',
+    authenticate,
+    PlannerValidator.validatePlannerId,
+    PlannerController.clearPlannerItems
+);
+
+router.delete(
     '/:id/items/:itemId',
     authenticate,
     PlannerValidator.deleteItem,

@@ -393,6 +393,54 @@ class PlannerController {
     }
 
     /**
+     * DELETE /planners/:id/items - Clear all planner items
+     */
+    static async clearPlannerItems(req, res) {
+        try {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
+            }
+
+            let result = await PlannerService.clearPlannerItems(
+                req.params.id,
+                req.user.id
+            );
+            result = PlannerController.localizePlannerResult(req, result);
+
+            return ResponseUtil.success(res, result, req.__('planner.items_clear_success', {
+                count: result.deleted_count || 0
+            }));
+        } catch (error) {
+            if (error.message === 'Planner not found') {
+                return ResponseUtil.notFound(res, req.__('planner.not_found'));
+            }
+            if (error.message === 'Forbidden') {
+                return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
+            }
+            if (error.message === 'Cannot delete ongoing journey') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_ongoing'));
+            }
+            if (error.message === 'Cannot delete completed plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_completed'));
+            }
+            if (error.message === 'Cannot delete cancelled plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_cancelled'));
+            }
+            if (error.message === 'Planner is locked') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));
+            }
+            if (error.message === 'Cannot clear items after first invite') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_clear_after_first_invite'));
+            }
+            if (error.message === 'Cannot clear processed items') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_processed'));
+            }
+            return ResponseUtil.error(res, req.__('error.server_error'));
+        }
+    }
+
+    /**
      * DELETE /planners/:id/items/:itemId - Delete item
      */
     static async deletePlannerItem(req, res) {

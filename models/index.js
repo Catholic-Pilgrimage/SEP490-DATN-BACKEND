@@ -109,10 +109,6 @@ Site.hasMany(Journal, { foreignKey: 'site_id', as: 'journals' });
 Journal.belongsTo(Planner, { foreignKey: 'planner_id', as: 'planner' });
 Planner.hasMany(Journal, { foreignKey: 'planner_id', as: 'journals' });
 
-// Journal - PlannerItem
-Journal.belongsTo(PlannerItem, { foreignKey: 'planner_item_id', as: 'plannerItem' });
-PlannerItem.hasOne(Journal, { foreignKey: 'planner_item_id', as: 'journal' });
-
 // User - Planner
 User.hasMany(Planner, { foreignKey: 'user_id', as: 'planners' });
 Planner.belongsTo(User, { foreignKey: 'user_id', as: 'owner' });
