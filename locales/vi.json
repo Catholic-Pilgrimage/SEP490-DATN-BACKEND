@@ -689,6 +689,27 @@
     "generate_article_success": "Tạo bài viết bằng AI thành công",
     "summarize_reviews_success": "Tóm tắt đánh giá thành công",
     "suggest_events_success": "Gợi ý sự kiện bằng AI thành công",
-    "no_reviews": "Chưa có đánh giá nào để AI tóm tắt"
+    "no_reviews": "Chưa có đánh giá nào để AI tóm tắt",
+    "suggest_prayer_success": "Gợi ý lời nguyện bằng AI thành công",
+    "invalid_journal_context": "Ngữ cảnh nhật ký không hợp lệ. Vui lòng kiểm tra lại planner hoặc check-in.",
+    "prayer_context_required": "Phải cung cấp đúng 1 trong 2: planner_item_id hoặc planner_id",
+    "prayer_input_required": "Phải có ít nhất 1 trong 3: current_text, mood, hoặc intention",
+    "current_text_too_long": "Nội dung nhật ký không được vượt quá 5000 ký tự",
+    "mood_too_long": "Tâm trạng không được vượt quá 200 ký tự",
+    "intention_too_long": "Ý nguyện không được vượt quá 500 ký tự",
+    "site_ids_invalid": "site_ids phải là mảng chứa 2–15 UUID địa điểm",
+    "site_id_invalid_uuid": "Mỗi site_id phải là UUID hợp lệ",
+    "transport_mode_invalid": "transport_mode phải là car, bus, hoặc motorbike",
+    "priority_invalid": "priority phải là shortest_distance, most_spiritual, hoặc balanced",
+    "number_of_people_invalid": "number_of_people phải là số nguyên dương",
+    "start_date_invalid": "start_date phải là ngày hợp lệ (ISO 8601)",
+    "topic_required": "Chủ đề bài viết là bắt buộc",
+    "topic_length": "Chủ đề phải từ 2 đến 255 ký tự",
+    "additional_context_too_long": "Ngữ cảnh bổ sung không được vượt quá 2000 ký tự",
+    "language_invalid": "Ngôn ngữ phải là vi hoặc en",
+    "length_invalid": "Độ dài phải là short, medium, hoặc long",
+    "style_invalid": "Phong cách phải là devotional, informational, historical, hoặc youth",
+    "current_date_invalid": "current_date phải là ngày hợp lệ (ISO 8601)",
+    "count_invalid": "count phải là số nguyên từ 1 đến 10"
   }
 }

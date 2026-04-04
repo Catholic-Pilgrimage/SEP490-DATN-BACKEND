@@ -165,7 +165,7 @@ class JournalService {
 
                 // Check for existing point journal
                 const existingPoint = await Journal.findOne({
-                    where: { 
+                    where: {
                         planner_item_id: planner_item_id,
                         user_id: userId,
                         is_active: true
@@ -219,7 +219,7 @@ class JournalService {
                 if (existingSummary) {
                     throw new Error('Summary already exists');
                 }
-                
+
                 finalPlannerId = planner_id;
                 finalSiteId = null; // Summary can be site-independent
                 finalPlannerItemId = null;
@@ -282,7 +282,7 @@ class JournalService {
             const offset = (page - 1) * limit;
 
             const { rows: journals, count: total } = await Journal.findAndCountAll({
-                where: { 
+                where: {
                     user_id: userId,
                     is_active: true
                 },
@@ -326,7 +326,7 @@ class JournalService {
     static async getJournalById(journalId, userId = null) {
         try {
             const journal = await Journal.findOne({
-                where: { 
+                where: {
                     id: journalId,
                     is_active: true
                 },
@@ -343,21 +343,21 @@ class JournalService {
             // Permission check: owner or shared publicly
             if (journal.user_id !== userId) {
                 const { Post, Planner, PlannerItem } = require('../models');
-                
+
                 // 1. Check if shared directly as a post
                 const directPost = await Post.findOne({
-                    where: { 
-                        journal_id: journal.id, 
+                    where: {
+                        journal_id: journal.id,
                         status: 'published',
-                        is_active: true 
+                        is_active: true
                     }
                 });
 
                 if (!directPost) {
                     // 2. Check if part of a shared journey
                     const journeyPost = await Post.findOne({
-                        where: { 
-                            user_id: journal.user_id, 
+                        where: {
+                            user_id: journal.user_id,
                             status: 'published',
                             planner_id: { [Op.ne]: null },
                             is_active: true
@@ -394,7 +394,7 @@ class JournalService {
     static async updateJournal(journalId, userId, updateData, imageFiles = [], audioFile = null, videoFile = null) {
         try {
             const journal = await Journal.findOne({
-                where: { 
+                where: {
                     id: journalId,
                     is_active: true
                 }
@@ -479,7 +479,7 @@ class JournalService {
     static async deleteJournal(journalId, userId) {
         try {
             const journal = await Journal.findOne({
-                where: { 
+                where: {
                     id: journalId,
                     is_active: true
                 }
@@ -514,7 +514,7 @@ class JournalService {
     static async shareJournalToPost(journalId, userId) {
         try {
             const journal = await Journal.findOne({
-                where: { 
+                where: {
                     id: journalId,
                     is_active: true
                 }
@@ -590,6 +590,100 @@ class JournalService {
             created_at: journal.created_at,
             updated_at: journal.updated_at
         };
+    }
+
+    /**
+     * Resolve and validate journal context for AI Prayer Suggestion.
+     * Reuses the same authorization rules as createJournal:
+     * - planner_item_id: user must have checked-in, planner must be completed
+     * - planner_id: user must be owner or joined member, planner must be completed, user must have ≥1 check-in
+     *
+     * @param {string} userId
+     * @param {{ planner_item_id?: string, planner_id?: string }} params
+     * @returns {Promise<{ contextType: string, planner: object, site?: object, checkedInSites?: object[] }>}
+     */
+    static async resolveJournalContextForAi(userId, { planner_item_id, planner_id }) {
+        if (planner_item_id) {
+            // --- Point context (same rules as point journal) ---
+            const checkin = await UserCheckin.findOne({
+                where: {
+                    user_id: userId,
+                    planner_item_id,
+                    status: 'checked_in'
+                },
+                include: [{
+                    model: PlannerItem,
+                    as: 'plannerItem',
+                    attributes: ['id', 'site_id', 'planner_id'],
+                    include: [
+                        {
+                            model: Site,
+                            as: 'site',
+                            attributes: ['id', 'name', 'type', 'patron_saint', 'province', 'description']
+                        },
+                        {
+                            model: Planner,
+                            as: 'planner',
+                            attributes: ['id', 'name', 'status']
+                        }
+                    ]
+                }]
+            });
+
+            if (!checkin) {
+                throw new Error('You must check-in at this location before using AI prayer suggestion.');
+            }
+            if (!checkin.plannerItem?.planner) {
+                throw new Error('Associated planner not found.');
+            }
+            if (checkin.plannerItem.planner.status !== 'completed') {
+                throw new Error('Journey must be completed before using AI prayer suggestion.');
+            }
+
+            return {
+                contextType: 'planner_item',
+                planner: checkin.plannerItem.planner,
+                site: checkin.plannerItem.site || null
+            };
+        }
+
+        if (planner_id) {
+            // --- Trip summary context (same rules as summary journal) ---
+            const planner = await Planner.findByPk(planner_id, {
+                attributes: ['id', 'name', 'status', 'user_id']
+            });
+            if (!planner) {
+                throw new Error('Planner not found');
+            }
+
+            // Owner or joined member
+            if (planner.user_id !== userId) {
+                const member = await PlannerMember.findOne({
+                    where: { planner_id, user_id: userId, join_status: 'joined' }
+                });
+                if (!member) {
+                    throw new Error('Forbidden');
+                }
+            }
+
+            if (planner.status !== 'completed') {
+                throw new Error('Journey must be completed before using AI prayer suggestion.');
+            }
+
+            // Must have at least 1 check-in
+            const checkedInSites = await this.getCheckedInPlannerSites(userId, planner_id);
+            if (checkedInSites.length === 0) {
+                throw new Error('You must check-in at least one location in this journey before using AI prayer suggestion.');
+            }
+
+            return {
+                contextType: 'planner',
+                planner,
+                checkedInSites
+            };
+        }
+
+        throw new Error('Either planner_item_id or planner_id is required');
     }
 }
 

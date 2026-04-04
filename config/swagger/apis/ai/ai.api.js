@@ -3,6 +3,8 @@
  * tags:
  *   - name: AI - Route Suggestion
  *     description: AI gợi ý lộ trình hành hương (Pilgrim)
+ *   - name: AI - Prayer Suggestion
+ *     description: AI gợi ý lời nguyện cho nhật ký tâm linh (Pilgrim)
  *   - name: AI - Article Writer
  *     description: AI viết bài mô tả địa điểm (Local Guide)
  *   - name: AI - Review Summarizer
@@ -166,6 +168,101 @@
  *                           type: string
  *       400:
  *         description: Dữ liệu không hợp lệ (ít hơn 2, nhiều hơn 15, hoặc UUID sai format)
+ *       502:
+ *         description: AI trả kết quả không hợp lệ
+ *       503:
+ *         description: AI service chưa được cấu hình
+ */
+
+/**
+ * @swagger
+ * /api/ai/suggest-prayer:
+ *   post:
+ *     summary: AI gợi ý lời nguyện cho nhật ký tâm linh (Pilgrim)
+ *     description: |
+ *       Pilgrim đang viết Spiritual Journal có thể nhờ AI gợi ý lời nguyện phù hợp
+ *       với trải nghiệm hành hương hiện tại.
+ *
+ *       **Business Rules:**
+ *       - Phải truyền đúng 1 trong 2: `planner_item_id` hoặc `planner_id`
+ *       - Phải có ít nhất 1 trong 3: `current_text`, `mood`, `intention`
+ *       - User phải đã check-in (planner_item) hoặc là owner/member joined (planner)
+ *       - Planner phải ở trạng thái `completed`
+ *     tags: [AI - Prayer Suggestion]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               planner_item_id:
+ *                 type: string
+ *                 format: uuid
+ *                 description: ID điểm đến trong kế hoạch (cho point journal)
+ *                 example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+ *               planner_id:
+ *                 type: string
+ *                 format: uuid
+ *                 description: ID kế hoạch hành hương (cho trip summary journal)
+ *                 example: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+ *               current_text:
+ *                 type: string
+ *                 description: Nội dung người dùng đã viết trong journal
+ *                 example: "Hôm nay tôi đã đến Đền Thánh Đức Mẹ La Vang..."
+ *               mood:
+ *                 type: string
+ *                 description: Tâm trạng hiện tại của người hành hương
+ *                 example: "biết ơn, bình an"
+ *               intention:
+ *                 type: string
+ *                 description: Ý nguyện đặc biệt cho lời cầu nguyện
+ *                 example: "Cầu nguyện cho gia đình bình an"
+ *     responses:
+ *       200:
+ *         description: Gợi ý lời nguyện thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     prayer_text:
+ *                       type: string
+ *                       description: Lời nguyện gợi ý
+ *                       example: "Lạy Chúa, con xin tạ ơn Ngài vì hành trình hành hương đầy ơn sủng..."
+ *                     explanation:
+ *                       type: string
+ *                       description: Giải thích ngắn vì sao lời nguyện phù hợp
+ *                       example: "Lời nguyện này phù hợp vì bạn đang cảm thấy biết ơn sau chuyến viếng thăm..."
+ *                     tags:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       description: Các thẻ liên quan
+ *                       example: ["gratitude", "peace", "family"]
+ *                     metadata:
+ *                       type: object
+ *                       properties:
+ *                         generated_by:
+ *                           type: string
+ *                           example: "google_ai"
+ *                         context_type:
+ *                           type: string
+ *                           enum: [planner_item, planner]
+ *                         language:
+ *                           type: string
+ *                           example: "vi"
+ *       400:
+ *         description: Dữ liệu không hợp lệ hoặc context journal không đúng
+ *       429:
+ *         description: Vượt giới hạn request AI
  *       502:
  *         description: AI trả kết quả không hợp lệ
  *       503:

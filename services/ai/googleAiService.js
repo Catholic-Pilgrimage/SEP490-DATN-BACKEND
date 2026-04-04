@@ -90,11 +90,19 @@ Return JSON:
         Logger.info(`Google AI: Article for site=${siteId}, topic="${topic}", lang=${language}, style=${style}`);
         const result = await generateJSON('article', prompt, { temperature: 0.8 });
 
+        // Output guard
+        if (!result.title || typeof result.title !== 'string') {
+            throw new Error('AI returned invalid article schema: missing title');
+        }
+        if (!result.content || typeof result.content !== 'string') {
+            throw new Error('AI returned invalid article schema: missing content');
+        }
+
         return {
             title: result.title,
             summary: result.summary || '',
             content: result.content,
-            tags: result.tags || [],
+            tags: Array.isArray(result.tags) ? result.tags : [],
             metadata: { generated_by: 'google_ai', language, length, style, topic }
         };
     }
@@ -185,16 +193,24 @@ Return JSON:
         Logger.info(`Google AI: Summarizing ${reviews.length} reviews for site=${siteId} (total: ${totalReviews})`);
         const result = await generateJSON('review_summary', prompt, { temperature: 0.4 });
 
+        // Output guard
+        if (!result.overall_summary || typeof result.overall_summary !== 'string') {
+            throw new Error('AI returned invalid review summary schema: missing overall_summary');
+        }
+        if (!Array.isArray(result.strengths) || !Array.isArray(result.weaknesses)) {
+            throw new Error('AI returned invalid review summary schema: strengths/weaknesses must be arrays');
+        }
+
         return {
             site_name: site.name,
             total_reviews: totalReviews,
             average_rating: averageRating,
             reviews_analyzed: reviews.length,
-            overall_summary: result.overall_summary || '',
-            strengths: result.strengths || [],
-            weaknesses: result.weaknesses || [],
+            overall_summary: result.overall_summary,
+            strengths: result.strengths,
+            weaknesses: result.weaknesses,
             sentiment: result.sentiment || 'neutral',
-            highlights: result.highlights || [],
+            highlights: Array.isArray(result.highlights) ? result.highlights : [],
             metadata: { generated_by: 'google_ai', language, reviews_analyzed: reviews.length }
         };
     }
@@ -291,14 +307,120 @@ Return JSON:
         Logger.info(`Google AI: Suggesting events for site=${siteId}, date=${dateStr}, count=${count}`);
         const result = await generateJSON('events', prompt, { temperature: 0.8 });
 
+        // Output guard
+        if (!Array.isArray(result.suggestions) || result.suggestions.length === 0) {
+            throw new Error('AI returned invalid event schema: suggestions must be a non-empty array');
+        }
+        const VALID_EVENT_CATEGORIES = ['mass', 'retreat', 'procession', 'workshop', 'prayer', 'festival', 'charity', 'youth'];
+        const TIME_RE = /^\d{2}:\d{2}(:\d{2})?$/;
+        for (const s of result.suggestions) {
+            if (!s.name || !s.start_date || !s.category) {
+                throw new Error('AI returned invalid event schema: each suggestion needs name, start_date, category');
+            }
+            if (!VALID_EVENT_CATEGORIES.includes(s.category)) {
+                s.category = 'prayer'; // fallback to safe default
+            }
+            if (s.start_time && !TIME_RE.test(s.start_time)) {
+                s.start_time = null;
+            }
+            if (s.end_time && !TIME_RE.test(s.end_time)) {
+                s.end_time = null;
+            }
+        }
+
         return {
             site_name: siteName,
             current_date: dateStr,
             liturgical_season: result.liturgical_season,
             liturgical_season_en: result.liturgical_season_en,
             season_description: result.season_description,
-            suggestions: result.suggestions || [],
+            suggestions: result.suggestions,
             metadata: { generated_by: 'google_ai', count }
+        };
+    }
+
+    /**
+     * 4. Suggest a short prayer based on pilgrimage context (Journal Feature)
+     * Context is pre-validated by JournalService.resolveJournalContextForAi
+     * @param {string} userId - Pilgrim's user ID
+     * @param {{ contextType: string, planner: object, site?: object, checkedInSites?: object[] }} context
+     * @param {{ current_text?: string, mood?: string, intention?: string, language?: string }} params
+     * @returns {Promise<{prayer_text: string, explanation: string, tags: string[], metadata: object}>}
+     */
+    static async suggestPrayer(userId, context, params = {}) {
+        const { current_text, mood, intention, language = 'vi' } = params;
+        const { contextType, planner, site, checkedInSites } = context;
+
+        let contextDescription = '';
+
+        if (contextType === 'planner_item' && site) {
+            contextDescription = [
+                "Context: The pilgrim is writing a journal entry after visiting a specific site during their pilgrimage.",
+                "Pilgrimage Trip Name: " + planner.name,
+                "Site Visited: " + site.name,
+                "Site Type: " + this._typeLabel(site.type),
+                site.patron_saint ? "Patron Saint of the Site: " + site.patron_saint : "",
+                site.province ? "Province: " + site.province : ""
+            ].filter(Boolean).join("\n");
+        } else if (contextType === 'planner') {
+            const siteNames = (checkedInSites || [])
+                .map(s => s.site?.name)
+                .filter(Boolean)
+                .slice(0, 5);
+            contextDescription = [
+                "Context: The pilgrim is writing a summary journal entry after completing their entire pilgrimage trip.",
+                "Pilgrimage Trip Name: " + planner.name,
+                "Trip Status: " + planner.status,
+                siteNames.length > 0 ? "Sites visited: " + siteNames.join(", ") : ""
+            ].filter(Boolean).join("\n");
+        }
+
+        const langInstruction = language === 'en'
+            ? 'The prayer should be in English.'
+            : 'The prayer should be in Vietnamese.';
+
+        const prompt = [
+            "You are a Catholic spiritual guide helping a pilgrim write their spiritual journal.",
+            "Based on the context of their pilgrimage and the text they have written so far, suggest a short, meaningful, and personalized Catholic prayer.",
+            "",
+            contextDescription,
+            current_text ? "What the pilgrim has written so far: '" + current_text + "'" : "The pilgrim has not written anything yet.",
+            mood ? "The pilgrim's current mood/feeling: " + mood : "",
+            intention ? "The pilgrim's special intention for this prayer: " + intention : "",
+            "",
+            "Requirements:",
+            "- " + langInstruction,
+            "- It must be devotional, authentic, and use proper Catholic terminology (e.g., Lạy Chúa, xin thương xót, tạ ơn, hiệp thông, ơn sủng...).",
+            "- If a patron saint is mentioned, you can ask for their intercession (e.g., 'Nhờ lời chuyển cầu của...').",
+            "- Keep the prayer concise (about 3-5 sentences), suitable for a journal entry.",
+            "- Provide a brief explanation (1-2 sentences) of why this prayer fits their current experience.",
+            "- Provide 2-5 relevant tags (in English or Vietnamese, e.g., 'gratitude', 'peace', 'repentance', 'family').",
+            "",
+            'Return JSON:',
+            '{',
+            '  "prayer_text": "Lạy Chúa...",',
+            '  "explanation": "Lời nguyện này...",',
+            '  "tags": ["tag1", "tag2"]',
+            '}'
+        ].filter(line => line !== "").join("\n");
+
+        Logger.info("Google AI: Suggesting prayer for user=" + userId + ", type=" + contextType);
+        const result = await generateJSON('prayer', prompt, { temperature: 0.7 });
+
+        // Output guard
+        if (!result.prayer_text || typeof result.prayer_text !== 'string') {
+            throw new Error('AI returned invalid prayer schema: missing prayer_text');
+        }
+
+        return {
+            prayer_text: result.prayer_text,
+            explanation: result.explanation || '',
+            tags: Array.isArray(result.tags) ? result.tags : [],
+            metadata: {
+                generated_by: 'google_ai',
+                context_type: contextType,
+                language
+            }
         };
     }
 
