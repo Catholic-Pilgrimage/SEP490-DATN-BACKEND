@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @swagger
  * tags:
  *   name: Planners - Pilgrim
@@ -82,7 +82,6 @@
  *       401:
  *         description: Chưa xác thực
  */
-
 /**
  * @swagger
  * /api/planners:
@@ -169,6 +168,7 @@
  *       - Điểm đến phải đang ở trạng thái **upcoming**
  *       - Các điểm trước trong lịch trình phải là **visited** hoặc **skipped** thì mới được check-in điểm này
  *       - Ghi nhận thông tin GPS để xác thực có mặt
+ *       - Bắt buộc upload ảnh chụp check-in qua field `photo`
  *       - Ai check-in sẽ có bản ghi `checked_in` trong bảng `user_checkins`
  *     tags: [Check-in History - Pilgrim]
  *     security:
@@ -189,11 +189,15 @@
  *           format: uuid
  *         description: ID của item
  *     requestBody:
- *       required: false
+ *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
+ *             required:
+ *               - latitude
+ *               - longitude
+ *               - photo
  *             properties:
  *               latitude:
  *                 type: number
@@ -206,20 +210,51 @@
  *               note:
  *                 type: string
  *                 description: Ghi chú khi check-in
- *           examples:
- *             gpsCheckin:
- *               summary: Thành viên check-in với GPS
- *               value:
- *                 latitude: 10.7769
- *                 longitude: 106.7009
+ *               photo:
+ *                 type: string
+ *                 format: binary
+ *                 description: Ảnh check-in bắt buộc
  *     responses:
  *       200:
  *         description: Check-in thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Check-in thành công"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     checkin_id:
+ *                       type: string
+ *                       format: uuid
+ *                     distance:
+ *                       type: integer
+ *                       example: 45
+ *                     is_valid:
+ *                       type: boolean
+ *                       example: true
+ *                     planner_status:
+ *                       type: string
+ *                       example: "ongoing"
+ *                     photo_url:
+ *                       type: string
+ *                       example: "https://res.cloudinary.com/xxx/image/upload/v123/checkin.jpg"
+ *                     message:
+ *                       type: string
+ *                       example: "Check-in thành công"
  *       400:
  *         description: |
  *           - Điểm đến không đang ở trạng thái upcoming
  *           - Điểm trước chưa được visited/skipped
  *           - Đã check-in điểm này rồi
+ *           - Thiếu ảnh check-in hoặc tọa độ không hợp lệ
  *       401:
  *         description: Chưa xác thực
  *       403:
@@ -227,7 +262,6 @@
  *       404:
  *         description: Không tìm thấy kế hoạch hoặc item
  */
-
 /**
  * @swagger
  * /api/planners/{id}/items/{itemId}/status:
@@ -644,6 +678,7 @@
  *     description: |
  *       Trả về thông tin tiến độ check-in của tất cả thành viên.
  *       Chỉ owner hoặc member mới xem được.
+ *       `history` sẽ bao gồm cả các điểm đã `checked_in`, `missed`, và các điểm bị `skipped` bởi planner.
  *     tags: [Planners - Pilgrim]
  *     security:
  *       - bearerAuth: []
@@ -658,6 +693,76 @@
  *     responses:
  *       200:
  *         description: Thông tin tiến độ check-in của các thành viên
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Lấy tiến độ thành công"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     planner_status:
+ *                       type: string
+ *                       example: "ongoing"
+ *                     total_items:
+ *                       type: integer
+ *                       example: 5
+ *                     total_members:
+ *                       type: integer
+ *                       example: 3
+ *                     member_progress:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           user_id:
+ *                             type: string
+ *                             format: uuid
+ *                           total_items:
+ *                             type: integer
+ *                           checked_in:
+ *                             type: integer
+ *                           skipped_by_planner:
+ *                             type: integer
+ *                           missed:
+ *                             type: integer
+ *                           completed:
+ *                             type: integer
+ *                           percent:
+ *                             type: integer
+ *                             example: 80
+ *                           history:
+ *                             type: array
+ *                             items:
+ *                               type: object
+ *                               properties:
+ *                                 planner_item_id:
+ *                                   type: string
+ *                                   format: uuid
+ *                                 status:
+ *                                   type: string
+ *                                   enum: [checked_in, missed, skipped]
+ *                                 checkin_date:
+ *                                   type: string
+ *                                   format: date-time
+ *                                   nullable: true
+ *                                 photo_url:
+ *                                   type: string
+ *                                   nullable: true
+ *                                   example: "https://res.cloudinary.com/xxx/image/upload/v123/checkin.jpg"
+ *                                 skipped_at:
+ *                                   type: string
+ *                                   format: date-time
+ *                                   nullable: true
+ *                                 skip_reason:
+ *                                   type: string
+ *                                   nullable: true
  *       401:
  *         description: Chưa xác thực
  *       403:
@@ -667,3 +772,4 @@
  */
 
 module.exports = {};
+

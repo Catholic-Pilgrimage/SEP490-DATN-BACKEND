@@ -75,6 +75,10 @@ class CheckinService {
         return typeof reason === 'string' ? reason.trim() : '';
     }
 
+    static normalizePhotoUrl(photoUrl) {
+        return typeof photoUrl === 'string' ? photoUrl.trim() : '';
+    }
+
     /**
      * Check in at a planner item with GPS validation
      * @param {string} userId - User ID from JWT
@@ -84,7 +88,13 @@ class CheckinService {
      * @param {string} note - Optional check-in note
      * @returns {Promise<{distance: number, is_valid: boolean}>}
      */
-    static async checkin(userId, plannerItemId, latitude, longitude, note) {
+    static async checkin(userId, plannerItemId, latitude, longitude, note, photoUrl) {
+        const normalizedPhotoUrl = this.normalizePhotoUrl(photoUrl);
+
+        if (!normalizedPhotoUrl) {
+            throw new Error('Check-in photo is required');
+        }
+
         // Fetch planner item with associated site and planner
         const plannerItem = await PlannerItem.findByPk(plannerItemId, {
             include: [
@@ -257,7 +267,8 @@ class CheckinService {
                 distance_meters: Math.round(distance),
                 is_valid: true,
                 status: 'checked_in',
-                note: note || null
+                note: note || null,
+                photo_url: normalizedPhotoUrl
             }
         });
 
@@ -270,6 +281,7 @@ class CheckinService {
                 is_valid: true,
                 status: 'checked_in',
                 note: note || null,
+                photo_url: normalizedPhotoUrl,
                 checkin_date: new Date()
             });
         }
@@ -311,9 +323,11 @@ class CheckinService {
         }
 
         return {
+            checkin_id: checkin.id,
             distance: Math.round(distance),
             is_valid: true,
             planner_status: newPlannerStatus,
+            photo_url: normalizedPhotoUrl,
             message: 'Check-in thành công'
         };
     }
@@ -611,6 +625,7 @@ class CheckinService {
             is_valid: checkin.is_valid,
             status: checkin.status,
             note: checkin.note,
+            photo_url: checkin.photo_url,
             site: checkin.plannerItem?.site ? {
                 id: checkin.plannerItem.site.id,
                 name: checkin.plannerItem.site.name,
@@ -682,15 +697,40 @@ class CheckinService {
             const userCheckins = checkinsByUser[userId] || [];
             const checkedCount = userCheckins.filter(c => c.status === 'checked_in').length;
             const missedCount = userCheckins.filter(c => c.status === 'missed').length;
+            const userCheckinsByItemId = new Map(
+                userCheckins.map(checkin => [checkin.planner_item_id, checkin])
+            );
             
             // Những điểm Trưởng đoàn bỏ qua (skipped) được tính là đã hoàn thành (không bị trừ % tiến độ)
             const completedCount = checkedCount + plannerSkippedCount;
 
-            const checkinDetails = userCheckins.map(c => ({
-                planner_item_id: c.planner_item_id,
-                status: c.status,
-                checkin_date: c.checkin_date
-            }));
+            const checkinDetails = items.flatMap(item => {
+                const userCheckin = userCheckinsByItemId.get(item.id);
+
+                if (userCheckin) {
+                    return [{
+                        planner_item_id: userCheckin.planner_item_id,
+                        status: userCheckin.status,
+                        checkin_date: userCheckin.checkin_date,
+                        photo_url: userCheckin.photo_url || null,
+                        skipped_at: null,
+                        skip_reason: null
+                    }];
+                }
+
+                if (item.status === 'skipped') {
+                    return [{
+                        planner_item_id: item.id,
+                        status: 'skipped',
+                        checkin_date: null,
+                        photo_url: null,
+                        skipped_at: item.skipped_at || null,
+                        skip_reason: item.skip_reason || null
+                    }];
+                }
+
+                return [];
+            });
 
             return {
                 user_id: userId,

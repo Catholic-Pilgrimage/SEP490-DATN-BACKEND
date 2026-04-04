@@ -1,7 +1,37 @@
 const { OfflineSyncLog, UserCheckin, Journal, PlannerItem, Planner, PlannerMember, Site, sequelize } = require('../../models');
+const { cloudinary } = require('../../config/cloudinary.config');
 const Logger = require('../../utils/logger.util');
 
 class OfflineSyncService {
+    static normalizeString(value) {
+        return typeof value === 'string' ? value.trim() : '';
+    }
+
+    static async resolveCheckinPhotoUrl(action, userId, plannerItemId) {
+        const photoUrl = this.normalizeString(action.photo_url);
+        if (photoUrl) {
+            return photoUrl;
+        }
+
+        const photoBase64 = this.normalizeString(action.photo_base64);
+        if (!photoBase64) {
+            throw new Error('Check-in photo is required');
+        }
+
+        try {
+            const uploadResult = await cloudinary.uploader.upload(photoBase64, {
+                folder: 'catholic_pilgrimage/checkins',
+                resource_type: 'image',
+                public_id: `offline_${userId}_${plannerItemId}_${Date.now()}`
+            });
+
+            return uploadResult.secure_url;
+        } catch (error) {
+            Logger.error('Offline check-in photo upload error:', error);
+            throw new Error('Failed to upload check-in photo');
+        }
+    }
+
     /**
      * Process offline actions from mobile
      * Handles CHECK_IN and CREATE_JOURNAL actions with idempotency
@@ -132,6 +162,8 @@ class OfflineSyncService {
             throw new Error('Already checked in to this planner item');
         }
 
+        const photo_url = await this.resolveCheckinPhotoUrl(action, userId, planner_item_id);
+
         // Calculate distance if coordinates provided
         let distance_meters = null;
         let is_valid = false;
@@ -156,13 +188,15 @@ class OfflineSyncService {
             distance_meters,
             is_valid,
             checkin_date: offline_time, // Use offline time, not server time
-            note
+            note,
+            photo_url
         });
 
         return {
             checkin_id: checkin.id,
             is_valid,
-            distance_meters
+            distance_meters,
+            photo_url
         };
     }
 

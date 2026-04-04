@@ -490,6 +490,13 @@
     "planner_finished": "The plan has been {{status}}, cannot check-in",
     "item_not_open": "This site has not started (trip not ongoing) or has already been processed, cannot check-in",
     "already_checked_in": "You have already checked-in at this site",
+    "photo_required": "A check-in photo is required",
+    "latitude_required": "Latitude is required",
+    "latitude_invalid": "Latitude must be between -90 and 90",
+    "longitude_required": "Longitude is required",
+    "longitude_invalid": "Longitude must be between -180 and 180",
+    "note_invalid": "Note must be a string",
+    "note_too_long": "Note must not exceed 500 characters",
     "not_in_planner": "Planner item does not belong to this planner",
     "sequential_required": "You must follow the order! Day {{day}}, order {{order}} has not been completed.",
     "coordinates_unavailable": "Site coordinates not available",
@@ -559,6 +566,11 @@
     "parent_not_found": "Parent comment not found in this post",
     "forbidden": "You do not have permission to access this comment",
     "only_owner": "Only the comment owner can perform this action"
+  },
+  "offline": {
+    "download_success": "Offline data downloaded successfully",
+    "sync_success": "Offline data synchronized successfully",
+    "no_actions": "There are no actions to synchronize"
   },
   "calendar_sync": {
     "success": "Calendar sync data retrieved successfully",

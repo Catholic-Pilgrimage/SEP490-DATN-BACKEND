@@ -6,6 +6,7 @@
  *     description: |
  *       Lấy toàn bộ dữ liệu kế hoạch (planner) bao gồm thông tin kế hoạch, các điểm đến, hình ảnh/video, lịch trình thánh lễ và các địa điểm lân cận.
  *       Endpoint này được thiết kế để giáo dân tải toàn bộ dữ liệu cần thiết trước khi đi hành hương để sử dụng khi không có mạng.
+ *       CHECK_IN action phải có `photo_url` hoáº·c `photo_base64`.
  *     tags:
  *       - Pilgrim - Offline Mode
  *     security:
@@ -61,6 +62,7 @@
  *                     planner_item_id: "550e8400-e29b-41d4-a716-446655440000"
  *                     latitude: 10.762622
  *                     longitude: 106.660172
+ *                     photo_base64: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
  *                     note: "Arrived at Notre-Dame Cathedral"
  *             journal_example:
  *               summary: Journal creation action
@@ -83,6 +85,7 @@
  *                     planner_item_id: "550e8400-e29b-41d4-a716-446655440000"
  *                     latitude: 10.762622
  *                     longitude: 106.660172
+ *                     photo_url: "https://res.cloudinary.com/xxx/image/upload/v123/checkin.jpg"
  *                   - client_action_id: "mobile_1710501600_journal_site123"
  *                     type: "CREATE_JOURNAL"
  *                     offline_time: "2024-03-15T11:00:00Z"
@@ -110,6 +113,7 @@
  *                         checkin_id: "660e8400-e29b-41d4-a716-446655440000"
  *                         is_valid: true
  *                         distance_meters: 45
+ *                         photo_url: "https://res.cloudinary.com/xxx/image/upload/v123/checkin.jpg"
  *                       - client_action_id: "mobile_1710501600_journal_site123"
  *                         status: "synced"
  *                         journal_id: "770e8400-e29b-41d4-a716-446655440000"
@@ -125,6 +129,7 @@
  *                         checkin_id: "660e8400-e29b-41d4-a716-446655440000"
  *                         is_valid: true
  *                         distance_meters: 45
+ *                         photo_url: "https://res.cloudinary.com/xxx/image/upload/v123/checkin.jpg"
  *                       - client_action_id: "mobile_1710501600_journal_site123"
  *                         status: "failed"
  *                         error: "Không tìm thấy địa điểm trong kế hoạch"
