@@ -53,10 +53,14 @@
  *                         example: true
  *                       status:
  *                         type: string
- *                         enum: [checked_in, skipped, missed, absent]
+ *                         enum: [checked_in, missed, pending]
  *                       note:
  *                         type: string
  *                         nullable: true
+ *                       photo_url:
+ *                         type: string
+ *                         nullable: true
+ *                         example: "https://res.cloudinary.com/xxx/image/upload/v123/checkin.jpg"
  *                       site:
  *                         type: object
  *                         properties:

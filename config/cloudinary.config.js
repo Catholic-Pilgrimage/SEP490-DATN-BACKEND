@@ -73,6 +73,16 @@ const journalVideoStorage = new CloudinaryStorage({
     }
 });
 
+// Check-in photo storage
+const checkinPhotoStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'catholic_pilgrimage/checkins',
+        allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+        transformation: [{ width: 1600, height: 1600, crop: 'limit', quality: 'auto' }]
+    }
+});
+
 // Post media storage
 const postMediaStorage = new CloudinaryStorage({
     cloudinary: cloudinary,
@@ -114,6 +124,26 @@ const uploadJournalAudio = multer({
 const uploadJournalVideo = multer({
     storage: journalVideoStorage,
     limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit for video
+});
+
+const checkinPhotoFileFilter = (req, file, cb) => {
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+
+    if (file.fieldname !== 'photo') {
+        return cb(new Error('Invalid upload field for check-in photo'), false);
+    }
+
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+        return cb(new Error('Invalid image format. Allowed: jpg, png, jpeg, webp'), false);
+    }
+
+    return cb(null, true);
+};
+
+const uploadCheckinPhoto = multer({
+    storage: checkinPhotoStorage,
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: checkinPhotoFileFilter
 });
 
 const postMediaFileFilter = (req, file, cb) => {
@@ -186,6 +216,7 @@ module.exports = {
     uploadJournalImages,
     uploadJournalAudio,
     uploadJournalVideo,
+    uploadCheckinPhoto,
     uploadPostMedia,
     uploadReviewImages,
     uploadNarrativeAudio

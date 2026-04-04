@@ -731,9 +731,13 @@ CREATE TABLE IF NOT EXISTS user_checkins (
     status checkin_status DEFAULT 'checked_in', -- checked_in | skipped | missed
     checkin_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     note TEXT,
+    photo_url TEXT,
     
     UNIQUE (user_id, planner_item_id)
 );
+
+ALTER TABLE user_checkins
+ADD COLUMN IF NOT EXISTS photo_url TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_user_checkins_user ON user_checkins(user_id);
 

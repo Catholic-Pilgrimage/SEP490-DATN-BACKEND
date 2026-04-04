@@ -24,6 +24,7 @@ class CheckinController {
             // Hỗ trợ cả 2 params: :id và :itemId tùy route
             const plannerItemId = req.params.itemId || req.params.id;
             const userId = req.user.id;
+            const photoUrl = req.file?.path;
             
             // Map body keys
             const lat = checkin_latitude !== undefined ? checkin_latitude : latitude;
@@ -35,7 +36,8 @@ class CheckinController {
                 plannerItemId,
                 lat,
                 lng,
-                note
+                note,
+                photoUrl
             );
 
             return ResponseUtil.success(res, result, req.__('checkin.success'));
@@ -48,11 +50,18 @@ class CheckinController {
                 const status = err.message.split(' ')[4].replace(',', '');
                 return ResponseUtil.badRequest(res, req.__('checkin.planner_finished', { status }));
             }
-            if (err.message === 'This site has not started or has closed, cannot check-in') {
+            if (
+                err.message === 'This plan has not started yet, cannot check-in' ||
+                err.message === 'This site has already been processed, cannot check-in' ||
+                err.message === 'This site has not started or has closed, cannot check-in'
+            ) {
                 return ResponseUtil.badRequest(res, req.__('checkin.item_not_open'));
             }
             if (err.message === 'You have already checked-in at this site') {
                 return ResponseUtil.badRequest(res, req.__('checkin.already_checked_in'));
+            }
+            if (err.message === 'Check-in photo is required') {
+                return ResponseUtil.badRequest(res, req.__('checkin.photo_required'));
             }
             if (err.message === 'Planner item does not belong to this planner') {
                 return ResponseUtil.badRequest(res, req.__('checkin.not_in_planner'));
@@ -135,10 +144,16 @@ class CheckinController {
                 const status = err.message.split(' ')[4].replace(',', '');
                 return ResponseUtil.badRequest(res, req.__('checkin.planner_finished_change', { status }));
             }
-            if (err.message === 'This site is already closed, cannot change') {
+            if (
+                err.message === 'This site is already closed, cannot change' ||
+                err.message === 'This site has already been processed, cannot update status'
+            ) {
                 return ResponseUtil.badRequest(res, req.__('checkin.item_closed'));
             }
-            if (err.message === 'This site has not started or has finished, cannot complete') {
+            if (
+                err.message === 'This site has not started or has finished, cannot complete' ||
+                err.message === 'This plan is not active, cannot update site status'
+            ) {
                 return ResponseUtil.badRequest(res, req.__('checkin.item_not_in_progress'));
             }
             if (err.message === 'Owner must check in before marking site as visited') {
