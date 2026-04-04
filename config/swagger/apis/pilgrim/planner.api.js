@@ -447,6 +447,64 @@
 
 /**
  * @swagger
+ * /api/planners/{id}/items:
+ *   delete:
+ *     summary: Xóa toàn bộ địa điểm khỏi kế hoạch
+ *     description: |
+ *       Xóa toàn bộ `planner_items` của một kế hoạch trong một lần.
+ *
+ *       Điều kiện:
+ *       - Chỉ chủ kế hoạch mới được thực hiện
+ *       - Planner chưa bị lock
+ *       - Chưa gửi lời mời đầu tiên hoặc chưa có thêm thành viên tham gia
+ *       - Planner không ở trạng thái ongoing, completed, cancelled
+ *       - Tất cả item hiện tại phải còn ở trạng thái `upcoming`
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Planner ID
+ *     responses:
+ *       200:
+ *         description: Xóa toàn bộ địa điểm thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Đã xóa toàn bộ 3 địa điểm trong kế hoạch"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     planner_id:
+ *                       type: string
+ *                       format: uuid
+ *                     deleted_count:
+ *                       type: integer
+ *                       example: 3
+ *       400:
+ *         description: Planner đã lock, đã có lời mời đầu tiên, hoặc có item không còn ở trạng thái upcoming
+ *       401:
+ *         description: Chưa xác thực
+ *       403:
+ *         description: Không có quyền - không phải chủ sở hữu
+ *       404:
+ *         description: Không tìm thấy kế hoạch
+ */
+
+/**
+ * @swagger
  * /api/planners/{id}/items/{itemId}:
  *   delete:
  *     summary: Xóa một địa điểm khỏi kế hoạch
