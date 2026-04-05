@@ -24,9 +24,17 @@ const Post = sequelize.define('Post', {
             }
         }
     },
+    title: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
     image_urls: {
         type: DataTypes.ARRAY(DataTypes.TEXT),
         defaultValue: []
+    },
+    audio_url: {
+        type: DataTypes.TEXT,
+        allowNull: true
     },
     video_url: {
         type: DataTypes.TEXT,

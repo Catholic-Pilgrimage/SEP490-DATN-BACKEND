@@ -22,6 +22,10 @@
  *             required:
  *               - content
  *             properties:
+ *               title:
+ *                 type: string
+ *                 description: Tiêu đề bài viết (tùy chọn)
+ *                 example: "Nhật ký hành hương"
  *               content:
  *                 type: string
  *                 description: Nội dung bài viết
@@ -32,6 +36,10 @@
  *                   type: string
  *                   format: binary
  *                 description: Tối đa 10 ảnh, mỗi ảnh tối đa 10MB
+ *               audio:
+ *                 type: string
+ *                 format: binary
+ *                 description: 1 audio tối đa 100MB (mp3, wav, m4a, mp4, aac, ogg)
  *               video:
  *                 type: string
  *                 format: binary
@@ -161,6 +169,9 @@
  *           schema:
  *             type: object
  *             properties:
+ *               title:
+ *                 type: string
+ *                 description: Tiêu đề bài viết mới
  *               content:
  *                 type: string
  *                 description: Nội dung bài viết mới
@@ -170,6 +181,10 @@
  *                   type: string
  *                   format: binary
  *                 description: Ảnh mới (sẽ thay thế ảnh cũ)
+ *               audio:
+ *                 type: string
+ *                 format: binary
+ *                 description: Audio mới (mp3, wav, m4a, mp4, aac, ogg; sẽ thay thế audio cũ)
  *               video:
  *                 type: string
  *                 format: binary

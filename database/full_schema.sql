@@ -859,7 +859,9 @@ CREATE TABLE IF NOT EXISTS posts (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
+    title TEXT,
     image_urls TEXT[],
+    audio_url TEXT,
     video_url TEXT,
     journal_id UUID REFERENCES journals(id) ON DELETE SET NULL,
     site_id UUID REFERENCES sites(id) ON DELETE SET NULL,
@@ -871,12 +873,24 @@ CREATE TABLE IF NOT EXISTS posts (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE posts
+ADD COLUMN IF NOT EXISTS title TEXT;
+
+ALTER TABLE posts
+ADD COLUMN IF NOT EXISTS audio_url TEXT;
+
 CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id);
 CREATE INDEX IF NOT EXISTS idx_posts_group ON posts(group_id);
 CREATE INDEX IF NOT EXISTS idx_posts_journal ON posts(journal_id) WHERE journal_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_posts_site ON posts(site_id) WHERE site_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_posts_planner ON posts(planner_id) WHERE planner_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_posts_active ON posts(is_active) WHERE is_active = true;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_posts_user_journal_active
+    ON posts(user_id, journal_id)
+    WHERE journal_id IS NOT NULL AND is_active = true;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_posts_user_planner_active
+    ON posts(user_id, planner_id)
+    WHERE planner_id IS NOT NULL AND is_active = true;
 
 -- Trigger
 DROP TRIGGER IF EXISTS update_posts_updated_at ON posts;

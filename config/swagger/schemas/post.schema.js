@@ -31,11 +31,19 @@
  *         content:
  *           type: string
  *           example: "Hành trình hôm nay thật tuyệt vời!"
+ *         title:
+ *           type: string
+ *           nullable: true
+ *           example: "Nháº­t kÃ½ hÃ nh hÆ°Æ¡ng"
  *         image_urls:
  *           type: array
  *           items:
  *             type: string
  *           example: ["https://example.com/image1.jpg", "https://example.com/image2.jpg"]
+ *         audio_url:
+ *           type: string
+ *           nullable: true
+ *           example: "https://example.com/post-audio.mp3"
  *         video_url:
  *           type: string
  *           nullable: true
