@@ -115,21 +115,21 @@ exports.suggestPrayer = async (req, res) => {
 // ========================
 
 /**
- * Get the authenticated Local Guide's context.
- * If FE sends a site_id, verify it matches the guide's assigned site.
+ * Get the authenticated user's site context (Manager or Local Guide).
+ * If FE sends a site_id, verify it matches the user's assigned site.
  */
-async function resolveGuideContext(userId, requestedSiteId) {
+async function resolveSiteContext(userId, requestedSiteId) {
     const user = await User.findByPk(userId, { attributes: ['id', 'role', 'site_id', 'language'] });
 
-    if (!user || user.role !== 'local_guide') {
+    if (!user || !['local_guide', 'manager'].includes(user.role)) {
         throw new Error('Unauthorized');
     }
 
     if (!user.site_id) {
-        throw new Error('Local Guide has no site assigned');
+        throw new Error(`${user.role === 'manager' ? 'Manager' : 'Local Guide'} has no site assigned`);
     }
 
-    // If FE sent a site_id, it must match the guide's assigned site
+    // If FE sent a site_id, it must match the user's assigned site
     if (requestedSiteId && requestedSiteId !== user.site_id) {
         throw new Error('You can only use AI features for your assigned site');
     }
@@ -152,7 +152,7 @@ exports.generateArticle = async (req, res) => {
     try {
         const { topic, additional_context, language, length, style } = req.body;
 
-        const { site_id: siteId } = await resolveGuideContext(req.user.id);
+        const { site_id: siteId } = await resolveSiteContext(req.user.id);
 
         const result = await GoogleAiService.generateArticle(req.user.id, siteId, {
             topic,
@@ -197,7 +197,7 @@ exports.generateArticle = async (req, res) => {
  */
 exports.summarizeReviews = async (req, res) => {
     try {
-        const { site_id: siteId, language } = await resolveGuideContext(req.user.id);
+        const { site_id: siteId, language } = await resolveSiteContext(req.user.id);
 
         const result = await GoogleAiService.summarizeReviews(siteId, { language });
 
@@ -241,7 +241,7 @@ exports.suggestEvents = async (req, res) => {
     try {
         const { current_date, count } = req.body || {};
 
-        const { site_id: siteId } = await resolveGuideContext(req.user.id);
+        const { site_id: siteId } = await resolveSiteContext(req.user.id);
 
         const result = await GoogleAiService.suggestEvents(req.user.id, siteId, {
             currentDate: current_date,
