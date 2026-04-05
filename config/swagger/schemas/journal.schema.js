@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @swagger
  * components:
  *   schemas:
@@ -37,27 +37,48 @@
  *
  *     UpdateJournalRequest:
  *       type: object
+ *       required:
+ *         - title
+ *         - content
  *       properties:
  *         title:
  *           type: string
+ *           description: "Tiêu đề nhật ký. Bắt buộc."
  *           example: "Chuyến hành hương đến Nhà thờ Đức Bà (Cập nhật)"
  *         content:
  *           type: string
+ *           description: "Nội dung nhật ký. Bắt buộc."
  *           example: "<p>Nội dung đã được cập nhật...</p>"
  *         images:
  *           type: array
  *           items:
  *             type: string
  *             format: binary
- *           description: "Thêm ảnh mới (tổng không quá 10 ảnh)"
+ *           description: "Ảnh mới để thay thế toàn bộ danh sách ảnh hiện tại. Không gửi `images` và không gửi `image_url`/`image_urls` thì backend sẽ xóa toàn bộ ảnh."
+ *         image_urls:
+ *           type: array
+ *           items:
+ *             type: string
+ *             format: uri
+ *           description: "Danh sách URL ảnh muốn giữ lại. Nếu không gửi và cũng không upload `images` thì backend sẽ xóa toàn bộ ảnh."
  *         audio:
  *           type: string
  *           format: binary
- *           description: "Thay thế audio (sẽ xóa audio cũ)"
+ *           description: "Audio mới để thay thế audio hiện tại. Nếu không gửi `audio` và không gửi `audio_url` thì backend sẽ xóa audio hiện tại."
+ *         audio_url:
+ *           type: string
+ *           format: uri
+ *           nullable: true
+ *           description: "URL audio muốn giữ lại. Để trống hoặc không gửi thì backend sẽ xóa audio nếu không có file `audio` mới."
  *         video:
  *           type: string
  *           format: binary
- *           description: "Thay thế video (sẽ xóa video cũ)"
+ *           description: "Video mới để thay thế video hiện tại. Nếu không gửi `video` và không gửi `video_url` thì backend sẽ xóa video hiện tại."
+ *         video_url:
+ *           type: string
+ *           format: uri
+ *           nullable: true
+ *           description: "URL video muốn giữ lại. Để trống hoặc không gửi thì backend sẽ xóa video nếu không có file `video` mới."
  *
  *     JournalResponse:
  *       type: object
@@ -77,6 +98,9 @@
  *             user_id:
  *               type: string
  *               format: uuid
+ *             is_active:
+ *               type: boolean
+ *               example: true
  *             site_id:
  *               type: string
  *               format: uuid

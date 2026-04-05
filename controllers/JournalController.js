@@ -15,6 +15,10 @@ class JournalController {
             localizedResult.message = req.__('journal.delete_success');
         }
 
+        if (localizedResult.message === 'Journal restored successfully') {
+            localizedResult.message = req.__('journal.restore_success');
+        }
+
         return localizedResult;
     }
 
@@ -46,7 +50,10 @@ class JournalController {
                 return ResponseUtil.badRequest(res, req.__('journal.title_content_required'));
             }
             if (error.message === 'Already exists') {
-                return ResponseUtil.badRequest(res, req.__('journal.already_exists'));
+                return ResponseUtil.badRequest(res, req.__('journal.already_exists'), error.details || null);
+            }
+            if (error.message === 'Archived journal exists') {
+                return ResponseUtil.badRequest(res, req.__('journal.archived_exists'), error.details || null);
             }
             if (error.message === 'Planner not found') {
                 return ResponseUtil.notFound(res, req.__('journal.planner_not_found'));
@@ -67,7 +74,10 @@ class JournalController {
                 return ResponseUtil.badRequest(res, req.__('journal.planner_not_completed'));
             }
             if (error.message === 'Summary already exists') {
-                return ResponseUtil.badRequest(res, req.__('journal.summary_already_exists'));
+                return ResponseUtil.badRequest(res, req.__('journal.summary_already_exists'), error.details || null);
+            }
+            if (error.message === 'Archived summary exists') {
+                return ResponseUtil.badRequest(res, req.__('journal.archived_summary_exists'), error.details || null);
             }
             if (error.message === 'Planner Item ID or Planner ID is required') {
                 return ResponseUtil.badRequest(res, req.__('journal.id_required'));
@@ -199,6 +209,9 @@ class JournalController {
             if (error.message === 'Journal not found') {
                 return ResponseUtil.notFound(res, req.__('journal.not_found'));
             }
+            if (error.message === 'Title and content are required') {
+                return ResponseUtil.badRequest(res, req.__('journal.title_content_required'));
+            }
             if (error.message === 'Forbidden') {
                 return ResponseUtil.forbidden(res, req.__('journal.forbidden'));
             }
@@ -223,6 +236,31 @@ class JournalController {
             }
             if (error.message === 'Journal not found or already deleted') {
                 return ResponseUtil.notFound(res, req.__('journal.not_found'));
+            }
+            if (error.message === 'Forbidden') {
+                return ResponseUtil.forbidden(res, req.__('journal.forbidden'));
+            }
+            return ResponseUtil.error(res, req.__('error.server_error'));
+        }
+    }
+
+    /**
+     * PATCH /journals/:id/restore - Restore archived journal
+     */
+    static async restoreJournal(req, res) {
+        try {
+            const result = await JournalService.restoreJournal(req.params.id, req.user.id);
+            return ResponseUtil.success(res, result, req.__('journal.restore_success'));
+        } catch (error) {
+            if (error.message === 'Journal not found') {
+                return ResponseUtil.notFound(res, req.__('journal.not_found'));
+            }
+            if (error.message === 'Journal is already active') {
+                return ResponseUtil.badRequest(res, req.__('journal.already_active'));
+            }
+            if (error.message === 'Another active journal already exists for this visit.' ||
+                error.message === 'Another active summary already exists for this journey.') {
+                return ResponseUtil.badRequest(res, req.__('journal.restore_conflict'), error.details || null);
             }
             if (error.message === 'Forbidden') {
                 return ResponseUtil.forbidden(res, req.__('journal.forbidden'));

@@ -19,6 +19,76 @@ class JournalService {
         return journalData?.['planner_item_ids[]'];
     }
 
+    static getJournalImageInput(journalData = {}) {
+        if (journalData?.image_url !== undefined) {
+            return journalData.image_url;
+        }
+
+        if (journalData?.['image_url[]'] !== undefined) {
+            return journalData['image_url[]'];
+        }
+
+        if (journalData?.image_urls !== undefined) {
+            return journalData.image_urls;
+        }
+
+        return journalData?.['image_urls[]'];
+    }
+
+    static normalizeStringArrayInput(rawValue) {
+        const normalizedValues = [];
+
+        const pushValue = (value) => {
+            if (typeof value !== 'string') {
+                return;
+            }
+
+            const trimmed = value.trim();
+            if (!trimmed || trimmed.toLowerCase() === 'null') {
+                return;
+            }
+
+            normalizedValues.push(trimmed);
+        };
+
+        if (Array.isArray(rawValue)) {
+            rawValue.forEach(pushValue);
+        } else if (typeof rawValue === 'string') {
+            const trimmed = rawValue.trim();
+            if (!trimmed || trimmed.toLowerCase() === 'null') {
+                return [];
+            }
+
+            if (trimmed.startsWith('[')) {
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    if (Array.isArray(parsed)) {
+                        parsed.forEach(pushValue);
+                    }
+                } catch (error) {
+                    pushValue(trimmed);
+                }
+            } else {
+                pushValue(trimmed);
+            }
+        }
+
+        return normalizedValues;
+    }
+
+    static normalizeNullableStringInput(value) {
+        if (value === undefined || value === null) {
+            return null;
+        }
+
+        const trimmed = String(value).trim();
+        if (!trimmed || trimmed.toLowerCase() === 'null') {
+            return null;
+        }
+
+        return trimmed;
+    }
+
     static formatModel3D(media) {
         if (!media) {
             return null;
@@ -236,6 +306,91 @@ class JournalService {
         ])];
     }
 
+    static selectPreferredJournal(journals = []) {
+        return [...journals]
+            .sort((left, right) => {
+                const activeDiff = Number(Boolean(right?.is_active)) - Number(Boolean(left?.is_active));
+                if (activeDiff !== 0) {
+                    return activeDiff;
+                }
+
+                const rightUpdatedAt = new Date(right?.updated_at || right?.created_at || 0).getTime();
+                const leftUpdatedAt = new Date(left?.updated_at || left?.created_at || 0).getTime();
+                return rightUpdatedAt - leftUpdatedAt;
+            })[0] || null;
+    }
+
+    static createJournalConflictError(message, journal = null) {
+        const error = new Error(message);
+
+        if (journal?.id) {
+            error.details = {
+                journal_id: journal.id,
+                is_active: Boolean(journal.is_active),
+                can_restore: !journal.is_active
+            };
+        }
+
+        return error;
+    }
+
+    static async findExistingPointJournal(userId, plannerItemIds = [], options = {}) {
+        const normalizedPlannerItemIds = this.normalizePlannerItemIds(plannerItemIds);
+        if (normalizedPlannerItemIds.length === 0) {
+            return null;
+        }
+
+        const where = {
+            user_id: userId,
+            planner_item_id: {
+                [Op.overlap]: normalizedPlannerItemIds
+            }
+        };
+
+        if (options.excludeJournalId) {
+            where.id = { [Op.ne]: options.excludeJournalId };
+        }
+
+        if (options.activeOnly) {
+            where.is_active = true;
+        }
+
+        const journals = await Journal.findAll({
+            where,
+            attributes: ['id', 'planner_item_id', 'is_active', 'created_at', 'updated_at']
+        });
+
+        return this.selectPreferredJournal(journals);
+    }
+
+    static async findExistingSummaryJournal(userId, plannerId, options = {}) {
+        if (!plannerId) {
+            return null;
+        }
+
+        const where = {
+            user_id: userId,
+            planner_id: plannerId
+        };
+
+        if (options.excludeJournalId) {
+            where.id = { [Op.ne]: options.excludeJournalId };
+        }
+
+        if (options.activeOnly) {
+            where.is_active = true;
+        }
+
+        const journals = await Journal.findAll({
+            where,
+            attributes: ['id', 'planner_item_id', 'is_active', 'created_at', 'updated_at']
+        });
+
+        return this.selectPreferredJournal(
+            journals.filter(journal => this.resolveJournalPlannerItemIds(journal).length === 0)
+        );
+    }
+
     static async getApprovedModel3DMap(siteIds = []) {
         const normalizedSiteIds = [...new Set(siteIds.filter(Boolean))];
         if (normalizedSiteIds.length === 0) {
@@ -398,17 +553,12 @@ class JournalService {
                 }
 
                 // Check for existing point journal
-                const existingPoint = await Journal.findOne({
-                    where: {
-                        user_id: userId,
-                        is_active: true,
-                        planner_item_id: {
-                            [Op.overlap]: requestedPlannerItemIds
-                        }
-                    }
-                });
+                const existingPoint = await this.findExistingPointJournal(userId, requestedPlannerItemIds);
                 if (existingPoint) {
-                    throw new Error('Already exists');
+                    throw this.createJournalConflictError(
+                        existingPoint.is_active ? 'Already exists' : 'Archived journal exists',
+                        existingPoint
+                    );
                 }
 
                 const resolvedSiteIds = [...new Set(orderedPlannerItems.map(item => item.site_id).filter(Boolean))];
@@ -446,19 +596,12 @@ class JournalService {
                     throw new Error('You must check-in at least one location in this journey before creating a summary.');
                 }
 
-                const existingJournals = await Journal.findAll({
-                    where: {
-                        planner_id: planner_id,
-                        user_id: userId,
-                        is_active: true
-                    },
-                    attributes: ['id', 'planner_item_id']
-                });
-                const existingSummary = existingJournals.find(existingJournal =>
-                    this.resolveJournalPlannerItemIds(existingJournal).length === 0
-                );
+                const existingSummary = await this.findExistingSummaryJournal(userId, planner_id);
                 if (existingSummary) {
-                    throw new Error('Summary already exists');
+                    throw this.createJournalConflictError(
+                        existingSummary.is_active ? 'Summary already exists' : 'Archived summary exists',
+                        existingSummary
+                    );
                 }
 
                 finalPlannerId = planner_id;
@@ -516,14 +659,21 @@ class JournalService {
      */
     static async getUserJournals(userId, filters = {}) {
         try {
-            const { page = 1, limit = 10 } = filters;
+            const { page = 1, limit = 10, is_active = 'true' } = filters;
             const offset = (page - 1) * limit;
+            const normalizedIsActive = String(is_active).trim().toLowerCase();
+            const where = {
+                user_id: userId
+            };
+
+            if (normalizedIsActive === 'true') {
+                where.is_active = true;
+            } else if (normalizedIsActive === 'false') {
+                where.is_active = false;
+            }
 
             const { rows: journals, count: total } = await Journal.findAndCountAll({
-                where: {
-                    user_id: userId,
-                    is_active: true
-                },
+                where,
                 include: this.getJournalInclude(),
                 limit: parseInt(limit),
                 offset,
@@ -632,50 +782,46 @@ class JournalService {
                 throw new Error('Forbidden');
             }
 
-            // Validate image limit if adding new images
+            const normalizedTitle = typeof updateData.title === 'string' ? updateData.title.trim() : '';
+            const normalizedContent = typeof updateData.content === 'string' ? updateData.content.trim() : '';
+
+            if (!normalizedTitle || !normalizedContent) {
+                throw new Error('Title and content are required');
+            }
+
+            const requestedImageUrls = this.normalizeStringArrayInput(this.getJournalImageInput(updateData));
+            const requestedAudioUrl = this.normalizeNullableStringInput(updateData.audio_url);
+            const requestedVideoUrl = this.normalizeNullableStringInput(updateData.video_url);
+
+            let finalImageUrls = requestedImageUrls;
             if (imageFiles && imageFiles.length > 0) {
-                const currentImageCount = journal.image_url ? journal.image_url.length : 0;
-                const newImageCount = imageFiles.length;
-                if (currentImageCount + newImageCount > 10) {
-                    throw new Error('Maximum 10 images allowed');
-                }
+                const uploadedImageUrls = imageFiles.map(file => file.path || file.url).filter(Boolean);
+                finalImageUrls = [...new Set([...requestedImageUrls, ...uploadedImageUrls])];
+            }
+
+            if (finalImageUrls.length > 10) {
+                throw new Error('Maximum 10 images allowed');
+            }
+
+            let finalAudioUrl = requestedAudioUrl;
+            if (audioFile) {
+                finalAudioUrl = audioFile.path || audioFile.url || null;
+            }
+
+            let finalVideoUrl = requestedVideoUrl;
+            if (videoFile) {
+                finalVideoUrl = videoFile.path || videoFile.url || null;
             }
 
             // Prepare update data
-            const dataToUpdate = {};
-
-            if (updateData.title !== undefined) {
-                dataToUpdate.title = updateData.title.trim();
-            }
-
-            if (updateData.content !== undefined) {
-                dataToUpdate.content = updateData.content.trim();
-            }
-
-            // Note: privacy cannot be changed
-            dataToUpdate.privacy = 'private';
-
-            // Note: site_id cannot be changed after creation
-
-            // Handle image URLs (append new images to existing)
-            if (imageFiles && imageFiles.length > 0) {
-                const newImageUrls = imageFiles.map(file => file.path);
-                const existingImages = journal.image_url || [];
-                if (existingImages.length + newImageUrls.length > 10) {
-                    throw new Error('Maximum 10 images allowed');
-                }
-                dataToUpdate.image_url = [...existingImages, ...newImageUrls];
-            }
-
-            // Handle audio URL
-            if (audioFile) {
-                dataToUpdate.audio_url = audioFile.path;
-            }
-
-            // Handle video URL
-            if (videoFile) {
-                dataToUpdate.video_url = videoFile.path;
-            }
+            const dataToUpdate = {
+                title: normalizedTitle,
+                content: normalizedContent,
+                image_url: finalImageUrls,
+                audio_url: finalAudioUrl,
+                video_url: finalVideoUrl,
+                privacy: 'private'
+            };
 
             // Update journal
             await journal.update(dataToUpdate);
@@ -724,6 +870,67 @@ class JournalService {
             };
         } catch (error) {
             Logger.error('Delete journal error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Restore journal (owner only)
+     */
+    static async restoreJournal(journalId, userId) {
+        try {
+            const journal = await Journal.findOne({
+                where: { id: journalId }
+            });
+
+            if (!journal) {
+                throw new Error('Journal not found');
+            }
+
+            if (journal.user_id !== userId) {
+                throw new Error('Forbidden');
+            }
+
+            if (journal.is_active) {
+                throw new Error('Journal is already active');
+            }
+
+            const plannerItemIds = this.normalizePlannerItemIds(journal.planner_item_id);
+
+            if (plannerItemIds.length > 0) {
+                const existingPoint = await this.findExistingPointJournal(userId, plannerItemIds, {
+                    activeOnly: true,
+                    excludeJournalId: journalId
+                });
+
+                if (existingPoint) {
+                    const error = new Error('Another active journal already exists for this visit.');
+                    error.details = { journal_id: existingPoint.id };
+                    throw error;
+                }
+            } else if (journal.planner_id) {
+                const existingSummary = await this.findExistingSummaryJournal(userId, journal.planner_id, {
+                    activeOnly: true,
+                    excludeJournalId: journalId
+                });
+
+                if (existingSummary) {
+                    const error = new Error('Another active summary already exists for this journey.');
+                    error.details = { journal_id: existingSummary.id };
+                    throw error;
+                }
+            }
+
+            await journal.update({ is_active: true });
+
+            const result = await Journal.findByPk(journalId, {
+                include: this.getJournalInclude()
+            });
+
+            Logger.info(`Journal restored by user ${userId}: ${journalId}`);
+            return this.buildJournalResponse(result);
+        } catch (error) {
+            Logger.error('Restore journal error:', error);
             throw error;
         }
     }
@@ -799,6 +1006,7 @@ class JournalService {
         return {
             id: journal.id,
             user_id: journal.user_id,
+            is_active: journal.is_active,
             site_id: journal.site_id,
             resolved_site_id: resolvedSite.siteId,
             planner_id: journal.planner_id,
