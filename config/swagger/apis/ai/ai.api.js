@@ -273,16 +273,20 @@
  * @swagger
  * /api/ai/generate-article:
  *   post:
- *     summary: AI viết bài mô tả địa điểm hành hương (Local Guide only)
+ *     summary: AI viết bài mô tả địa điểm hành hương (Manager & Local Guide)
  *     description: |
  *       Tạo bài viết về địa điểm hành hương với nhiều phong cách.
- *       AI sẽ tự lấy thông tin site, bao gồm history đầy đủ, theo site được gán cho Local Guide.
+ *       AI sẽ tự lấy thông tin site, bao gồm history đầy đủ, theo site được gán cho user.
+ *
+ *       Dùng cho:
+ *       - **Manager**: Tạo nội dung để cập nhật mô tả / lịch sử site, hoặc viết kịch bản thuyết minh cho 3D Model
+ *       - **Local Guide**: Tạo kịch bản thuyết minh (narrative) cho 3D Model
  *
  *       Cải tiến:
  *       - Thêm param `style` để chọn phong cách viết
  *       - Lấy full `site.history` thay vì cắt 500 ký tự
  *       - Output có thêm `summary` cho FE preview
- *       - Không cần truyền `site_id`, hệ thống tự resolve từ tài khoản Local Guide
+ *       - Không cần truyền `site_id`, hệ thống tự resolve từ tài khoản user
  *     tags: [AI - Article Writer]
  *     security:
  *       - bearerAuth: []

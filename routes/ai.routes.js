@@ -34,11 +34,11 @@ router.post(
 // LOCAL GUIDE AI
 // ========================
 
-// POST /api/ai/generate-article - AI Article Writer
+// POST /api/ai/generate-article - AI Article Writer (Manager + Local Guide)
 router.post(
     '/generate-article',
     authMiddleware,
-    authMiddleware.authorize('local_guide'),
+    authMiddleware.authorize('manager', 'local_guide'),
     AiValidator.generateArticle,
     validate,
     AiController.generateArticle
