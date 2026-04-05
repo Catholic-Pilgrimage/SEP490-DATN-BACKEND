@@ -66,7 +66,7 @@ const GuideShiftSubmission = sequelize.define('GuideShiftSubmission', {
         type: DataTypes.TEXT,
         allowNull: true
     },
-    approved_by: {
+    reviewed_by: {
         type: DataTypes.UUID,
         allowNull: true,
         references: {
@@ -74,7 +74,7 @@ const GuideShiftSubmission = sequelize.define('GuideShiftSubmission', {
             key: 'id'
         }
     },
-    approved_at: {
+    reviewed_at: {
         type: DataTypes.DATE,
         allowNull: true
     },

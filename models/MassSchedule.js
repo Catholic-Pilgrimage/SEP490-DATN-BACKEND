@@ -69,6 +69,19 @@ const MassSchedule = sequelize.define('MassSchedule', {
             key: 'id'
         },
         onDelete: 'SET NULL'
+    },
+    reviewed_by: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'users',
+            key: 'id'
+        },
+        onDelete: 'SET NULL'
+    },
+    reviewed_at: {
+        type: DataTypes.DATE,
+        allowNull: true
     }
 }, {
     tableName: 'mass_schedules',

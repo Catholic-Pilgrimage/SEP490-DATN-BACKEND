@@ -88,6 +88,19 @@ const Event = sequelize.define('Event', {
             key: 'id'
         },
         onDelete: 'SET NULL'
+    },
+    reviewed_by: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'users',
+            key: 'id'
+        },
+        onDelete: 'SET NULL'
+    },
+    reviewed_at: {
+        type: DataTypes.DATE,
+        allowNull: true
     }
 }, {
     tableName: 'events',

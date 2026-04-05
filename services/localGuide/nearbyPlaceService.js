@@ -126,6 +126,11 @@ class LocalGuideNearbyPlaceService {
 
             const { count, rows } = await NearbyPlace.findAndCountAll({
                 where,
+                include: [{
+                    model: User,
+                    as: 'reviewer',
+                    attributes: ['id', 'full_name', 'email']
+                }],
                 order: [['created_at', 'DESC']],
                 limit,
                 offset
