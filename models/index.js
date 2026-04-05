@@ -34,6 +34,7 @@ const NearbyPlaceReview = require('./NearbyPlaceReview');
 const SiteReviewReply = require('./SiteReviewReply');
 const NearbyPlaceReviewReply = require('./NearbyPlaceReviewReply');
 const Friendship = require('./Friendship');
+const AiCache = require('./AiCache');
 
 // ===================== WALLETS & TRANSACTIONS =====================
 
@@ -373,7 +374,8 @@ const db = {
   NearbyPlaceReview,
   SiteReviewReply,
   NearbyPlaceReviewReply,
-  Friendship
+  Friendship,
+  AiCache
 };
 
 module.exports = db;
