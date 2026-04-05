@@ -75,6 +75,12 @@ router.post(
 );
 
 router.patch(
+    '/:id/restore',
+    authenticate,
+    JournalController.restoreJournal
+);
+
+router.patch(
     '/:id',
     authenticate,
     uploadJournal,
