@@ -436,6 +436,26 @@
  *             email:
  *               type: string
  *               format: email
+ *         reviewed_by:
+ *           type: string
+ *           format: uuid
+ *           nullable: true
+ *         scheduleReviewer:
+ *           type: object
+ *           nullable: true
+ *           properties:
+ *             id:
+ *               type: string
+ *               format: uuid
+ *             full_name:
+ *               type: string
+ *             email:
+ *               type: string
+ *               format: email
+ *         reviewed_at:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
  */
 
 // ===================== SCHEDULES =====================
@@ -943,6 +963,26 @@
  *             email:
  *               type: string
  *               format: email
+ *         reviewed_by:
+ *           type: string
+ *           format: uuid
+ *           nullable: true
+ *         eventReviewer:
+ *           type: object
+ *           nullable: true
+ *           properties:
+ *             id:
+ *               type: string
+ *               format: uuid
+ *             full_name:
+ *               type: string
+ *             email:
+ *               type: string
+ *               format: email
+ *         reviewed_at:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
  */
 
 // ===================== NEARBY PLACES =====================

@@ -126,6 +126,11 @@ class LocalGuideScheduleService {
 
             const schedules = await MassSchedule.findAll({
                 where,
+                include: [{
+                    model: User,
+                    as: 'scheduleReviewer',
+                    attributes: ['id', 'full_name', 'email']
+                }],
                 order: [['time', 'ASC']],
                 limit,
                 offset
@@ -200,6 +205,8 @@ class LocalGuideScheduleService {
             if (schedule.status === 'rejected') {
                 dataToUpdate.status = 'pending';
                 dataToUpdate.rejection_reason = null;
+                dataToUpdate.reviewed_by = null;
+                dataToUpdate.reviewed_at = null;
             }
 
             await schedule.update(dataToUpdate);

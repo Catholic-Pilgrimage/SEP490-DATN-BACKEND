@@ -116,6 +116,11 @@ class LocalGuideEventService {
 
             const events = await Event.findAll({
                 where,
+                include: [{
+                    model: User,
+                    as: 'eventReviewer',
+                    attributes: ['id', 'full_name', 'email']
+                }],
                 order: [['start_date', 'ASC'], ['start_time', 'ASC']],
                 limit,
                 offset
@@ -179,6 +184,8 @@ class LocalGuideEventService {
             if (event.status === 'rejected') {
                 dataToUpdate.status = 'pending';
                 dataToUpdate.rejection_reason = null;
+                dataToUpdate.reviewed_by = null;
+                dataToUpdate.reviewed_at = null;
             }
 
             await event.update(dataToUpdate);

@@ -348,11 +348,18 @@ class ManagerContentService {
 
             const scheduleList = await MassSchedule.findAll({
                 where,
-                include: [{
-                    model: User,
-                    as: 'creator',
-                    attributes: ['id', 'full_name', 'email']
-                }],
+                include: [
+                    {
+                        model: User,
+                        as: 'creator',
+                        attributes: ['id', 'full_name', 'email']
+                    },
+                    {
+                        model: User,
+                        as: 'scheduleReviewer',
+                        attributes: ['id', 'full_name', 'email']
+                    }
+                ],
                 order: [['time', 'ASC']],
                 limit,
                 offset
@@ -408,7 +415,7 @@ class ManagerContentService {
                 throw new Error('Already reviewed');
             }
 
-            const updateData = { status };
+            const updateData = { status, reviewed_by: userId, reviewed_at: new Date() };
             if (status === 'rejected') {
                 updateData.rejection_reason = rejectionReason;
             }
@@ -513,11 +520,18 @@ class ManagerContentService {
 
             const eventList = await Event.findAll({
                 where,
-                include: [{
-                    model: User,
-                    as: 'creator',
-                    attributes: ['id', 'full_name', 'email']
-                }],
+                include: [
+                    {
+                        model: User,
+                        as: 'creator',
+                        attributes: ['id', 'full_name', 'email']
+                    },
+                    {
+                        model: User,
+                        as: 'eventReviewer',
+                        attributes: ['id', 'full_name', 'email']
+                    }
+                ],
                 order: [['start_date', 'ASC']],
                 limit,
                 offset
@@ -573,7 +587,7 @@ class ManagerContentService {
                 throw new Error('Already reviewed');
             }
 
-            const updateData = { status };
+            const updateData = { status, reviewed_by: userId, reviewed_at: new Date() };
             if (status === 'rejected') {
                 updateData.rejection_reason = rejectionReason;
             }
@@ -677,6 +691,11 @@ class ManagerContentService {
                     {
                         model: User,
                         as: 'creator',
+                        attributes: ['id', 'full_name', 'email']
+                    },
+                    {
+                        model: User,
+                        as: 'reviewer',
                         attributes: ['id', 'full_name', 'email']
                     }
                 ],

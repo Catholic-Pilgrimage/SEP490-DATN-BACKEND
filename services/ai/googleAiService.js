@@ -345,7 +345,7 @@ For each event provide data that can be directly used to create an event:
 - start_time: HH:mm:ss format (e.g. "08:00:00", "19:30:00")
 - end_time: HH:mm:ss format
 - location: Specific location within or near the site (e.g. "Sân nhà thờ", "Hội trường giáo xứ")
-- category: One of: mass, retreat, procession, workshop, prayer, festival, charity, youth
+- category: One of: solemn_feast, sacrament_mass, procession, adoration, patron_feast, festival, performance, sports, retreat, camp, course, pilgrimage, charity
 
 Return JSON:
 {
@@ -375,14 +375,14 @@ Return JSON:
         if (!Array.isArray(result.suggestions) || result.suggestions.length === 0) {
             throw new Error('AI returned invalid event schema: suggestions must be a non-empty array');
         }
-        const VALID_EVENT_CATEGORIES = ['mass', 'retreat', 'procession', 'workshop', 'prayer', 'festival', 'charity', 'youth'];
+        const VALID_EVENT_CATEGORIES = ['solemn_feast', 'sacrament_mass', 'procession', 'adoration', 'patron_feast', 'festival', 'performance', 'sports', 'retreat', 'camp', 'course', 'pilgrimage', 'charity'];
         const TIME_RE = /^\d{2}:\d{2}(:\d{2})?$/;
         for (const s of result.suggestions) {
             if (!s.name || !s.start_date || !s.category) {
                 throw new Error('AI returned invalid event schema: each suggestion needs name, start_date, category');
             }
             if (!VALID_EVENT_CATEGORIES.includes(s.category)) {
-                s.category = 'prayer'; // fallback to safe default
+                s.category = 'pilgrimage'; // fallback to safe default
             }
             if (s.start_time && !TIME_RE.test(s.start_time)) {
                 s.start_time = null;

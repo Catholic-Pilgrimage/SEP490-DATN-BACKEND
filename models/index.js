@@ -90,6 +90,12 @@ Event.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
 User.hasMany(Event, { foreignKey: 'created_by', as: 'createdEvents' });
 Event.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
 
+// Event - User (reviewed_by)
+Event.belongsTo(User, { foreignKey: 'reviewed_by', as: 'eventReviewer' });
+
+// MassSchedule - User (reviewed_by)
+MassSchedule.belongsTo(User, { foreignKey: 'reviewed_by', as: 'scheduleReviewer' });
+
 // VerificationRequest - User (applicant)
 User.hasMany(VerificationRequest, { foreignKey: 'user_id', as: 'verificationRequests' });
 VerificationRequest.belongsTo(User, { foreignKey: 'user_id', as: 'applicant' });
@@ -184,8 +190,8 @@ GuideShiftSubmission.belongsTo(User, { foreignKey: 'guide_id', as: 'guide' });
 Site.hasMany(GuideShiftSubmission, { foreignKey: 'site_id', as: 'shiftSubmissions' });
 GuideShiftSubmission.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
 
-// GuideShiftSubmission - User (approved_by)
-GuideShiftSubmission.belongsTo(User, { foreignKey: 'approved_by', as: 'approver' });
+// GuideShiftSubmission - User (reviewed_by)
+GuideShiftSubmission.belongsTo(User, { foreignKey: 'reviewed_by', as: 'reviewer' });
 
 // GuideShiftSubmission - Self reference (previous submission)
 GuideShiftSubmission.belongsTo(GuideShiftSubmission, { foreignKey: 'previous_submission_id', as: 'previousSubmission' });
