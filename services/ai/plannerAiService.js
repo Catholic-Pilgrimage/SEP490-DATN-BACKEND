@@ -5,6 +5,11 @@ const Logger = require('../../utils/logger.util');
 /**
  * Planner AI Service — AI Route Suggestion for Pilgrims
  *
+ *  NO DB CACHE (Phase 1) — suggestRoute requests have very high parameter variance
+ *    (variable site_ids, transport_mode, priority combinations), making DB cache hit rates
+ *    too low to be effective. Consider caching in Phase 2 with short TTL exact-request match.
+ *    See aiCacheService.js for architecture rationale.
+ *
  * Output aligned with PlannerService schema:
  *   createPlanner: { name, estimated_days, transportation, start_date, end_date }
  *   addPlannerItem: { site_id, day_number, order_index, estimated_time, rest_duration, travel_time_minutes, note }
