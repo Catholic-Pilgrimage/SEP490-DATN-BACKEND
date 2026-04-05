@@ -45,15 +45,6 @@ class PostService {
         };
     }
 
-    async enrichJournalForPost(journal) {
-        if (!journal) {
-            return null;
-        }
-
-        const JournalService = require('./journalService');
-        return JournalService.buildJournalResponse(journal);
-    }
-
     async enrichPlannerJourneyForPost(post) {
         if (!post?.planner) {
             return null;
@@ -93,12 +84,124 @@ class PostService {
         };
     }
 
+    getPostIncludes() {
+        return [
+            {
+                model: User,
+                as: 'author',
+                attributes: ['id', 'full_name', 'avatar_url']
+            },
+            {
+                model: Journal,
+                as: 'sourceJournal',
+                attributes: ['id', 'title', 'content', 'image_url', 'audio_url', 'video_url', 'site_id', 'is_active']
+            },
+            {
+                model: Site,
+                as: 'site',
+                attributes: ['id', 'name', 'province']
+            },
+            {
+                model: Planner,
+                as: 'planner',
+                attributes: ['id', 'name', 'start_date', 'end_date', 'status'],
+                include: [
+                    {
+                        model: PlannerItem,
+                        as: 'items',
+                        attributes: ['id', 'leg_number', 'order_index', 'status', 'site_id'],
+                        include: [
+                            {
+                                model: Site,
+                                as: 'site',
+                                attributes: ['id', 'name', 'province', 'cover_image']
+                            }
+                        ]
+                    }
+                ]
+            }
+        ];
+    }
+
+    normalizePostTitle(title) {
+        if (title === undefined) {
+            return undefined;
+        }
+
+        if (title === null) {
+            return null;
+        }
+
+        const normalizedTitle = String(title).trim();
+        return normalizedTitle || null;
+    }
+
+    shouldUseLegacyJournalSnapshot(postData) {
+        if (!postData?.journal_id || !postData?.sourceJournal || postData.sourceJournal.is_active === false) {
+            return false;
+        }
+
+        const hasSnapshotTitle = Boolean(postData.title && String(postData.title).trim());
+        const hasSnapshotImages = Array.isArray(postData.image_urls) && postData.image_urls.length > 0;
+        const hasSnapshotAudio = Boolean(postData.audio_url);
+        const hasSnapshotVideo = Boolean(postData.video_url);
+        const hasCustomContent = Boolean(
+            postData.content &&
+            String(postData.content).trim() &&
+            postData.content !== postData.sourceJournal.content
+        );
+
+        return !hasSnapshotTitle && !hasSnapshotImages && !hasSnapshotAudio && !hasSnapshotVideo && !hasCustomContent;
+    }
+
+    buildJournalSnapshot(postData) {
+        if (!postData?.journal_id) {
+            return null;
+        }
+
+        return {
+            id: postData.journal_id,
+            title: postData.title || null,
+            content: postData.content || null,
+            image_url: postData.image_urls || [],
+            audio_url: postData.audio_url || null,
+            video_url: postData.video_url || null,
+            site_id: postData.site_id || null,
+            is_snapshot: true
+        };
+    }
+
+    async formatPostResponse(post, extraFields = {}) {
+        const postData = post.toJSON();
+
+        if (this.shouldUseLegacyJournalSnapshot(postData)) {
+            postData.title = postData.sourceJournal.title || postData.title || null;
+            postData.content = postData.sourceJournal.content || postData.content;
+            postData.image_urls = postData.sourceJournal.image_url || [];
+            postData.audio_url = postData.sourceJournal.audio_url || null;
+            postData.video_url = postData.sourceJournal.video_url || null;
+            postData.site_id = postData.site_id || postData.sourceJournal.site_id || null;
+        }
+
+        if (postData.planner_id && postData.planner) {
+            postData.journey = await this.enrichPlannerJourneyForPost(post);
+        }
+
+        postData.sourceJournal = this.buildJournalSnapshot(postData);
+
+        return {
+            ...postData,
+            ...extraFields
+        };
+    }
+
     /**
      * Create a new post
      */
     async createPost(userId, data) {
         try {
-            const { content, image_urls, video_url, site_id } = data;
+            const { title, content, image_urls, audio_url, video_url, site_id } = data;
+            const normalizedTitle = this.normalizePostTitle(title);
 
             // If site_id is provided, validate check-in
             if (site_id) {
@@ -122,8 +225,10 @@ class PostService {
             // Create post
             const post = await Post.create({
                 user_id: userId,
+                title: normalizedTitle,
                 content,
                 image_urls: image_urls || [],
+                audio_url: audio_url || null,
                 video_url: video_url || null,
                 site_id: site_id || null,
                 status: 'published'
@@ -152,56 +257,7 @@ class PostService {
             const { count, rows: posts } = await Post.findAndCountAll({
                 where: whereClause,
                 distinct: true,
-                include: [
-                    {
-                        model: User,
-                        as: 'author',
-                        attributes: ['id', 'full_name', 'avatar_url']
-                    },
-                    {
-                        model: Journal,
-                        as: 'sourceJournal',
-                        attributes: [
-                            'id',
-                            'user_id',
-                            'site_id',
-                            'planner_id',
-                            'planner_item_id',
-                            'title',
-                            'content',
-                            'image_url',
-                            'audio_url',
-                            'video_url',
-                            'privacy',
-                            'created_at',
-                            'updated_at'
-                        ]
-                    },
-                    {
-                        model: Site,
-                        as: 'site',
-                        attributes: ['id', 'name', 'province']
-                    },
-                    {
-                        model: Planner,
-                        as: 'planner',
-                        attributes: ['id', 'name', 'start_date', 'end_date', 'status'],
-                        include: [
-                            {
-                                model: PlannerItem,
-                                as: 'items',
-                                attributes: ['id', 'leg_number', 'order_index', 'status', 'site_id'],
-                                include: [
-                                    {
-                                        model: Site,
-                                        as: 'site',
-                                        attributes: ['id', 'name', 'province', 'cover_image']
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                ],
+                include: this.getPostIncludes(),
                 order: [['created_at', 'DESC']],
                 limit: parseInt(limit),
                 offset: parseInt(offset)
@@ -225,27 +281,10 @@ class PostService {
                         })
                     ]);
 
-                    const postData = post.toJSON();
-
-                    // If shared from journal, override content/images if they are empty in post
-                    if (post.journal_id && post.sourceJournal) {
-                        postData.sourceJournal = await this.enrichJournalForPost(post.sourceJournal);
-                        postData.content = postData.sourceJournal.content;
-                        postData.image_urls = postData.sourceJournal.image_url || [];
-                        postData.video_url = postData.sourceJournal.video_url || null;
-                        postData.title = postData.sourceJournal.title;
-                    }
-
-                    // If shared from planner, enrich journey data with journals
-                    if (post.planner_id && post.planner) {
-                        postData.journey = await this.enrichPlannerJourneyForPost(post);
-                    }
-
-                    return {
-                        ...postData,
+                    return this.formatPostResponse(post, {
                         is_liked: !!isLiked,
                         comments_count: commentsCount
-                    };
+                    });
                 })
             );
 
@@ -273,56 +312,7 @@ class PostService {
                     id: postId,
                     is_active: true
                 },
-                include: [
-                    {
-                        model: User,
-                        as: 'author',
-                        attributes: ['id', 'full_name', 'avatar_url']
-                    },
-                    {
-                        model: Journal,
-                        as: 'sourceJournal',
-                        attributes: [
-                            'id',
-                            'user_id',
-                            'site_id',
-                            'planner_id',
-                            'planner_item_id',
-                            'title',
-                            'content',
-                            'image_url',
-                            'audio_url',
-                            'video_url',
-                            'privacy',
-                            'created_at',
-                            'updated_at'
-                        ]
-                    },
-                    {
-                        model: Site,
-                        as: 'site',
-                        attributes: ['id', 'name', 'province']
-                    },
-                    {
-                        model: Planner,
-                        as: 'planner',
-                        attributes: ['id', 'name', 'start_date', 'end_date', 'status'],
-                        include: [
-                            {
-                                model: PlannerItem,
-                                as: 'items',
-                                attributes: ['id', 'leg_number', 'order_index', 'status', 'site_id'],
-                                include: [
-                                    {
-                                        model: Site,
-                                        as: 'site',
-                                        attributes: ['id', 'name', 'province', 'cover_image']
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                ]
+                include: this.getPostIncludes()
             });
 
             if (!post) {
@@ -339,24 +329,9 @@ class PostService {
                 }
             });
 
-            const postData = post.toJSON();
-            if (post.journal_id && post.sourceJournal) {
-                postData.sourceJournal = await this.enrichJournalForPost(post.sourceJournal);
-                postData.content = postData.sourceJournal.content;
-                postData.image_urls = postData.sourceJournal.image_url || [];
-                postData.video_url = postData.sourceJournal.video_url || null;
-                postData.title = postData.sourceJournal.title;
-            }
-
-            // If shared from planner, enrich journey data with journals
-            if (post.planner_id && post.planner) {
-                postData.journey = await this.enrichPlannerJourneyForPost(post);
-            }
-
-            return {
-                ...postData,
+            return this.formatPostResponse(post, {
                 is_liked: !!isLiked
-            };
+            });
         } catch (error) {
             throw error;
         }
@@ -371,7 +346,14 @@ class PostService {
                 where: {
                     id: postId,
                     is_active: true
-                }
+                },
+                include: [
+                    {
+                        model: Journal,
+                        as: 'sourceJournal',
+                        attributes: ['id', 'title', 'content', 'image_url', 'audio_url', 'video_url', 'site_id', 'is_active']
+                    }
+                ]
             });
 
             if (!post) {
@@ -387,11 +369,11 @@ class PostService {
                 throw error;
             }
 
-            const { content, image_urls, video_url } = data;
+            const { title, content, image_urls, audio_url, video_url } = data;
 
-            // Protection: Shared journals/planners should not have their content edited via Post API
-            if (post.journal_id || post.planner_id) {
-                if (content !== undefined || image_urls !== undefined || video_url !== undefined) {
+            // Planner shares still read from the original planner, so keep them read-only here.
+            if (post.planner_id) {
+                if (title !== undefined || content !== undefined || image_urls !== undefined || audio_url !== undefined || video_url !== undefined) {
                     const type = post.journal_id ? 'nhật ký' : 'hành trình';
                     const error = new Error(`Không thể chỉnh sửa nội dung của ${type} đã chia sẻ thông qua từ nhật ký tâm linh. Vui lòng chỉnh sửa bản gốc.`);
                     error.statusCode = 400;
@@ -399,10 +381,20 @@ class PostService {
                 }
             }
 
+            const postData = post.toJSON();
+            const useLegacyJournalSnapshot = this.shouldUseLegacyJournalSnapshot(postData);
+            const snapshotTitle = useLegacyJournalSnapshot ? postData.sourceJournal?.title || post.title || null : post.title;
+            const snapshotContent = useLegacyJournalSnapshot ? postData.sourceJournal?.content || post.content : post.content;
+            const snapshotImageUrls = useLegacyJournalSnapshot ? postData.sourceJournal?.image_url || post.image_urls || [] : post.image_urls;
+            const snapshotAudioUrl = useLegacyJournalSnapshot ? postData.sourceJournal?.audio_url || post.audio_url || null : post.audio_url;
+            const snapshotVideoUrl = useLegacyJournalSnapshot ? postData.sourceJournal?.video_url || post.video_url || null : post.video_url;
+
             await post.update({
-                content: content !== undefined ? content : post.content,
-                image_urls: image_urls !== undefined ? image_urls : post.image_urls,
-                video_url: video_url !== undefined ? video_url : post.video_url,
+                title: title !== undefined ? this.normalizePostTitle(title) : snapshotTitle,
+                content: content !== undefined ? content : snapshotContent,
+                image_urls: image_urls !== undefined ? image_urls : snapshotImageUrls,
+                audio_url: audio_url !== undefined ? audio_url : snapshotAudioUrl,
+                video_url: video_url !== undefined ? video_url : snapshotVideoUrl,
                 updated_at: new Date()
             });
 

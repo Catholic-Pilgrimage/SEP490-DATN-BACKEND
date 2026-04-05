@@ -754,7 +754,8 @@ class JournalService {
             const existingPost = await Post.findOne({
                 where: {
                     user_id: userId,
-                    journal_id: journalId
+                    journal_id: journalId,
+                    is_active: true
                 }
             });
 
@@ -766,14 +767,21 @@ class JournalService {
             const post = await Post.create({
                 user_id: userId,
                 journal_id: journalId,
-                site_id: journal.site_id,
-                content: journal.title, // Use title as fallback or default content
+                site_id: journal.site_id || null,
+                title: journal.title,
+                content: journal.content,
+                image_urls: journal.image_url || [],
+                audio_url: journal.audio_url || null,
+                video_url: journal.video_url || null,
                 status: 'published'
             });
 
             Logger.info(`Journal ${journalId} shared to community by user ${userId}: Post ${post.id}`);
             return post;
         } catch (error) {
+            if (error?.name === 'SequelizeUniqueConstraintError') {
+                throw new Error('This journal has already been shared to the community');
+            }
             Logger.error('Share journal error:', error);
             throw error;
         }

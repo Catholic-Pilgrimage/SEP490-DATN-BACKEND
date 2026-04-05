@@ -1027,7 +1027,8 @@ class PlannerService {
             const existingPost = await Post.findOne({
                 where: {
                     user_id: userId,
-                    planner_id: plannerId
+                    planner_id: plannerId,
+                    is_active: true
                 }
             });
 
@@ -1048,6 +1049,11 @@ class PlannerService {
             Logger.info(`Planner ${plannerId} shared to post ${post.id} by user ${userId}`);
             return post;
         } catch (error) {
+            if (error?.name === 'SequelizeUniqueConstraintError') {
+                const duplicateError = new Error('This journey has already been shared to the community');
+                duplicateError.statusCode = 400;
+                throw duplicateError;
+            }
             Logger.error('Share planner to post error:', error);
             throw error;
         }
@@ -1824,6 +1830,83 @@ class PlannerService {
         } catch (error) {
             await transaction.rollback();
             Logger.error('Reorder planner items error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Clear all planner items
+     */
+    static async clearPlannerItems(plannerId, userId) {
+        const transaction = await sequelize.transaction();
+
+        try {
+            const planner = await Planner.findByPk(plannerId, { transaction });
+            if (!planner) {
+                throw new Error('Planner not found');
+            }
+
+            if (planner.user_id !== userId) {
+                throw new Error('Forbidden');
+            }
+
+            const plannerState = await this.getPlannerState(plannerId, planner, { transaction });
+
+            if (planner.status === 'cancelled') {
+                throw new Error('Cannot delete cancelled plan');
+            }
+
+            if (plannerState.firstInviteAt || plannerState.joinedMemberCount > 1) {
+                throw new Error('Cannot clear items after first invite');
+            }
+
+            if (plannerState.editLocked) {
+                throw new Error('Planner is locked');
+            }
+
+            if (['ongoing', 'completed', 'cancelled'].includes(planner.status)) {
+                if (planner.status === 'ongoing') {
+                    throw new Error('Cannot delete ongoing journey');
+                } else if (planner.status === 'completed') {
+                    throw new Error('Cannot delete completed plan');
+                } else {
+                    throw new Error('Cannot delete cancelled plan');
+                }
+            }
+
+            const items = await PlannerItem.findAll({
+                where: { planner_id: plannerId },
+                attributes: ['id', 'status'],
+                transaction
+            });
+
+            if (items.some(item => item.status !== 'upcoming')) {
+                throw new Error('Cannot clear processed items');
+            }
+
+            const deletedCount = items.length;
+
+            if (deletedCount > 0) {
+                await PlannerItem.destroy({
+                    where: { planner_id: plannerId },
+                    transaction
+                });
+            }
+
+            await transaction.commit();
+
+            Logger.info(`Cleared ${deletedCount} items from planner ${plannerId} by user ${userId}`);
+
+            return {
+                planner_id: plannerId,
+                deleted_count: deletedCount,
+                messageKey: 'planner.items_clear_success',
+                messageParams: { count: deletedCount },
+                message: 'Planner items cleared successfully'
+            };
+        } catch (error) {
+            await transaction.rollback();
+            Logger.error('Clear planner items error:', error);
             throw error;
         }
     }

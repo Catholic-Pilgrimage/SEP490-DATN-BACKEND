@@ -85,8 +85,9 @@ class PostController {
         try {
             const userId = req.user.id;
 
-            const imageFiles = req.files?.images || [];
-            const videoFile = req.files?.video?.[0] || null;
+            const imageFiles = [...(req.files?.images || []), ...(req.files?.image_urls || [])];
+            const audioFile = req.files?.audio?.[0] || req.files?.audio_url?.[0] || null;
+            const videoFile = req.files?.video?.[0] || req.files?.video_url?.[0] || null;
 
             if (imageFiles.length > 0) {
                 req.body.image_urls = imageFiles.map(file => file.path);
@@ -94,6 +95,10 @@ class PostController {
 
             if (videoFile) {
                 req.body.video_url = videoFile.path || videoFile.url;
+            }
+
+            if (audioFile) {
+                req.body.audio_url = audioFile.path || audioFile.url;
             }
 
             const post = await postService.createPost(userId, req.body);
@@ -153,8 +158,9 @@ class PostController {
             const userId = req.user.id;
             const { id } = req.params;
 
-            const imageFiles = req.files?.images || [];
-            const videoFile = req.files?.video?.[0] || null;
+            const imageFiles = [...(req.files?.images || []), ...(req.files?.image_urls || [])];
+            const audioFile = req.files?.audio?.[0] || req.files?.audio_url?.[0] || null;
+            const videoFile = req.files?.video?.[0] || req.files?.video_url?.[0] || null;
 
             if (imageFiles.length > 0) {
                 req.body.image_urls = imageFiles.map(file => file.path);
@@ -162,6 +168,10 @@ class PostController {
 
             if (videoFile) {
                 req.body.video_url = videoFile.path || videoFile.url;
+            }
+
+            if (audioFile) {
+                req.body.audio_url = audioFile.path || audioFile.url;
             }
 
             const post = await postService.updatePost(id, userId, req.body);

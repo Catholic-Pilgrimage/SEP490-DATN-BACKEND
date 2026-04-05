@@ -5,6 +5,14 @@ const postValidator = {
      * Validation for creating a post
      */
     createPost: [
+        body('title')
+            .optional()
+            .isString()
+            .withMessage('Post title must be a string')
+            .trim()
+            .isLength({ max: 255 })
+            .withMessage('Post title must not exceed 255 characters'),
+
         body('content')
             .trim()
             .notEmpty()
@@ -25,7 +33,12 @@ const postValidator = {
         body('video_url')
             .optional()
             .isURL()
-            .withMessage('Video URL must be a valid URL')
+            .withMessage('Video URL must be a valid URL'),
+
+        body('audio_url')
+            .optional()
+            .isURL()
+            .withMessage('Audio URL must be a valid URL')
     ],
 
     /**
@@ -35,6 +48,14 @@ const postValidator = {
         param('id')
             .isUUID()
             .withMessage('Invalid post ID'),
+
+        body('title')
+            .optional()
+            .isString()
+            .withMessage('Post title must be a string')
+            .trim()
+            .isLength({ max: 255 })
+            .withMessage('Post title must not exceed 255 characters'),
 
         body('content')
             .optional()
@@ -57,7 +78,12 @@ const postValidator = {
         body('video_url')
             .optional()
             .isURL()
-            .withMessage('Video URL must be a valid URL')
+            .withMessage('Video URL must be a valid URL'),
+
+        body('audio_url')
+            .optional()
+            .isURL()
+            .withMessage('Audio URL must be a valid URL')
     ],
 
     /**

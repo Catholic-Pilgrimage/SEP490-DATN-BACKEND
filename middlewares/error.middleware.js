@@ -1,7 +1,26 @@
+const isUploadBadRequest = (err) => {
+  if (!err || typeof err.message !== 'string') {
+    return false;
+  }
+
+  return [
+    /invalid .* format/i,
+    /invalid upload field/i,
+    /must use the `.+` field/i,
+    /unexpected field/i,
+    /file format .+ not allowed/i
+  ].some((pattern) => pattern.test(err.message));
+};
+
 const errorMiddleware = (err, req, res, next) => {
   console.error('Error:', err);
 
-  const statusCode = err.statusCode || 500;
+  const statusCode =
+    err.statusCode ||
+    err.status ||
+    err.http_code ||
+    (err.name === 'MulterError' ? 400 : undefined) ||
+    (isUploadBadRequest(err) ? 400 : 500);
   const message = err.message || 'Internal Server Error';
 
   res.status(statusCode).json({
