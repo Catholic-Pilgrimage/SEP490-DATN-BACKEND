@@ -554,6 +554,7 @@
   "post": {
     "created": "Post created successfully",
     "updated": "Post updated successfully",
+    "max_images": "Maximum 10 images allowed",
     "deleted": "Post deleted successfully",
     "retrieved": "Post retrieved successfully",
     "list_retrieved": "Posts retrieved successfully",

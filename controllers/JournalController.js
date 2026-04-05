@@ -209,6 +209,9 @@ class JournalController {
             if (error.message === 'Journal not found') {
                 return ResponseUtil.notFound(res, req.__('journal.not_found'));
             }
+            if (error.message === 'Title and content are required') {
+                return ResponseUtil.badRequest(res, req.__('journal.title_content_required'));
+            }
             if (error.message === 'Forbidden') {
                 return ResponseUtil.forbidden(res, req.__('journal.forbidden'));
             }

@@ -19,6 +19,76 @@ class JournalService {
         return journalData?.['planner_item_ids[]'];
     }
 
+    static getJournalImageInput(journalData = {}) {
+        if (journalData?.image_url !== undefined) {
+            return journalData.image_url;
+        }
+
+        if (journalData?.['image_url[]'] !== undefined) {
+            return journalData['image_url[]'];
+        }
+
+        if (journalData?.image_urls !== undefined) {
+            return journalData.image_urls;
+        }
+
+        return journalData?.['image_urls[]'];
+    }
+
+    static normalizeStringArrayInput(rawValue) {
+        const normalizedValues = [];
+
+        const pushValue = (value) => {
+            if (typeof value !== 'string') {
+                return;
+            }
+
+            const trimmed = value.trim();
+            if (!trimmed || trimmed.toLowerCase() === 'null') {
+                return;
+            }
+
+            normalizedValues.push(trimmed);
+        };
+
+        if (Array.isArray(rawValue)) {
+            rawValue.forEach(pushValue);
+        } else if (typeof rawValue === 'string') {
+            const trimmed = rawValue.trim();
+            if (!trimmed || trimmed.toLowerCase() === 'null') {
+                return [];
+            }
+
+            if (trimmed.startsWith('[')) {
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    if (Array.isArray(parsed)) {
+                        parsed.forEach(pushValue);
+                    }
+                } catch (error) {
+                    pushValue(trimmed);
+                }
+            } else {
+                pushValue(trimmed);
+            }
+        }
+
+        return normalizedValues;
+    }
+
+    static normalizeNullableStringInput(value) {
+        if (value === undefined || value === null) {
+            return null;
+        }
+
+        const trimmed = String(value).trim();
+        if (!trimmed || trimmed.toLowerCase() === 'null') {
+            return null;
+        }
+
+        return trimmed;
+    }
+
     static formatModel3D(media) {
         if (!media) {
             return null;
@@ -712,50 +782,46 @@ class JournalService {
                 throw new Error('Forbidden');
             }
 
-            // Validate image limit if adding new images
+            const normalizedTitle = typeof updateData.title === 'string' ? updateData.title.trim() : '';
+            const normalizedContent = typeof updateData.content === 'string' ? updateData.content.trim() : '';
+
+            if (!normalizedTitle || !normalizedContent) {
+                throw new Error('Title and content are required');
+            }
+
+            const requestedImageUrls = this.normalizeStringArrayInput(this.getJournalImageInput(updateData));
+            const requestedAudioUrl = this.normalizeNullableStringInput(updateData.audio_url);
+            const requestedVideoUrl = this.normalizeNullableStringInput(updateData.video_url);
+
+            let finalImageUrls = requestedImageUrls;
             if (imageFiles && imageFiles.length > 0) {
-                const currentImageCount = journal.image_url ? journal.image_url.length : 0;
-                const newImageCount = imageFiles.length;
-                if (currentImageCount + newImageCount > 10) {
-                    throw new Error('Maximum 10 images allowed');
-                }
+                const uploadedImageUrls = imageFiles.map(file => file.path || file.url).filter(Boolean);
+                finalImageUrls = [...new Set([...requestedImageUrls, ...uploadedImageUrls])];
+            }
+
+            if (finalImageUrls.length > 10) {
+                throw new Error('Maximum 10 images allowed');
+            }
+
+            let finalAudioUrl = requestedAudioUrl;
+            if (audioFile) {
+                finalAudioUrl = audioFile.path || audioFile.url || null;
+            }
+
+            let finalVideoUrl = requestedVideoUrl;
+            if (videoFile) {
+                finalVideoUrl = videoFile.path || videoFile.url || null;
             }
 
             // Prepare update data
-            const dataToUpdate = {};
-
-            if (updateData.title !== undefined) {
-                dataToUpdate.title = updateData.title.trim();
-            }
-
-            if (updateData.content !== undefined) {
-                dataToUpdate.content = updateData.content.trim();
-            }
-
-            // Note: privacy cannot be changed
-            dataToUpdate.privacy = 'private';
-
-            // Note: site_id cannot be changed after creation
-
-            // Handle image URLs (append new images to existing)
-            if (imageFiles && imageFiles.length > 0) {
-                const newImageUrls = imageFiles.map(file => file.path);
-                const existingImages = journal.image_url || [];
-                if (existingImages.length + newImageUrls.length > 10) {
-                    throw new Error('Maximum 10 images allowed');
-                }
-                dataToUpdate.image_url = [...existingImages, ...newImageUrls];
-            }
-
-            // Handle audio URL
-            if (audioFile) {
-                dataToUpdate.audio_url = audioFile.path;
-            }
-
-            // Handle video URL
-            if (videoFile) {
-                dataToUpdate.video_url = videoFile.path;
-            }
+            const dataToUpdate = {
+                title: normalizedTitle,
+                content: normalizedContent,
+                image_url: finalImageUrls,
+                audio_url: finalAudioUrl,
+                video_url: finalVideoUrl,
+                privacy: 'private'
+            };
 
             // Update journal
             await journal.update(dataToUpdate);

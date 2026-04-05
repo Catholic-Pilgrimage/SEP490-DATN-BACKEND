@@ -602,6 +602,7 @@
   "post": {
     "created": "Tạo bài viết thành công",
     "updated": "Cập nhật bài viết thành công",
+    "max_images": "Tối đa 10 hình ảnh",
     "deleted": "Xóa bài viết thành công",
     "retrieved": "Lấy thông tin bài viết thành công",
     "list_retrieved": "Lấy danh sách bài viết thành công",

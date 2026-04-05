@@ -80,13 +80,21 @@ class JournalValidator {
 
     static updateJournal = [
         body('title')
-            .optional()
+            .notEmpty().withMessage('Title is required')
             .isLength({ max: 500 }).withMessage('Title must be at most 500 characters')
             .trim(),
 
         body('content')
-            .optional()
+            .notEmpty().withMessage('Content is required')
             .trim(),
+
+        body('audio_url')
+            .optional({ values: 'falsy' })
+            .isURL().withMessage('Audio URL must be a valid URL'),
+
+        body('video_url')
+            .optional({ values: 'falsy' })
+            .isURL().withMessage('Video URL must be a valid URL'),
 
         body('site_id')
             .optional()

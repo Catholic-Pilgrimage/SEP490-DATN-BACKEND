@@ -58,6 +58,8 @@ class PostController {
                 return req.__('post.already_liked');
             case 'You have not liked this post':
                 return req.__('post.not_liked');
+            case 'Maximum 10 images allowed':
+                return req.__('post.max_images');
             case 'Parent comment not found in this post':
                 return req.__('comment.parent_not_found');
             case 'Comment not found':
@@ -162,19 +164,14 @@ class PostController {
             const audioFile = req.files?.audio?.[0] || req.files?.audio_url?.[0] || null;
             const videoFile = req.files?.video?.[0] || req.files?.video_url?.[0] || null;
 
-            if (imageFiles.length > 0) {
-                req.body.image_urls = imageFiles.map(file => file.path);
-            }
-
-            if (videoFile) {
-                req.body.video_url = videoFile.path || videoFile.url;
-            }
-
-            if (audioFile) {
-                req.body.audio_url = audioFile.path || audioFile.url;
-            }
-
-            const post = await postService.updatePost(id, userId, req.body);
+            const post = await postService.updatePost(
+                id,
+                userId,
+                req.body,
+                imageFiles,
+                audioFile,
+                videoFile
+            );
 
             return ResponseUtil.success(res, post, req.__('post.updated'));
         } catch (error) {

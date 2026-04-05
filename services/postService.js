@@ -3,6 +3,76 @@ const { Op } = require('sequelize');
 const PlannerService = require('./plannerService');
 
 class PostService {
+    getPostImageInput(postData = {}) {
+        if (postData?.image_urls !== undefined) {
+            return postData.image_urls;
+        }
+
+        if (postData?.['image_urls[]'] !== undefined) {
+            return postData['image_urls[]'];
+        }
+
+        if (postData?.image_url !== undefined) {
+            return postData.image_url;
+        }
+
+        return postData?.['image_url[]'];
+    }
+
+    normalizeStringArrayInput(rawValue) {
+        const normalizedValues = [];
+
+        const pushValue = (value) => {
+            if (typeof value !== 'string') {
+                return;
+            }
+
+            const trimmed = value.trim();
+            if (!trimmed || trimmed.toLowerCase() === 'null') {
+                return;
+            }
+
+            normalizedValues.push(trimmed);
+        };
+
+        if (Array.isArray(rawValue)) {
+            rawValue.forEach(pushValue);
+        } else if (typeof rawValue === 'string') {
+            const trimmed = rawValue.trim();
+            if (!trimmed || trimmed.toLowerCase() === 'null') {
+                return [];
+            }
+
+            if (trimmed.startsWith('[')) {
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    if (Array.isArray(parsed)) {
+                        parsed.forEach(pushValue);
+                    }
+                } catch (error) {
+                    pushValue(trimmed);
+                }
+            } else {
+                pushValue(trimmed);
+            }
+        }
+
+        return normalizedValues;
+    }
+
+    normalizeNullableStringInput(value) {
+        if (value === undefined || value === null) {
+            return null;
+        }
+
+        const trimmed = String(value).trim();
+        if (!trimmed || trimmed.toLowerCase() === 'null') {
+            return null;
+        }
+
+        return trimmed;
+    }
+
     sortPlannerItems(items = []) {
         return [...items].sort((left, right) => {
             const leftLeg = Number(left?.leg_number || 0);
@@ -340,7 +410,7 @@ class PostService {
     /**
      * Update post
      */
-    async updatePost(postId, userId, data) {
+    async updatePost(postId, userId, data, imageFiles = [], audioFile = null, videoFile = null) {
         try {
             const post = await Post.findOne({
                 where: {
@@ -369,11 +439,20 @@ class PostService {
                 throw error;
             }
 
-            const { title, content, image_urls, audio_url, video_url } = data;
+            const { title, content } = data;
 
             // Planner shares still read from the original planner, so keep them read-only here.
             if (post.planner_id) {
-                if (title !== undefined || content !== undefined || image_urls !== undefined || audio_url !== undefined || video_url !== undefined) {
+                if (
+                    title !== undefined ||
+                    content !== undefined ||
+                    this.getPostImageInput(data) !== undefined ||
+                    data.audio_url !== undefined ||
+                    data.video_url !== undefined ||
+                    (imageFiles && imageFiles.length > 0) ||
+                    audioFile ||
+                    videoFile
+                ) {
                     const type = post.journal_id ? 'nhật ký' : 'hành trình';
                     const error = new Error(`Không thể chỉnh sửa nội dung của ${type} đã chia sẻ thông qua từ nhật ký tâm linh. Vui lòng chỉnh sửa bản gốc.`);
                     error.statusCode = 400;
@@ -389,12 +468,44 @@ class PostService {
             const snapshotAudioUrl = useLegacyJournalSnapshot ? postData.sourceJournal?.audio_url || post.audio_url || null : post.audio_url;
             const snapshotVideoUrl = useLegacyJournalSnapshot ? postData.sourceJournal?.video_url || post.video_url || null : post.video_url;
 
+            const requestedImageUrls = this.normalizeStringArrayInput(this.getPostImageInput(data));
+            const requestedAudioUrl = this.normalizeNullableStringInput(data.audio_url);
+            const requestedVideoUrl = this.normalizeNullableStringInput(data.video_url);
+
+            let finalImageUrls = requestedImageUrls;
+            if (imageFiles && imageFiles.length > 0) {
+                const uploadedImageUrls = imageFiles.map(file => file.path || file.url).filter(Boolean);
+                finalImageUrls = [...new Set([...requestedImageUrls, ...uploadedImageUrls])];
+            }
+
+            if (finalImageUrls.length > 10) {
+                const error = new Error('Maximum 10 images allowed');
+                error.statusCode = 400;
+                throw error;
+            }
+
+            let finalAudioUrl = requestedAudioUrl;
+            if (audioFile) {
+                finalAudioUrl = audioFile.path || audioFile.url || null;
+            }
+
+            let finalVideoUrl = requestedVideoUrl;
+            if (videoFile) {
+                finalVideoUrl = videoFile.path || videoFile.url || null;
+            }
+
             await post.update({
                 title: title !== undefined ? this.normalizePostTitle(title) : snapshotTitle,
                 content: content !== undefined ? content : snapshotContent,
-                image_urls: image_urls !== undefined ? image_urls : snapshotImageUrls,
-                audio_url: audio_url !== undefined ? audio_url : snapshotAudioUrl,
-                video_url: video_url !== undefined ? video_url : snapshotVideoUrl,
+                image_urls: this.getPostImageInput(data) !== undefined || (imageFiles && imageFiles.length > 0)
+                    ? finalImageUrls
+                    : snapshotImageUrls,
+                audio_url: data.audio_url !== undefined || audioFile
+                    ? finalAudioUrl
+                    : snapshotAudioUrl,
+                video_url: data.video_url !== undefined || videoFile
+                    ? finalVideoUrl
+                    : snapshotVideoUrl,
                 updated_at: new Date()
             });
 
