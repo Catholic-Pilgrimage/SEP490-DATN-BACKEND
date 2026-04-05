@@ -72,6 +72,13 @@
  *       - bearerAuth: []
  *     parameters:
  *       - in: query
+ *         name: is_active
+ *         schema:
+ *           type: string
+ *           enum: ['true', 'false', 'all']
+ *           default: 'true'
+ *         description: Lọc nhật ký theo trạng thái hoạt động. `true` = đang hoạt động, `false` = đã ẩn, `all` = lấy tất cả
+ *       - in: query
  *         name: page
  *         schema:
  *           type: integer
@@ -154,7 +161,7 @@
  *         description: Không tìm thấy nhật ký
  *
  *   delete:
- *     summary: Xóa nhật ký
+ *     summary: Ẩn nhật ký tâm linh
  *     tags: [Journals - Pilgrim]
  *     security:
  *       - bearerAuth: []
@@ -167,7 +174,33 @@
  *           format: uuid
  *     responses:
  *       200:
- *         description: Xóa thành công
+ *         description: Ẩn thành công
+ *       403:
+ *         description: Không có quyền
+ *       404:
+ *         description: Không tìm thấy nhật ký
+ */
+
+/**
+ * @swagger
+ * /api/journals/{id}/restore:
+ *   patch:
+ *     summary: Khôi phục nhật ký tâm linh đã ẩn
+ *     tags: [Journals - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Khôi phục thành công
+ *       400:
+ *         description: Nhật ký đang hoạt động hoặc đã có một nhật ký đang hoạt động cho cùng lần ghé thăm/hành trình
  *       403:
  *         description: Không có quyền
  *       404:

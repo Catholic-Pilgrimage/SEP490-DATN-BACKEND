@@ -77,6 +77,9 @@
  *             user_id:
  *               type: string
  *               format: uuid
+ *             is_active:
+ *               type: boolean
+ *               example: true
  *             site_id:
  *               type: string
  *               format: uuid

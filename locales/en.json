@@ -523,6 +523,7 @@
     "create_success": "Journal created successfully",
     "update_success": "Journal updated successfully",
     "delete_success": "Journal deleted successfully",
+    "restore_success": "Journal restored successfully",
     "list_success": "Journals retrieved successfully",
     "get_success": "Journal retrieved successfully",
     "share_success": "Shared to community successfully",
@@ -536,15 +537,19 @@
     "planner_items_same_planner": "All selected locations must belong to the same journey.",
     "planner_items_invalid_for_planner": "Selected locations do not belong to the chosen journey.",
     "already_exists": "You have already written a journal for this visit",
+    "archived_exists": "You already have an archived journal for this visit. Please restore or edit the existing one.",
     "planner_not_found": "Journey does not exist",
     "planner_not_completed": "You can only create a journal for a completed journey",
     "summary_already_exists": "You have already written a summary for this journey",
+    "archived_summary_exists": "You already have an archived summary for this journey. Please restore or edit the existing one.",
     "summary_checkin_required": "You must check in at least one location in this journey before writing a summary.",
     "id_required": "Planner Item ID or Planner ID is required",
     "only_one_id_allowed": "Only one of planner_item_id or planner_id is allowed.",
     "already_shared": "This journal has already been shared to the community.",
     "not_found": "Journal not found",
-    "forbidden": "Forbidden"
+    "forbidden": "Forbidden",
+    "already_active": "This journal is already active and does not need to be restored.",
+    "restore_conflict": "Cannot restore because another active journal already exists for this visit or journey."
   },
   "post": {
     "created": "Post created successfully",

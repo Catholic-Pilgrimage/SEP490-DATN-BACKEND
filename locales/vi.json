@@ -518,6 +518,7 @@
     "create_success": "Đã tạo nhật ký hành hương",
     "update_success": "Đã cập nhật nhật ký",
     "delete_success": "Đã xóa nhật ký",
+    "restore_success": "Đã khôi phục nhật ký",
     "list_success": "Lấy danh sách nhật ký thành công",
     "get_success": "Lấy chi tiết nhật ký thành công",
     "share_success": "Đã chia sẻ nhật ký lên cộng đồng",
@@ -531,15 +532,19 @@
     "planner_items_same_planner": "Tất cả địa điểm đã chọn phải thuộc cùng một hành trình.",
     "planner_items_invalid_for_planner": "Các địa điểm đã chọn không thuộc hành trình đang chọn.",
     "already_exists": "Bạn đã viết nhật ký cho lần ghé thăm này rồi.",
+    "archived_exists": "Bạn đã có nhật ký lưu trữ cho lần ghé thăm này. Hãy khôi phục hoặc chỉnh sửa bản cũ.",
     "planner_not_found": "Hành trình không tồn tại",
     "planner_not_completed": "Bạn chỉ có thể viết nhật ký cho hành trình đã hoàn thành.",
     "summary_already_exists": "Bạn đã viết bài tổng kết cho hành trình này rồi.",
+    "archived_summary_exists": "Bạn đã có bài tổng kết lưu trữ cho hành trình này. Hãy khôi phục hoặc chỉnh sửa bản cũ.",
     "summary_checkin_required": "Bạn phải check-in ít nhất một địa điểm trong hành trình này trước khi viết bài tổng kết.",
     "id_required": "Cần cung cấp mã địa điểm hoặc mã hành trình.",
     "only_one_id_allowed": "Chỉ được phép truyền một trong hai trường planner_item_id hoặc planner_id.",
     "already_shared": "Nhật ký này đã được chia sẻ lên cộng đồng trước đó.",
     "not_found": "Không tìm thấy nhật ký",
-    "forbidden": "Bạn không có quyền truy cập nhật ký này"
+    "forbidden": "Bạn không có quyền truy cập nhật ký này",
+    "already_active": "Nhật ký này đang hoạt động, không cần khôi phục.",
+    "restore_conflict": "Không thể khôi phục vì đã có một nhật ký đang hoạt động cho lần ghé thăm hoặc hành trình này."
   },
   "calendar_sync": {
     "success": "Lấy dữ liệu đồng bộ lịch thành công",
