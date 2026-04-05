@@ -89,6 +89,93 @@
  *     responses:
  *       200:
  *         description: Lấy danh sách thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         format: uuid
+ *                       code:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       description:
+ *                         type: string
+ *                         nullable: true
+ *                       start_date:
+ *                         type: string
+ *                         format: date
+ *                       end_date:
+ *                         type: string
+ *                         format: date
+ *                         nullable: true
+ *                       start_time:
+ *                         type: string
+ *                         nullable: true
+ *                       end_time:
+ *                         type: string
+ *                         nullable: true
+ *                       location:
+ *                         type: string
+ *                         nullable: true
+ *                       banner_url:
+ *                         type: string
+ *                         nullable: true
+ *                       category:
+ *                         type: string
+ *                         nullable: true
+ *                       status:
+ *                         type: string
+ *                         enum: [pending, approved, rejected]
+ *                       rejection_reason:
+ *                         type: string
+ *                         nullable: true
+ *                       reviewed_by:
+ *                         type: string
+ *                         format: uuid
+ *                         nullable: true
+ *                       reviewed_at:
+ *                         type: string
+ *                         format: date-time
+ *                         nullable: true
+ *                       eventReviewer:
+ *                         type: object
+ *                         nullable: true
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                           full_name:
+ *                             type: string
+ *                           email:
+ *                             type: string
+ *                             format: email
+ *                       is_active:
+ *                         type: boolean
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *                       updated_at:
+ *                         type: string
+ *                         format: date-time
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     totalItems:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
  *       401:
  *         description: Chưa đăng nhập
  */

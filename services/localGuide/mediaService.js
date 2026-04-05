@@ -144,6 +144,18 @@ class LocalGuideMediaService {
 
             const mediaList = await SiteMedia.findAll({
                 where,
+                include: [
+                    {
+                        model: User,
+                        as: 'mediaReviewer',
+                        attributes: ['id', 'full_name', 'email']
+                    },
+                    {
+                        model: User,
+                        as: 'narrativeReviewer',
+                        attributes: ['id', 'full_name', 'email']
+                    }
+                ],
                 order: [['created_at', 'DESC']],
                 limit,
                 offset
@@ -193,6 +205,18 @@ class LocalGuideMediaService {
 
             const mediaList = await SiteMedia.findAll({
                 where,
+                include: [
+                    {
+                        model: User,
+                        as: 'mediaReviewer',
+                        attributes: ['id', 'full_name', 'email']
+                    },
+                    {
+                        model: User,
+                        as: 'narrativeReviewer',
+                        attributes: ['id', 'full_name', 'email']
+                    }
+                ],
                 order: [['created_at', 'DESC']],
                 limit,
                 offset

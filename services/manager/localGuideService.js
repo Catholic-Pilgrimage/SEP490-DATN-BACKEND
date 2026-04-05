@@ -356,7 +356,7 @@ class ManagerLocalGuideService {
                     },
                     {
                         model: User,
-                        as: 'approver',
+                        as: 'reviewer',
                         attributes: ['id', 'full_name', 'email']
                     }
                 ],
@@ -408,7 +408,7 @@ class ManagerLocalGuideService {
                     },
                     {
                         model: User,
-                        as: 'approver',
+                        as: 'reviewer',
                         attributes: ['id', 'full_name', 'email']
                     }
                 ]
@@ -491,8 +491,8 @@ class ManagerLocalGuideService {
 
             const updateData = {
                 status,
-                approved_by: managerId,
-                approved_at: new Date()
+                reviewed_by: managerId,
+                reviewed_at: new Date()
             };
 
             if (status === 'rejected') {

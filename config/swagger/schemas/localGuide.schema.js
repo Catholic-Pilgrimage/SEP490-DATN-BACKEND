@@ -199,6 +199,17 @@
  *           type: integer
  *           example: 3
  *
+ *     ReviewerInfoLG:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         full_name:
+ *           type: string
+ *         email:
+ *           type: string
+ *
  *     SiteMedia:
  *       type: object
  *       properties:
@@ -248,6 +259,8 @@
  *           type: string
  *           format: uuid
  *           nullable: true
+ *         mediaReviewer:
+ *           $ref: '#/components/schemas/ReviewerInfoLG'
  *         reviewed_at:
  *           type: string
  *           format: date-time
@@ -283,6 +296,8 @@
  *           type: string
  *           format: uuid
  *           nullable: true
+ *         narrativeReviewer:
+ *           $ref: '#/components/schemas/ReviewerInfoLG'
  *         narrative_reviewed_at:
  *           type: string
  *           format: date-time
@@ -406,11 +421,11 @@ module.exports = {};
  *         rejection_reason:
  *           type: string
  *           nullable: true
- *         approved_by:
+ *         reviewed_by:
  *           type: string
  *           format: uuid
  *           nullable: true
- *         approved_at:
+ *         reviewed_at:
  *           type: string
  *           format: date-time
  *           nullable: true
@@ -595,6 +610,8 @@ module.exports = {};
  *           type: string
  *           format: uuid
  *           nullable: true
+ *         reviewer:
+ *           $ref: '#/components/schemas/ReviewerInfoLG'
  *         reviewed_at:
  *           type: string
  *           format: date-time

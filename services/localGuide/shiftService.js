@@ -309,7 +309,7 @@ class LocalGuideShiftService {
                 },
                 {
                     model: User,
-                    as: 'approver',
+                    as: 'reviewer',
                     attributes: ['id', 'full_name', 'email']
                 }
             ],
@@ -331,7 +331,7 @@ class LocalGuideShiftService {
                 },
                 {
                     model: User,
-                    as: 'approver',
+                    as: 'reviewer',
                     attributes: ['id', 'full_name', 'email']
                 }
             ]
@@ -526,7 +526,9 @@ class LocalGuideShiftService {
             await freshSubmission.update({
                 total_shifts: createdShifts.length,
                 status: currentWasRejected ? 'pending' : freshSubmission.status,
-                rejection_reason: currentWasRejected ? null : freshSubmission.rejection_reason
+                rejection_reason: currentWasRejected ? null : freshSubmission.rejection_reason,
+                reviewed_by: currentWasRejected ? null : freshSubmission.reviewed_by,
+                reviewed_at: currentWasRejected ? null : freshSubmission.reviewed_at
             }, { transaction: t });
 
             return { updatedSubmission: freshSubmission, createdShifts };

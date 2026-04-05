@@ -433,6 +433,8 @@ CREATE TABLE IF NOT EXISTS mass_schedules (
     note TEXT,
     status site_content_status DEFAULT 'pending',
     rejection_reason VARCHAR(500),
+    reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    reviewed_at TIMESTAMP WITH TIME ZONE,
     is_active BOOLEAN DEFAULT TRUE,
     created_by UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -458,6 +460,8 @@ CREATE TABLE IF NOT EXISTS events (
     category VARCHAR(100),
     status site_content_status DEFAULT 'pending',
     rejection_reason VARCHAR(500),
+    reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    reviewed_at TIMESTAMP WITH TIME ZONE,
     is_active BOOLEAN DEFAULT TRUE,
     created_by UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -490,8 +494,8 @@ CREATE TABLE IF NOT EXISTS guide_shift_submissions (
     status VARCHAR(15) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
     total_shifts INT DEFAULT 0,
     rejection_reason TEXT,
-    approved_by UUID REFERENCES users(id),
-    approved_at TIMESTAMP WITH TIME ZONE,
+    reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    reviewed_at TIMESTAMP WITH TIME ZONE,
     
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -1162,5 +1166,28 @@ CREATE INDEX IF NOT EXISTS idx_nearby_place_review_replies_user ON nearby_place_
 DROP TRIGGER IF EXISTS update_nearby_place_review_replies_updated_at ON nearby_place_review_replies;
 CREATE TRIGGER update_nearby_place_review_replies_updated_at
     BEFORE UPDATE ON nearby_place_review_replies
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================
+-- 17. AI CACHES
+-- ============================================
+CREATE TABLE IF NOT EXISTS ai_caches (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    feature VARCHAR(50) NOT NULL,
+    cache_key VARCHAR(255) NOT NULL,
+    response_data JSONB NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_caches_feature_key ON ai_caches(feature, cache_key);
+CREATE INDEX IF NOT EXISTS idx_ai_caches_expires ON ai_caches(expires_at);
+
+-- Trigger
+DROP TRIGGER IF EXISTS update_ai_caches_updated_at ON ai_caches;
+CREATE TRIGGER update_ai_caches_updated_at
+    BEFORE UPDATE ON ai_caches
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();

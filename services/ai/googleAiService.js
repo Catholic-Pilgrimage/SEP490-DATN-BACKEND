@@ -2,6 +2,7 @@ const { generateJSON } = require('../../config/googleai.config');
 const { Site, Event, SiteReview, User } = require('../../models');
 const { Op } = require('sequelize');
 const Logger = require('../../utils/logger.util');
+const { AiCacheService, PROMPT_VERSIONS, MODEL_VERSION } = require('./aiCacheService');
 
 /**
  * Google AI Service — AI features for Local Guides
@@ -33,9 +34,11 @@ class GoogleAiService {
 
         // Fetch full site context
         let siteContext = '';
+        let siteUpdatedAt = '';
         if (siteId) {
             const site = await Site.findByPk(siteId);
             if (site) {
+                siteUpdatedAt = site.updated_at ? new Date(site.updated_at).toISOString() : '';
                 siteContext = `
 Site Information:
 - Name: ${site.name}
@@ -49,6 +52,19 @@ Site Information:
 - Address: ${site.address || 'N/A'}`;
             }
         }
+
+        // ─── Cache check ───
+        const cacheKey = AiCacheService.buildCacheKey({
+            site_id: siteId || '',
+            topic: topic.trim().toLowerCase(),
+            additional_context: (additionalContext || '').trim().toLowerCase(),
+            language, length, style,
+            site_updated_at: siteUpdatedAt,
+            prompt_version: PROMPT_VERSIONS.generate_article,
+            model: MODEL_VERSION
+        });
+        const cached = await AiCacheService.get('generate_article', cacheKey);
+        if (cached) return cached;
 
         const wordCount = length === 'short' ? 200 : length === 'long' ? 700 : 400;
         const langInstruction = language === 'en'
@@ -87,7 +103,7 @@ Return JSON:
   "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"]
 }`;
 
-        Logger.info(`Google AI: Article for site=${siteId}, topic="${topic}", lang=${language}, style=${style}`);
+        Logger.info(`[AI API Call] Article for site=${siteId}, topic="${topic}", lang=${language}, style=${style}`);
         const result = await generateJSON('article', prompt, { temperature: 0.8 });
 
         // Output guard
@@ -98,13 +114,17 @@ Return JSON:
             throw new Error('AI returned invalid article schema: missing content');
         }
 
-        return {
+        const response = {
             title: result.title,
             summary: result.summary || '',
             content: result.content,
             tags: Array.isArray(result.tags) ? result.tags : [],
             metadata: { generated_by: 'google_ai', language, length, style, topic }
         };
+
+        // ─── Cache set (only after successful output guard) ───
+        await AiCacheService.set('generate_article', cacheKey, response);
+        return response;
     }
 
     /**
@@ -128,17 +148,33 @@ Return JSON:
             where: { site_id: siteId, is_active: true },
             attributes: [
                 [sequelize.fn('COUNT', sequelize.col('id')), 'total_count'],
-                [sequelize.fn('AVG', sequelize.col('rating')), 'avg_rating']
+                [sequelize.fn('AVG', sequelize.col('rating')), 'avg_rating'],
+                [sequelize.fn('MAX', sequelize.col('updated_at')), 'latest_updated']
             ],
             raw: true
         });
 
         const totalReviews = parseInt(siteStats.total_count) || 0;
         const averageRating = siteStats.avg_rating ? Math.round(parseFloat(siteStats.avg_rating) * 10) / 10 : 0;
+        const latestReviewUpdatedAt = siteStats.latest_updated || '';
 
         if (totalReviews === 0) {
             throw new Error('No reviews found for this site');
         }
+
+        // ─── Cache check ───
+        const siteUpdatedAt = site.updated_at ? new Date(site.updated_at).toISOString() : '';
+        const cacheKey = AiCacheService.buildCacheKey({
+            site_id: siteId,
+            language,
+            site_updated_at: siteUpdatedAt,
+            active_review_count: String(totalReviews),
+            latest_review_updated_at: latestReviewUpdatedAt ? new Date(latestReviewUpdatedAt).toISOString() : '',
+            prompt_version: PROMPT_VERSIONS.summarize_reviews,
+            model: MODEL_VERSION
+        });
+        const cached = await AiCacheService.get('summarize_reviews', cacheKey);
+        if (cached) return cached;
 
         // Fetch recent reviews (up to 20) for AI analysis
         const reviews = await SiteReview.findAll({
@@ -190,7 +226,7 @@ Return JSON:
   "highlights": ["Điểm nổi bật 1 được nhiều người nhắc đến", "Điểm nổi bật 2"]
 }`;
 
-        Logger.info(`Google AI: Summarizing ${reviews.length} reviews for site=${siteId} (total: ${totalReviews})`);
+        Logger.info(`[AI API Call] Summarizing ${reviews.length} reviews for site=${siteId} (total: ${totalReviews})`);
         const result = await generateJSON('review_summary', prompt, { temperature: 0.4 });
 
         // Output guard
@@ -201,7 +237,7 @@ Return JSON:
             throw new Error('AI returned invalid review summary schema: strengths/weaknesses must be arrays');
         }
 
-        return {
+        const response = {
             site_name: site.name,
             total_reviews: totalReviews,
             average_rating: averageRating,
@@ -213,6 +249,10 @@ Return JSON:
             highlights: Array.isArray(result.highlights) ? result.highlights : [],
             metadata: { generated_by: 'google_ai', language, reviews_analyzed: reviews.length }
         };
+
+        // ─── Cache set (only after successful output guard) ───
+        await AiCacheService.set('summarize_reviews', cacheKey, response);
+        return response;
     }
 
     /**
@@ -230,11 +270,13 @@ Return JSON:
         let siteContext = '';
         let siteName = 'Unknown Site';
         let siteLocation = '';
+        let siteUpdatedAt = '';
         if (siteId) {
             const site = await Site.findByPk(siteId);
             if (site) {
                 siteName = site.name;
                 siteLocation = site.address || site.province || '';
+                siteUpdatedAt = site.updated_at ? new Date(site.updated_at).toISOString() : '';
                 siteContext = `
 Site: ${site.name}
 Type: ${site.type} (${this._typeLabel(site.type)})
@@ -248,14 +290,36 @@ Description: ${(site.description || '').substring(0, 300)}`;
 
         // Fetch more recent events to avoid duplicates
         let recentEvents = [];
+        let latestEventUpdatedAt = '';
         if (siteId) {
             recentEvents = await Event.findAll({
                 where: { site_id: siteId, is_active: true },
                 order: [['created_at', 'DESC']],
                 limit: 15,
-                attributes: ['name', 'description', 'start_date', 'end_date', 'category']
+                attributes: ['name', 'description', 'start_date', 'end_date', 'category', 'updated_at']
             });
+            if (recentEvents.length > 0) {
+                const maxUpdated = recentEvents.reduce((max, e) => {
+                    const t = new Date(e.updated_at || 0).getTime();
+                    return t > max ? t : max;
+                }, 0);
+                latestEventUpdatedAt = new Date(maxUpdated).toISOString();
+            }
         }
+
+        // ─── Cache check ───
+        const cacheKey = AiCacheService.buildCacheKey({
+            site_id: siteId || '',
+            current_date: dateStr,
+            count: String(count),
+            site_updated_at: siteUpdatedAt,
+            active_event_count: String(recentEvents.length),
+            latest_event_updated_at: latestEventUpdatedAt,
+            prompt_version: PROMPT_VERSIONS.suggest_events,
+            model: MODEL_VERSION
+        });
+        const cached = await AiCacheService.get('suggest_events', cacheKey);
+        if (cached) return cached;
 
         const recentList = recentEvents.length > 0
             ? recentEvents.map(e => `- ${e.name} (${e.start_date}${e.end_date ? ' → ' + e.end_date : ''}) [${e.category || 'no category'}]`).join('\n')
@@ -281,7 +345,7 @@ For each event provide data that can be directly used to create an event:
 - start_time: HH:mm:ss format (e.g. "08:00:00", "19:30:00")
 - end_time: HH:mm:ss format
 - location: Specific location within or near the site (e.g. "Sân nhà thờ", "Hội trường giáo xứ")
-- category: One of: mass, retreat, procession, workshop, prayer, festival, charity, youth
+- category: One of: solemn_feast, sacrament_mass, procession, adoration, patron_feast, festival, performance, sports, retreat, camp, course, pilgrimage, charity
 
 Return JSON:
 {
@@ -304,21 +368,21 @@ Return JSON:
   ]
 }`;
 
-        Logger.info(`Google AI: Suggesting events for site=${siteId}, date=${dateStr}, count=${count}`);
+        Logger.info(`[AI API Call] Suggesting events for site=${siteId}, date=${dateStr}, count=${count}`);
         const result = await generateJSON('events', prompt, { temperature: 0.8 });
 
         // Output guard
         if (!Array.isArray(result.suggestions) || result.suggestions.length === 0) {
             throw new Error('AI returned invalid event schema: suggestions must be a non-empty array');
         }
-        const VALID_EVENT_CATEGORIES = ['mass', 'retreat', 'procession', 'workshop', 'prayer', 'festival', 'charity', 'youth'];
+        const VALID_EVENT_CATEGORIES = ['solemn_feast', 'sacrament_mass', 'procession', 'adoration', 'patron_feast', 'festival', 'performance', 'sports', 'retreat', 'camp', 'course', 'pilgrimage', 'charity'];
         const TIME_RE = /^\d{2}:\d{2}(:\d{2})?$/;
         for (const s of result.suggestions) {
             if (!s.name || !s.start_date || !s.category) {
                 throw new Error('AI returned invalid event schema: each suggestion needs name, start_date, category');
             }
             if (!VALID_EVENT_CATEGORIES.includes(s.category)) {
-                s.category = 'prayer'; // fallback to safe default
+                s.category = 'pilgrimage'; // fallback to safe default
             }
             if (s.start_time && !TIME_RE.test(s.start_time)) {
                 s.start_time = null;
@@ -328,7 +392,7 @@ Return JSON:
             }
         }
 
-        return {
+        const response = {
             site_name: siteName,
             current_date: dateStr,
             liturgical_season: result.liturgical_season,
@@ -337,11 +401,19 @@ Return JSON:
             suggestions: result.suggestions,
             metadata: { generated_by: 'google_ai', count }
         };
+
+        // ─── Cache set (only after successful output guard) ───
+        await AiCacheService.set('suggest_events', cacheKey, response);
+        return response;
     }
 
     /**
      * 4. Suggest a short prayer based on pilgrimage context (Journal Feature)
      * Context is pre-validated by JournalService.resolveJournalContextForAi
+     *
+     * ⚠️ NO DB CACHE — Prayer context is personal/sensitive (mood, intention, current_text).
+     *    Each request hits the AI directly. See aiCacheService.js for rationale.
+     *
      * @param {string} userId - Pilgrim's user ID
      * @param {{ contextType: string, planner: object, site?: object, checkedInSites?: object[] }} context
      * @param {{ current_text?: string, mood?: string, intention?: string, language?: string }} params
