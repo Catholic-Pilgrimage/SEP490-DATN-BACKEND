@@ -49,7 +49,7 @@ DO $$ BEGIN
     CREATE TYPE group_member_role AS ENUM ('admin', 'member');
     -- Others
     CREATE TYPE report_reason AS ENUM ('spam', 'harassment', 'hate_speech', 'false_information', 'violence', 'inappropriate', 'other');
-    CREATE TYPE report_status AS ENUM ('pending', 'resolved', 'reject');
+    CREATE TYPE report_status AS ENUM ('pending', 'resolved', 'reject', 'cancelled');
     CREATE TYPE sos_status AS ENUM ('pending', 'accepted', 'resolved', 'cancelled');
     CREATE TYPE invite_status AS ENUM ('pending', 'awaiting_payment', 'accepted', 'rejected', 'expired');
 
@@ -945,11 +945,13 @@ CREATE TABLE IF NOT EXISTS reports (
     status report_status DEFAULT 'pending',
     admin_note TEXT,
     resolved_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    is_active BOOLEAN DEFAULT TRUE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);
+CREATE INDEX IF NOT EXISTS idx_reports_reporter_active ON reports(reporter_id, is_active);
 
 -- Trigger
 DROP TRIGGER IF EXISTS update_reports_updated_at ON reports;

@@ -633,14 +633,14 @@
     "my_reports_retrieved": "Lấy danh sách báo cáo của bạn thành công",
     "retrieved": "Lấy chi tiết báo cáo thành công",
     "resolved": "Xử lý báo cáo thành công",
-    "deleted": "Xóa báo cáo thành công",
+    "deleted": "Hủy yêu cầu báo cáo thành công",
     "not_found": "Không tìm thấy báo cáo",
     "already_reported": "Bạn đã báo cáo nội dung này rồi",
     "cannot_report_own": "Không thể báo cáo nội dung của chính mình",
     "only_public_journals": "Chỉ có thể báo cáo nhật ký công khai",
     "already_processed": "Báo cáo đã được xử lý",
-    "only_own_report": "Bạn chỉ có thể xóa báo cáo của mình",
-    "cannot_delete_processed": "Không thể xóa báo cáo đã được xử lý"
+    "only_own_report": "Bạn chỉ có thể hủy yêu cầu báo cáo của mình",
+    "cannot_delete_processed": "Không thể hủy báo cáo đã được xử lý"
   },
   "narrative": {
     "update_success": "Cập nhật thuyết minh thành công",

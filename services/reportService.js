@@ -2,6 +2,22 @@ const { Report, User, Post, PostComment, Journal, SiteReview, NearbyPlaceReview 
 const { Op } = require('sequelize');
 const NotificationService = require('./shared/notificationService');
 
+const parseIsActiveFilter = (value) => {
+  if (value === undefined || value === null || value === '' || value === 'all') {
+    return undefined;
+  }
+
+  if (value === true || value === 'true') {
+    return true;
+  }
+
+  if (value === false || value === 'false') {
+    return false;
+  }
+
+  return undefined;
+};
+
 const reportService = {
   /**
    * Tạo báo cáo mới
@@ -99,7 +115,8 @@ const reportService = {
         reporter_id: userId,
         target_type,
         target_id,
-        status: 'pending'
+        status: 'pending',
+        is_active: true
       }
     });
 
@@ -197,13 +214,19 @@ const reportService = {
   /**
    * Lấy reports của user hiện tại
    */
-  async getMyReports(userId, { page = 1, limit = 20 }) {
+  async getMyReports(userId, { page = 1, limit = 20, is_active } = {}) {
     const offset = (page - 1) * limit;
+    const where = {
+      reporter_id: userId
+    };
+    const activeFilter = parseIsActiveFilter(is_active);
+
+    if (activeFilter !== undefined) {
+      where.is_active = activeFilter;
+    }
 
     const { count, rows } = await Report.findAndCountAll({
-      where: {
-        reporter_id: userId
-      },
+      where,
       order: [['created_at', 'DESC']],
       limit,
       offset
@@ -426,11 +449,19 @@ const reportService = {
       throw new Error('You can only delete your own reports');
     }
 
+    if (!report.is_active || report.status === 'cancelled') {
+      return report;
+    }
+
     if (report.status !== 'pending') {
       throw new Error('Cannot delete processed reports');
     }
 
-    await report.destroy();
+    await report.update({
+      status: 'cancelled',
+      is_active: false
+    });
+    return report;
   }
 };
 

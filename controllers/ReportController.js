@@ -44,11 +44,12 @@ const ReportController = {
   async getMyReports(req, res, next) {
     try {
       const userId = req.user.id;
-      const { page, limit } = req.query;
+      const { page, limit, is_active } = req.query;
 
       const result = await reportService.getMyReports(userId, {
         page: parseInt(page) || 1,
-        limit: parseInt(limit) || 20
+        limit: parseInt(limit) || 20,
+        is_active
       });
 
       return ResponseUtil.success(res, result, req.__('report.my_reports_retrieved'));

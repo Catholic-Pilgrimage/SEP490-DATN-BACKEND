@@ -579,6 +579,21 @@
     "forbidden": "You do not have permission to access this comment",
     "only_owner": "Only the comment owner can perform this action"
   },
+  "report": {
+    "created": "Report submitted successfully",
+    "list_retrieved": "Reports retrieved successfully",
+    "my_reports_retrieved": "Your reports retrieved successfully",
+    "retrieved": "Report details retrieved successfully",
+    "resolved": "Report processed successfully",
+    "deleted": "Report request cancelled successfully",
+    "not_found": "Report not found",
+    "already_reported": "You have already reported this content",
+    "cannot_report_own": "You cannot report your own content",
+    "only_public_journals": "Only public journals can be reported",
+    "already_processed": "Report has already been processed",
+    "only_own_report": "You can only cancel your own report request",
+    "cannot_delete_processed": "Cannot cancel a processed report"
+  },
   "offline": {
     "download_success": "Offline data downloaded successfully",
     "sync_success": "Offline data synchronized successfully",
