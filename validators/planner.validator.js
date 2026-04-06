@@ -306,6 +306,66 @@ class PlannerValidator {
             .isUUID().withMessage('Planner ID không hợp lệ')
     ];
 
+    static sharePlanner = [
+        param('id')
+            .isUUID().withMessage('Planner ID không hợp lệ'),
+
+        body('content')
+            .optional({ values: 'falsy' })
+            .isString().withMessage('Nội dung chia sẻ phải là chuỗi')
+            .trim()
+            .isLength({ min: 1, max: 10000 }).withMessage('Nội dung chia sẻ phải từ 1 đến 10000 ký tự')
+    ];
+
+    static clonePlanner = [
+        param('id')
+            .isUUID().withMessage('Planner ID không hợp lệ'),
+
+        body('name')
+            .optional()
+            .isLength({ max: 255 }).withMessage('Tạo lại tên kế hoạch không quá 255 ký tự')
+            .trim(),
+
+        body('start_date')
+            .optional()
+            .isISO8601().withMessage('Ngày bắt đầu phải có định dạng YYYY-MM-DD')
+            .custom((value) => {
+                if (value) {
+                    const inputDate = new Date(value);
+                    const tomorrow = new Date();
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    tomorrow.setHours(0, 0, 0, 0);
+
+                    if (inputDate < tomorrow) {
+                        throw new Error('Ngày bắt đầu kế hoạch phải từ ngày mai trở đi');
+                    }
+                }
+                return true;
+            }),
+
+        body('end_date')
+            .optional()
+            .isISO8601().withMessage('Ngày kết thúc phải có định dạng YYYY-MM-DD')
+            .custom((value, { req }) => {
+                if (value && req.body.start_date) {
+                    const startDate = new Date(req.body.start_date);
+                    const endDate = new Date(value);
+                    if (endDate < startDate) {
+                        throw new Error('Ngày kết thúc phải sau hoặc bằng ngày bắt đầu');
+                    }
+                }
+                return true;
+            }),
+
+        body('number_of_people')
+            .optional()
+            .isInt({ min: 1 }).withMessage('Số người phải lớn hơn hoặc bằng 1'),
+
+        body('transportation')
+            .optional()
+            .isIn(['motorbike', 'car', 'bus']).withMessage('Phương tiện phải là motorbike, car hoặc bus')
+    ];
+
     // Validate create share token
     static createShareToken = [
         param('id')

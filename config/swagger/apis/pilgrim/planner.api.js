@@ -829,5 +829,113 @@
  *         description: Không tìm thấy kế hoạch
  */
 
+/**
+ * @swagger
+ * /api/planners/{id}/share:
+ *   post:
+ *     summary: Chia sẻ hành trình đã hoàn thành lên cộng đồng
+ *     description: |
+ *       Tạo một community post gắn với planner đã hoàn thành.
+ *       Response trả về luôn post đã enrich với `journey.items` và `journey.items_by_day`.
+ *       Khi đọc community posts qua `/api/posts`, payload sẽ có thêm `journey` gồm:
+ *       - `name`, `start_date`, `end_date`, `number_of_people`, `transportation`
+ *       - `summary` với số điểm `visited`, `skipped`, `upcoming`
+ *       - `items` và `items_by_day` để hiển thị trạng thái từng điểm đến
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của planner đã hoàn thành
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               content:
+ *                 type: string
+ *                 maxLength: 10000
+ *                 description: Nội dung bài chia sẻ. Nếu không truyền, hệ thống sẽ dùng nội dung mặc định.
+ *                 example: "Chuyến đi này rất ý nghĩa, lịch trình cân đối và các điểm hành hương khá thuận tiện."
+ *     responses:
+ *       201:
+ *         description: Chia sẻ thành công
+ *       400:
+ *         description: Planner chưa completed hoặc đã share trước đó
+ *       401:
+ *         description: Chưa xác thực
+ *       403:
+ *         description: Không phải chủ planner
+ *       404:
+ *         description: Không tìm thấy planner
+ */
+
+/**
+ * @swagger
+ * /api/planners/{id}/clone:
+ *   post:
+ *     summary: Clone hành trình community thành planner mới
+ *     description: |
+ *       Clone một planner đã `completed` và đã được share ra community thành planner mới của người dùng hiện tại.
+ *       Planner mới sẽ:
+ *       - có trạng thái `planning`
+ *       - reset toàn bộ item về `upcoming`
+ *       - giữ thứ tự điểm đến, note, thời gian dự kiến, thời gian nghỉ, travel time
+ *       - không copy `event_id`, không copy trạng thái visited/skipped cũ
+ *       - `end_date` nếu truyền không được ngắn hơn tổng số ngày của hành trình gốc
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID planner nguồn đã share lên community
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: "Hành trình Đức Mẹ La Vang (Bản riêng)"
+ *               start_date:
+ *                 type: string
+ *                 format: date
+ *                 example: "2026-05-10"
+ *               end_date:
+ *                 type: string
+ *                 format: date
+ *                 example: "2026-05-12"
+ *               number_of_people:
+ *                 type: integer
+ *                 minimum: 1
+ *                 example: 2
+ *               transportation:
+ *                 type: string
+ *                 enum: [motorbike, car, bus]
+ *     responses:
+ *       201:
+ *         description: Clone thành công
+ *       400:
+ *         description: Planner nguồn chưa đủ điều kiện clone hoặc dữ liệu planner mới không hợp lệ
+ *       401:
+ *         description: Chưa xác thực
+ *       404:
+ *         description: Không tìm thấy planner nguồn
+ */
+
 module.exports = {};
 

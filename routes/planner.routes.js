@@ -200,8 +200,15 @@ router.get(
 router.post(
     '/:id/share',
     authenticate,
-    PlannerValidator.validatePlannerId,
+    PlannerValidator.sharePlanner,
     PlannerController.shareToPost
+);
+
+router.post(
+    '/:id/clone',
+    authenticate,
+    PlannerValidator.clonePlanner,
+    PlannerController.cloneSharedPlanner
 );
 
 // Offline Mode Routes
