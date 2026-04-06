@@ -120,17 +120,17 @@ class PostService {
             return null;
         }
 
-        const JournalService = require('./journalService');
         const journey = post.planner.toJSON();
         const sortedItems = this.sortPlannerItems(journey.items || []);
-        const model3DMap = await JournalService.getApprovedModel3DMap(
-            sortedItems.map(item => item.site_id)
-        );
+        const formattedItems = sortedItems.map(item => {
+            const formattedItem = PlannerService.formatPlannerItemResponse(item);
 
-        const formattedItems = sortedItems.map(item => ({
-            ...PlannerService.formatPlannerItemResponse(item),
-            model_3d: model3DMap.get(item.site_id) || null
-        }));
+            if (formattedItem.travel_time_minutes === null || formattedItem.travel_time_minutes === undefined) {
+                delete formattedItem.travel_time_minutes;
+            }
+
+            return formattedItem;
+        });
         const itemsByDay = {};
 
         formattedItems.forEach(item => {
@@ -141,14 +141,19 @@ class PostService {
             itemsByDay[item.leg_number].push(item);
         });
 
+        const summary = this.buildPlannerJourneySummary(journey, formattedItems);
+
         return {
             id: journey.id,
             name: journey.name,
             start_date: journey.start_date,
             end_date: journey.end_date,
+            number_of_days: summary.total_days,
+            number_of_people: journey.number_of_people,
+            transportation: journey.transportation,
             status: PlannerService.getPlannerCurrentStatus(journey),
             cloneable: true,
-            summary: this.buildPlannerJourneySummary(journey, formattedItems),
+            summary,
             items: formattedItems,
             items_by_day: itemsByDay
         };
@@ -174,17 +179,31 @@ class PostService {
             {
                 model: Planner,
                 as: 'planner',
-                attributes: ['id', 'name', 'start_date', 'end_date', 'status'],
+                attributes: ['id', 'name', 'start_date', 'end_date', 'status', 'number_of_people', 'transportation'],
                 include: [
                     {
                         model: PlannerItem,
                         as: 'items',
-                        attributes: ['id', 'leg_number', 'order_index', 'status', 'site_id'],
+                        attributes: [
+                            'id',
+                            'leg_number',
+                            'order_index',
+                            'status',
+                            'site_id',
+                            'event_id',
+                            'note',
+                            'skip_reason',
+                            'skipped_at',
+                            'nearby_amenity_ids',
+                            'estimated_time',
+                            'rest_duration',
+                            'travel_time_minutes'
+                        ],
                         include: [
                             {
                                 model: Site,
                                 as: 'site',
-                                attributes: ['id', 'name', 'province', 'cover_image']
+                                attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image', 'patron_saint']
                             }
                         ]
                     }

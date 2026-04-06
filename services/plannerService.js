@@ -1,4 +1,4 @@
-const { Planner, PlannerItem, User, Site, Event, PlannerInvite, PlannerMember, NearbyPlace } = require('../models');
+const { Planner, PlannerItem, User, Site, Event, PlannerInvite, PlannerMember, NearbyPlace, Post } = require('../models');
 const { Op } = require('sequelize');
 const Logger = require('../utils/logger.util');
 const sequelize = require('../config/database');
@@ -39,6 +39,56 @@ class PlannerService {
         return new Date(`${dateValue}T${timeValue || fallbackTime}`);
     }
 
+    static formatDateOnlyLocal(dateValue) {
+        if (!(dateValue instanceof Date) || Number.isNaN(dateValue.getTime())) {
+            return null;
+        }
+
+        const year = dateValue.getFullYear();
+        const month = String(dateValue.getMonth() + 1).padStart(2, '0');
+        const day = String(dateValue.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    static normalizeRestDurationValue(value) {
+        if (value === undefined || value === null) {
+            return null;
+        }
+
+        if (typeof value === 'string') {
+            return value;
+        }
+
+        if (typeof value === 'object') {
+            const units = [
+                ['years', 'year'],
+                ['months', 'month'],
+                ['days', 'day'],
+                ['hours', 'hour'],
+                ['minutes', 'minute'],
+                ['seconds', 'second']
+            ];
+            const parts = [];
+
+            units.forEach(([key, singular]) => {
+                const rawAmount = value[key];
+                const amount = Number(rawAmount);
+
+                if (!Number.isFinite(amount) || amount === 0) {
+                    return;
+                }
+
+                const normalizedAmount = Number.isInteger(amount) ? amount : Number(amount.toFixed(2));
+                const label = Math.abs(normalizedAmount) === 1 ? singular : `${singular}s`;
+                parts.push(`${normalizedAmount} ${label}`);
+            });
+
+            return parts.join(' ') || null;
+        }
+
+        return String(value);
+    }
+
     static normalizeDateOnlyValue(value) {
         if (value === undefined) {
             return undefined;
@@ -49,7 +99,7 @@ class PlannerService {
         }
 
         if (value instanceof Date) {
-            return Number.isNaN(value.getTime()) ? null : value.toISOString().slice(0, 10);
+            return this.formatDateOnlyLocal(value);
         }
 
         const stringValue = String(value);
@@ -304,6 +354,151 @@ class PlannerService {
         }
 
         return { warning: null };
+    }
+
+    static addDaysToDateOnly(dateValue, daysToAdd = 0) {
+        if (!dateValue) {
+            return null;
+        }
+
+        const baseDate = new Date(`${dateValue}T00:00:00`);
+        if (Number.isNaN(baseDate.getTime())) {
+            return null;
+        }
+
+        baseDate.setDate(baseDate.getDate() + daysToAdd);
+        return this.formatDateOnlyLocal(baseDate);
+    }
+
+    static getPlannerDurationDays(planner, items = []) {
+        if (planner?.start_date && planner?.end_date) {
+            const start = new Date(`${planner.start_date}T00:00:00`);
+            const end = new Date(`${planner.end_date}T00:00:00`);
+
+            if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end >= start) {
+                return Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
+            }
+        }
+
+        const maxLegNumber = items.reduce((maxLeg, item) => {
+            const currentLeg = Number(item?.leg_number || 0);
+            return currentLeg > maxLeg ? currentLeg : maxLeg;
+        }, 0);
+
+        return Math.max(maxLegNumber || 0, 1);
+    }
+
+    static getDefaultCloneStartDate(numberOfPeople = 1) {
+        const startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
+        startDate.setDate(startDate.getDate() + (Number(numberOfPeople) > 1 ? 3 : 1));
+        return this.formatDateOnlyLocal(startDate);
+    }
+
+    static async validatePlannerCreationBasics(userId, plannerData = {}) {
+        const name = typeof plannerData.name === 'string' ? plannerData.name.trim() : '';
+        const parsedPeople = Number.parseInt(plannerData.number_of_people, 10);
+        const numberOfPeople = Number.isNaN(parsedPeople) ? 1 : parsedPeople;
+        const startDate = this.normalizeDateOnlyValue(plannerData.start_date) || null;
+        const endDate = this.normalizeDateOnlyValue(plannerData.end_date) || null;
+
+        if (!name) {
+            throw new Error('Name is required');
+        }
+
+        if (numberOfPeople < 1) {
+            throw new Error('Number of people must be at least 1');
+        }
+
+        if (startDate) {
+            const now = new Date();
+            const startDateObj = new Date(startDate);
+            startDateObj.setHours(0, 0, 0, 0);
+
+            if (numberOfPeople >= 2) {
+                const minLeadTime = new Date(now);
+                minLeadTime.setHours(minLeadTime.getHours() + 48);
+
+                if (startDateObj < minLeadTime) {
+                    throw new Error('Group lead time error');
+                }
+            } else {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                if (startDateObj <= today) {
+                    throw new Error('Ngày bắt đầu kế hoạch phải từ ngày mai trở đi');
+                }
+            }
+        }
+
+        if (startDate && endDate) {
+            const startDateObj = new Date(startDate);
+            const endDateObj = new Date(endDate);
+            if (endDateObj < startDateObj) {
+                throw new Error('End date must be after or equal to start date');
+            }
+
+            const diffTime = endDateObj.getTime() - startDateObj.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            if (diffDays > 30) {
+                throw new Error('Planner exceeds 30 days');
+            }
+
+            const memberPlanners = await PlannerMember.findAll({
+                where: {
+                    user_id: userId,
+                    join_status: 'joined'
+                },
+                attributes: ['planner_id']
+            });
+            const joinedPlannerIds = memberPlanners.map(member => member.planner_id);
+
+            const overlappingPlanners = await Planner.findAll({
+                where: {
+                    is_active: true,
+                    [Op.or]: [
+                        { user_id: userId },
+                        { id: { [Op.in]: joinedPlannerIds } }
+                    ],
+                    start_date: { [Op.ne]: null },
+                    end_date: { [Op.ne]: null },
+                    [Op.and]: [
+                        { start_date: { [Op.lte]: endDate } },
+                        { end_date: { [Op.gte]: startDate } }
+                    ]
+                },
+                attributes: ['id', 'name', 'start_date', 'end_date']
+            });
+
+            if (overlappingPlanners.length > 0) {
+                const conflictDates = new Set();
+                const requestedStart = new Date(startDate);
+                const requestedEnd = new Date(endDate);
+
+                for (const planner of overlappingPlanners) {
+                    const plannerStart = new Date(planner.start_date);
+                    const plannerEnd = new Date(planner.end_date);
+                    const overlapStart = plannerStart > requestedStart ? plannerStart : requestedStart;
+                    const overlapEnd = plannerEnd < requestedEnd ? plannerEnd : requestedEnd;
+
+                    for (let date = new Date(overlapStart); date <= overlapEnd; date.setDate(date.getDate() + 1)) {
+                        conflictDates.add(date.toISOString().split('T')[0]);
+                    }
+                }
+
+                const error = new Error('Planner dates overlap');
+                error.conflictDates = Array.from(conflictDates).sort();
+                throw error;
+            }
+        }
+
+        return {
+            name,
+            number_of_people: numberOfPeople,
+            transportation: plannerData.transportation || null,
+            start_date: startDate,
+            end_date: endDate
+        };
     }
 
     /**
@@ -1000,7 +1195,7 @@ class PlannerService {
     /**
      * Share a completed planner journey to community posts
      */
-    static async sharePlannerToPost(userId, plannerId) {
+    static async sharePlannerToPost(userId, plannerId, shareData = {}) {
         try {
             const planner = await Planner.findByPk(plannerId);
 
@@ -1038,16 +1233,30 @@ class PlannerService {
                 throw error;
             }
 
+            const customContent = typeof shareData.content === 'string'
+                ? shareData.content.trim()
+                : '';
+            const postContent = customContent || `Hành trình "${planner.name}" của tôi đã hoàn thành!`;
+
             // Create post referencing the planner
             const post = await Post.create({
                 user_id: userId,
                 planner_id: plannerId,
-                content: `Hành trình "${planner.name}" của tôi đã hoàn thành!`,
+                content: postContent,
                 status: 'published'
             });
 
+            const PostService = require('./postService');
+            const sharedPost = await Post.findByPk(post.id, {
+                include: PostService.getPostIncludes()
+            });
+
             Logger.info(`Planner ${plannerId} shared to post ${post.id} by user ${userId}`);
-            return post;
+            if (!sharedPost) {
+                return post;
+            }
+
+            return PostService.formatPostResponse(sharedPost);
         } catch (error) {
             if (error?.name === 'SequelizeUniqueConstraintError') {
                 const duplicateError = new Error('This journey has already been shared to the community');
@@ -1055,6 +1264,151 @@ class PlannerService {
                 throw duplicateError;
             }
             Logger.error('Share planner to post error:', error);
+            throw error;
+        }
+    }
+
+    static async cloneSharedPlanner(userId, sourcePlannerId, overrides = {}) {
+        const transaction = await sequelize.transaction();
+        let committed = false;
+
+        try {
+            const [sourcePlanner, sharedPost] = await Promise.all([
+                Planner.findByPk(sourcePlannerId, {
+                    include: [
+                        {
+                            model: PlannerItem,
+                            as: 'items'
+                        }
+                    ],
+                    transaction
+                }),
+                Post.findOne({
+                    where: {
+                        planner_id: sourcePlannerId,
+                        status: 'published',
+                        is_active: true
+                    },
+                    attributes: ['id', 'user_id', 'created_at'],
+                    transaction
+                })
+            ]);
+
+            if (!sourcePlanner || !sourcePlanner.is_active) {
+                throw new Error('Planner not found');
+            }
+
+            if (sourcePlanner.status !== 'completed' || !sharedPost) {
+                throw new Error('Journey is not available for community cloning');
+            }
+
+            const sourceItems = [...(sourcePlanner.items || [])].sort((left, right) => {
+                const leftLeg = Number(left?.leg_number || 0);
+                const rightLeg = Number(right?.leg_number || 0);
+
+                if (leftLeg !== rightLeg) {
+                    return leftLeg - rightLeg;
+                }
+
+                return Number(left?.order_index || 0) - Number(right?.order_index || 0);
+            });
+
+            if (sourceItems.length === 0) {
+                throw new Error('Shared journey has no planner items');
+            }
+
+            const requestedPeople = overrides.number_of_people !== undefined
+                ? overrides.number_of_people
+                : sourcePlanner.number_of_people;
+            const durationDays = this.getPlannerDurationDays(sourcePlanner, sourceItems);
+            const startDate = this.normalizeDateOnlyValue(overrides.start_date)
+                || this.getDefaultCloneStartDate(requestedPeople);
+            const endDate = this.normalizeDateOnlyValue(overrides.end_date)
+                || this.addDaysToDateOnly(startDate, durationDays - 1);
+            const cloneName = typeof overrides.name === 'string' && overrides.name.trim()
+                ? overrides.name.trim()
+                : `${sourcePlanner.name} (Copy)`;
+            const minimumCloneEndDate = this.addDaysToDateOnly(startDate, durationDays - 1);
+
+            if (endDate && minimumCloneEndDate) {
+                const selectedEndDate = new Date(`${endDate}T00:00:00`);
+                const requiredEndDate = new Date(`${minimumCloneEndDate}T00:00:00`);
+
+                if (!Number.isNaN(selectedEndDate.getTime())
+                    && !Number.isNaN(requiredEndDate.getTime())
+                    && selectedEndDate < requiredEndDate) {
+                    const error = new Error('Clone duration is shorter than source journey');
+                    error.requiredDays = durationDays;
+                    error.minimumEndDate = minimumCloneEndDate;
+                    throw error;
+                }
+            }
+
+            const clonePlannerData = await this.validatePlannerCreationBasics(userId, {
+                name: cloneName,
+                start_date: startDate,
+                end_date: endDate,
+                number_of_people: requestedPeople,
+                transportation: overrides.transportation !== undefined
+                    ? overrides.transportation
+                    : sourcePlanner.transportation
+            });
+
+            const newPlanner = await Planner.create({
+                user_id: userId,
+                ...clonePlannerData,
+                deposit_amount: 0,
+                penalty_percentage: 0,
+                status: 'planning',
+                is_locked: false,
+                edit_lock_at: null,
+                started_at: null,
+                completed_at: null
+            }, { transaction });
+
+            await PlannerMember.create({
+                planner_id: newPlanner.id,
+                user_id: userId,
+                join_status: 'joined',
+                deposit_status: null
+            }, { transaction });
+
+            await PlannerItem.bulkCreate(sourceItems.map(item => ({
+                planner_id: newPlanner.id,
+                site_id: item.site_id,
+                leg_number: item.leg_number,
+                order_index: item.order_index,
+                event_id: null,
+                status: 'upcoming',
+                note: item.note || null,
+                skip_reason: null,
+                skipped_at: null,
+                nearby_amenity_ids: Array.isArray(item.nearby_amenity_ids) ? item.nearby_amenity_ids : [],
+                estimated_time: item.estimated_time || null,
+                rest_duration: this.normalizeRestDurationValue(item.rest_duration),
+                travel_time_minutes: item.travel_time_minutes ?? null
+            })), { transaction });
+
+            await transaction.commit();
+            committed = true;
+
+            const clonedPlanner = await this.getPlannerById(newPlanner.id, userId);
+            return {
+                ...clonedPlanner,
+                cloned_from: {
+                    planner_id: sourcePlanner.id,
+                    post_id: sharedPost.id,
+                    name: sourcePlanner.name,
+                    start_date: sourcePlanner.start_date,
+                    end_date: sourcePlanner.end_date,
+                    number_of_people: sourcePlanner.number_of_people
+                }
+            };
+        } catch (error) {
+            if (!committed) {
+                await transaction.rollback();
+            }
+            Logger.error('Clone shared planner error:', error);
             throw error;
         }
     }
@@ -2391,7 +2745,7 @@ class PlannerService {
             skipped_at: item.skipped_at,
             nearby_amenity_ids: item.nearby_amenity_ids || [],
             estimated_time: item.estimated_time,
-            rest_duration: item.rest_duration,
+            rest_duration: this.normalizeRestDurationValue(item.rest_duration),
             travel_time_minutes: item.travel_time_minutes,
             estimated_departure_time: estimatedDepartureTime,
             // Checkin info

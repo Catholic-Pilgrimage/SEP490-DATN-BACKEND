@@ -824,7 +824,12 @@ class PlannerController {
      */
     static async shareToPost(req, res) {
         try {
-            const result = await PlannerService.sharePlannerToPost(req.user.id, req.params.id);
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
+            }
+
+            const result = await PlannerService.sharePlannerToPost(req.user.id, req.params.id, req.body);
             return ResponseUtil.created(res, result, req.__('planner.share_success'));
         } catch (error) {
             if (error.message === 'Planner not found') {
@@ -838,6 +843,66 @@ class PlannerController {
             }
             if (error.message === 'This journey has already been shared to the community') {
                 return ResponseUtil.badRequest(res, req.__('planner.already_shared_to_community'));
+            }
+            return ResponseUtil.error(res, req.__('error.server_error'));
+        }
+    }
+
+    /**
+     * POST /planners/:id/clone - Clone a shared completed journey into a new editable planner
+     */
+    static async cloneSharedPlanner(req, res) {
+        try {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
+            }
+
+            const result = await PlannerService.cloneSharedPlanner(req.user.id, req.params.id, req.body);
+            return ResponseUtil.created(res, result, req.__('planner.clone_success'));
+        } catch (error) {
+            if (error.message === 'Planner not found') {
+                return ResponseUtil.notFound(res, req.__('planner.not_found'));
+            }
+            if (error.message === 'Journey is not available for community cloning') {
+                return ResponseUtil.badRequest(res, req.__('planner.clone_only_shared_completed'));
+            }
+            if (error.message === 'Shared journey has no planner items') {
+                return ResponseUtil.badRequest(res, req.__('planner.clone_source_empty'));
+            }
+            if (error.message === 'Clone duration is shorter than source journey') {
+                return ResponseUtil.badRequest(
+                    res,
+                    req.__('planner.clone_duration_too_short', {
+                        days: error.requiredDays || '?',
+                        date: error.minimumEndDate || ''
+                    }),
+                    {
+                        required_days: error.requiredDays || null,
+                        minimum_end_date: error.minimumEndDate || null
+                    }
+                );
+            }
+            if (error.message === 'Name is required') {
+                return ResponseUtil.badRequest(res, req.__('planner.name_required'));
+            }
+            if (error.message === 'Start date must be from tomorrow onward' || error.message === 'Ngày bắt đầu phải từ ngày mai trở đi') {
+                return ResponseUtil.badRequest(res, req.__('planner.start_date_from_tomorrow'));
+            }
+            if (error.message === 'Number of people must be at least 1') {
+                return ResponseUtil.badRequest(res, req.__('planner.invalid_people'));
+            }
+            if (error.message === 'End date must be after or equal to start date') {
+                return ResponseUtil.badRequest(res, req.__('planner.invalid_end_date'));
+            }
+            if (error.message === 'Planner exceeds 30 days') {
+                return ResponseUtil.badRequest(res, req.__('planner.exceeds_max_days'));
+            }
+            if (error.message === 'Planner dates overlap') {
+                return ResponseUtil.badRequest(res, req.__('planner.dates_overlap', { dates: error.conflictDates.join(', ') }), { conflict_dates: error.conflictDates });
+            }
+            if (error.message === 'Group lead time error') {
+                return ResponseUtil.badRequest(res, req.__('planner.group_lead_time_error'));
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
