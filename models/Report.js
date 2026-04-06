@@ -41,7 +41,7 @@ const Report = sequelize.define('Report', {
     allowNull: true
   },
   status: {
-    type: DataTypes.ENUM('pending', 'resolved', 'reject'),
+    type: DataTypes.ENUM('pending', 'resolved', 'reject', 'cancelled'),
     defaultValue: 'pending'
   },
   admin_note: {
@@ -56,6 +56,11 @@ const Report = sequelize.define('Report', {
       key: 'id'
     },
     onDelete: 'SET NULL'
+  },
+  is_active: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true
   },
   created_at: {
     type: DataTypes.DATE,

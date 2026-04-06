@@ -31,7 +31,7 @@ const reportValidator = {
   getReports: [
     query('status')
       .optional({ nullable: true, checkFalsy: true })
-      .isIn(['pending', 'resolved', 'reject'])
+      .isIn(['pending', 'resolved', 'reject', 'cancelled'])
       .withMessage('Invalid status'),
 
     query('target_type')
@@ -70,6 +70,11 @@ const reportValidator = {
 
   // Get my reports
   getMyReports: [
+    query('is_active')
+      .optional({ nullable: true, checkFalsy: true })
+      .isIn(['true', 'false', 'all'])
+      .withMessage('is_active must be one of: true, false, all'),
+
     query('page')
       .optional()
       .isInt({ min: 1 })

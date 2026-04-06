@@ -89,7 +89,7 @@
  *         name: status
  *         schema:
  *           type: string
- *           enum: [pending, resolved, reject]
+ *           enum: [pending, resolved, reject, cancelled]
  *         description: Lọc theo trạng thái
  *       - in: query
  *         name: target_type
@@ -151,6 +151,13 @@
  *     security:
  *       - bearerAuth: []
  *     parameters:
+ *       - in: query
+ *         name: is_active
+ *         schema:
+ *           type: string
+ *           enum: [true, false, all]
+ *           default: all
+ *         description: Lọc theo trạng thái hoạt động của report
  *       - in: query
  *         name: page
  *         schema:
@@ -254,7 +261,7 @@
  * @swagger
  * /api/reports/{id}:
  *   delete:
- *     summary: Xóa báo cáo của mình
+ *     summary: Hủy yêu cầu báo cáo của mình
  *     tags: [Reports]
  *     security:
  *       - bearerAuth: []
@@ -267,7 +274,7 @@
  *           format: uuid
  *     responses:
  *       200:
- *         description: Xóa báo cáo thành công
+ *         description: Hủy yêu cầu báo cáo thành công (status = cancelled, is_active = false)
  *       403:
  *         description: Không có quyền xóa
  *       404:
