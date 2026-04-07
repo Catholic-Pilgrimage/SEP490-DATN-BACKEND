@@ -46,4 +46,11 @@ router.get(
     WalletController.getBanks
 );
 
+router.post(
+    '/topup',
+    authMiddleware,
+    WalletValidator.requestTopup,
+    WalletController.requestTopup
+);
+
 module.exports = router;
