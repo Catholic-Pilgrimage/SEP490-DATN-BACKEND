@@ -333,6 +333,139 @@ class WalletService {
      * @param {number} amount - Số tiền rút (VND)
      * @param {object} bankInfo - { account_number, account_name, bank_code }
      */
+    static async createTopup(userId, amount) {
+        const PayOSService = require('../shared/payosService');
+
+        try {
+            const parsedAmount = Number(amount);
+            if (!Number.isFinite(parsedAmount) || parsedAmount < 2000) {
+                throw new Error('Số tiền nạp tối thiểu là 2,000 VND');
+            }
+            if (parsedAmount > 50000000) {
+                throw new Error('Số tiền nạp tối đa là 50,000,000 VND');
+            }
+
+            const wallet = await this.getOrCreateWallet(userId);
+            const orderCode = PayOSService.generateOrderCode();
+
+            let topupTransaction = null;
+            try {
+                topupTransaction = await Transaction.create({
+                    wallet_id: wallet.id,
+                    amount: parsedAmount,
+                    type: 'topup',
+                    status: 'pending',
+                    reference_type: 'wallet_topup',
+                    reference_id: `${wallet.id}:${userId}:${orderCode}`,
+                    description: `Nạp ${parsedAmount.toLocaleString('vi-VN')} VND vào ví`,
+                    code: WalletService.generateTxnCode()
+                });
+
+                const paymentLink = await PayOSService.createPaymentLink(
+                    parsedAmount,
+                    orderCode,
+                    'Nạp tiền vào ví'
+                );
+
+                Logger.info(`Topup link created: user=${userId}, wallet=${wallet.id}, amount=${parsedAmount}, orderCode=${orderCode}`);
+
+                return {
+                    transaction_id: topupTransaction.id,
+                    transaction_code: topupTransaction.code,
+                    wallet_id: wallet.id,
+                    amount: parsedAmount,
+                    order_code: orderCode,
+                    checkout_url: paymentLink.checkoutUrl,
+                    qr_code: paymentLink.qrCode
+                };
+            } catch (payosError) {
+                if (topupTransaction) {
+                    topupTransaction.status = 'cancelled';
+                    await topupTransaction.save();
+                }
+
+                Logger.error(`Create topup link failed: user=${userId}, amount=${parsedAmount}`, payosError);
+                throw payosError;
+            }
+        } catch (error) {
+            Logger.error('Create topup error:', error);
+            throw error;
+        }
+    }
+
+    static async handleTopupWebhookByOrderCode(orderCode) {
+        const t = await sequelize.transaction();
+        try {
+            const transaction = await Transaction.findOne({
+                where: {
+                    reference_type: 'wallet_topup',
+                    reference_id: { [Op.like]: `%:${orderCode}` },
+                    type: 'topup'
+                },
+                transaction: t,
+                lock: true
+            });
+
+            if (!transaction) {
+                await t.rollback();
+                return null;
+            }
+
+            if (transaction.status === 'completed') {
+                await t.rollback();
+                return {
+                    success: true,
+                    messageKey: 'wallet.topup_completed',
+                    amount: parseFloat(transaction.amount),
+                    transactionId: transaction.id
+                };
+            }
+
+            if (transaction.status === 'cancelled') {
+                await t.rollback();
+                return {
+                    success: false,
+                    messageKey: 'wallet.invalid_transaction',
+                    amount: parseFloat(transaction.amount),
+                    transactionId: transaction.id
+                };
+            }
+
+            const wallet = await Wallet.findByPk(transaction.wallet_id, {
+                transaction: t,
+                lock: true
+            });
+
+            if (!wallet) {
+                throw new Error('Wallet not found');
+            }
+
+            transaction.status = 'completed';
+            await transaction.save({ transaction: t });
+
+            wallet.balance = parseFloat(wallet.balance) + parseFloat(transaction.amount);
+            await wallet.save({ transaction: t });
+
+            await t.commit();
+
+            Logger.info(`Topup completed via webhook: wallet=${wallet.id}, amount=${transaction.amount}, orderCode=${orderCode}`);
+
+            return {
+                success: true,
+                messageKey: 'wallet.topup_completed',
+                amount: parseFloat(transaction.amount),
+                transactionId: transaction.id,
+                walletId: wallet.id
+            };
+        } catch (error) {
+            if (!t.finished) {
+                await t.rollback();
+            }
+            Logger.error('Handle topup webhook error:', error);
+            throw error;
+        }
+    }
+
     static async requestWithdrawal(userId, amount, bankInfo) {
         const PayOSService = require('../shared/payosService');
         const t = await sequelize.transaction();

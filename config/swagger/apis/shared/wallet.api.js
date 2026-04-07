@@ -2,7 +2,7 @@
  * @swagger
  * tags:
  *   name: Wallet
- *   description: Quản lý ví điện tử (Wallet Management)
+ *   description: Quản lý ví điện tử
  */
 
 /**
@@ -59,7 +59,7 @@
  *         name: type
  *         schema:
  *           type: string
- *           enum: [withdraw, escrow_lock, escrow_refund, penalty_applied, penalty_received, penalty_refunded]
+ *           enum: [topup, withdraw, escrow_lock, escrow_refund, penalty_applied, penalty_received, penalty_refunded]
  *         description: Lọc theo loại giao dịch
  *       - in: query
  *         name: status
@@ -97,6 +97,71 @@
  *                     currentPage:
  *                       type: integer
  *                       example: 1
+ */
+
+/**
+ * @swagger
+ * /api/wallet/topup:
+ *   post:
+ *     summary: Tạo link nạp tiền vào ví
+ *     description: Tạo giao dịch topup ở trạng thái pending và trả về checkout URL hoặc QR code để người dùng thanh toán qua PayOS.
+ *     tags: [Wallet]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - amount
+ *             properties:
+ *               amount:
+ *                 type: number
+ *                 minimum: 2000
+ *                 maximum: 50000000
+ *                 example: 100000
+ *                 description: Số tiền nạp (VND)
+ *     responses:
+ *       201:
+ *         description: Tạo link nạp tiền thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                   example: Tạo link nạp tiền thành công
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     transaction_id:
+ *                       type: string
+ *                       format: uuid
+ *                     transaction_code:
+ *                       type: string
+ *                       example: TXN202603184F7K
+ *                     wallet_id:
+ *                       type: string
+ *                       format: uuid
+ *                     amount:
+ *                       type: number
+ *                       example: 100000
+ *                     order_code:
+ *                       type: integer
+ *                       example: 123456789
+ *                     checkout_url:
+ *                       type: string
+ *                     qr_code:
+ *                       type: string
+ *       400:
+ *         description: Số tiền không hợp lệ
+ *       401:
+ *         description: Chưa xác thực
  */
 
 /**
@@ -178,7 +243,7 @@
  *                       type: string
  *                       example: completed
  *       400:
- *         description: Số dư không đủ, thông tin bank thiếu, hoặc PayOS Chi thất bại
+ *         description: Số dư không đủ, thiếu thông tin ngân hàng hoặc PayOS Chi thất bại
  *       401:
  *         description: Chưa xác thực
  */
@@ -188,7 +253,7 @@
  * /api/wallet/banks:
  *   get:
  *     summary: Danh sách ngân hàng (BIN code cho dropdown)
- *     description: Trả về danh sách ngân hàng hỗ trợ chuyển tiền kèm BIN code, logo. Dữ liệu được cache 24h từ VietQR API. Không cần đăng nhập.
+ *     description: Trả về danh sách ngân hàng hỗ trợ chuyển tiền kèm BIN code và logo. Dữ liệu được cache 24 giờ từ VietQR API. Không cần đăng nhập.
  *     tags: [Wallet]
  *     responses:
  *       200:
@@ -208,7 +273,7 @@
  *                       bin:
  *                         type: string
  *                         example: "970423"
- *                         description: Mã BIN (dùng cho bank_code khi rút tiền)
+ *                         description: Mã BIN dùng cho bank_code khi rút tiền
  *                       name:
  *                         type: string
  *                         example: "Ngân hàng TMCP Tiên Phong"

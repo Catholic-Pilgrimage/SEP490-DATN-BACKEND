@@ -1220,6 +1220,12 @@ class PlannerShareService {
 
             const orderCode = String(verifiedData.data?.orderCode || verifiedData.orderCode);
 
+            const topupResult = await WalletService.handleTopupWebhookByOrderCode(orderCode);
+            if (topupResult) {
+                await t.rollback();
+                return topupResult;
+            }
+
             // Lock the transaction row first
             const transaction = await Transaction.findOne({
                 where: {

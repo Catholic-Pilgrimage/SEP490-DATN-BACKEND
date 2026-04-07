@@ -10,9 +10,9 @@ class WalletController {
     static async getWalletInfo(req, res) {
         try {
             const result = await WalletService.getWalletInfo(req.user.id);
-            return ResponseUtil.success(res, result, 'Lấy thông tin ví thành công');
+            return ResponseUtil.success(res, result, req.__('wallet.get_wallet_success'));
         } catch (error) {
-            return ResponseUtil.error(res, 'Lỗi khi lấy thông tin ví');
+            return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
 
@@ -23,24 +23,48 @@ class WalletController {
         try {
             const errors = validationResult(req);
             if (!errors.isEmpty()) {
-                return ResponseUtil.badRequest(res, 'Dữ liệu không hợp lệ', formatValidationErrors(errors.array()));
+                return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
             }
 
             const result = await WalletService.getTransactions(req.user.id, req.query);
-            return ResponseUtil.success(res, result, 'Lấy lịch sử giao dịch thành công');
+            return ResponseUtil.success(res, result, req.__('wallet.get_transactions_success'));
         } catch (error) {
-            return ResponseUtil.error(res, 'Lỗi khi lấy lịch sử giao dịch');
+            return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
 
     /**
-     * POST /wallet/withdraw - Rút tiền qua PayOS Chi (tự động)
+     * POST /wallet/topup - Tạo link nạp tiền qua PayOS
+     */
+    static async requestTopup(req, res) {
+        try {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
+            }
+
+            const { amount } = req.body;
+            const result = await WalletService.createTopup(req.user.id, amount);
+
+            return ResponseUtil.created(res, result, req.__('wallet.topup_created'));
+        } catch (error) {
+            const businessErrorSnippets = ['at least', 'must not exceed', 'tối thiểu', 'tối đa', 'toi thieu', 'toi da'];
+            if (businessErrorSnippets.some(snippet => error.message.includes(snippet))) {
+                return ResponseUtil.badRequest(res, error.message);
+            }
+
+            return ResponseUtil.error(res, req.__('error.server_error'));
+        }
+    }
+
+    /**
+     * POST /wallet/withdraw - Rút tiền về tài khoản ngân hàng
      */
     static async requestWithdrawal(req, res) {
         try {
             const errors = validationResult(req);
             if (!errors.isEmpty()) {
-                return ResponseUtil.badRequest(res, 'Dữ liệu không hợp lệ', formatValidationErrors(errors.array()));
+                return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
             }
 
             const { amount, account_number, account_name, bank_code } = req.body;
@@ -52,23 +76,34 @@ class WalletController {
 
             return ResponseUtil.created(res, result, result.message);
         } catch (error) {
-            if (error.message.includes('tối thiểu') || error.message.includes('không đủ') || error.message.includes('ngân hàng') || error.message.includes('thất bại')) {
+            const businessErrorSnippets = [
+                'tối thiểu',
+                'không đủ',
+                'ngân hàng',
+                'thất bại',
+                'toi thieu',
+                'khong du',
+                'ngan hang',
+                'that bai'
+            ];
+
+            if (businessErrorSnippets.some(snippet => error.message.includes(snippet))) {
                 return ResponseUtil.badRequest(res, error.message);
             }
-            return ResponseUtil.error(res, 'Lỗi khi rút tiền');
+
+            return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
 
     /**
-     * GET /wallet/banks - Lấy danh sách ngân hàng (BIN code) cho FE dropdown
+     * GET /wallet/banks - Lấy danh sách ngân hàng cho dropdown
      */
     static _bankCache = { data: null, fetchedAt: 0 };
     static async getBanks(req, res) {
         try {
             const ONE_DAY = 24 * 60 * 60 * 1000;
-            // Cache 24h
             if (WalletController._bankCache.data && Date.now() - WalletController._bankCache.fetchedAt < ONE_DAY) {
-                return ResponseUtil.success(res, WalletController._bankCache.data, 'Lấy danh sách ngân hàng thành công');
+                return ResponseUtil.success(res, WalletController._bankCache.data, req.__('wallet.get_banks_success'));
             }
 
             const response = await fetch('https://api.vietqr.io/v2/banks');
@@ -83,9 +118,9 @@ class WalletController {
             }));
 
             WalletController._bankCache = { data: banks, fetchedAt: Date.now() };
-            return ResponseUtil.success(res, banks, 'Lấy danh sách ngân hàng thành công');
+            return ResponseUtil.success(res, banks, req.__('wallet.get_banks_success'));
         } catch (error) {
-            return ResponseUtil.error(res, 'Lỗi khi lấy danh sách ngân hàng');
+            return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
 

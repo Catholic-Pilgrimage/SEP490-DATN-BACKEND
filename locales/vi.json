@@ -673,6 +673,7 @@
   "wallet": {
     "get_wallet_success": "Lấy thông tin ví thành công",
     "get_transactions_success": "Lấy lịch sử giao dịch thành công",
+    "get_banks_success": "Lấy danh sách ngân hàng thành công",
     "topup_created": "Tạo link nạp tiền thành công",
     "topup_completed": "Nạp tiền thành công",
     "withdrawal_requested": "Yêu cầu rút tiền thành công. Vui lòng chờ Admin duyệt.",
