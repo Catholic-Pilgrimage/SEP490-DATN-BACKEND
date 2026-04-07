@@ -1,7 +1,6 @@
 const { Site, User, SiteMedia, MassSchedule, Event, NearbyPlace, GuideShiftSubmission, GuideShift } = require('../../models');
 const { Op, fn, col } = require('sequelize');
 const Logger = require('../../utils/logger.util');
-const appConfig = require('../../config/app.config');
 
 class AdminSiteService {
   /**
@@ -204,13 +203,11 @@ class AdminSiteService {
         events.total += parseInt(stat.count);
       });
 
-
-      const today = new Date(new Date().toLocaleString('en-US', { timeZone: appConfig.timezone })).toISOString().split('T')[0];
       const upcomingCount = await Event.count({
         where: {
           site_id: siteId,
           status: 'approved',
-          start_date: { [Op.gte]: today }
+          time_state: 'upcoming'
         }
       });
       events.upcoming = upcomingCount;

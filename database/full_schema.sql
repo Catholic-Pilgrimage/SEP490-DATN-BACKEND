@@ -462,6 +462,7 @@ CREATE TABLE IF NOT EXISTS events (
     rejection_reason VARCHAR(500),
     reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
     reviewed_at TIMESTAMP WITH TIME ZONE,
+    time_state VARCHAR(50) DEFAULT 'upcoming',
     is_active BOOLEAN DEFAULT TRUE,
     created_by UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -472,6 +473,7 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE INDEX IF NOT EXISTS idx_events_site ON events(site_id);
 CREATE INDEX IF NOT EXISTS idx_events_status ON events(status);
 CREATE INDEX IF NOT EXISTS idx_events_start_date ON events(start_date);
+CREATE INDEX IF NOT EXISTS idx_events_time_state ON events(time_state);
 
 
 

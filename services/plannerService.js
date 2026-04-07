@@ -1460,18 +1460,21 @@ class PlannerService {
 
                 // Calculate leg_number: use planner dates if available, otherwise use next available day
                 let calculatedLegNumber;
+                let eventStartDate = null;
+                let eventEndDate = null;
+                let plannerEndDate = null;
 
                 if (planner.start_date && planner.end_date) {
                     // Calculate from planner dates (existing logic)
                     const plannerStartDate = new Date(planner.start_date);
-                    const eventStartDate = new Date(event.start_date);
-                    const eventEndDate = event.end_date ? new Date(event.end_date) : eventStartDate;
+                    eventStartDate = new Date(event.start_date);
+                    eventEndDate = event.end_date ? new Date(event.end_date) : new Date(event.start_date);
 
                     plannerStartDate.setHours(0, 0, 0, 0);
                     eventStartDate.setHours(0, 0, 0, 0);
                     eventEndDate.setHours(0, 0, 0, 0);
 
-                    const plannerEndDate = new Date(planner.end_date);
+                    plannerEndDate = new Date(planner.end_date);
                     plannerEndDate.setHours(0, 0, 0, 0);
 
                     // Validate event dates are within planner range

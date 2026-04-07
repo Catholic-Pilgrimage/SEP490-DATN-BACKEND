@@ -35,6 +35,9 @@ exports.createSchedule = async (req, res) => {
             error.message === 'Each day must be between 0 and 6') {
             return ResponseUtil.badRequest(res, req.__('local_guide.invalid_days_of_week'));
         }
+        if (error.message === 'Schedule time outside opening hours') {
+            return ResponseUtil.badRequest(res, req.__('local_guide.schedule_outside_opening_hours', error.meta));
+        }
         return ResponseUtil.error(res, req.__('error.server_error'));
     }
 };
@@ -86,6 +89,9 @@ exports.updateSchedule = async (req, res) => {
         if (error.message === 'days_of_week must be a non-empty array' ||
             error.message === 'Each day must be between 0 and 6') {
             return ResponseUtil.badRequest(res, req.__('local_guide.invalid_days_of_week'));
+        }
+        if (error.message === 'Schedule time outside opening hours') {
+            return ResponseUtil.badRequest(res, req.__('local_guide.schedule_outside_opening_hours', error.meta));
         }
         return ResponseUtil.error(res, req.__('error.server_error'));
     }

@@ -706,6 +706,11 @@
  *           enum: [pending, approved, rejected]
  *         description: Lọc theo trạng thái
  *       - in: query
+ *         name: time_state
+ *         schema:
+ *           type: string
+ *           enum: [upcoming, ongoing, ended]
+ *       - in: query
  *         name: is_active
  *         schema:
  *           type: boolean
@@ -935,6 +940,9 @@
  *           nullable: true
  *           description: "Phân loại sự kiện"
  *           example: "mass"
+ *         time_state:
+ *           type: string
+ *           enum: [upcoming, ongoing, ended]
  *         status:
  *           type: string
  *           enum: [pending, approved, rejected]

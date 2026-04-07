@@ -511,6 +511,11 @@ class ManagerContentService {
             if (filters.status && ['pending', 'approved', 'rejected'].includes(filters.status)) {
                 where.status = filters.status;
             }
+
+            if (filters.time_state && ['upcoming', 'ongoing', 'ended'].includes(filters.time_state)) {
+                where.time_state = filters.time_state;
+            }
+
             // Filter by is_active (true/false/all)
             if (filters.is_active !== undefined) {
                 where.is_active = filters.is_active === 'true' || filters.is_active === true;

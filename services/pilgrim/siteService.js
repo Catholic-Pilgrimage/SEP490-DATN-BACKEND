@@ -1,5 +1,6 @@
 const { Site, User, UserFavorite, SiteMedia, MassSchedule, Event, NearbyPlace, VerificationRequest } = require('../../models');
 const { Op } = require('sequelize');
+const sequelize = require('../../config/database');
 const Logger = require('../../utils/logger.util');
 
 class PilgrimSiteService {
@@ -130,9 +131,6 @@ class PilgrimSiteService {
 
       // Filter by has_events
       if (filters.has_events === 'true') {
-        const appConfig = require('../../config/app.config');
-        const today = new Date(new Date().toLocaleString('en-US', { timeZone: appConfig.timezone })).toISOString().split('T')[0];
-
         const eventWhere = {
           status: 'approved',
           is_active: true,
@@ -146,7 +144,7 @@ class PilgrimSiteService {
             { end_date: null, start_date: { [Op.gte]: filters.start_date } }
           ];
         } else {
-          eventWhere.start_date = { [Op.gte]: today };
+          eventWhere.time_state = { [Op.in]: ['upcoming', 'ongoing'] };
         }
 
         include.push({
@@ -161,7 +159,19 @@ class PilgrimSiteService {
       const { count, rows } = await Site.findAndCountAll({
         where,
         include,
-        attributes: ['id', 'code', 'name', 'description', 'address', 'province', 'district', 'region', 'type', 'patron_saint', 'cover_image', 'opening_hours', 'latitude', 'longitude'],
+        attributes: [
+          'id', 'code', 'name', 'description', 'address', 'province', 'district', 'region', 'type', 'patron_saint', 'cover_image', 'opening_hours', 'latitude', 'longitude',
+          [sequelize.literal(`(
+            SELECT ROUND(AVG(sr.rating)::numeric, 1)
+            FROM site_reviews sr
+            WHERE sr.site_id = "Site".id AND sr.is_active = true
+          )`), 'average_rating'],
+          [sequelize.literal(`(
+            SELECT COUNT(sr.id)
+            FROM site_reviews sr
+            WHERE sr.site_id = "Site".id AND sr.is_active = true
+          )`), 'review_count']
+        ],
         order: [['name', 'ASC']],
         limit,
         offset,
@@ -197,7 +207,19 @@ class PilgrimSiteService {
 
       const site = await Site.findOne({
         where,
-        attributes: ['id', 'code', 'name', 'description', 'history', 'address', 'province', 'district', 'region', 'type', 'patron_saint', 'cover_image', 'opening_hours', 'contact_info', 'latitude', 'longitude', 'created_at']
+        attributes: [
+          'id', 'code', 'name', 'description', 'history', 'address', 'province', 'district', 'region', 'type', 'patron_saint', 'cover_image', 'opening_hours', 'contact_info', 'latitude', 'longitude', 'created_at',
+          [sequelize.literal(`(
+            SELECT ROUND(AVG(sr.rating)::numeric, 1)
+            FROM site_reviews sr
+            WHERE sr.site_id = "Site".id AND sr.is_active = true
+          )`), 'average_rating'],
+          [sequelize.literal(`(
+            SELECT COUNT(sr.id)
+            FROM site_reviews sr
+            WHERE sr.site_id = "Site".id AND sr.is_active = true
+          )`), 'review_count']
+        ]
       });
 
       if (!site) {
@@ -351,9 +373,7 @@ class PilgrimSiteService {
           { end_date: null, start_date: { [Op.gte]: filters.start_date } }
         ];
       } else if (filters.upcoming === 'true') {
-        const appConfig = require('../../config/app.config');
-        const today = new Date(new Date().toLocaleString('en-US', { timeZone: appConfig.timezone })).toISOString().split('T')[0];
-        where.start_date = { [Op.gte]: today };
+        where.time_state = { [Op.in]: ['upcoming', 'ongoing'] };
       }
 
       const { count, rows } = await Event.findAndCountAll({

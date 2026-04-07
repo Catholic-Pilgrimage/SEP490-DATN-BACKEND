@@ -781,6 +781,11 @@
  *         schema:
  *           type: string
  *           enum: [pending, approved, rejected]
+ *       - in: query
+ *         name: time_state
+ *         schema:
+ *           type: string
+ *           enum: [upcoming, ongoing, ended]
  *     responses:
  *       200:
  *         description: Thành công
@@ -824,6 +829,9 @@
  *                             type: string
  *                           banner_url:
  *                             type: string
+ *                           time_state:
+ *                             type: string
+ *                             enum: [upcoming, ongoing, ended]
  *                           status:
  *                             type: string
  *                             enum: [pending, approved, rejected]
