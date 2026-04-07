@@ -3155,6 +3155,8 @@ class PlannerService {
                     is_locked: true
                 }, { transaction: t });
 
+                await this.syncPlannerLockState(planner, { transaction: t });
+
                 Logger.info(`Planner ${plannerId} manually locked by user ${userId} (planning -> locked)`);
             }
             // Handle 'ongoing' status (start planner)
@@ -3164,7 +3166,7 @@ class PlannerService {
                 }
 
                 // ===== VALIDATION: Planner phải có đủ items cho tất cả các ngày =====
-                const plannerState = await this.getPlannerState(plannerId, planner);
+                const plannerState = await this.getPlannerState(plannerId, planner, { transaction: t });
                 if (!['planning', 'locked'].includes(planner.status)) {
                     throw new Error('Planner is not in planning status');
                 }
@@ -3385,6 +3387,17 @@ class PlannerService {
         return {
             status: hasReachedSoloLock ? 'locked' : 'planning',
             is_locked: hasReachedSoloLock,
+            number_of_people: 1,
+            deposit_amount: 0,
+            penalty_percentage: 0,
+            edit_lock_at: null
+        };
+    }
+
+    static buildLockedSoloFallbackUpdateData() {
+        return {
+            status: 'locked',
+            is_locked: true,
             number_of_people: 1,
             deposit_amount: 0,
             penalty_percentage: 0,
@@ -3786,8 +3799,21 @@ class PlannerService {
         const statusLockAt = this.getPlannerStatusLockAt(planner);
         const updateData = {};
 
-        if (isGroupPlanner && planner.status === 'locked' && !planner.is_locked) {
-            updateData.is_locked = true;
+        if (isGroupPlanner && planner.status === 'locked') {
+            const [joinedMemberCount, activeInviteCount] = await Promise.all([
+                this.getJoinedMemberCount(planner.id, options),
+                this.getActiveInviteCount(planner.id, options)
+            ]);
+
+            if (joinedMemberCount <= 1) {
+                if (activeInviteCount > 0) {
+                    await this.expireActivePlannerInvites(planner.id, options);
+                }
+
+                Object.assign(updateData, this.buildLockedSoloFallbackUpdateData());
+            } else if (!planner.is_locked) {
+                updateData.is_locked = true;
+            }
         }
 
         if (statusLockAt && now >= statusLockAt) {
@@ -3796,7 +3822,7 @@ class PlannerService {
             if (!hasPlannerItems) {
                 updateData.status = 'cancelled';
                 updateData.is_locked = false;
-            } else if (isGroupPlanner) {
+            } else if (isGroupPlanner && planner.status !== 'locked') {
                 const [joinedMemberCount, activeInviteCount] = await Promise.all([
                     this.getJoinedMemberCount(planner.id, options),
                     this.getActiveInviteCount(planner.id, options)
