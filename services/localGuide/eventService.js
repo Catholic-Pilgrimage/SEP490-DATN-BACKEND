@@ -2,6 +2,7 @@ const { User, Event } = require('../../models');
 const { Op } = require('sequelize');
 const Logger = require('../../utils/logger.util');
 const NotificationService = require('../shared/notificationService');
+const { calculateEventTimeState } = require('../../utils/eventTimeState.util');
 
 class LocalGuideEventService {
     /**
@@ -65,6 +66,7 @@ class LocalGuideEventService {
                 category: category || null,
                 banner_url: bannerUrl,
                 status: 'pending',
+                time_state: calculateEventTimeState(start_date, end_date || null),
                 created_by: userId
             });
 
@@ -107,6 +109,9 @@ class LocalGuideEventService {
                 where.status = filters.status;
             }
 
+            if (filters.time_state && ['upcoming', 'ongoing', 'ended'].includes(filters.time_state)) {
+                where.time_state = filters.time_state;
+            }
 
             if (filters.is_active !== undefined) {
                 where.is_active = filters.is_active === 'true' || filters.is_active === true;
@@ -187,6 +192,11 @@ class LocalGuideEventService {
                 dataToUpdate.reviewed_by = null;
                 dataToUpdate.reviewed_at = null;
             }
+
+            // Recalculate time_state if dates changed
+            const effectiveStartDate = dataToUpdate.start_date || event.start_date;
+            const effectiveEndDate = dataToUpdate.end_date !== undefined ? dataToUpdate.end_date : event.end_date;
+            dataToUpdate.time_state = calculateEventTimeState(effectiveStartDate, effectiveEndDate);
 
             await event.update(dataToUpdate);
 

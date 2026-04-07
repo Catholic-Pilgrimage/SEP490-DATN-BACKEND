@@ -202,6 +202,15 @@
  *                         type: number
  *                       longitude:
  *                         type: number
+ *                       average_rating:
+ *                         type: number
+ *                         example: 4.5
+ *                         description: Điểm đánh giá trung bình (1-5)
+ *                         nullable: true
+ *                       review_count:
+ *                         type: integer
+ *                         example: 128
+ *                         description: Tổng số lượt đánh giá
  *                 pagination:
  *                   type: object
  *                   properties:
@@ -294,6 +303,15 @@
  *                     created_at:
  *                       type: string
  *                       format: date-time
+ *                     average_rating:
+ *                       type: number
+ *                       example: 4.5
+ *                       description: Điểm đánh giá trung bình (1-5)
+ *                       nullable: true
+ *                     review_count:
+ *                       type: integer
+ *                       example: 128
+ *                       description: Tổng số lượt đánh giá
  *       404:
  *         description: Không tìm thấy địa điểm
  *       500:
@@ -453,7 +471,7 @@
  *         schema:
  *           type: string
  *           enum: ['true', 'false']
- *         description: Chỉ lấy sự kiện sắp diễn ra (start_date >= hôm nay)
+ *         description: Chỉ lấy sự kiện chưa kết thúc (time_state là upcoming hoặc ongoing)
  *     responses:
  *       200:
  *         description: Lấy danh sách thành công

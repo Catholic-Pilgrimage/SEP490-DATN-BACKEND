@@ -65,6 +65,13 @@ const Event = sequelize.define('Event', {
         allowNull: true,
         comment: 'Event category (e.g. mass, retreat, procession, workshop, prayer, festival, charity, youth)'
     },
+    time_state: {
+        type: DataTypes.STRING,
+        defaultValue: 'upcoming',
+        validate: {
+            isIn: [['upcoming', 'ongoing', 'ended']]
+        }
+    },
     status: {
         type: DataTypes.STRING,
         defaultValue: 'pending',

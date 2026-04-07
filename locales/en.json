@@ -168,6 +168,7 @@
     "time_required": "Time is required",
     "days_of_week_required": "Please select at least 1 day of week",
     "invalid_days_of_week": "Invalid days of week (must be array of numbers 0-6)",
+    "schedule_outside_opening_hours": "Schedule time {{time}} is outside site opening hours ({{open}} - {{close}})",
     "create_event_success": "Event created successfully",
     "get_events_success": "Events retrieved successfully",
     "update_event_success": "Event updated successfully",

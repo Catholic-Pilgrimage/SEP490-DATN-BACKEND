@@ -207,6 +207,7 @@
     "time_required": "Giờ lễ không được để trống",
     "days_of_week_required": "Vui lòng chọn ít nhất 1 ngày trong tuần",
     "invalid_days_of_week": "Ngày trong tuần không hợp lệ (phải là mảng các số từ 0-6)",
+    "schedule_outside_opening_hours": "Giờ lễ {{time}} nằm ngoài giờ hoạt động của địa điểm ({{open}} - {{close}})",
     "create_event_success": "Tạo sự kiện thành công",
     "get_events_success": "Lấy danh sách sự kiện thành công",
     "update_event_success": "Cập nhật sự kiện thành công",

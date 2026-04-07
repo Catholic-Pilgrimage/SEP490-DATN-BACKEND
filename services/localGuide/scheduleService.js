@@ -1,4 +1,4 @@
-const { User, MassSchedule } = require('../../models');
+const { User, Site, MassSchedule } = require('../../models');
 const { Op } = require('sequelize');
 const Logger = require('../../utils/logger.util');
 const NotificationService = require('../shared/notificationService');
@@ -57,6 +57,21 @@ class LocalGuideScheduleService {
             for (const day of days_of_week) {
                 if (day < 0 || day > 6) {
                     throw new Error('Each day must be between 0 and 6');
+                }
+            }
+
+            // Validate schedule time against site opening hours
+            const site = await Site.findByPk(user.site_id);
+            if (site && site.opening_hours && site.opening_hours.open && site.opening_hours.close) {
+                const normalizeTime = (t) => t.length === 5 ? `${t}:00` : t;
+                const normalizedTime = normalizeTime(time);
+                const normalizedOpen = normalizeTime(site.opening_hours.open);
+                const normalizedClose = normalizeTime(site.opening_hours.close);
+
+                if (normalizedTime < normalizedOpen || normalizedTime > normalizedClose) {
+                    const err = new Error('Schedule time outside opening hours');
+                    err.meta = { time, open: site.opening_hours.open, close: site.opening_hours.close };
+                    throw err;
                 }
             }
 
@@ -195,6 +210,20 @@ class LocalGuideScheduleService {
             }
 
             if (time !== undefined) {
+                // Validate schedule time against site opening hours
+                const site = await Site.findByPk(user.site_id);
+                if (site && site.opening_hours && site.opening_hours.open && site.opening_hours.close) {
+                    const normalizeTime = (t) => t.length === 5 ? `${t}:00` : t;
+                    const normalizedTime = normalizeTime(time);
+                    const normalizedOpen = normalizeTime(site.opening_hours.open);
+                    const normalizedClose = normalizeTime(site.opening_hours.close);
+
+                    if (normalizedTime < normalizedOpen || normalizedTime > normalizedClose) {
+                        const err = new Error('Schedule time outside opening hours');
+                        err.meta = { time, open: site.opening_hours.open, close: site.opening_hours.close };
+                        throw err;
+                    }
+                }
                 dataToUpdate.time = time;
             }
 

@@ -82,6 +82,11 @@
  *           type: string
  *           enum: [pending, approved, rejected]
  *       - in: query
+ *         name: time_state
+ *         schema:
+ *           type: string
+ *           enum: [upcoming, ongoing, ended]
+ *       - in: query
  *         name: is_active
  *         schema:
  *           type: boolean
@@ -131,6 +136,9 @@
  *                       category:
  *                         type: string
  *                         nullable: true
+ *                       time_state:
+ *                         type: string
+ *                         enum: [upcoming, ongoing, ended]
  *                       status:
  *                         type: string
  *                         enum: [pending, approved, rejected]
