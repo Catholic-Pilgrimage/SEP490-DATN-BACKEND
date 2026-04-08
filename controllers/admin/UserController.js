@@ -13,7 +13,7 @@ exports.getUsers = async (req, res) => {
         }
 
         const { page, limit, role, status, search } = req.query;
-        
+
         const result = await adminUserService.getUsers({
             page,
             limit,
@@ -39,7 +39,7 @@ exports.getUserById = async (req, res) => {
 
         const { id } = req.params;
         const result = await adminUserService.getUserById(id);
-        
+
         if (!result) {
             return ResponseUtil.notFound(res, req.__('admin.user_not_found'));
         }
@@ -63,19 +63,27 @@ exports.updateUserStatus = async (req, res) => {
         const { status } = req.body;
 
         const result = await adminUserService.updateUserStatus(id, status);
-        
+
         if (!result) {
             return ResponseUtil.notFound(res, req.__('admin.user_not_found'));
         }
 
-        const message = status === 'banned' 
-            ? req.__('admin.user_blocked') 
+        const message = status === 'banned'
+            ? req.__('admin.user_blocked')
             : req.__('admin.user_unblocked');
 
         return ResponseUtil.success(res, result, message);
     } catch (error) {
         if (error.message === 'Cannot change admin status') {
             return ResponseUtil.forbidden(res, req.__('admin.cannot_change_admin_status'));
+        }
+        const banErrorMap = {
+            'Cannot ban user while owning or participating in active planners': 'admin.cannot_ban_active_planners',
+            'Cannot ban user while wallet escrow is still locked': 'admin.cannot_ban_escrow_locked',
+            'Cannot ban user while wallet still has available balance': 'admin.cannot_ban_has_balance'
+        };
+        if (banErrorMap[error.message]) {
+            return ResponseUtil.badRequest(res, req.__(banErrorMap[error.message]));
         }
         return ResponseUtil.error(res, req.__('error.server_error'));
     }
@@ -92,7 +100,7 @@ exports.updateUser = async (req, res) => {
 
         const { id } = req.params;
         const result = await adminUserService.updateUser(id, req.body);
-        
+
         if (!result) {
             return ResponseUtil.notFound(res, req.__('admin.user_not_found'));
         }

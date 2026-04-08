@@ -166,7 +166,7 @@ class PilgrimSOSService {
             // GFind if the user is currently in an ongoing Planner trip
             // If they are, broadcast this SOS to their planner chat group
             const currentTrips = await PlannerMember.findAll({
-                where: { user_id: userId },
+                where: { user_id: userId, join_status: 'joined' },
                 include: [{
                     model: Planner,
                     as: 'planner',
@@ -213,7 +213,7 @@ class PilgrimSOSService {
 
                     // Optionally notify planner members via push notification here
                     const plannerMembers = await PlannerMember.findAll({
-                        where: { planner_id: plannerId }
+                        where: { planner_id: plannerId, join_status: 'joined' }
                     });
 
                     const planner = await Planner.findByPk(plannerId);
@@ -358,7 +358,7 @@ class PilgrimSOSService {
             // Quick broadcast to planner chat to let them know it's cancelled
             try {
                 const currentTrips = await PlannerMember.findAll({
-                    where: { user_id: userId },
+                    where: { user_id: userId, join_status: 'joined' },
                     include: [{ model: Planner, as: 'planner', where: { status: 'ongoing' } }]
                 });
                 const ownedTrips = await Planner.findAll({

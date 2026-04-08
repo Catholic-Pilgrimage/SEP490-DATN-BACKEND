@@ -1,4 +1,4 @@
-const { User } = require('../../models');
+const { User, Wallet, Planner, PlannerMember } = require('../../models');
 const { Op } = require('sequelize');
 const Logger = require('../../utils/logger.util');
 
@@ -96,6 +96,52 @@ class AdminUserService {
 
       if (user.role === 'admin') {
         throw new Error('Cannot change admin status');
+      }
+
+      // === Safeguards: only when BANNING ===
+      if (status === 'banned') {
+        // 1. Check active planners (owner of locked/ongoing)
+        const activePlannerAsOwner = await Planner.count({
+          where: {
+            user_id: userId,
+            status: { [Op.in]: ['locked', 'ongoing'] }
+          }
+        });
+
+        // Check active planners (joined member in locked/ongoing)
+        const activePlannerIds = await Planner.findAll({
+          where: { status: { [Op.in]: ['locked', 'ongoing'] } },
+          attributes: ['id'],
+          raw: true
+        });
+
+        let activePlannerAsMember = 0;
+        if (activePlannerIds.length > 0) {
+          activePlannerAsMember = await PlannerMember.count({
+            where: {
+              user_id: userId,
+              join_status: 'joined',
+              planner_id: { [Op.in]: activePlannerIds.map(p => p.id) }
+            }
+          });
+        }
+
+        if (activePlannerAsOwner > 0 || activePlannerAsMember > 0) {
+          throw new Error('Cannot ban user while owning or participating in active planners');
+        }
+
+        // 2. Check wallet escrow (locked_balance > 0)
+        const wallet = await Wallet.findOne({ where: { user_id: userId } });
+        if (wallet) {
+          if (parseFloat(wallet.locked_balance) > 0) {
+            throw new Error('Cannot ban user while wallet escrow is still locked');
+          }
+
+          // 3. Check wallet balance > 0
+          if (parseFloat(wallet.balance) > 0) {
+            throw new Error('Cannot ban user while wallet still has available balance');
+          }
+        }
       }
 
       await user.update({ status });

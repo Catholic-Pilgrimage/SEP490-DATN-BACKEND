@@ -142,11 +142,11 @@ class OfflineSyncService {
             throw new Error('Planner item not found');
         }
 
-        // Check if user is owner or member
+        // Check if user is owner or active joined member
         const planner = plannerItem.planner;
         if (planner.user_id !== userId) {
             const isMember = await PlannerMember.findOne({
-                where: { planner_id: planner.id, user_id: userId }
+                where: { planner_id: planner.id, user_id: userId, join_status: 'joined' }
             });
             if (!isMember) {
                 throw new Error('No permission to check-in this planner item');
@@ -207,9 +207,22 @@ class OfflineSyncService {
         const { planner_item_id, title, content, privacy, offline_time } = action;
 
         // Validate planner_item exists
-        const plannerItem = await PlannerItem.findByPk(planner_item_id);
+        const plannerItem = await PlannerItem.findByPk(planner_item_id, {
+            include: [{ model: Planner, as: 'planner' }]
+        });
         if (!plannerItem) {
             throw new Error('Planner item not found');
+        }
+
+        // Check if user is owner or active joined member
+        const planner = plannerItem.planner;
+        if (planner.user_id !== userId) {
+            const isMember = await PlannerMember.findOne({
+                where: { planner_id: planner.id, user_id: userId, join_status: 'joined' }
+            });
+            if (!isMember) {
+                throw new Error('No permission to create journal for this planner item');
+            }
         }
 
         // Check if user has checked in (optional validation)

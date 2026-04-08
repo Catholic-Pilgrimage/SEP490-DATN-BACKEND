@@ -33,6 +33,9 @@ class PlannerAntiFraudService {
                 transaction: t
             });
 
+            // Lấy tất cả check-in hợp lệ thuộc planner này
+            // Không cần filter date vì: checkinService đã validate thời gian lúc check-in,
+            // và JOIN PlannerItem đã scope đúng planner_id rồi
             const validCheckins = await UserCheckin.findAll({
                 include: [{
                     model: require('../../models/PlannerItem'),
@@ -41,10 +44,7 @@ class PlannerAntiFraudService {
                     required: true
                 }],
                 where: {
-                    is_valid: true,
-                    checkin_date: {
-                        [Op.between]: [planner.start_date, planner.end_date || planner.start_date]
-                    }
+                    is_valid: true
                 },
                 transaction: t
             });
@@ -55,6 +55,8 @@ class PlannerAntiFraudService {
             Logger.info(`Settlement: planner=${plannerId}, total_participants=${totalParticipants}, checked_in=${checkedInUserIds.size}`);
 
             if (checkedInUserIds.size > 0) {
+                const penaltyPercentage = parseInt(planner.penalty_percentage) || 0;
+
                 for (const member of members) {
                     if (member.join_status !== 'joined' || member.deposit_status !== 'paid') {
                         continue;
@@ -65,24 +67,82 @@ class PlannerAntiFraudService {
                         continue;
                     }
 
-                    await this._refundDeposit(
-                        member.user_id,
-                        depositAmount,
-                        plannerId,
-                        `Hoàn cọc ${depositAmount.toLocaleString('vi-VN')} VND sau khi hoàn thành chuyến đi: ${planner.name}`,
-                        t
-                    );
+                    const hasCheckin = checkedInUserIds.has(member.user_id);
 
-                    await PlannerMember.update(
-                        { deposit_status: 'refunded' },
-                        {
-                            where: {
-                                planner_id: plannerId,
-                                user_id: member.user_id
-                            },
-                            transaction: t
-                        }
-                    );
+                    if (hasCheckin) {
+                        // ===== CHECKED-IN: Hoàn cọc 100% =====
+                        await this._refundDeposit(
+                            member.user_id,
+                            depositAmount,
+                            plannerId,
+                            `Hoàn cọc ${depositAmount.toLocaleString('vi-VN')} VND sau khi hoàn thành chuyến đi: ${planner.name}`,
+                            t
+                        );
+
+                        await PlannerMember.update(
+                            { deposit_status: 'refunded' },
+                            {
+                                where: {
+                                    planner_id: plannerId,
+                                    user_id: member.user_id
+                                },
+                                transaction: t
+                            }
+                        );
+                    } else if (penaltyPercentage > 0) {
+                        // ===== NO-SHOW + CÓ PHẠT: Phạt n%, hoàn phần còn lại =====
+                        const penaltyAmountStr = (depositAmount * (penaltyPercentage / 100)).toLocaleString('vi-VN');
+                        const customOptions = {
+                            penaltyDesc: `Phạt ${penaltyPercentage}% (${penaltyAmountStr} VND) do vắng mặt không tham gia chuyến đi: ${planner.name}`,
+                            ownerDesc: `Tiền phạt từ thành viên vắng mặt (no-show): ${planner.name}`
+                        };
+
+                        await WalletService.applyPenalty(
+                            member.user_id,
+                            planner.user_id,
+                            depositAmount,
+                            penaltyPercentage,
+                            plannerId,
+                            planner.name,
+                            t,
+                            customOptions
+                        );
+
+                        await PlannerMember.update(
+                            { deposit_status: 'penalized', join_status: 'dropped_out' },
+                            {
+                                where: {
+                                    planner_id: plannerId,
+                                    user_id: member.user_id
+                                },
+                                transaction: t
+                            }
+                        );
+
+                        Logger.info(`No-show penalty applied: member=${member.user_id}, planner=${plannerId}, penalty=${penaltyPercentage}%`);
+                    } else {
+                        // ===== NO-SHOW + KHÔNG CÓ PHẠT: Hoàn 100% nhưng vẫn đánh dấu dropped_out =====
+                        await this._refundDeposit(
+                            member.user_id,
+                            depositAmount,
+                            plannerId,
+                            `Hoàn cọc ${depositAmount.toLocaleString('vi-VN')} VND (no-show, không áp dụng phạt): ${planner.name}`,
+                            t
+                        );
+
+                        await PlannerMember.update(
+                            { deposit_status: 'refunded', join_status: 'dropped_out' },
+                            {
+                                where: {
+                                    planner_id: plannerId,
+                                    user_id: member.user_id
+                                },
+                                transaction: t
+                            }
+                        );
+
+                        Logger.info(`No-show without penalty: member=${member.user_id}, planner=${plannerId}`);
+                    }
                 }
 
                 const ownerWallet = await Wallet.findOne({

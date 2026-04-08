@@ -61,7 +61,10 @@
     "get_transactions_success": "Transactions retrieved successfully",
     "get_escrow_success": "Escrow list retrieved successfully",
     "get_withdrawals_success": "Withdrawal history retrieved successfully",
-    "finance_error": "Error retrieving finance data"
+    "finance_error": "Error retrieving finance data",
+    "cannot_ban_active_planners": "Cannot ban user while owning or participating in active planners",
+    "cannot_ban_escrow_locked": "Cannot ban user while wallet escrow is still locked",
+    "cannot_ban_has_balance": "Cannot ban user while wallet still has available balance"
   },
   "site": {
     "create_success": "Site created successfully",

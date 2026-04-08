@@ -667,15 +667,22 @@ class PlannerService {
             const { page = 1, limit = 10 } = filters;
             const offset = (page - 1) * limit;
 
-            // Lấy danh sách ID của các planner mà người dùng là thành viên
+            // Lấy danh sách tất cả planner mà user liên quan (joined + dropped_out có dính tiền)
             const memberPlanners = await PlannerMember.findAll({
                 where: {
-                    user_id: userId,
-                    join_status: 'joined'
+                    user_id: userId
                 },
-                attributes: ['planner_id']
+                attributes: ['planner_id', 'join_status', 'deposit_status']
             });
-            const joinedPlannerIds = memberPlanners.map(m => m.planner_id);
+
+            // Filter: joined hoặc dropped_out có deposit refunded/penalized
+            const visibleMembers = memberPlanners.filter(m =>
+                m.join_status === 'joined' ||
+                (m.join_status === 'dropped_out' && ['refunded', 'penalized'].includes(m.deposit_status))
+            );
+            const memberMap = new Map();
+            visibleMembers.forEach(m => memberMap.set(m.planner_id, m));
+            const visiblePlannerIds = Array.from(memberMap.keys());
 
             const { rows: planners, count: total } = await Planner.findAndCountAll({
                 where: {
@@ -684,9 +691,9 @@ class PlannerService {
                         { user_id: userId }, // Planner do user tạo
                         {
                             id: {
-                                [Op.in]: joinedPlannerIds
+                                [Op.in]: visiblePlannerIds
                             }
-                        } // Planner mà user tham gia
+                        } // Planner mà user tham gia hoặc từng tham gia (có dính tiền)
                     ]
                 },
                 include: [
@@ -702,7 +709,21 @@ class PlannerService {
             await Promise.all(planners.map(planner => this.syncPlannerLockState(planner)));
 
             return {
-                planners: planners.map(p => this.formatPlannerResponse(p)),
+                planners: planners.map(p => {
+                    const formatted = this.formatPlannerResponse(p);
+                    const isOwner = p.user_id === userId;
+                    if (isOwner) {
+                        formatted.viewer_join_status = 'owner';
+                        formatted.viewer_deposit_status = null;
+                        formatted.is_read_only = false;
+                    } else {
+                        const memberRecord = memberMap.get(p.id);
+                        formatted.viewer_join_status = memberRecord?.join_status || null;
+                        formatted.viewer_deposit_status = memberRecord?.deposit_status || null;
+                        formatted.is_read_only = memberRecord?.join_status !== 'joined';
+                    }
+                    return formatted;
+                }),
                 pagination: {
                     page: parseInt(page),
                     limit: parseInt(limit),
@@ -744,20 +765,20 @@ class PlannerService {
                 throw new Error('Planner not found');
             }
 
-            // Check access: owner or member (if userId is provided)
+            // Check access: owner, active member, or ex-member with financial involvement
+            let viewerMeta = { viewer_join_status: 'owner', viewer_deposit_status: null, is_read_only: false };
             if (userId && planner.user_id !== userId) {
-                // Check if user is a member
-                const isMember = await PlannerMember.findOne({
-                    where: {
-                        planner_id: plannerId,
-                        user_id: userId,
-                        join_status: 'joined'
-                    }
-                });
+                const { checkPlannerAccess } = require('../utils/plannerAccess.util');
+                const access = await checkPlannerAccess(plannerId, userId, planner.user_id);
 
-                if (!isMember) {
+                if (!access.can_view) {
                     throw new Error('Forbidden');
                 }
+                viewerMeta = {
+                    viewer_join_status: access.viewer_join_status,
+                    viewer_deposit_status: access.viewer_deposit_status,
+                    is_read_only: access.is_read_only
+                };
             }
 
             await this.syncPlannerLockState(planner);
@@ -787,6 +808,11 @@ class PlannerService {
                 response.edit_lock_available_at = plannerState.editLockAvailableAt;
                 response.can_set_edit_lock_at = plannerState.canSetEditLockAt;
             }
+
+            // Attach viewer metadata for FE
+            response.viewer_join_status = viewerMeta.viewer_join_status;
+            response.viewer_deposit_status = viewerMeta.viewer_deposit_status;
+            response.is_read_only = viewerMeta.is_read_only;
 
             return response;
         } catch (error) {
@@ -3179,9 +3205,8 @@ class PlannerService {
                 // ===== END: Validation =====
 
                 // ===== VALIDATION: Group must be locked before starting =====
-                if (planner.number_of_people > 1 && !plannerState.isRealGroup) {
-                    throw new Error('Group trip requires at least 2 joined members');
-                }
+                // (Removed isRealGroup check here because members dropping out after lock could leave joinedMemberCount < 2. 
+                // As long as it is finalLocked, it is allowed to start)
                 if (!plannerState.finalLocked) {
                     throw new Error('Planner must be locked before starting');
                 }
@@ -3647,10 +3672,10 @@ class PlannerService {
                 throw new Error('Planner not found');
             }
 
-            // Check access
+            // Check access — only owner or active joined member can check-in
             if (planner.user_id !== userId) {
                 const isMember = await PlannerMember.findOne({
-                    where: { planner_id: plannerId, user_id: userId }
+                    where: { planner_id: plannerId, user_id: userId, join_status: 'joined' }
                 });
                 if (!isMember) {
                     throw new Error('Forbidden');

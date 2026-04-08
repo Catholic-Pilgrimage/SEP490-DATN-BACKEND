@@ -237,11 +237,18 @@ class PlannerShareService {
             const inviter = await User.findByPk(userId, { attributes: ['full_name', 'email'] });
             const inviterName = inviter?.full_name || inviter?.email || '';
 
+            let numberOfDays = 0;
+            if (planner.start_date && planner.end_date) {
+                const start = new Date(planner.start_date);
+                const end = new Date(planner.end_date);
+                numberOfDays = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
+            }
+
             try {
                 await EmailService.sendPlannerInvitation(email, inviterName, planner.name, token, {
                     start_date: planner.start_date,
                     end_date: planner.end_date,
-                    number_of_days: planner.number_of_days,
+                    number_of_days: numberOfDays,
                     number_of_people: planner.number_of_people,
                     transportation: planner.transportation
                 });
@@ -929,25 +936,25 @@ class PlannerShareService {
                 throw new Error('Planner not found');
             }
 
-            // Check if user has access (owner or member)
-            const isOwner = planner.user_id === userId;
-            const isMember = planner.members?.some(
-                m => m.id === userId && m.id !== planner.user_id && m.PlannerMember.join_status === 'joined'
-            );
-
-            if (!isOwner && !isMember) {
+            // Check access using central helper
+            const { checkPlannerAccess } = require('../../utils/plannerAccess.util');
+            const access = await checkPlannerAccess(plannerId, userId, planner.user_id);
+            if (!access.can_view) {
                 throw new Error('Forbidden');
             }
 
-            const visibleMembers = (planner.members || []).filter(member => member.id !== planner.user_id);
-            const joinedMembers = visibleMembers.filter(member => member.PlannerMember.join_status === 'joined');
+            // Historical roster: tất cả members kể cả đã rời nhóm
+            const allMembers = (planner.members || []).filter(member => member.id !== planner.user_id);
+            const joinedMembers = allMembers.filter(member => member.PlannerMember.join_status === 'joined');
 
             const members = [
                 {
                     ...planner.owner.toJSON(),
-                    joined_at: planner.created_at
+                    joined_at: planner.created_at,
+                    join_status: 'owner',
+                    deposit_status: null
                 },
-                ...visibleMembers.map(member => {
+                ...allMembers.map(member => {
                     const { PlannerMember: pm, ...userData } = member.toJSON();
                     return {
                         ...userData,

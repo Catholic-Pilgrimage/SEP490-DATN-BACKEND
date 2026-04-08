@@ -25,7 +25,7 @@ class CheckinController {
             const plannerItemId = req.params.itemId || req.params.id;
             const userId = req.user.id;
             const photoUrl = req.file?.path;
-            
+
             // Map body keys
             const lat = checkin_latitude !== undefined ? checkin_latitude : latitude;
             const lng = checkin_longitude !== undefined ? checkin_longitude : longitude;

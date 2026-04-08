@@ -640,7 +640,7 @@ class WalletService {
      * - Hoàn phần còn lại về balance
      * - Tạo pending transaction cho Owner
      */
-    static async applyPenalty(memberUserId, ownerUserId, depositAmount, penaltyPercentage, plannerId, plannerName, dbTransaction) {
+    static async applyPenalty(memberUserId, ownerUserId, depositAmount, penaltyPercentage, plannerId, plannerName, dbTransaction, options = {}) {
         try {
             const penaltyAmount = depositAmount * (penaltyPercentage / 100);
             const refundAmount = depositAmount - penaltyAmount;
@@ -660,6 +660,8 @@ class WalletService {
             memberWallet.balance = parseFloat(memberWallet.balance) + refundAmount;
             await memberWallet.save({ transaction: dbTransaction });
 
+            const penaltyDesc = options.penaltyDesc || `Phạt ${penaltyPercentage}% (${penaltyAmount.toLocaleString('vi-VN')} VND) vì tự rời kế hoạch: ${plannerName}`;
+
             // Transaction: Phạt bị trừ cho member
             await Transaction.create({
                 wallet_id: memberWallet.id,
@@ -668,7 +670,7 @@ class WalletService {
                 status: 'completed',
                 reference_type: 'planner_penalty',
                 reference_id: `${plannerId}:${memberUserId}`,
-                description: `Phạt ${penaltyPercentage}% (${penaltyAmount.toLocaleString('vi-VN')} VND) vì tự rời kế hoạch: ${plannerName}`,
+                description: penaltyDesc,
                 code: WalletService.generateTxnCode()
             }, { transaction: dbTransaction });
 
@@ -689,6 +691,8 @@ class WalletService {
             // === Ghi nhận tiền phạt PENDING cho Owner ===
             const ownerWallet = await this.getOrCreateWallet(ownerUserId, dbTransaction, true);
 
+            const ownerDesc = options.ownerDesc || `Tiền phạt từ thành viên rời nhóm (chờ xác minh chuyến đi): ${plannerName}`;
+
             // Transaction: penalty_received PENDING (chưa cộng tiền thật cho owner)
             const penaltyTxn = await Transaction.create({
                 wallet_id: ownerWallet.id,
@@ -697,7 +701,7 @@ class WalletService {
                 status: 'pending',
                 reference_type: 'planner_penalty',
                 reference_id: `${plannerId}:${memberUserId}`,
-                description: `Tiền phạt từ thành viên rời nhóm (chờ xác minh chuyến đi): ${plannerName}`,
+                description: ownerDesc,
                 code: WalletService.generateTxnCode()
             }, { transaction: dbTransaction });
 
