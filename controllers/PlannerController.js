@@ -33,6 +33,19 @@ class PlannerController {
         return localizedResult;
     }
 
+    static translateOrFallback(req, key, fallbackMessage, params = {}) {
+        const localized = req.__(key, params);
+        return localized && localized !== key ? localized : fallbackMessage;
+    }
+
+    static badRequestWithFallback(res, req, key, fallbackMessage, params = {}, details = null) {
+        return ResponseUtil.badRequest(
+            res,
+            this.translateOrFallback(req, key, fallbackMessage, params),
+            details
+        );
+    }
+
     /**
      * POST /planners - Create a new planner
      */
@@ -288,7 +301,14 @@ class PlannerController {
                 return ResponseUtil.badRequest(res, req.__('planner.event_not_available'));
             }
             if (error.message.includes('Invalid day number')) {
-                return ResponseUtil.badRequest(res, req.__('planner.invalid_leg_number_range', { max: error.message.match(/\d+/)?.[0] || '?' }));
+                const max = error.message.match(/\d+/)?.[0] || '?';
+                return this.badRequestWithFallback(
+                    res,
+                    req,
+                    'planner.invalid_leg_number_range',
+                    `Invalid day number. Must be between 1 and ${max}`,
+                    { max }
+                );
             }
             if (error.message === 'Day number must be at least 1') {
                 return ResponseUtil.badRequest(res, req.__('planner.invalid_leg_number_min'));
@@ -321,12 +341,24 @@ class PlannerController {
             }
             if (error.message.includes('Travel time between sites is too long')) {
                 const hours = error.message.match(/(\d+) hours/)?.[1] || '?';
-                return ResponseUtil.badRequest(res, req.__('planner.travel_time_too_long', { hours }));
+                return this.badRequestWithFallback(
+                    res,
+                    req,
+                    'planner.travel_time_too_long',
+                    `Travel time between sites is too long (${hours} hours). Maximum is 24 hours.`,
+                    { hours }
+                );
             }
             if (error.message.includes('Total time for day')) {
                 const dayMatch = error.message.match(/day (\d+)/)?.[1] || '?';
                 const hoursMatch = error.message.match(/(\d+) hours/)?.[1] || '?';
-                return ResponseUtil.badRequest(res, req.__('planner.total_time_exceeds_24h', { day: dayMatch, hours: hoursMatch }));
+                return this.badRequestWithFallback(
+                    res,
+                    req,
+                    'planner.total_time_exceeds_24h',
+                    `Total time for day ${dayMatch} exceeds 24 hours (${hoursMatch} hours). Please split it across multiple days.`,
+                    { day: dayMatch, hours: hoursMatch }
+                );
             }
             if (error.message === 'Estimated time is required') {
                 return ResponseUtil.badRequest(res, req.__('planner.estimated_time_required'));
@@ -668,20 +700,57 @@ class PlannerController {
             if (error.message === 'Forbidden') {
                 return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
             }
+            if (error.message.startsWith('Incomplete schedule:')) {
+                const parts = error.message.replace('Incomplete schedule: ', '').split(', ');
+                const missingDays = parts[0].replace('missing days ', '');
+                const totalDays = parts[1].replace('total days ', '');
+                return this.badRequestWithFallback(
+                    res,
+                    req,
+                    'planner.incomplete_schedule',
+                    `Incomplete schedule. Missing days: ${missingDays}. Total days: ${totalDays}.`,
+                    { missingDays, totalDays }
+                );
+            }
             if (error.message === 'Planner is not in planning status') {
-                return ResponseUtil.badRequest(res, req.__('planner.not_planning') || 'Trips can only be started when in planning status');
+                return this.badRequestWithFallback(
+                    res,
+                    req,
+                    'planner.not_planning',
+                    'Trips can only be started when in planning status'
+                );
             }
             if (error.message === 'Planner must have start_date and end_date to start') {
-                return ResponseUtil.badRequest(res, req.__('planner.missing_dates') || 'Planner must have start date and end date to start');
+                return this.badRequestWithFallback(
+                    res,
+                    req,
+                    'planner.missing_dates',
+                    'Planner must have start date and end date to start'
+                );
             }
             if (error.message === 'Group trip requires at least 2 joined members') {
-                return ResponseUtil.badRequest(res, req.__('planner.group_requires_two_joined'));
+                return this.badRequestWithFallback(
+                    res,
+                    req,
+                    'planner.group_requires_two_joined',
+                    'A group trip needs at least 2 joined members before it can start.'
+                );
             }
             if (error.message === 'Group planner must be edit locked before locking') {
-                return ResponseUtil.badRequest(res, req.__('planner.group_edit_lock_required_before_lock'));
+                return this.badRequestWithFallback(
+                    res,
+                    req,
+                    'planner.group_edit_lock_required_before_lock',
+                    'Group planners must be edit-locked before locking the journey.'
+                );
             }
             if (error.message === 'Planner must be locked before starting' || error.message === 'Planner must be fully locked before starting group trip') {
-                return ResponseUtil.badRequest(res, req.__('planner.start_requires_lock'));
+                return this.badRequestWithFallback(
+                    res,
+                    req,
+                    'planner.start_requires_lock',
+                    'Trips can only start after the planner is in locked status.'
+                );
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
@@ -726,13 +795,25 @@ class PlannerController {
                 const parts = error.message.replace('Cannot transition status: from ', '').split(' to ');
                 const from = parts[0];
                 const to = parts[1];
-                return ResponseUtil.badRequest(res, req.__('planner.cannot_transition_status', { from, to }));
+                return this.badRequestWithFallback(
+                    res,
+                    req,
+                    'planner.cannot_transition_status',
+                    `Cannot transition status from '${from}' to '${to}'`,
+                    { from, to }
+                );
             }
             if (error.message.startsWith('Incomplete schedule:')) {
                 const parts = error.message.replace('Incomplete schedule: ', '').split(', ');
                 const missingDays = parts[0].replace('missing days ', '');
                 const totalDays = parts[1].replace('total days ', '');
-                return ResponseUtil.badRequest(res, req.__('planner.incomplete_schedule', { missingDays, totalDays }));
+                return this.badRequestWithFallback(
+                    res,
+                    req,
+                    'planner.incomplete_schedule',
+                    `Incomplete schedule. Missing days: ${missingDays}. Total days: ${totalDays}.`,
+                    { missingDays, totalDays }
+                );
             }
             if (error.message.startsWith('Plan cancelled:') || error.message.includes('0 sites visited')) {
                 return ResponseUtil.badRequest(res, req.__('planner.cancelled_zero_visited'));
@@ -741,16 +822,36 @@ class PlannerController {
                 return ResponseUtil.badRequest(res, req.__('planner.min_visited_required'));
             }
             if (error.message === 'Planner must have start_date and end_date to start') {
-                return ResponseUtil.badRequest(res, req.__('planner.missing_dates'));
+                return this.badRequestWithFallback(
+                    res,
+                    req,
+                    'planner.missing_dates',
+                    'Planner must have start date and end date to start'
+                );
             }
             if (error.message === 'Group trip requires at least 2 joined members') {
-                return ResponseUtil.badRequest(res, req.__('planner.group_requires_two_joined'));
+                return this.badRequestWithFallback(
+                    res,
+                    req,
+                    'planner.group_requires_two_joined',
+                    'A group trip needs at least 2 joined members before it can start.'
+                );
             }
             if (error.message === 'Group planner must be edit locked before locking') {
-                return ResponseUtil.badRequest(res, req.__('planner.group_edit_lock_required_before_lock'));
+                return this.badRequestWithFallback(
+                    res,
+                    req,
+                    'planner.group_edit_lock_required_before_lock',
+                    'Group planners must be edit-locked before locking the journey.'
+                );
             }
             if (error.message === 'Planner must be locked before starting' || error.message === 'Planner must be fully locked before starting group trip') {
-                return ResponseUtil.badRequest(res, req.__('planner.start_requires_lock'));
+                return this.badRequestWithFallback(
+                    res,
+                    req,
+                    'planner.start_requires_lock',
+                    'Trips can only start after the planner is in locked status.'
+                );
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
