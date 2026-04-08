@@ -16,10 +16,10 @@ class PlannerCalendarService {
                         model: PlannerItem,
                         as: 'items',
                         include: [
-                            { 
-                                model: Site, 
-                                as: 'site', 
-                                attributes: ['id', 'name', 'code', 'province', 'address', 'latitude', 'longitude'] 
+                            {
+                                model: Site,
+                                as: 'site',
+                                attributes: ['id', 'name', 'code', 'province', 'address', 'latitude', 'longitude']
                             }
                         ],
                         order: [['leg_number', 'ASC'], ['order_index', 'ASC']]
@@ -36,7 +36,8 @@ class PlannerCalendarService {
                 const isMember = await PlannerMember.findOne({
                     where: {
                         planner_id: plannerId,
-                        user_id: userId
+                        user_id: userId,
+                        join_status: 'joined'
                     }
                 });
 
@@ -62,7 +63,7 @@ class PlannerCalendarService {
 
                 // Parse estimated_time (HH:mm)
                 const [hours, minutes] = item.estimated_time ? item.estimated_time.split(':').map(Number) : [9, 0];
-                
+
                 // Create start datetime (ISO 8601)
                 const startDate = new Date(itemDate);
                 startDate.setHours(hours, minutes, 0, 0);

@@ -22,7 +22,7 @@ class PlannerOfflineService {
             // 2. Check access permission (owner or member)
             if (planner.user_id !== userId) {
                 const isMember = await PlannerMember.findOne({
-                    where: { planner_id: plannerId, user_id: userId }
+                    where: { planner_id: plannerId, user_id: userId, join_status: 'joined' }
                 });
                 if (!isMember) {
                     throw new Error('Forbidden');

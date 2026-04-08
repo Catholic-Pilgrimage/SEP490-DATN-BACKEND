@@ -707,12 +707,12 @@ class PlannerController {
             const message = status === 'locked'
                 ? req.__('planner.manual_lock_success')
                 : status === 'ongoing'
-                ? req.__('planner.start_success')
-                : result.status === 'completed'
-                    ? req.__('planner.complete_success')
-                    : result.status === 'cancelled'
-                        ? req.__('planner.cancelled_zero_visited')
-                        : req.__('planner.status_update_success');
+                    ? req.__('planner.start_success')
+                    : result.status === 'completed'
+                        ? req.__('planner.complete_success')
+                        : result.status === 'cancelled'
+                            ? req.__('planner.cancelled_zero_visited')
+                            : req.__('planner.status_update_success');
 
             return ResponseUtil.success(res, result, message);
         } catch (error) {
@@ -800,12 +800,11 @@ class PlannerController {
                 return ResponseUtil.notFound(res, req.__('planner.not_found'));
             }
 
-            // Access check: owner OR active joined member only
+            // Access check: owner OR any member with view permission (including ex-members with financial involvement)
             if (planner.user_id !== userId) {
-                const memberRecord = await PlannerMember.findOne({
-                    where: { planner_id: plannerId, user_id: userId, join_status: 'joined' }
-                });
-                if (!memberRecord) {
+                const { checkPlannerAccess } = require('../utils/plannerAccess.util');
+                const access = await checkPlannerAccess(plannerId, userId, planner.user_id);
+                if (!access.can_view) {
                     return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
                 }
             }
@@ -922,7 +921,7 @@ class PlannerController {
                 ? is_locked
                 : String(is_locked).toLowerCase() === 'true';
             const result = await PlannerService.togglePlannerLock(req.params.id, req.user.id, normalizedLockValue);
-            
+
             const messageKey = normalizedLockValue ? 'planner.manual_lock_success' : 'planner.manual_unlock_success';
             return ResponseUtil.success(res, result, req.__(messageKey));
         } catch (error) {
