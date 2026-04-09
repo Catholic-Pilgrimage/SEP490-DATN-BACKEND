@@ -696,6 +696,18 @@ class PlannerService {
                         } // Planner mà user tham gia hoặc từng tham gia (có dính tiền)
                     ]
                 },
+                attributes: {
+                    include: [
+                        [
+                            sequelize.literal(`(
+                                SELECT COUNT(*)
+                                FROM planner_items AS pi
+                                WHERE pi.planner_id = "Planner"."id"
+                            )`),
+                            'item_count'
+                        ]
+                    ]
+                },
                 include: [
                     { model: User, as: 'owner', attributes: ['id', 'full_name', 'email', 'avatar_url'] }
                 ],
@@ -2721,7 +2733,8 @@ class PlannerService {
                 avatar_url: planner.owner.avatar_url
             } : null,
             created_at: planner.created_at,
-            updated_at: planner.updated_at
+            updated_at: planner.updated_at,
+            ...(planner.dataValues?.item_count !== undefined && { item_count: parseInt(planner.dataValues.item_count) || 0 })
         };
     }
 

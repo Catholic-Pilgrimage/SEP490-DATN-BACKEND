@@ -606,7 +606,8 @@
       "sos_planner_alert_body": "Thành viên {{pilgrimName}} trong đoàn vừa gửi tín hiệu SOS cần hỗ trợ ngay lập tức!"
     },
     "default_sos_message": "Tôi cần hỗ trợ khẩn cấp, xin hãy giúp đỡ!",
-    "sos_cancelled_message": "Tín hiệu SOS từ {{pilgrimName}} đã được hủy."
+    "sos_cancelled_message": "Tín hiệu SOS từ {{pilgrimName}} đã được hủy.",
+    "too_far": "Bạn đang quá xa địa điểm này (cách {{distance}} km). Bạn cần ở trong phạm vi 1 km để gửi SOS."
   },
   "post": {
     "created": "Tạo bài viết thành công",

@@ -3,6 +3,7 @@ const { Op } = require('sequelize');
 const Logger = require('../../utils/logger.util');
 const NotificationService = require('../shared/notificationService');
 const appConfig = require('../../config/app.config');
+const HaversineUtil = require('../../utils/haversine.util');
 const PlannerChatService = require('./plannerChatService');
 
 class PilgrimSOSService {
@@ -105,6 +106,17 @@ class PilgrimSOSService {
                 const site = await Site.findByPk(site_id);
                 if (!site) {
                     throw new Error('Site not found');
+                }
+
+                // Validate distance: user must be within 1km of the site
+                if (latitude && longitude && site.latitude && site.longitude) {
+                    const distanceMeters = HaversineUtil.distance(
+                        parseFloat(latitude), parseFloat(longitude),
+                        parseFloat(site.latitude), parseFloat(site.longitude)
+                    );
+                    if (distanceMeters > 1000) {
+                        throw new Error(`sos_too_far:${Math.round(distanceMeters)}`);
+                    }
                 }
             }
 

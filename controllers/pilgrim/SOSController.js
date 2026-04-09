@@ -16,9 +16,18 @@ exports.createSOS = async (req, res) => {
         });
     } catch (error) {
         Logger.error('Create SOS controller error:', error);
-        const message = error.message.startsWith('sos.') || ['already_pending', 'not_found', 'unauthorized'].includes(error.message)
-            ? req.__(`sos.${error.message}`)
-            : error.message;
+
+        let message;
+        if (error.message.startsWith('sos_too_far:')) {
+            const distanceMeters = parseInt(error.message.split(':')[1]) || 0;
+            const distanceKm = (distanceMeters / 1000).toFixed(1);
+            message = req.__('sos.too_far', { distance: distanceKm });
+        } else if (error.message.startsWith('sos.') || ['already_pending', 'not_found', 'unauthorized'].includes(error.message)) {
+            message = req.__(`sos.${error.message}`);
+        } else {
+            message = error.message;
+        }
+
         return res.status(400).json({
             success: false,
             message
