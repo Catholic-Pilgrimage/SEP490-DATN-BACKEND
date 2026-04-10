@@ -1,6 +1,63 @@
-const { Report, User, Post, PostComment, Journal, SiteReview } = require('../models');
+const { sequelize, Report, User, Post, PostComment, Journal, SiteReview } = require('../models');
 const { Op } = require('sequelize');
 const NotificationService = require('./shared/notificationService');
+const appConfig = require('../config/app.config');
+
+const REPORT_TYPE_CODE_MAP = {
+  post: 'PO',
+  comment: 'CM',
+  journal: 'JN',
+  site_review: 'SR'
+};
+
+const reportCodeDateFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: appConfig.timezone,
+  year: '2-digit',
+  month: '2-digit',
+  day: '2-digit'
+});
+
+const acquireTransactionLock = async (lockKey, transaction) => {
+  await sequelize.query('SELECT pg_advisory_xact_lock(hashtext(:lockKey))', {
+    replacements: { lockKey },
+    transaction
+  });
+};
+
+const formatLocalDateYYMMDD = (date = new Date()) => {
+  const dateParts = reportCodeDateFormatter.formatToParts(date).reduce((parts, part) => {
+    if (part.type !== 'literal') {
+      parts[part.type] = part.value;
+    }
+    return parts;
+  }, {});
+
+  return `${dateParts.year}${dateParts.month}${dateParts.day}`;
+};
+
+const generateNextReportCode = async (targetType, transaction, now = new Date()) => {
+  const typeCode = REPORT_TYPE_CODE_MAP[targetType] || 'OT';
+  const prefix = `RP${typeCode}${formatLocalDateYYMMDD(now)}`;
+  await acquireTransactionLock(`report_code:${prefix}`, transaction);
+
+  const latestReport = await Report.findOne({
+    where: {
+      code: { [Op.like]: `${prefix}%` }
+    },
+    order: [['code', 'DESC']],
+    transaction
+  });
+
+  let nextSequence = 1;
+  if (latestReport?.code) {
+    const lastSequence = parseInt(latestReport.code.slice(prefix.length), 10);
+    if (!Number.isNaN(lastSequence)) {
+      nextSequence = lastSequence + 1;
+    }
+  }
+
+  return `${prefix}${String(nextSequence).padStart(3, '0')}`;
+};
 
 const parseIsActiveFilter = (value) => {
   if (value === undefined || value === null || value === '' || value === 'all') {
@@ -96,59 +153,39 @@ const reportService = {
     }
 
     // Kiểm tra xem đã tố cáo chưa
-    const existingReport = await Report.findOne({
-      where: {
-        reporter_id: userId,
-        target_type,
-        target_id,
-        status: 'pending',
-        is_active: true
-      }
-    });
+    return sequelize.transaction(async (transaction) => {
+      await acquireTransactionLock(`report:${userId}:${target_type}:${target_id}`, transaction);
 
-    if (existingReport) {
-      const error = new Error('You have already reported this content');
-      error.statusCode = 409;
-      throw error;
-    }
-
-    // Generate report code: RPSR240324001 (with retry for concurrency)
-    const typeMap = { post: 'PO', comment: 'CM', journal: 'JN', site_review: 'SR' };
-    const typeCode = typeMap[target_type] || 'OT';
-    const now = new Date();
-    const dateStr = now.toISOString().slice(2, 10).replace(/-/g, ''); // YYMMDD
-    const prefix = `RP${typeCode}${dateStr}`;
-
-    let report;
-    for (let attempt = 0; attempt < 5; attempt++) {
-      try {
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const todayCount = await Report.count({
-          where: {
-            target_type,
-            created_at: { [Op.gte]: todayStart }
-          }
-        });
-        const code = `${prefix}${String(todayCount + 1 + attempt).padStart(3, '0')}`;
-
-        report = await Report.create({
+      const existingReport = await Report.findOne({
+        where: {
           reporter_id: userId,
           target_type,
           target_id,
-          reason,
-          description,
-          code
-        });
-        break; // success
-      } catch (err) {
-        if (err.name === 'SequelizeUniqueConstraintError' && attempt < 4) {
-          continue; // retry with next sequence
-        }
-        throw err;
-      }
-    }
+          status: 'pending',
+          is_active: true
+        },
+        transaction
+      });
 
-    return report;
+      if (existingReport) {
+        const error = new Error('You have already reported this content');
+        error.statusCode = 409;
+        throw error;
+      }
+
+      const code = await generateNextReportCode(target_type, transaction);
+
+      return Report.create({
+        reporter_id: userId,
+        target_type,
+        target_id,
+        reason,
+        description,
+        code
+      }, {
+        transaction
+      });
+    });
   },
 
   /**
@@ -325,9 +362,14 @@ const reportService = {
       throw new Error('Report has already been processed');
     }
 
+    if (action === 'reject' && (!note || String(note).trim().length === 0)) {
+      const error = new Error('Admin note is required for report rejection');
+      error.statusCode = 400;
+      throw error;
+    }
+
     let targetUser = null;
     let snippet = 'Nội dung bị ẩn';
-    const { sequelize } = require('../models');
 
     // Transaction: report.save + content hide phải atomic
     await sequelize.transaction(async (t) => {
@@ -337,22 +379,23 @@ const reportService = {
 
       if (action === 'resolved') {
         if (report.target_type === 'post') {
+          if (!note || String(note).trim().length === 0) {
+            const error = new Error('Admin note is required for post report resolution');
+            error.statusCode = 400;
+            throw error;
+          }
           const post = await Post.findByPk(report.target_id);
           if (post) {
             targetUser = post.user_id;
             snippet = post.content ? post.content.substring(0, 50) + '...' : 'Bài viết hình ảnh';
-            if (penalty === 'delete_content') {
-              await post.update({ status: 'rejected' }, { transaction: t });
-            }
+            await post.update({ is_active: false }, { transaction: t });
           }
         } else if (report.target_type === 'comment') {
           const comment = await PostComment.findByPk(report.target_id);
           if (comment) {
             targetUser = comment.user_id;
             snippet = comment.content ? comment.content.substring(0, 50) + '...' : 'Bình luận';
-            if (penalty === 'delete_content') {
-              await comment.update({ status: 'rejected' }, { transaction: t });
-            }
+            await comment.update({ status: 'rejected' }, { transaction: t });
           }
         } else if (report.target_type === 'journal') {
           const journal = await Journal.findByPk(report.target_id);
@@ -385,6 +428,14 @@ const reportService = {
         if (isReview) {
           await NotificationService.createNotification('content_deleted', targetUser, {
             snippet: `Đánh giá "${snippet}"`, adminNote
+          });
+        } else if (report.target_type === 'comment') {
+          await NotificationService.createNotification('content_deleted', targetUser, {
+            snippet: `"${snippet}"`, adminNote
+          });
+        } else if (report.target_type === 'post') {
+          await NotificationService.createNotification('content_deleted', targetUser, {
+            snippet: `"${snippet}"`, adminNote
           });
         } else if (penalty === 'delete_content') {
           await NotificationService.createNotification('content_deleted', targetUser, {

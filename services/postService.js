@@ -1,4 +1,4 @@
-const { Post, PostLike, PostComment, User, Journal, Site, Planner, PlannerItem, UserCheckin, sequelize } = require('../models');
+const { Post, PostLike, PostComment, User, Journal, Site, Planner, PlannerItem, UserCheckin, Report, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const PlannerService = require('./plannerService');
 
@@ -559,6 +559,23 @@ class PostService {
             // Soft delete instead of destroy
             await post.update({ is_active: false });
 
+            if (userRole !== 'admin') {
+                await Report.update(
+                    {
+                        status: 'reject',
+                        admin_note: 'Người dùng đã xóa bài viết'
+                    },
+                    {
+                        where: {
+                            target_type: 'post',
+                            target_id: postId,
+                            status: 'pending',
+                            is_active: true
+                        }
+                    }
+                );
+            }
+
             return { message: 'Post deleted successfully' };
         } catch (error) {
             throw error;
@@ -826,6 +843,23 @@ class PostService {
 
             // Hide comment by status because some environments do not have post_comments.is_active
             await comment.update({ status: 'rejected' });
+
+            if (userRole !== 'admin') {
+                await Report.update(
+                    {
+                        status: 'reject',
+                        admin_note: 'Người dùng đã xóa bình luận'
+                    },
+                    {
+                        where: {
+                            target_type: 'comment',
+                            target_id: commentId,
+                            status: 'pending',
+                            is_active: true
+                        }
+                    }
+                );
+            }
 
             return { message: 'Comment deleted successfully' };
         } catch (error) {
