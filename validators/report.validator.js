@@ -6,8 +6,8 @@ const reportValidator = {
     body('target_type')
       .notEmpty()
       .withMessage('Target type is required')
-      .isIn(['post', 'comment', 'journal', 'site_review', 'nearby_place_review'])
-      .withMessage('Target type must be post, comment, journal, site_review, or nearby_place_review'),
+      .isIn(['post', 'comment', 'journal', 'site_review'])
+      .withMessage('Target type must be post, comment, journal, or site_review'),
 
     body('target_id')
       .notEmpty()
@@ -36,7 +36,7 @@ const reportValidator = {
 
     query('target_type')
       .optional({ nullable: true, checkFalsy: true })
-      .isIn(['post', 'comment', 'journal', 'site_review', 'nearby_place_review'])
+      .isIn(['post', 'comment', 'journal', 'site_review'])
       .withMessage('Invalid target type'),
 
     query('page')

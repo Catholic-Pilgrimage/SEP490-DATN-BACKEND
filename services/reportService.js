@@ -1,4 +1,4 @@
-const { sequelize, Report, User, Post, PostComment, Journal, SiteReview, NearbyPlaceReview } = require('../models');
+const { sequelize, Report, User, Post, PostComment, Journal, SiteReview } = require('../models');
 const { Op } = require('sequelize');
 const NotificationService = require('./shared/notificationService');
 const appConfig = require('../config/app.config');
@@ -7,8 +7,7 @@ const REPORT_TYPE_CODE_MAP = {
   post: 'PO',
   comment: 'CM',
   journal: 'JN',
-  site_review: 'SR',
-  nearby_place_review: 'NR'
+  site_review: 'SR'
 };
 
 const reportCodeDateFormatter = new Intl.DateTimeFormat('en-US', {
@@ -137,20 +136,6 @@ const reportService = {
         target = await SiteReview.findByPk(target_id);
         if (!target) {
           const error = new Error('Site review not found');
-          error.statusCode = 404;
-          throw error;
-        }
-        if (target.user_id === userId) {
-          const error = new Error('Cannot report your own review');
-          error.statusCode = 400;
-          throw error;
-        }
-        break;
-
-      case 'nearby_place_review':
-        target = await NearbyPlaceReview.findByPk(target_id);
-        if (!target) {
-          const error = new Error('Nearby place review not found');
           error.statusCode = 404;
           throw error;
         }
@@ -355,17 +340,6 @@ const reportService = {
         });
         break;
 
-      case 'nearby_place_review':
-        targetContent = await NearbyPlaceReview.findByPk(report.target_id, {
-          include: [
-            {
-              model: User,
-              as: 'reviewer',
-              attributes: ['id', 'full_name', 'email', 'avatar_url']
-            }
-          ]
-        });
-        break;
     }
 
     return {
@@ -439,13 +413,6 @@ const reportService = {
             snippet = review.feedback ? review.feedback.substring(0, 50) + '...' : 'Đánh giá';
             await SiteReview.update({ is_active: false }, { where: { id: report.target_id }, transaction: t });
           }
-        } else if (report.target_type === 'nearby_place_review') {
-          const review = await NearbyPlaceReview.findByPk(report.target_id);
-          if (review) {
-            targetUser = review.user_id;
-            snippet = review.feedback ? review.feedback.substring(0, 50) + '...' : 'Đánh giá';
-            await NearbyPlaceReview.update({ is_active: false }, { where: { id: report.target_id }, transaction: t });
-          }
         }
       }
 
@@ -455,7 +422,7 @@ const reportService = {
     // Fire-and-forget notification AFTER commit
     if (action === 'resolved' && targetUser) {
       try {
-        const isReview = ['site_review', 'nearby_place_review'].includes(report.target_type);
+        const isReview = ['site_review'].includes(report.target_type);
         const adminNote = note ? ' Ghi chú của Admin: ' + note : '';
 
         if (isReview) {

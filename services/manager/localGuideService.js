@@ -164,7 +164,7 @@ class ManagerLocalGuideService {
      * When banning: also rejects pending content, deactivates future shifts, clears site assignment
      */
     static async updateLocalGuideStatus(managerId, localGuideId, status) {
-        const sequelize = require('../config/database');
+        const sequelize = require('../../config/database');
         const transaction = await sequelize.transaction();
 
         try {

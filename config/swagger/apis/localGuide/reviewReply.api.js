@@ -18,7 +18,7 @@
  *         name: type
  *         schema:
  *           type: string
- *           enum: [all, site, nearby_place]
+ *           enum: [all, site]
  *           default: all
  *         description: Lọc theo loại review
  *       - in: query
@@ -68,15 +68,7 @@
  *                             $ref: '#/components/schemas/SiteReview'
  *                         pagination:
  *                           $ref: '#/components/schemas/Pagination'
- *                     nearby_place_reviews:
- *                       type: object
- *                       properties:
- *                         reviews:
- *                           type: array
- *                           items:
- *                             $ref: '#/components/schemas/NearbyPlaceReview'
- *                         pagination:
- *                           $ref: '#/components/schemas/Pagination'
+
  *       403:
  *         description: Không được gán cho site nào
  */
@@ -172,92 +164,6 @@
  *         description: Không tìm thấy phản hồi
  */
 
-/**
- * @swagger
- * /api/local-guide/nearby-place-reviews/{reviewId}/reply:
- *   post:
- *     summary: Phản hồi đánh giá địa điểm lân cận
- *     tags: [Review Replies - Local Guide]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: reviewId
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: ID của đánh giá cần phản hồi
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - content
- *             properties:
- *               content:
- *                 type: string
- *                 minLength: 1
- *                 maxLength: 2000
- *                 example: "Cảm ơn bạn đã đánh giá! Chúng tôi sẽ cải thiện dịch vụ."
- *     responses:
- *       201:
- *         description: Phản hồi thành công
- *       403:
- *         description: Không có quyền
- *       409:
- *         description: Đã có phản hồi
- *
- *   put:
- *     summary: Cập nhật phản hồi đánh giá địa điểm lân cận
- *     tags: [Review Replies - Local Guide]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: reviewId
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - content
- *             properties:
- *               content:
- *                 type: string
- *                 minLength: 1
- *                 maxLength: 2000
- *     responses:
- *       200:
- *         description: Cập nhật phản hồi thành công
- *       404:
- *         description: Không tìm thấy phản hồi
- *
- *   delete:
- *     summary: Xóa phản hồi đánh giá địa điểm lân cận
- *     tags: [Review Replies - Local Guide]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: reviewId
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *     responses:
- *       200:
- *         description: Xóa phản hồi thành công
- *       404:
- *         description: Không tìm thấy phản hồi
- */
+
 
 module.exports = {};

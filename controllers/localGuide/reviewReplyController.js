@@ -3,7 +3,7 @@ const ResponseUtil = require('../../utils/response.util');
 
 /**
  * Local Guide review reply controller
- * Handles reply to site reviews and nearby place reviews
+ * Handles reply to site reviews
  */
 module.exports = {
     /**
@@ -78,59 +78,6 @@ module.exports = {
             return ResponseUtil.success(res, result, req.__('review.reply_deleted'));
         } catch (error) {
             console.error('reviewReplyController.deleteSiteReviewReply error:', error);
-            return ResponseUtil.error(res, error.message, error.statusCode || 500);
-        }
-    },
-
-    /**
-     * Reply to a nearby place review
-     * POST /api/local-guide/nearby-place-reviews/:reviewId/reply
-     */
-    async replyNearbyPlaceReview(req, res) {
-        try {
-            const userId = req.user.id;
-            const { reviewId } = req.params;
-            const { content } = req.body;
-
-            const reply = await reviewReplyService.replyNearbyPlaceReview(userId, reviewId, content);
-            return ResponseUtil.created(res, reply, req.__('review.reply_created'));
-        } catch (error) {
-            console.error('reviewReplyController.replyNearbyPlaceReview error:', error);
-            return ResponseUtil.error(res, error.message, error.statusCode || 500);
-        }
-    },
-
-    /**
-     * Update a nearby place review reply
-     * PUT /api/local-guide/nearby-place-reviews/:reviewId/reply
-     */
-    async updateNearbyPlaceReviewReply(req, res) {
-        try {
-            const userId = req.user.id;
-            const { reviewId } = req.params;
-            const { content } = req.body;
-
-            const reply = await reviewReplyService.updateNearbyPlaceReviewReply(userId, reviewId, content);
-            return ResponseUtil.success(res, reply, req.__('review.reply_updated'));
-        } catch (error) {
-            console.error('reviewReplyController.updateNearbyPlaceReviewReply error:', error);
-            return ResponseUtil.error(res, error.message, error.statusCode || 500);
-        }
-    },
-
-    /**
-     * Delete a nearby place review reply
-     * DELETE /api/local-guide/nearby-place-reviews/:reviewId/reply
-     */
-    async deleteNearbyPlaceReviewReply(req, res) {
-        try {
-            const userId = req.user.id;
-            const { reviewId } = req.params;
-
-            const result = await reviewReplyService.deleteNearbyPlaceReviewReply(userId, reviewId);
-            return ResponseUtil.success(res, result, req.__('review.reply_deleted'));
-        } catch (error) {
-            console.error('reviewReplyController.deleteNearbyPlaceReviewReply error:', error);
             return ResponseUtil.error(res, error.message, error.statusCode || 500);
         }
     }

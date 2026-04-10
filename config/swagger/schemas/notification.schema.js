@@ -58,7 +58,7 @@
  *             - nearby_place_submitted
  *             - shift_submitted
  *             - new_site_review
- *             - new_nearby_place_review
+
  *             - review_replied
  *             - content_deleted
  *             - content_warning
@@ -182,7 +182,7 @@
  *         - nearby_place_submitted
  *         - shift_submitted
  *         - new_site_review
- *         - new_nearby_place_review
+
  *         - review_replied
  *         - content_deleted
  *         - content_warning
@@ -230,7 +230,7 @@
  *         - **nearby_place_submitted**: Nearby place mới được gửi duyệt
  *         - **shift_submitted**: Shift mới được gửi duyệt
  *         - **new_site_review**: Có đánh giá site mới
- *         - **new_nearby_place_review**: Có đánh giá nearby place mới
+
  *         - **review_replied**: Đánh giá đã được phản hồi
  *         - **content_deleted**: Nội dung bị xóa
  *         - **content_warning**: Cảnh báo về nội dung

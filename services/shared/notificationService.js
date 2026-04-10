@@ -449,16 +449,7 @@ const NOTIFICATION_TEMPLATES = {
             message: '{{reviewerName}} reviewed {{siteName}} - ⭐ {{rating}}/5'
         }
     },
-    new_nearby_place_review: {
-        vi: {
-            title: 'Đánh giá mới cho địa điểm lân cận',
-            message: '{{reviewerName}} đã đánh giá {{placeName}} - ⭐ {{rating}}/5'
-        },
-        en: {
-            title: 'New nearby place review',
-            message: '{{reviewerName}} reviewed {{placeName}} - ⭐ {{rating}}/5'
-        }
-    },
+
     review_replied: {
         vi: {
             title: 'Đánh giá của bạn đã được phản hồi',

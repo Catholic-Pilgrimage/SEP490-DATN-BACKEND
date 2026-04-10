@@ -36,36 +36,6 @@
  *         reply:
  *           $ref: '#/components/schemas/ReviewReply'
  *
- *     NearbyPlaceReview:
- *       type: object
- *       properties:
- *         id:
- *           type: string
- *           format: uuid
- *         nearby_place_id:
- *           type: string
- *           format: uuid
- *         rating:
- *           type: integer
- *           minimum: 1
- *           maximum: 5
- *         feedback:
- *           type: string
- *           nullable: true
- *         image_urls:
- *           type: array
- *           items:
- *             type: string
- *         created_at:
- *           type: string
- *           format: date-time
- *         updated_at:
- *           type: string
- *           format: date-time
- *         reviewer:
- *           $ref: '#/components/schemas/ReviewUser'
- *         reply:
- *           $ref: '#/components/schemas/ReviewReply'
  *
  *     ReviewUser:
  *       type: object

@@ -25,7 +25,7 @@ const Report = sequelize.define('Report', {
     type: DataTypes.STRING(50),
     allowNull: false,
     validate: {
-      isIn: [['post', 'comment', 'journal', 'site_review', 'nearby_place_review']]
+      isIn: [['post', 'comment', 'journal', 'site_review']]
     }
   },
   target_id: {
