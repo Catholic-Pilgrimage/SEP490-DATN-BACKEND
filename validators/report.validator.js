@@ -18,7 +18,7 @@ const reportValidator = {
     body('reason')
       .notEmpty()
       .withMessage('Reason is required')
-      .isIn(['spam', 'harassment', 'hate_speech', 'false_information', 'violence', 'inappropriate', 'other'])
+      .isIn(['spam', 'harassment', 'hate_speech', 'false_information', 'violence', 'inappropriate', 'scam', 'other'])
       .withMessage('Invalid reason'),
 
     body('description')
@@ -62,6 +62,10 @@ const reportValidator = {
       .isIn(['resolved', 'reject'])
       .withMessage('Action must be resolved or reject'),
 
+    body('note')
+      .if(body('action').equals('reject'))
+      .notEmpty()
+      .withMessage('Note is required when rejecting a report'),
     body('note')
       .optional({ nullable: true, checkFalsy: true })
       .isLength({ max: 500 })
