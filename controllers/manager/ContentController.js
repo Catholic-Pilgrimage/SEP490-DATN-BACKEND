@@ -1,6 +1,12 @@
+const fs = require('fs').promises;
 const ManagerContentService = require('../../services/manager/contentService');
 const ResponseUtil = require('../../utils/response.util');
-const { uploadToSupabase } = require('../../config/supabase.config');
+const {
+    uploadToSupabase,
+    shouldStore3DModelLocally,
+    buildLocal3DModelUrl,
+    deleteLocal3DModelFile
+} = require('../../config/supabase.config');
 
 // ===================== MEDIA =====================
 
@@ -16,8 +22,19 @@ exports.upload3DModel = async (req, res) => {
             return ResponseUtil.badRequest(res, req.__('manager.file_required'));
         }
 
-        // Upload file buffer to Supabase Storage
-        const { url } = await uploadToSupabase(req.file.buffer, req.file.originalname);
+        let url;
+
+        if (shouldStore3DModelLocally(req.file.size)) {
+            url = buildLocal3DModelUrl(req, req.file.filename);
+        } else {
+            try {
+                const fileBuffer = await fs.readFile(req.file.path);
+                const uploadResult = await uploadToSupabase(fileBuffer, req.file.originalname);
+                url = uploadResult.url;
+            } finally {
+                await deleteLocal3DModelFile(req.file.path);
+            }
+        }
 
         const fileData = {
             url,

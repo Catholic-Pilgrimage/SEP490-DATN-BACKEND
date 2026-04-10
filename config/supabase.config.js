@@ -1,8 +1,16 @@
 const { createClient } = require('@supabase/supabase-js');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const multer = require('multer');
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+const MAX_3D_MODEL_FILE_SIZE_MB = 100;
+const MAX_3D_MODEL_FILE_SIZE_BYTES = MAX_3D_MODEL_FILE_SIZE_MB * 1024 * 1024;
+const LOCAL_3D_MODEL_THRESHOLD_MB = 50;
+const LOCAL_3D_MODEL_THRESHOLD_BYTES = LOCAL_3D_MODEL_THRESHOLD_MB * 1024 * 1024;
+const LOCAL_3D_MODEL_DIRECTORY = process.env.LOCAL_3D_MODEL_UPLOAD_DIR || path.join(process.cwd(), 'uploads', '3d-models');
 
 let supabase = null;
 
@@ -12,13 +20,59 @@ if (!supabaseUrl || !supabaseKey) {
     supabase = createClient(supabaseUrl, supabaseKey);
 }
 
+fs.mkdirSync(LOCAL_3D_MODEL_DIRECTORY, { recursive: true });
+
 /**
- * Multer memory storage for 3D model upload (50MB limit)
+ * Disk storage for 3D model upload (100MB limit)
  */
 const upload3DModel = multer({
-    storage: multer.memoryStorage(),
-    limits: { fileSize: 50 * 1024 * 1024 }
+    storage: multer.diskStorage({
+        destination: (req, file, cb) => cb(null, LOCAL_3D_MODEL_DIRECTORY),
+        filename: (req, file, cb) => {
+            const extension = path.extname(file.originalname).toLowerCase();
+            const safeBaseName = path.basename(file.originalname, extension)
+                .replace(/[^a-zA-Z0-9-_]+/g, '-')
+                .replace(/^-+|-+$/g, '')
+                .slice(0, 80) || '3d-model';
+
+            cb(null, `${Date.now()}-${crypto.randomBytes(6).toString('hex')}-${safeBaseName}${extension}`);
+        }
+    }),
+    limits: { fileSize: MAX_3D_MODEL_FILE_SIZE_BYTES },
+    fileFilter: (req, file, cb) => {
+        const extension = path.extname(file.originalname).toLowerCase();
+
+        if (!['.glb', '.gltf'].includes(extension)) {
+            return cb(new Error('Invalid 3D model format. Only .glb and .gltf are allowed.'));
+        }
+
+        cb(null, true);
+    }
 });
+
+const shouldStore3DModelLocally = (fileSize) => fileSize > LOCAL_3D_MODEL_THRESHOLD_BYTES || !supabase;
+
+const buildLocal3DModelUrl = (req, fileName) => {
+    const forwardedProto = req.headers['x-forwarded-proto'];
+    const protocol = forwardedProto ? forwardedProto.split(',')[0].trim() : req.protocol;
+    const baseUrl = (process.env.SERVER_BASE_URL || `${protocol}://${req.get('host')}`).replace(/\/+$/, '');
+
+    return `${baseUrl}/uploads/3d-models/${encodeURIComponent(fileName)}`;
+};
+
+async function deleteLocal3DModelFile(filePath) {
+    if (!filePath) {
+        return;
+    }
+
+    try {
+        await fs.promises.unlink(filePath);
+    } catch (error) {
+        if (error.code !== 'ENOENT') {
+            console.error('Local 3D model cleanup error:', error);
+        }
+    }
+}
 
 /**
  * Upload file to Supabase Storage
@@ -84,7 +138,13 @@ async function deleteFromSupabase(filePath, bucket = '3d-models') {
 
 module.exports = {
     supabase,
+    MAX_3D_MODEL_FILE_SIZE_MB,
+    LOCAL_3D_MODEL_THRESHOLD_MB,
+    LOCAL_3D_MODEL_THRESHOLD_BYTES,
     upload3DModel,
+    shouldStore3DModelLocally,
+    buildLocal3DModelUrl,
+    deleteLocal3DModelFile,
     uploadToSupabase,
     deleteFromSupabase
 };
