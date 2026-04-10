@@ -1,5 +1,5 @@
 const { Planner, PlannerItem, User, Site, Event, PlannerInvite, PlannerMember, NearbyPlace, Post } = require('../models');
-const { Op } = require('sequelize');
+const { Op, Sequelize } = require('sequelize');
 const Logger = require('../utils/logger.util');
 const sequelize = require('../config/database');
 const crypto = require('crypto');
@@ -699,7 +699,7 @@ class PlannerService {
                 attributes: {
                     include: [
                         [
-                            sequelize.literal(`(
+                            Sequelize.literal(`(
                                 SELECT COUNT(*)
                                 FROM planner_items AS pi
                                 WHERE pi.planner_id = "Planner"."id"

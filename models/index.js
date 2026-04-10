@@ -30,9 +30,7 @@ const PostComment = require('./PostComment');
 const Report = require('./Report');
 const OfflineSyncLog = require('./OfflineSyncLog');
 const SiteReview = require('./SiteReview');
-const NearbyPlaceReview = require('./NearbyPlaceReview');
 const SiteReviewReply = require('./SiteReviewReply');
-const NearbyPlaceReviewReply = require('./NearbyPlaceReviewReply');
 const Friendship = require('./Friendship');
 const AiCache = require('./AiCache');
 
@@ -315,24 +313,6 @@ SiteReviewReply.belongsTo(SiteReview, { foreignKey: 'review_id', as: 'review' })
 User.hasMany(SiteReviewReply, { foreignKey: 'user_id', as: 'siteReviewReplies' });
 SiteReviewReply.belongsTo(User, { foreignKey: 'user_id', as: 'replier' });
 
-// ===================== NEARBY PLACE REVIEWS =====================
-
-// NearbyPlaceReview - NearbyPlace
-NearbyPlace.hasMany(NearbyPlaceReview, { foreignKey: 'nearby_place_id', as: 'reviews' });
-NearbyPlaceReview.belongsTo(NearbyPlace, { foreignKey: 'nearby_place_id', as: 'nearbyPlace' });
-
-// NearbyPlaceReview - User
-User.hasMany(NearbyPlaceReview, { foreignKey: 'user_id', as: 'nearbyPlaceReviews' });
-NearbyPlaceReview.belongsTo(User, { foreignKey: 'user_id', as: 'reviewer' });
-
-// NearbyPlaceReview - NearbyPlaceReviewReply (1-to-1 for MVP)
-NearbyPlaceReview.hasOne(NearbyPlaceReviewReply, { foreignKey: 'review_id', as: 'reply' });
-NearbyPlaceReviewReply.belongsTo(NearbyPlaceReview, { foreignKey: 'review_id', as: 'review' });
-
-// NearbyPlaceReviewReply - User
-User.hasMany(NearbyPlaceReviewReply, { foreignKey: 'user_id', as: 'nearbyPlaceReviewReplies' });
-NearbyPlaceReviewReply.belongsTo(User, { foreignKey: 'user_id', as: 'replier' });
-
 // ===================== FRIENDSHIPS =====================
 
 // Friendship - User (requester)
@@ -377,9 +357,7 @@ const db = {
   Report,
   OfflineSyncLog,
   SiteReview,
-  NearbyPlaceReview,
   SiteReviewReply,
-  NearbyPlaceReviewReply,
   Friendship,
   AiCache
 };

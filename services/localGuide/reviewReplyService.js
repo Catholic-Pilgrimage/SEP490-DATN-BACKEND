@@ -1,7 +1,7 @@
 const {
-    Site, NearbyPlace, User,
-    SiteReview, NearbyPlaceReview,
-    SiteReviewReply, NearbyPlaceReviewReply,
+    Site, User,
+    SiteReview,
+    SiteReviewReply,
     sequelize
 } = require('../../models');
 const NotificationService = require('../shared/notificationService');
@@ -25,7 +25,7 @@ class LocalGuideReviewReplyService {
                 : sort === 'lowest' ? [['rating', 'ASC'], ['created_at', 'DESC']]
                     : [['created_at', 'DESC']];
 
-        const results = { site_reviews: null, nearby_place_reviews: null };
+        const results = { site_reviews: null };
 
         // Site reviews
         if (type === 'all' || type === 'site') {
@@ -86,48 +86,6 @@ class LocalGuideReviewReplyService {
             };
         }
 
-        // Nearby place reviews
-        if (type === 'all' || type === 'nearby_place') {
-            const npReviewInclude = [
-                { model: User, as: 'reviewer', attributes: ['id', 'full_name', 'avatar_url'] },
-                {
-                    model: NearbyPlaceReviewReply,
-                    as: 'reply',
-                    required: has_reply === 'true' ? true : false,
-                    include: [{ model: User, as: 'replier', attributes: ['id', 'full_name', 'avatar_url', 'role'] }]
-                },
-                {
-                    model: NearbyPlace,
-                    as: 'nearbyPlace',
-                    where: { site_id: siteId },
-                    attributes: ['id', 'name', 'category', 'site_id']
-                }
-            ];
-
-            const { count: npCount, rows: npRows } = await NearbyPlaceReview.findAndCountAll({
-                where: { is_active: true },
-                include: npReviewInclude,
-                order,
-                limit: parseInt(limit),
-                offset
-            });
-
-            let filteredNpRows = npRows;
-            if (has_reply === 'false') {
-                filteredNpRows = npRows.filter(r => !r.reply);
-            }
-
-            results.nearby_place_reviews = {
-                reviews: filteredNpRows.map(r => this._formatReview(r, 'nearby_place')),
-                pagination: {
-                    page: parseInt(page),
-                    limit: parseInt(limit),
-                    total: has_reply === 'false' ? filteredNpRows.length : npCount,
-                    total_pages: Math.ceil((has_reply === 'false' ? filteredNpRows.length : npCount) / limit)
-                }
-            };
-        }
-
         return results;
     }
 
@@ -143,19 +101,8 @@ class LocalGuideReviewReplyService {
             updated_at: review.updated_at
         };
 
-        if (type === 'site') {
-            data.site_id = review.site_id;
-            data.verified_visit = review.verified_visit;
-        } else {
-            data.nearby_place_id = review.nearby_place_id;
-            if (review.nearbyPlace) {
-                data.nearby_place = {
-                    id: review.nearbyPlace.id,
-                    name: review.nearbyPlace.name,
-                    category: review.nearbyPlace.category
-                };
-            }
-        }
+        data.site_id = review.site_id;
+        data.verified_visit = review.verified_visit;
 
         if (review.reviewer) {
             data.reviewer = {
@@ -258,86 +205,6 @@ class LocalGuideReviewReplyService {
         return { message: 'Reply deleted successfully' };
     }
 
-    // ===================== NEARBY PLACE REVIEW REPLIES =====================
-
-    async replyNearbyPlaceReview(userId, reviewId, content) {
-        const review = await NearbyPlaceReview.findOne({
-            where: { id: reviewId, is_active: true },
-            include: [{
-                model: NearbyPlace,
-                as: 'nearbyPlace',
-                attributes: ['id', 'site_id']
-            }]
-        });
-
-        if (!review) {
-            const error = new Error('Review not found');
-            error.statusCode = 404;
-            throw error;
-        }
-
-        const user = await User.findByPk(userId, { attributes: ['id', 'role', 'site_id'] });
-        if (!user || user.role !== 'local_guide' || user.site_id !== review.nearbyPlace.site_id) {
-            const error = new Error('Only the Local Guide of the parent site can reply');
-            error.statusCode = 403;
-            throw error;
-        }
-
-        const existingReply = await NearbyPlaceReviewReply.findOne({ where: { review_id: reviewId } });
-        if (existingReply) {
-            const error = new Error('This review already has a reply');
-            error.statusCode = 409;
-            throw error;
-        }
-
-        const reply = await NearbyPlaceReviewReply.create({
-            review_id: reviewId,
-            user_id: userId,
-            content
-        });
-
-        // Notify pilgrim who wrote the review (fire-and-forget)
-        try {
-            const place = await NearbyPlace.findByPk(review.nearby_place_id, { attributes: ['name'] });
-            await NotificationService.createNotification('review_replied', review.user_id, {
-                siteName: place?.name || 'Nearby Place'
-            });
-        } catch (err) {
-            console.error('Notification error (review_replied):', err.message);
-        }
-
-        return reply;
-    }
-
-    async updateNearbyPlaceReviewReply(userId, reviewId, content) {
-        const reply = await NearbyPlaceReviewReply.findOne({
-            where: { review_id: reviewId, user_id: userId }
-        });
-
-        if (!reply) {
-            const error = new Error('Reply not found or not authorized');
-            error.statusCode = 404;
-            throw error;
-        }
-
-        await reply.update({ content });
-        return reply;
-    }
-
-    async deleteNearbyPlaceReviewReply(userId, reviewId) {
-        const reply = await NearbyPlaceReviewReply.findOne({
-            where: { review_id: reviewId, user_id: userId }
-        });
-
-        if (!reply) {
-            const error = new Error('Reply not found or not authorized');
-            error.statusCode = 404;
-            throw error;
-        }
-
-        await reply.destroy();
-        return { message: 'Reply deleted successfully' };
-    }
 }
 
 module.exports = new LocalGuideReviewReplyService();

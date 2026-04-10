@@ -364,37 +364,4 @@ router.delete(
     LocalGuideController.deleteSiteReviewReply
 );
 
-// POST /api/local-guide/nearby-place-reviews/:reviewId/reply
-router.post(
-    '/nearby-place-reviews/:reviewId/reply',
-    authMiddleware,
-    authMiddleware.authorize('local_guide'),
-    ReviewValidator.validateReviewId,
-    ReviewValidator.reply,
-    handleValidationErrors,
-    LocalGuideController.replyNearbyPlaceReview
-);
-
-// PUT /api/local-guide/nearby-place-reviews/:reviewId/reply
-router.put(
-    '/nearby-place-reviews/:reviewId/reply',
-    authMiddleware,
-    authMiddleware.authorize('local_guide'),
-    ReviewValidator.validateReviewId,
-    ReviewValidator.reply,
-    handleValidationErrors,
-    LocalGuideController.updateNearbyPlaceReviewReply
-);
-
-// DELETE /api/local-guide/nearby-place-reviews/:reviewId/reply
-router.delete(
-    '/nearby-place-reviews/:reviewId/reply',
-    authMiddleware,
-    authMiddleware.authorize('local_guide'),
-    ReviewValidator.validateReviewId,
-    handleValidationErrors,
-    LocalGuideController.deleteNearbyPlaceReviewReply
-);
-
-
 module.exports = router;

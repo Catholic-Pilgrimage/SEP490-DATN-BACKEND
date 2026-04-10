@@ -67,7 +67,6 @@ const Notification = sequelize.define('Notification', {
                 'shift_submitted',
                 // Review notifications
                 'new_site_review',
-                'new_nearby_place_review',
                 'review_replied',
                 // Report penalty notifications
                 'content_deleted',

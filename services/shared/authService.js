@@ -216,7 +216,7 @@ class AuthService {
             }
 
             // Loại bỏ phone rỗng
-            if (dataToUpdate.phone !== undefined && dataToUpdate.phone.trim() === '') {
+            if (dataToUpdate.phone !== undefined && dataToUpdate.phone !== null && dataToUpdate.phone.trim() === '') {
                 dataToUpdate.phone = null;
             }
 

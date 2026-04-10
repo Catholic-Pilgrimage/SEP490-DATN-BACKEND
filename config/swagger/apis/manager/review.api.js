@@ -18,7 +18,7 @@
  *         name: type
  *         schema:
  *           type: string
- *           enum: [all, site, nearby_place]
+ *           enum: [all, site]
  *           default: all
  *         description: Lọc theo loại review
  *       - in: query
@@ -73,15 +73,7 @@
  *                             type: object
  *                         pagination:
  *                           type: object
- *                     nearby_place_reviews:
- *                       type: object
- *                       properties:
- *                         reviews:
- *                           type: array
- *                           items:
- *                             type: object
- *                         pagination:
- *                           type: object
+
  *       403:
  *         description: Không được gán cho site nào
  */

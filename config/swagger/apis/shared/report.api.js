@@ -26,7 +26,7 @@
  *             properties:
  *               target_type:
  *                 type: string
- *                 enum: [post, comment, journal, site_review, nearby_place_review]
+ *                 enum: [post, comment, journal, site_review]
  *                 description: Loại nội dung bị báo cáo
  *               target_id:
  *                 type: string
@@ -95,7 +95,7 @@
  *         name: target_type
  *         schema:
  *           type: string
- *           enum: [post, comment, journal, site_review, nearby_place_review]
+ *           enum: [post, comment, journal, site_review]
  *         description: Lọc theo loại nội dung
  *       - in: query
  *         name: page
@@ -252,7 +252,7 @@
  *                 description: Ghi chú của admin
  *     responses:
  *       200:
- *         description: Xử lý báo cáo thành công. Nếu target_type là site_review hoặc nearby_place_review và action là resolved, review sẽ tự động bị ẩn (is_active = false)
+ *         description: Xử lý báo cáo thành công. Nếu target_type là site_review và action là resolved, review sẽ tự động bị ẩn (is_active = false)
  *       404:
  *         description: Không tìm thấy báo cáo
  */
