@@ -815,7 +815,7 @@ class PostService {
 
             // Check permissions: comment owner, post owner, or system admin
             let canDelete = comment.user_id === userId ||
-                post.user_id === userId ||
+                post?.user_id === userId ||
                 userRole === 'admin';
 
             if (!canDelete) {

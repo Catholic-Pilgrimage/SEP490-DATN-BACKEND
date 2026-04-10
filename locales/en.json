@@ -61,7 +61,10 @@
     "get_transactions_success": "Transactions retrieved successfully",
     "get_escrow_success": "Escrow list retrieved successfully",
     "get_withdrawals_success": "Withdrawal history retrieved successfully",
-    "finance_error": "Error retrieving finance data"
+    "finance_error": "Error retrieving finance data",
+    "cannot_ban_active_planners": "Cannot ban user while owning or participating in active planners",
+    "cannot_ban_escrow_locked": "Cannot ban user while wallet escrow is still locked",
+    "cannot_ban_has_balance": "Cannot ban user while wallet still has available balance"
   },
   "site": {
     "create_success": "Site created successfully",
@@ -676,5 +679,15 @@
     "style_invalid": "Style must be devotional, informational, historical, or youth",
     "current_date_invalid": "current_date must be a valid ISO 8601 date",
     "count_invalid": "count must be between 1 and 10"
+  },
+  "sos": {
+    "create_success": "SOS request created successfully",
+    "list_success": "SOS list retrieved successfully",
+    "get_success": "SOS detail retrieved successfully",
+    "cancel_success": "SOS request cancelled successfully",
+    "already_pending": "You already have a pending SOS request",
+    "not_found": "SOS request not found",
+    "unauthorized": "You are not authorized to access this SOS request",
+    "too_far": "You are too far from this site ({{distance}} km away). You must be within 1 km to send an SOS."
   }
 }

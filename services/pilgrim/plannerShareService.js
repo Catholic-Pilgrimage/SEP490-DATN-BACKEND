@@ -237,11 +237,18 @@ class PlannerShareService {
             const inviter = await User.findByPk(userId, { attributes: ['full_name', 'email'] });
             const inviterName = inviter?.full_name || inviter?.email || '';
 
+            let numberOfDays = 0;
+            if (planner.start_date && planner.end_date) {
+                const start = new Date(planner.start_date);
+                const end = new Date(planner.end_date);
+                numberOfDays = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
+            }
+
             try {
                 await EmailService.sendPlannerInvitation(email, inviterName, planner.name, token, {
                     start_date: planner.start_date,
                     end_date: planner.end_date,
-                    number_of_days: planner.number_of_days,
+                    number_of_days: numberOfDays,
                     number_of_people: planner.number_of_people,
                     transportation: planner.transportation
                 });
@@ -929,25 +936,25 @@ class PlannerShareService {
                 throw new Error('Planner not found');
             }
 
-            // Check if user has access (owner or member)
-            const isOwner = planner.user_id === userId;
-            const isMember = planner.members?.some(
-                m => m.id === userId && m.id !== planner.user_id && m.PlannerMember.join_status === 'joined'
-            );
-
-            if (!isOwner && !isMember) {
+            // Check access using central helper
+            const { checkPlannerAccess } = require('../../utils/plannerAccess.util');
+            const access = await checkPlannerAccess(plannerId, userId, planner.user_id);
+            if (!access.can_view) {
                 throw new Error('Forbidden');
             }
 
-            const visibleMembers = (planner.members || []).filter(member => member.id !== planner.user_id);
-            const joinedMembers = visibleMembers.filter(member => member.PlannerMember.join_status === 'joined');
+            // Historical roster: tất cả members kể cả đã rời nhóm
+            const allMembers = (planner.members || []).filter(member => member.id !== planner.user_id);
+            const joinedMembers = allMembers.filter(member => member.PlannerMember.join_status === 'joined');
 
             const members = [
                 {
                     ...planner.owner.toJSON(),
-                    joined_at: planner.created_at
+                    joined_at: planner.created_at,
+                    join_status: 'owner',
+                    deposit_status: null
                 },
-                ...visibleMembers.map(member => {
+                ...allMembers.map(member => {
                     const { PlannerMember: pm, ...userData } = member.toJSON();
                     return {
                         ...userData,
@@ -1030,6 +1037,10 @@ class PlannerShareService {
             const isSelfLeave = (memberId === userId); // Tự rời nhóm
             const isKicked = (planner.user_id === userId && memberId !== userId); // Bị owner kick
 
+            // refundOutcome tracks "what just happened" for chat/notification/response
+            // member.deposit_status is what goes into DB (affects future visibility)
+            let refundOutcome = null; // 'refunded' | 'penalized' | null
+
             // Xử lý tài chính nếu member đã đóng cọc
             if (depositAmount > 0 && member.deposit_status === 'paid') {
                 const WalletService = require('./walletService');
@@ -1039,8 +1050,9 @@ class PlannerShareService {
                     await WalletService.refundOnKick(memberId, depositAmount, plannerId, planner.name, t);
                     member.deposit_status = 'refunded';
                     member.join_status = 'kicked';
-                } else if (isSelfLeave && penaltyPercentage > 0) {
-                    // TỰ RỜI + CÓ PHẠT -> Phạt n%, hoàn phần còn lại
+                    refundOutcome = 'refunded';
+                } else if (isSelfLeave && penaltyPercentage > 0 && planner.status === 'locked') {
+                    // TỰ RỜI + CÓ PHẠT (khi planner đã locked) -> Phạt n%, hoàn phần còn lại
                     await WalletService.applyPenalty(
                         memberId,
                         planner.user_id, // Owner nhận penalty (pending)
@@ -1052,6 +1064,7 @@ class PlannerShareService {
                     );
                     member.deposit_status = 'penalized';
                     member.join_status = 'dropped_out';
+                    refundOutcome = 'penalized';
                 } else {
                     // TỰ RỜI NHƯNG KHÔNG CÓ PHẠT -> Hoàn 100%
                     await WalletService.refundDeposit(
@@ -1061,8 +1074,10 @@ class PlannerShareService {
                         `Hoàn 100% cọc do rời khỏi nhóm: ${planner.name}`,
                         t
                     );
-                    member.deposit_status = 'refunded';
                     member.join_status = 'dropped_out';
+                    // Planning = clean exit -> ẩn khỏi list; Locked = cho xem read-only
+                    member.deposit_status = planner.status === 'planning' ? null : 'refunded';
+                    refundOutcome = 'refunded'; // vẫn track là đã refund cho messaging
                 }
             } else {
                 // Không có tiền cọc
@@ -1081,14 +1096,14 @@ class PlannerShareService {
             const chatMemberUser = await User.findByPk(memberId, { attributes: ['full_name'] });
             const PlannerChatService = require('./plannerChatService');
             if (isKicked) {
-                const chatMsg = member.deposit_status === 'refunded' && depositAmount > 0
+                const chatMsg = refundOutcome === 'refunded' && depositAmount > 0
                     ? `🚫 ${chatMemberUser?.full_name || 'Thành viên'} đã bị xóa khỏi nhóm. Hoàn ${depositAmount.toLocaleString('vi-VN')} VND tiền cọc`
                     : `🚫 ${chatMemberUser?.full_name || 'Thành viên'} đã bị xóa khỏi nhóm`;
                 PlannerChatService.sendSystemMessage(plannerId, chatMsg).catch(() => { });
             } else {
-                const chatMsg = member.deposit_status === 'penalized'
+                const chatMsg = refundOutcome === 'penalized'
                     ? `👋 ${chatMemberUser?.full_name || 'Thành viên'} đã rời khỏi nhóm. Phạt ${penaltyPercentage}% tiền cọc`
-                    : member.deposit_status === 'refunded' && depositAmount > 0
+                    : refundOutcome === 'refunded' && depositAmount > 0
                         ? `👋 ${chatMemberUser?.full_name || 'Thành viên'} đã rời khỏi nhóm. Hoàn ${depositAmount.toLocaleString('vi-VN')} VND tiền cọc`
                         : `👋 ${chatMemberUser?.full_name || 'Thành viên'} đã rời khỏi nhóm`;
                 PlannerChatService.sendSystemMessage(plannerId, chatMsg).catch(() => { });
@@ -1101,7 +1116,7 @@ class PlannerShareService {
                     plannerName: planner.name
                 }).catch(e => Logger.warn(`Failed to send kicked notification: ${e.message}`));
 
-                if (member.deposit_status === 'refunded' && depositAmount > 0) {
+                if (refundOutcome === 'refunded' && depositAmount > 0) {
                     NotificationService.createNotification('planner_deposit_refunded', memberId, {
                         plannerName: planner.name,
                         amount: depositAmount.toLocaleString('vi-VN')
@@ -1116,7 +1131,7 @@ class PlannerShareService {
                 }).catch(e => Logger.warn(`Failed to send member-left notification: ${e.message}`));
 
                 // Notify member about refund/penalty
-                if (member.deposit_status === 'refunded' && depositAmount > 0) {
+                if (refundOutcome === 'refunded' && depositAmount > 0) {
                     NotificationService.createNotification('planner_deposit_refunded', memberId, {
                         plannerName: planner.name,
                         amount: depositAmount.toLocaleString('vi-VN')
@@ -1133,13 +1148,13 @@ class PlannerShareService {
                 join_status: member.join_status
             };
 
-            if (depositAmount > 0 && (member.deposit_status === 'refunded' || member.deposit_status === 'penalized')) {
+            if (depositAmount > 0 && (refundOutcome === 'refunded' || refundOutcome === 'penalized')) {
                 response.deposit_amount = depositAmount;
 
                 if (isKicked) {
                     response.refund_amount = depositAmount;
                     response.message = `Đã xóa thành viên khỏi nhóm "${planner.name}". Hoàn ${depositAmount.toLocaleString('vi-VN')} VND tiền cọc vào ví thành viên`;
-                } else if (member.deposit_status === 'penalized') {
+                } else if (refundOutcome === 'penalized') {
                     const penaltyAmount = Math.round(depositAmount * penaltyPercentage / 100);
                     const refundAmount = depositAmount - penaltyAmount;
                     response.penalty_percentage = penaltyPercentage;
@@ -1156,14 +1171,14 @@ class PlannerShareService {
                     : `Đã rời khỏi nhóm "${planner.name}" thành công`;
             }
 
-            if (depositAmount > 0 && (member.deposit_status === 'refunded' || member.deposit_status === 'penalized')) {
+            if (depositAmount > 0 && (refundOutcome === 'refunded' || refundOutcome === 'penalized')) {
                 if (isKicked) {
                     response.messageKey = 'planner.member_removed_refunded';
                     response.messageParams = {
                         plannerName: planner.name,
                         amount: response.refund_amount
                     };
-                } else if (member.deposit_status === 'penalized') {
+                } else if (refundOutcome === 'penalized') {
                     response.messageKey = 'planner.member_left_penalized';
                     response.messageParams = {
                         plannerName: planner.name,

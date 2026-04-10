@@ -61,7 +61,10 @@
     "get_transactions_success": "Lấy danh sách giao dịch thành công",
     "get_escrow_success": "Lấy danh sách escrow thành công",
     "get_withdrawals_success": "Lấy lịch sử rút tiền thành công",
-    "finance_error": "Lỗi lấy dữ liệu tài chính"
+    "finance_error": "Lỗi lấy dữ liệu tài chính",
+    "cannot_ban_active_planners": "Không thể khóa người dùng khi đang sở hữu hoặc tham gia kế hoạch hành hương đang hoạt động",
+    "cannot_ban_escrow_locked": "Không thể khóa người dùng khi ví vẫn còn tiền cọc bị đóng băng",
+    "cannot_ban_has_balance": "Không thể khóa người dùng khi ví vẫn còn số dư khả dụng"
   },
   "site": {
     "create_success": "Tạo địa điểm thành công",
@@ -603,7 +606,8 @@
       "sos_planner_alert_body": "Thành viên {{pilgrimName}} trong đoàn vừa gửi tín hiệu SOS cần hỗ trợ ngay lập tức!"
     },
     "default_sos_message": "Tôi cần hỗ trợ khẩn cấp, xin hãy giúp đỡ!",
-    "sos_cancelled_message": "Tín hiệu SOS từ {{pilgrimName}} đã được hủy."
+    "sos_cancelled_message": "Tín hiệu SOS từ {{pilgrimName}} đã được hủy.",
+    "too_far": "Bạn đang quá xa địa điểm này (cách {{distance}} km). Bạn cần ở trong phạm vi 1 km để gửi SOS."
   },
   "post": {
     "created": "Tạo bài viết thành công",

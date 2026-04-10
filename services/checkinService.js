@@ -120,17 +120,18 @@ class CheckinService {
         // ===== KIỂM TRA USER LÀ THÀNH VIÊN CỦA PLANNER =====
         // User phải là owner hoặc có trong planner_members
         const isOwner = planner.user_id === userId;
-        
+
         if (!isOwner) {
             const member = await PlannerMember.findOne({
                 where: {
                     planner_id: planner.id,
-                    user_id: userId
+                    user_id: userId,
+                    join_status: 'joined'
                 }
             });
-            
+
             if (!member) {
-                throw new Error('You are not a member of this plan');
+                throw new Error('You are not an active member of this plan');
             }
         }
 
@@ -197,7 +198,7 @@ class CheckinService {
 
         // Lấy tất cả check-ins đã có của user cho planner này (trừ skipped/missed/absent)
         const userCheckins = await UserCheckin.findAll({
-            where: { 
+            where: {
                 user_id: userId,
                 planner_item_id: allPlannerItems.map(item => item.id),
                 status: 'checked_in'
@@ -209,7 +210,7 @@ class CheckinService {
 
         // Tìm item đang check-in trong danh sách sorted
         const currentItemIndex = allPlannerItems.findIndex(item => item.id === plannerItemId);
-        
+
         if (currentItemIndex === -1) {
             throw new Error('Planner item does not belong to this planner');
         }
@@ -217,10 +218,10 @@ class CheckinService {
         // Kiểm tra xem tất cả items trước đó đã hoàn thành chưa (visited hoặc skipped)
         for (let i = 0; i < currentItemIndex; i++) {
             const previousItem = allPlannerItems[i];
-            
+
             // Re-fetch previous item status because we only gathered id, leg_number, order_index
             const prevItemRecord = await PlannerItem.findByPk(previousItem.id, { attributes: ['status'] });
-            
+
             if (prevItemRecord.status !== 'visited' && prevItemRecord.status !== 'skipped') {
                 throw new Error(
                     `Sequential required: day ${previousItem.leg_number}, order ${previousItem.order_index}`
@@ -306,11 +307,11 @@ class CheckinService {
 
         if (checkedInCount >= totalExpected) {
             await plannerItem.update({ status: 'visited' });
-            
+
             // Check xem còn phải điểm cuối không
-            const allItems = await PlannerItem.findAll({ 
-                where: { planner_id: planner.id }, 
-                attributes: ['status'] 
+            const allItems = await PlannerItem.findAll({
+                where: { planner_id: planner.id },
+                attributes: ['status']
             });
             const allFinished = allItems.every(i => i.status === 'visited' || i.status === 'skipped');
             if (allFinished && newPlannerStatus !== 'completed') {
@@ -583,8 +584,8 @@ class CheckinService {
                 ));
             }
 
-            return { 
-                message: 'Đã hoàn thành điểm đến', 
+            return {
+                message: 'Đã hoàn thành điểm đến',
                 stats: { checked_in: checkedInIds.size, missed: missingUsers.length },
                 skip_reason: missingUsers.length > 0 ? normalizedSkipReason : null
             };
@@ -647,20 +648,12 @@ class CheckinService {
             throw new Error('Planner not found');
         }
 
-        // Kiểm tra quyền xem
-        const isOwner = planner.user_id === requesterId;
-        
-        if (!isOwner) {
-            const member = await PlannerMember.findOne({
-                where: {
-                    planner_id: plannerId,
-                    user_id: requesterId
-                }
-            });
-            
-            if (!member) {
-                throw new Error('You do not have permission to view this progress');
-            }
+        // Kiểm tra quyền xem bằng helper chung
+        const { checkPlannerAccess } = require('../utils/plannerAccess.util');
+        const access = await checkPlannerAccess(plannerId, requesterId, planner.user_id);
+
+        if (!access.can_view) {
+            throw new Error('You do not have permission to view this progress');
         }
 
         // Lấy tất cả items
@@ -700,7 +693,7 @@ class CheckinService {
             const userCheckinsByItemId = new Map(
                 userCheckins.map(checkin => [checkin.planner_item_id, checkin])
             );
-            
+
             // Những điểm Trưởng đoàn bỏ qua (skipped) được tính là đã hoàn thành (không bị trừ % tiến độ)
             const completedCount = checkedCount + plannerSkippedCount;
 
