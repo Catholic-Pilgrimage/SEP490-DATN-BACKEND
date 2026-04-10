@@ -577,7 +577,8 @@
     "site_checkin_required": "You must check in at this site before tagging it in your post.",
     "already_liked": "You have already liked this post.",
     "not_liked": "You have not liked this post.",
-    "cannot_edit_shared_content": "Cannot edit content that was shared from its original source. Please edit the original content instead."
+    "cannot_edit_shared_content": "Cannot edit content that was shared from its original source. Please edit the original content instead.",
+    "translated": "Post translated successfully"
   },
   "comment": {
     "created": "Comment added successfully",
@@ -588,7 +589,8 @@
     "not_found": "Comment not found",
     "parent_not_found": "Parent comment not found in this post",
     "forbidden": "You do not have permission to access this comment",
-    "only_owner": "Only the comment owner can perform this action"
+    "only_owner": "Only the comment owner can perform this action",
+    "translated": "Comment translated successfully"
   },
   "report": {
     "created": "Report submitted successfully",
@@ -688,6 +690,10 @@
     "already_pending": "You already have a pending SOS request",
     "not_found": "SOS request not found",
     "unauthorized": "You are not authorized to access this SOS request",
-    "too_far": "You are too far from this site ({{distance}} km away). You must be within 1 km to send an SOS."
+    "too_far": "You are too far from this site ({{distance}} km away). You must be within 1 km to send an SOS.",
+    "sos_outside_operating_hours": "This site is currently closed and cannot receive SOS signals.",
+    "assign_guide_success": "Guide has been assigned to handle this SOS successfully",
+    "guide_not_found": "Guide not found or is not a valid local guide",
+    "guide_not_same_site": "Guide does not belong to this site"
   }
 }

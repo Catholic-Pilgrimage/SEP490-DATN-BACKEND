@@ -11,6 +11,8 @@
  *     description: AI tóm tắt đánh giá (Local Guide)
  *   - name: AI - Event Recommender
  *     description: AI gợi ý sự kiện theo mùa phụng vụ (Local Guide)
+ *   - name: AI - Content Translator
+ *     description: AI biên dịch nội dung bài viết và bình luận on-demand (Shared)
  */
 
 /**
@@ -580,6 +582,110 @@
  *         description: AI trả kết quả không hợp lệ
  *       503:
  *         description: AI service chưa được cấu hình
+ */
+
+/**
+ * @swagger
+ * /api/posts/{id}/translate:
+ *   get:
+ *     summary: AI phiên dịch bài viết
+ *     description: Lấy bản dịch tiếng Anh của bài viết (title_en, content_en).
+ *     tags: [AI - Content Translator]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của bài viết
+ *     responses:
+ *       200:
+ *         description: Lấy dịch vụ thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     title_en:
+ *                       type: string
+ *                       example: "Pilgrimage Journal"
+ *                     content_en:
+ *                       type: string
+ *                       example: "Today's journey was wonderful!"
+ *                     cached:
+ *                       type: boolean
+ *                       description: true nếu lấy từ cache, false nếu mới dịch
+ *                       example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Post translated successfully"
+ *       404:
+ *         description: Không tìm thấy bài viết
+ *       401:
+ *         description: Chưa đăng nhập
+ */
+
+/**
+ * @swagger
+ * /api/posts/{id}/comments/{commentId}/translate:
+ *   get:
+ *     summary: AI phiên dịch comment
+ *     description: Lấy bản dịch tiếng Anh của comment (content_en). 
+ *     tags: [AI - Content Translator]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của bài viết
+ *       - in: path
+ *         name: commentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của comment
+ *     responses:
+ *       200:
+ *         description: Dịch thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     content_en:
+ *                       type: string
+ *                       example: "This post is very interesting!"
+ *                     cached:
+ *                       type: boolean
+ *                       description: true nếu lấy từ cache, false nếu mới dịch
+ *                       example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Comment translated successfully"
+ *       404:
+ *         description: Không tìm thấy comment
+ *       401:
+ *         description: Chưa đăng nhập
  */
 
 module.exports = {};

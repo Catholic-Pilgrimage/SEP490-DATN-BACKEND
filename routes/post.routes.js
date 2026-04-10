@@ -94,4 +94,18 @@ router.delete('/:id/comments/:commentId',
     PostController.deleteComment
 );
 
+router.get('/:id/translate',
+    authenticate,
+    postValidator.postId,
+    validate,
+    PostController.translatePost
+);
+
+router.get('/:id/comments/:commentId/translate',
+    authenticate,
+    postValidator.commentId,
+    validate,
+    PostController.translateComment
+);
+
 module.exports = router;

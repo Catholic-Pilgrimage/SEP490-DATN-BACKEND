@@ -1,4 +1,4 @@
-const { SOSRequest, User, Site, GuideShiftSubmission, GuideShift, Planner, PlannerMember, PlannerMessage } = require('../../models');
+const { SOSRequest, User, Site, GuideShiftSubmission, GuideShift, Planner, PlannerMember, PlannerMessage, Event } = require('../../models');
 const { Op } = require('sequelize');
 const Logger = require('../../utils/logger.util');
 const NotificationService = require('../shared/notificationService');
@@ -116,6 +116,132 @@ class PilgrimSOSService {
                     );
                     if (distanceMeters > 1000) {
                         throw new Error(`sos_too_far:${Math.round(distanceMeters)}`);
+                    }
+                }
+
+                // Validate operating hours and Check Event fallback
+                let isSiteOpen = true;
+                const now = new Date();
+                const tzOptions = { timeZone: appConfig.timezone };
+
+                const yyyy = now.toLocaleString('en-US', { ...tzOptions, year: 'numeric' });
+                const mm = now.toLocaleString('en-US', { ...tzOptions, month: '2-digit' });
+                const dd = now.toLocaleString('en-US', { ...tzOptions, day: '2-digit' });
+                const currentDate = `${yyyy}-${mm}-${dd}`;
+                const currentTime = now.toLocaleTimeString('en-US', { ...tzOptions, hour12: false, hour: '2-digit', minute: '2-digit' });
+
+                // Derive weekday from the app-timezone-localized date, NOT server's getDay()
+                const localizedDayIndex = new Date(`${currentDate}T12:00:00`).getDay();
+                const weekdayMap = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                const currentWeekday = weekdayMap[localizedDayIndex];
+                const yesterdayWeekday = weekdayMap[(localizedDayIndex + 6) % 7];
+
+                if (site.opening_hours) {
+                    const parseWeekdayWindow = (dayName) => {
+                        const hoursForDay = site.opening_hours[dayName];
+                        if (!hoursForDay || typeof hoursForDay !== 'string') {
+                            return null;
+                        }
+
+                        const parts = hoursForDay.split('-');
+                        if (parts.length !== 2) {
+                            return null;
+                        }
+
+                        const open = parts[0].trim();
+                        const close = parts[1].trim();
+                        return {
+                            open,
+                            close,
+                            isCrossMidnight: open > close
+                        };
+                    };
+
+                    if (site.opening_hours.open && site.opening_hours.close) {
+                        // Unified format: { open: "06:00", close: "18:00" }
+                        const openTime = site.opening_hours.open;
+                        const closeTime = site.opening_hours.close;
+
+                        if (openTime <= closeTime) {
+                            isSiteOpen = currentTime >= openTime && currentTime <= closeTime;
+                        } else {
+                            // Unified cross-midnight hours repeat every day.
+                            isSiteOpen = currentTime >= openTime || currentTime <= closeTime;
+                        }
+                    } else {
+                        // Weekday map format: today and yesterday must both be considered.
+                        const todayWindow = parseWeekdayWindow(currentWeekday);
+                        const yesterdayWindow = parseWeekdayWindow(yesterdayWeekday);
+
+                        const isOpenFromTodayWindow = todayWindow
+                            ? (todayWindow.isCrossMidnight
+                                ? currentTime >= todayWindow.open
+                                : currentTime >= todayWindow.open && currentTime <= todayWindow.close)
+                            : false;
+
+                        const isOpenFromYesterdaySpill = yesterdayWindow?.isCrossMidnight
+                            ? currentTime <= yesterdayWindow.close
+                            : false;
+
+                        isSiteOpen = isOpenFromTodayWindow || isOpenFromYesterdaySpill;
+                    }
+                }
+
+                if (!isSiteOpen) {
+
+                    const yesterday = new Date(`${currentDate}T00:00:00`);
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    const yesterdayDate = yesterday.toISOString().split('T')[0];
+
+                    const activeEvents = await Event.findAll({
+                        where: {
+                            site_id,
+                            status: 'approved',
+                            is_active: true,
+                            start_date: { [Op.lte]: currentDate }
+                        }
+                    });
+
+                    let hasActiveEvent = false;
+                    for (const ev of activeEvents) {
+                        let effectiveEndDate = ev.end_date || ev.start_date;
+
+                        
+                        const evStart = ev.start_time ? ev.start_time.substring(0, 5) : null;
+                        const evEnd = ev.end_time ? ev.end_time.substring(0, 5) : null;
+                        const isCrossMidnight = evStart && evEnd && evStart > evEnd;
+                        if (isCrossMidnight && !ev.end_date) {
+                            
+                            const [sy, sm, sd] = ev.start_date.split('-').map(Number);
+                            const tempDate = new Date(Date.UTC(sy, sm - 1, sd + 1));
+                            const ey = tempDate.getUTCFullYear();
+                            const em = String(tempDate.getUTCMonth() + 1).padStart(2, '0');
+                            const ed = String(tempDate.getUTCDate()).padStart(2, '0');
+                            effectiveEndDate = `${ey}-${em}-${ed}`;
+                        }
+
+                        if (currentDate <= effectiveEndDate) {
+                            if (!evStart || !evEnd) {
+                                // All-day event
+                                hasActiveEvent = true;
+                                break;
+                            } else {
+                                if (!isCrossMidnight) {
+                                    if (currentTime >= evStart && currentTime <= evEnd) {
+                                        hasActiveEvent = true; break;
+                                    }
+                                } else {
+                                    // Cross-midnight event: valid if after start OR before end
+                                    if (currentTime >= evStart || currentTime <= evEnd) {
+                                        hasActiveEvent = true; break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (!hasActiveEvent) {
+                        throw new Error('sos_outside_operating_hours');
                     }
                 }
             }

@@ -497,6 +497,76 @@ Return JSON:
     }
 
     /**
+     * 5. Translate post title and content into English automatically.
+     * @param {string|null} title - Original post title
+     * @param {string} content - Original post content
+     * @returns {Promise<{title_en: string|null, content_en: string|null}>}
+     */
+    static async translatePostToEnglish(title, content) {
+        if (!content && !title) {
+            return { title_en: title || null, content_en: content || null };
+        }
+
+        const prompt = [
+            "You are a professional translator specializing in Vietnamese to English translation, especially for Catholic communities and social media posts.",
+            "Please translate the following post into natural, well-formatted English.",
+            title ? `Original Title:\n${title}\n` : "",
+            content ? `Original Content:\n${content}\n` : "",
+            "Requirements:",
+            "- Maintain the original tone and any Catholic formatting or terminology.",
+            "- Return a JSON object with 'title_en' and 'content_en'.",
+            "- If there is no title originally, return null or empty string for 'title_en'.",
+            "- If there is no content originally, return null or empty string for 'content_en'.",
+            "Return JSON: ",
+            "{",
+            '  "title_en": "Translated title here (or null)",',
+            '  "content_en": "Translated content here"',
+            "}"
+        ].filter(Boolean).join("\n");
+
+        Logger.info("[AI API Call] Translating post to English");
+        const result = await generateJSON('translation', prompt, { temperature: 0.3 });
+
+        return {
+            title_en: result.title_en || null,
+            content_en: result.content_en || null,
+            metadata: { generated_by: 'google_ai' }
+        };
+    }
+
+    /**
+     * 6. Translate comment content into English.
+     * @param {string} content - Original comment content
+     * @returns {Promise<{content_en: string|null}>}
+     */
+    static async translateCommentToEnglish(content) {
+        if (!content) {
+            return { content_en: null };
+        }
+
+        const prompt = [
+            "You are a professional translator specializing in Vietnamese to English translation.",
+            "Please translate the following short comment into natural English.",
+            `Comment:\n${content}\n`,
+            "Requirements:",
+            "- Maintain original tone.",
+            "- Return a JSON object with 'content_en'.",
+            "Return JSON: ",
+            "{",
+            '  "content_en": "Translated comment"',
+            "}"
+        ].join("\n");
+
+        Logger.info("[AI API Call] Translating comment to English");
+        const result = await generateJSON('translation', prompt, { temperature: 0.3 });
+
+        return {
+            content_en: result.content_en || null,
+            metadata: { generated_by: 'google_ai' }
+        };
+    }
+
+    /**
      * Helper: Get Vietnamese label for site type
      */
     static _typeLabel(type) {

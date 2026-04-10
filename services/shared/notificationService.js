@@ -333,6 +333,16 @@ const NOTIFICATION_TEMPLATES = {
             message: 'New SOS request at {{siteName}}'
         }
     },
+    sos_assigned_to_guide: {
+        vi: {
+            title: 'Bạn được phân công xử lý SOS',
+            message: 'Bạn được phân công hỗ trợ {{pilgrimName}} tại {{siteName}}'
+        },
+        en: {
+            title: 'You were assigned an SOS',
+            message: 'You were assigned to help {{pilgrimName}} at {{siteName}}'
+        }
+    },
     sos_planner_alert: {
         vi: {
             title: '🚨 THÔNG BÁO KHẨN CẤP TỪ THÀNH VIÊN',

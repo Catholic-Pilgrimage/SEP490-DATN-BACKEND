@@ -39,6 +39,7 @@ const Notification = sequelize.define('Notification', {
                 'nearby_place_approved',
                 'nearby_place_rejected',
                 'sos_created',
+                'sos_assigned_to_guide',
                 'sos_assigned',
                 'sos_resolved',
                 'planner_invite',

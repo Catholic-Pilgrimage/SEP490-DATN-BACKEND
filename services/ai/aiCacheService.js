@@ -18,14 +18,18 @@ const Logger = require('../../utils/logger.util');
 const PROMPT_VERSIONS = {
     summarize_reviews: 'v1',
     suggest_events: 'v1',
-    generate_article: 'v1'
+    generate_article: 'v1',
+    translate_post: 'v1',
+    translate_comment: 'v1'
 };
 
 // ─── TTL configs (milliseconds) ───
 const TTL = {
     summarize_reviews: 12 * 60 * 60 * 1000,  // 12 hours
     suggest_events: 24 * 60 * 60 * 1000,     // 24 hours
-    generate_article: 7 * 24 * 60 * 60 * 1000 // 7 days
+    generate_article: 7 * 24 * 60 * 60 * 1000, // 7 days
+    translate_post: 30 * 24 * 60 * 60 * 1000,   // 30 days
+    translate_comment: 30 * 24 * 60 * 60 * 1000 // 30 days
 };
 
 // ─── Model version: bump when switching Gemini model ───

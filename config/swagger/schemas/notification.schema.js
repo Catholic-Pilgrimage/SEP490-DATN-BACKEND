@@ -34,6 +34,7 @@
  *             - nearby_place_approved
  *             - nearby_place_rejected
  *             - sos_created
+ *             - sos_assigned_to_guide
  *             - sos_assigned
  *             - sos_resolved
  *             - planner_invite
@@ -158,6 +159,7 @@
  *         - nearby_place_approved
  *         - nearby_place_rejected
  *         - sos_created
+ *         - sos_assigned_to_guide
  *         - sos_assigned
  *         - sos_resolved
  *         - planner_invite
@@ -203,6 +205,7 @@
  *         - **schedule_approved**: Schedule được duyệt
  *         - **schedule_rejected**: Schedule bị từ chối
  *         - **sos_created**: SOS được tạo
+ *         - **sos_assigned_to_guide**: Local guide được manager phân công xử lý SOS
  *         - **sos_assigned**: SOS được phân công
  *         - **sos_resolved**: SOS được giải quyết
  *         - **planner_invite**: Lời mời tham gia planner

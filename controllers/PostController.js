@@ -1,4 +1,5 @@
 const postService = require('../services/postService');
+const TranslationAiService = require('../services/ai/translationAiService');
 const ResponseUtil = require('../utils/response.util');
 
 class PostController {
@@ -15,6 +16,8 @@ class PostController {
         this.getComments = this.getComments.bind(this);
         this.updateComment = this.updateComment.bind(this);
         this.deleteComment = this.deleteComment.bind(this);
+        this.translatePost = this.translatePost.bind(this);
+        this.translateComment = this.translateComment.bind(this);
     }
 
     localizePostResult(req, result) {
@@ -334,6 +337,36 @@ class PostController {
             return ResponseUtil.success(res, result, req.__('comment.deleted'));
         } catch (error) {
             console.error('PostController.deleteComment error:', error);
+            return ResponseUtil.error(res, this.localizePostError(req, error), error.statusCode || 500);
+        }
+    }
+
+    /**
+     * Translate post
+     * GET /posts/:id/translate
+     */
+    async translatePost(req, res) {
+        try {
+            const { id } = req.params;
+            const result = await TranslationAiService.translatePost(id);
+            return ResponseUtil.success(res, result, req.__('post.translated') || 'Post translated successfully');
+        } catch (error) {
+            console.error('PostController.translatePost error:', error);
+            return ResponseUtil.error(res, this.localizePostError(req, error), error.statusCode || 500);
+        }
+    }
+
+    /**
+     * Translate comment
+     * GET /posts/:id/comments/:commentId/translate
+     */
+    async translateComment(req, res) {
+        try {
+            const { id, commentId } = req.params;
+            const result = await TranslationAiService.translateComment(id, commentId);
+            return ResponseUtil.success(res, result, req.__('comment.translated') || 'Comment translated successfully');
+        } catch (error) {
+            console.error('PostController.translateComment error:', error);
             return ResponseUtil.error(res, this.localizePostError(req, error), error.statusCode || 500);
         }
     }
