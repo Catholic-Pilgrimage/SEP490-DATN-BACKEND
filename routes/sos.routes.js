@@ -84,6 +84,14 @@ router.get(
     ManagerSOSController.getSOSStats
 );
 
+// PATCH - Assign a Local Guide to handle a pending SOS
+router.patch(
+    '/manager/:id/assign-guide',
+    authMiddleware,
+    authMiddleware.authorize('manager'),
+    ManagerSOSController.assignGuide
+);
+
 // ===================== ADMIN APIs =====================
 
 // GET - Get all SOS (all sites)

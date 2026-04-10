@@ -138,12 +138,29 @@ class LocalGuideSOSService {
                 throw new Error('not_pending');
             }
 
-            // Assign to this guide
-            await sos.update({
+            const assignedAt = new Date();
+            const [updatedCount] = await SOSRequest.update({
                 status: 'accepted',
                 assigned_to: userId,
-                assigned_at: new Date()
+                assigned_at: assignedAt
+            }, {
+                where: {
+                    id: sos.id,
+                    status: 'pending'
+                }
             });
+
+            if (updatedCount === 0) {
+                const latestSOS = await SOSRequest.findByPk(sos.id, {
+                    attributes: ['status']
+                });
+
+                if (latestSOS?.status === 'accepted') {
+                    throw new Error('already_accepted');
+                }
+
+                throw new Error('not_pending');
+            }
 
             Logger.info(`SOS ${sos.code} assigned to guide ${userId}`);
 

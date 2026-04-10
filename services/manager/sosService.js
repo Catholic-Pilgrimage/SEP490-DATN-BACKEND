@@ -1,6 +1,7 @@
 const { SOSRequest, User, Site } = require('../../models');
 const { Op, Sequelize } = require('sequelize');
 const Logger = require('../../utils/logger.util');
+const NotificationService = require('../shared/notificationService');
 
 class ManagerSOSService {
     /**
@@ -143,6 +144,111 @@ class ManagerSOSService {
             throw error;
         }
     }
+
+    /**
+     * Manager: Assign a Local Guide to handle a pending SOS
+     * PATCH /api/sos/manager/:id/assign-guide
+     */
+    static async assignGuide(managerId, sosId, guideId) {
+        try {
+            const manager = await User.findByPk(managerId);
+            if (!manager || manager.role !== 'manager' || !manager.site_id) {
+                throw new Error('unauthorized');
+            }
+
+            // Verify SOS exists and belongs to manager's site
+            const sos = await SOSRequest.findOne({
+                where: { id: sosId, site_id: manager.site_id }
+            });
+
+            if (!sos) {
+                throw new Error('not_found');
+            }
+
+            if (sos.status !== 'pending') {
+                if (sos.status === 'accepted') {
+                    throw new Error('already_accepted');
+                }
+                throw new Error('not_pending');
+            }
+
+            // Verify guide exists, is active, is a local_guide, and belongs to same site
+            const guide = await User.findByPk(guideId);
+            if (!guide || guide.role !== 'local_guide' || guide.status !== 'active') {
+                throw new Error('guide_not_found');
+            }
+
+            if (guide.site_id !== manager.site_id) {
+                throw new Error('guide_not_same_site');
+            }
+
+            const assignedAt = new Date();
+            const [updatedCount] = await SOSRequest.update({
+                status: 'accepted',
+                assigned_to: guideId,
+                assigned_at: assignedAt
+            }, {
+                where: {
+                    id: sos.id,
+                    status: 'pending'
+                }
+            });
+
+            if (updatedCount === 0) {
+                const latestSOS = await SOSRequest.findByPk(sos.id, {
+                    attributes: ['status']
+                });
+
+                if (latestSOS?.status === 'accepted') {
+                    throw new Error('already_accepted');
+                }
+
+                throw new Error('not_pending');
+            }
+
+            Logger.info(`SOS ${sos.code} assigned to guide ${guideId} by manager ${managerId}`);
+
+            const result = await SOSRequest.findByPk(sos.id, {
+                include: [
+                    {
+                        model: User,
+                        as: 'pilgrim',
+                        attributes: ['id', 'full_name', 'phone']
+                    },
+                    {
+                        model: User,
+                        as: 'assignedGuide',
+                        attributes: ['id', 'full_name', 'phone', 'avatar_url']
+                    },
+                    {
+                        model: Site,
+                        as: 'site',
+                        attributes: ['id', 'name']
+                    }
+                ]
+            });
+
+            // Notify the assigned guide
+            await NotificationService.createNotification('sos_assigned_to_guide', guideId, {
+                siteName: result?.site?.name || '',
+                sosCode: sos.code,
+                pilgrimName: result?.pilgrim?.full_name || '',
+                message: result?.message || sos.message || ''
+            });
+
+            // Notify the pilgrim that help is on the way
+            await NotificationService.createNotification('sos_assigned', sos.user_id, {
+                guideName: result?.assignedGuide?.full_name || guide.full_name,
+                guidePhone: result?.assignedGuide?.phone || guide.phone || ''
+            });
+
+            return result;
+        } catch (error) {
+            Logger.error('Manager assign guide SOS error:', error);
+            throw error;
+        }
+    }
 }
 
 module.exports = ManagerSOSService;
+

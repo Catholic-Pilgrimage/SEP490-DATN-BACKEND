@@ -607,7 +607,11 @@
     },
     "default_sos_message": "Tôi cần hỗ trợ khẩn cấp, xin hãy giúp đỡ!",
     "sos_cancelled_message": "Tín hiệu SOS từ {{pilgrimName}} đã được hủy.",
-    "too_far": "Bạn đang quá xa địa điểm này (cách {{distance}} km). Bạn cần ở trong phạm vi 1 km để gửi SOS."
+    "too_far": "Bạn đang quá xa địa điểm này (cách {{distance}} km). Bạn cần ở trong phạm vi 1 km để gửi SOS.",
+    "sos_outside_operating_hours": "Khu vực này hiện đang đóng cửa và không thể tiếp nhận tín hiệu SOS.",
+    "assign_guide_success": "Đã chỉ định hướng dẫn viên xử lý SOS thành công",
+    "guide_not_found": "Không tìm thấy hướng dẫn viên hoặc hướng dẫn viên không hợp lệ",
+    "guide_not_same_site": "Hướng dẫn viên không thuộc khu vực này"
   },
   "post": {
     "created": "Tạo bài viết thành công",
@@ -624,7 +628,8 @@
     "site_checkin_required": "Bạn phải check-in tại địa điểm này trước khi gắn thẻ trong bài viết.",
     "already_liked": "Bạn đã thích bài viết này rồi.",
     "not_liked": "Bạn chưa thích bài viết này.",
-    "cannot_edit_shared_content": "Không thể chỉnh sửa nội dung đã được chia sẻ từ nguồn gốc. Vui lòng chỉnh sửa bản gốc."
+    "cannot_edit_shared_content": "Không thể chỉnh sửa nội dung đã được chia sẻ từ nguồn gốc. Vui lòng chỉnh sửa bản gốc.",
+    "translated": "Dịch bài viết thành công"
   },
   "comment": {
     "created": "Thêm bình luận thành công",
@@ -635,7 +640,8 @@
     "not_found": "Không tìm thấy bình luận",
     "parent_not_found": "Không tìm thấy bình luận cha trong bài viết này",
     "forbidden": "Bạn không có quyền truy cập bình luận này",
-    "only_owner": "Chỉ chủ bình luận mới có quyền thực hiện hành động này"
+    "only_owner": "Chỉ chủ bình luận mới có quyền thực hiện hành động này",
+    "translated": "Dịch bình luận thành công"
   },
   "report": {
     "created": "Gửi báo cáo vi phạm thành công",

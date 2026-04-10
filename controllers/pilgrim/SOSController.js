@@ -22,7 +22,9 @@ exports.createSOS = async (req, res) => {
             const distanceMeters = parseInt(error.message.split(':')[1]) || 0;
             const distanceKm = (distanceMeters / 1000).toFixed(1);
             message = req.__('sos.too_far', { distance: distanceKm });
-        } else if (error.message.startsWith('sos.') || ['already_pending', 'not_found', 'unauthorized'].includes(error.message)) {
+        } else if (error.message === 'sos_outside_operating_hours') {
+            message = req.__('sos.sos_outside_operating_hours');
+        } else if (error.message.startsWith('sos.') || ['already_pending', 'not_found', 'unauthorized', 'sos_outside_operating_hours'].includes(error.message)) {
             message = req.__(`sos.${error.message}`);
         } else {
             message = error.message;

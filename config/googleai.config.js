@@ -11,6 +11,7 @@ const Logger = require('../utils/logger.util');
  *   GOOGLE_AI_KEY_REVIEW_SUMMARY  → summarize-reviews (Local Guide)
  *   GOOGLE_AI_KEY_EVENTS          → suggest-events (Local Guide)
  *   GOOGLE_AI_KEY_PRAYER          → suggest-prayer (Pilgrim)
+ *   GOOGLE_AI_KEY_TRANSLATION     → translation (Shared)
  */
 
 const AI_KEYS = {
@@ -19,6 +20,7 @@ const AI_KEYS = {
     review_summary: process.env.GOOGLE_AI_KEY_REVIEW_SUMMARY,
     events: process.env.GOOGLE_AI_KEY_EVENTS,
     prayer: process.env.GOOGLE_AI_KEY_PRAYER,
+    translation: process.env.GOOGLE_AI_KEY_TRANSLATION,
 };
 
 // Warn on missing keys at startup
@@ -31,7 +33,7 @@ const modelCache = {};
 
 /**
  * Get JSON model for a specific feature
- * @param {'route'|'article'|'review_summary'|'events'|'prayer'} feature
+ * @param {'route'|'article'|'review_summary'|'events'|'prayer'|'translation'} feature
  * @returns {GenerativeModel}
  */
 function getModelForFeature(feature) {
@@ -116,7 +118,7 @@ function extractJSON(text) {
 
 /**
  * Generate JSON content using a feature-specific API key
- * @param {'route'|'article'|'review_summary'|'events'|'prayer'} feature - Which feature key to use
+ * @param {'route'|'article'|'review_summary'|'events'|'prayer'|'translation'} feature - Which feature key to use
  * @param {string} prompt - The prompt
  * @param {object} options - { temperature, topP, maxTokens }
  * @returns {Promise<object>}
