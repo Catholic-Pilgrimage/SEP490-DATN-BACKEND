@@ -48,7 +48,7 @@ DO $$ BEGIN
     CREATE TYPE group_privacy AS ENUM ('public', 'private');
     CREATE TYPE group_member_role AS ENUM ('admin', 'member');
     -- Others
-    CREATE TYPE report_reason AS ENUM ('spam', 'harassment', 'hate_speech', 'false_information', 'violence', 'inappropriate', 'other');
+    CREATE TYPE report_reason AS ENUM ('spam', 'harassment', 'hate_speech', 'false_information', 'violence', 'inappropriate', 'scam', 'other');
     CREATE TYPE report_status AS ENUM ('pending', 'resolved', 'reject', 'cancelled');
     CREATE TYPE sos_status AS ENUM ('pending', 'accepted', 'resolved', 'cancelled');
     CREATE TYPE invite_status AS ENUM ('pending', 'awaiting_payment', 'accepted', 'rejected', 'expired');

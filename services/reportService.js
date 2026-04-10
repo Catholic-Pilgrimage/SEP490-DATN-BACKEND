@@ -350,6 +350,12 @@ const reportService = {
       throw new Error('Report has already been processed');
     }
 
+    if (action === 'reject' && (!note || String(note).trim().length === 0)) {
+      const error = new Error('Admin note is required for report rejection');
+      error.statusCode = 400;
+      throw error;
+    }
+
     let targetUser = null;
     let snippet = 'Nội dung bị ẩn';
     const { sequelize } = require('../models');
@@ -362,22 +368,23 @@ const reportService = {
 
       if (action === 'resolved') {
         if (report.target_type === 'post') {
+          if (!note || String(note).trim().length === 0) {
+            const error = new Error('Admin note is required for post report resolution');
+            error.statusCode = 400;
+            throw error;
+          }
           const post = await Post.findByPk(report.target_id);
           if (post) {
             targetUser = post.user_id;
             snippet = post.content ? post.content.substring(0, 50) + '...' : 'Bài viết hình ảnh';
-            if (penalty === 'delete_content') {
-              await post.update({ status: 'rejected' }, { transaction: t });
-            }
+            await post.update({ is_active: false }, { transaction: t });
           }
         } else if (report.target_type === 'comment') {
           const comment = await PostComment.findByPk(report.target_id);
           if (comment) {
             targetUser = comment.user_id;
             snippet = comment.content ? comment.content.substring(0, 50) + '...' : 'Bình luận';
-            if (penalty === 'delete_content') {
-              await comment.update({ status: 'rejected' }, { transaction: t });
-            }
+            await comment.update({ status: 'rejected' }, { transaction: t });
           }
         } else if (report.target_type === 'journal') {
           const journal = await Journal.findByPk(report.target_id);
@@ -417,6 +424,14 @@ const reportService = {
         if (isReview) {
           await NotificationService.createNotification('content_deleted', targetUser, {
             snippet: `Đánh giá "${snippet}"`, adminNote
+          });
+        } else if (report.target_type === 'comment') {
+          await NotificationService.createNotification('content_deleted', targetUser, {
+            snippet: `"${snippet}"`, adminNote
+          });
+        } else if (report.target_type === 'post') {
+          await NotificationService.createNotification('content_deleted', targetUser, {
+            snippet: `"${snippet}"`, adminNote
           });
         } else if (penalty === 'delete_content') {
           await NotificationService.createNotification('content_deleted', targetUser, {
