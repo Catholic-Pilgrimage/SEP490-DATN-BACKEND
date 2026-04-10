@@ -15,6 +15,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    volumes:
+      - uploads_data:/app/uploads
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: ${PORT:-3000}
@@ -121,6 +123,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  uploads_data:
     driver: local
 
 networks:

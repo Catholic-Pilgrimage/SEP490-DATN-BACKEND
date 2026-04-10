@@ -1,3 +1,5 @@
+const { MAX_3D_MODEL_FILE_SIZE_MB } = require('../config/supabase.config');
+
 const isUploadBadRequest = (err) => {
   if (!err || typeof err.message !== 'string') {
     return false;
@@ -14,6 +16,10 @@ const isUploadBadRequest = (err) => {
 
 const errorMiddleware = (err, req, res, next) => {
   console.error('Error:', err);
+
+  if (err?.name === 'MulterError' && err.code === 'LIMIT_FILE_SIZE') {
+    err.message = `File too large. Maximum allowed size is ${MAX_3D_MODEL_FILE_SIZE_MB}MB.`;
+  }
 
   const statusCode =
     err.statusCode ||
