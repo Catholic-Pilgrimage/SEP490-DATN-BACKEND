@@ -407,7 +407,10 @@ test('UTCID09: createSOS skips distance validation when selected site has no coo
 });
 
 test('UTCID10: createSOS blocks SOS when site is closed and no events are active', async (t) => {
-  if (t && t.mock && t.mock.timers) t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-04-10T19:00:00Z') }); // 02:00 next day local time
+  if (t && t.mock && t.mock.timers) {
+    t.mock.timers.enable(['Date']);
+    t.mock.timers.setTime(new Date('2026-04-10T19:00:00Z').getTime()); // 02:00 next day local time
+  }
   const { PilgrimSOSService, state } = loadPilgrimSOSService({
     userFindByPk: async () => createUserRecord({ id: 'user-id' }),
     siteFindByPk: async () => createSiteRecord({
@@ -426,7 +429,10 @@ test('UTCID10: createSOS blocks SOS when site is closed and no events are active
 });
 
 test('UTCID11: createSOS allows SOS when site is closed but an event is ongoing cross-midnight', async (t) => {
-  if (t && t.mock && t.mock.timers) t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-04-10T19:00:00Z') }); // 02:00 Local time 11th April
+  if (t && t.mock && t.mock.timers) {
+    t.mock.timers.enable(['Date']);
+    t.mock.timers.setTime(new Date('2026-04-10T19:00:00Z').getTime()); // 02:00 Local time 11th April
+  }
   const { PilgrimSOSService, state } = loadPilgrimSOSService({
     userFindByPk: async () => createUserRecord({ id: 'user-id' }),
     siteFindByPk: async () => createSiteRecord({
@@ -450,7 +456,10 @@ test('UTCID11: createSOS allows SOS when site is closed but an event is ongoing 
 });
 
 test('UTCID12: createSOS allows SOS when site is open via weekday map', async (t) => {
-  if (t && t.mock && t.mock.timers) t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-04-10T03:00:00Z') }); // Friday 10:00 AM VN time
+  if (t && t.mock && t.mock.timers) {
+    t.mock.timers.enable(['Date']);
+    t.mock.timers.setTime(new Date('2026-04-10T03:00:00Z').getTime()); // Friday 10:00 AM VN time
+  }
   const { PilgrimSOSService, state } = loadPilgrimSOSService({
     userFindByPk: async () => createUserRecord({ id: 'user-id' }),
     siteFindByPk: async () => createSiteRecord({
@@ -466,7 +475,10 @@ test('UTCID12: createSOS allows SOS when site is open via weekday map', async (t
 });
 
 test('UTCID13: createSOS blocks SOS when site has cross-midnight operating hours but current time is out of bounds', async (t) => {
-  if (t && t.mock && t.mock.timers) t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-04-10T03:00:00Z') }); // 10:00 AM local
+  if (t && t.mock && t.mock.timers) {
+    t.mock.timers.enable(['Date']);
+    t.mock.timers.setTime(new Date('2026-04-10T03:00:00Z').getTime()); // 10:00 AM local
+  }
   const { PilgrimSOSService, state } = loadPilgrimSOSService({
     userFindByPk: async () => createUserRecord({ id: 'user-id' }),
     siteFindByPk: async () => createSiteRecord({
@@ -484,7 +496,10 @@ test('UTCID13: createSOS blocks SOS when site has cross-midnight operating hours
 
 test('UTCID14: createSOS blocks SOS when weekday map has no entry for today', async (t) => {
   // 2026-04-10 is Friday. Site only has "monday" key → Friday should be CLOSED
-  if (t && t.mock && t.mock.timers) t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-04-10T03:00:00Z') }); // Fri 10:00 AM VN
+  if (t && t.mock && t.mock.timers) {
+    t.mock.timers.enable(['Date']);
+    t.mock.timers.setTime(new Date('2026-04-10T03:00:00Z').getTime()); // Fri 10:00 AM VN
+  }
   const { PilgrimSOSService, state } = loadPilgrimSOSService({
     userFindByPk: async () => createUserRecord({ id: 'user-id' }),
     siteFindByPk: async () => createSiteRecord({
@@ -502,7 +517,10 @@ test('UTCID14: createSOS blocks SOS when weekday map has no entry for today', as
 
 test('UTCID15: createSOS allows SOS at 02:00 Saturday if friday schedule is cross-midnight 22:00-04:00', async (t) => {
   // 2026-04-11 is Saturday, 02:00 AM VN → Friday's 22:00-04:00 should still cover this
-  if (t && t.mock && t.mock.timers) t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-04-10T19:00:00Z') }); // Sat 02:00 AM VN
+  if (t && t.mock && t.mock.timers) {
+    t.mock.timers.enable(['Date']);
+    t.mock.timers.setTime(new Date('2026-04-10T19:00:00Z').getTime()); // Sat 02:00 AM VN
+  }
   const { PilgrimSOSService, state } = loadPilgrimSOSService({
     userFindByPk: async () => createUserRecord({ id: 'user-id' }),
     siteFindByPk: async () => createSiteRecord({
@@ -519,7 +537,10 @@ test('UTCID15: createSOS allows SOS at 02:00 Saturday if friday schedule is cros
 
 test('UTCID16: createSOS allows SOS at 01:00 when single-day cross-midnight event spills into next day', async (t) => {
   // Event: start_date=2026-04-10, end_date=null, 23:00->02:00. SOS at 2026-04-11 01:00 VN should pass
-  if (t && t.mock && t.mock.timers) t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-04-10T18:00:00Z') }); // 2026-04-11 01:00 VN
+  if (t && t.mock && t.mock.timers) {
+    t.mock.timers.enable(['Date']);
+    t.mock.timers.setTime(new Date('2026-04-10T18:00:00Z').getTime()); // 2026-04-11 01:00 VN
+  }
   const { PilgrimSOSService, state } = loadPilgrimSOSService({
     userFindByPk: async () => createUserRecord({ id: 'user-id' }),
     siteFindByPk: async () => createSiteRecord({
@@ -544,7 +565,10 @@ test('UTCID16: createSOS allows SOS at 01:00 when single-day cross-midnight even
 
 test('UTCID17: createSOS allows SOS during yesterday spill-over even when today also has its own daytime opening hours', async (t) => {
   // Saturday 02:00 AM VN: Friday 22:00-04:00 is still active, even though Saturday has 08:00-18:00
-  if (t && t.mock && t.mock.timers) t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-04-10T19:00:00Z') });
+  if (t && t.mock && t.mock.timers) {
+    t.mock.timers.enable(['Date']);
+    t.mock.timers.setTime(new Date('2026-04-10T19:00:00Z').getTime());
+  }
   const { PilgrimSOSService, state } = loadPilgrimSOSService({
     userFindByPk: async () => createUserRecord({ id: 'user-id' }),
     siteFindByPk: async () => createSiteRecord({
