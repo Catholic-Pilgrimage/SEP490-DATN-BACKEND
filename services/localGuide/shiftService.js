@@ -1,4 +1,4 @@
-const { User, Site, GuideShift, GuideShiftSubmission } = require('../../models');
+const { User, Site, GuideShift, GuideShiftSubmission, Event } = require('../../models');
 const { Op } = require('sequelize');
 const sequelize = require('../../config/database');
 const Logger = require('../../utils/logger.util');
@@ -33,6 +33,136 @@ class LocalGuideShiftService {
         }
 
         return `${prefix}${dateStr}${String(sequence).padStart(3, '0')}`;
+    }
+
+    /**
+     * Merge overlapping / adjacent time windows into non-overlapping sorted list.
+     */
+    static mergeTimeWindows(windows) {
+        if (windows.length === 0) return [];
+        const sorted = [...windows].sort((a, b) => a.open.localeCompare(b.open));
+        const merged = [{ ...sorted[0] }];
+        for (let i = 1; i < sorted.length; i++) {
+            const last = merged[merged.length - 1];
+            if (sorted[i].open <= last.close) {
+                if (sorted[i].close > last.close) last.close = sorted[i].close;
+            } else {
+                merged.push({ ...sorted[i] });
+            }
+        }
+        return merged;
+    }
+
+    /**
+     * Calculate dynamic operating windows for a specific date.
+     * Returns an array of non-overlapping time windows (gaps preserved)
+     * built from the site's default hours + approved event hours.
+     */
+    static getDynamicHoursForDate(site, events, targetDateStr) {
+        const norm = (t) => (t && t.length === 5) ? `${t}:00` : t;
+        const windows = [];
+        let hasSchedule = false;
+
+        // ── Build default site window(s) ──
+        if (site.opening_hours) {
+            if (site.opening_hours.open && site.opening_hours.close) {
+                // Unified format: { open: "08:00", close: "17:00" }
+                hasSchedule = true;
+                const open = norm(site.opening_hours.open);
+                const close = norm(site.opening_hours.close);
+                if (open <= close) {
+                    windows.push({ open, close });
+                } else {
+                    // Cross-midnight unified hours (e.g. 22:00-04:00)
+                    windows.push({ open, close: '23:59:00' });
+                    windows.push({ open: '00:00:00', close });
+                }
+            } else {
+                // Weekday-map format: { monday: "08:00-17:00", ... }
+                hasSchedule = true;
+                const weekdayMap = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                const dayIndex = new Date(`${targetDateStr}T12:00:00`).getDay();
+                const dayName = weekdayMap[dayIndex];
+                const hoursStr = site.opening_hours[dayName];
+                if (hoursStr && typeof hoursStr === 'string') {
+                    const parts = hoursStr.split('-');
+                    if (parts.length === 2) {
+                        const open = norm(parts[0].trim());
+                        const close = norm(parts[1].trim());
+                        if (open <= close) {
+                            windows.push({ open, close });
+                        } else {
+                            // Cross-midnight: tonight's portion only
+                            windows.push({ open, close: '23:59:00' });
+                        }
+                    }
+                }
+                // Check yesterday's cross-midnight spill into today
+                const yesterdayName = weekdayMap[(dayIndex + 6) % 7];
+                const yHoursStr = site.opening_hours[yesterdayName];
+                if (yHoursStr && typeof yHoursStr === 'string') {
+                    const yParts = yHoursStr.split('-');
+                    if (yParts.length === 2) {
+                        const yOpen = norm(yParts[0].trim());
+                        const yClose = norm(yParts[1].trim());
+                        if (yOpen > yClose) {
+                            windows.push({ open: '00:00:00', close: yClose });
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Add event-based windows ──
+        const dayEvents = [];
+
+        for (const ev of events) {
+            const evStart = ev.start_time ? ev.start_time.substring(0, 5) : null;
+            const evEnd = ev.end_time ? ev.end_time.substring(0, 5) : null;
+            const isCrossMidnight = evStart && evEnd && evStart > evEnd;
+
+            let effectiveEndDate = ev.end_date || ev.start_date;
+            if (isCrossMidnight && !ev.end_date) {
+                const [sy, sm, sd] = ev.start_date.split('-').map(Number);
+                const tmp = new Date(Date.UTC(sy, sm - 1, sd + 1));
+                effectiveEndDate = tmp.toISOString().split('T')[0];
+            }
+
+            if (targetDateStr < ev.start_date || targetDateStr > effectiveEndDate) continue;
+
+            // All-day event
+            if (!evStart || !evEnd) {
+                windows.push({ open: '00:00:00', close: '23:59:00' });
+                dayEvents.push({ name: ev.name, start_time: null, end_time: null, all_day: true });
+                continue;
+            }
+
+            const normEvStart = norm(evStart);
+            const normEvEnd = norm(evEnd);
+
+            if (!isCrossMidnight) {
+                // Same-day event: add its own window
+                windows.push({ open: normEvStart, close: normEvEnd });
+            } else {
+                // Cross-midnight event
+                // Event starts tonight (on start_date, or any intermediate/last day of multi-day)
+                if (targetDateStr === ev.start_date ||
+                    (ev.end_date && targetDateStr >= ev.start_date && targetDateStr <= ev.end_date)) {
+                    windows.push({ open: normEvStart, close: '23:59:00' });
+                }
+                // Spillover from previous night (next day after start, up to effectiveEndDate)
+                if (targetDateStr > ev.start_date && targetDateStr <= effectiveEndDate) {
+                    windows.push({ open: '00:00:00', close: normEvEnd });
+                }
+            }
+
+            dayEvents.push({ name: ev.name, start_time: evStart, end_time: evEnd });
+        }
+
+        // Merge all windows to eliminate overlaps
+        const merged = this.mergeTimeWindows(windows);
+
+        return { windows: merged, events: dayEvents, hasSchedule };
     }
 
     /**
@@ -111,6 +241,25 @@ class LocalGuideShiftService {
             return time.length === 5 ? `${time}:00` : time;
         };
 
+        // Fetch approved events overlapping this week for dynamic hours
+        const fmtDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const weekEndDateStr = fmtDate(weekEnd);
+        const dayBeforeWeek = new Date(weekStart.getTime());
+        dayBeforeWeek.setDate(dayBeforeWeek.getDate() - 1);
+        const dayBeforeWeekStr = fmtDate(dayBeforeWeek);
+
+        const weekEvents = await Event.findAll({
+            where: {
+                site_id: user.site_id,
+                status: 'approved',
+                is_active: true,
+                [Op.or]: [
+                    { start_date: { [Op.lte]: weekEndDateStr }, end_date: { [Op.gte]: week_start_date } },
+                    { end_date: null, start_date: { [Op.between]: [dayBeforeWeekStr, weekEndDateStr] } }
+                ]
+            }
+        });
+
         const validatedShifts = [];
         const errors = [];
 
@@ -119,8 +268,12 @@ class LocalGuideShiftService {
 
             try {
                 // Validate individual shift date is not in the past
+                const weekStartDay = weekStart.getDay();
+                const shiftDay = parseInt(day_of_week, 10);
+                const offset = (shiftDay - weekStartDay + 7) % 7;
+
                 const shiftDate = new Date(weekStart);
-                shiftDate.setDate(shiftDate.getDate() + day_of_week);
+                shiftDate.setDate(shiftDate.getDate() + offset);
                 shiftDate.setHours(0, 0, 0, 0);
 
                 if (shiftDate < today) {
@@ -135,22 +288,22 @@ class LocalGuideShiftService {
                 const normalizedStart = normalizeTime(start_time);
                 const normalizedEnd = normalizeTime(end_time);
 
-                // Validate opening hours if set
-                if (site.opening_hours) {
-                    const siteOpen = site.opening_hours.open;
-                    const siteClose = site.opening_hours.close;
-                    if (siteOpen && siteClose) {
-                        const normalizedSiteOpen = normalizeTime(siteOpen);
-                        const normalizedSiteClose = normalizeTime(siteClose);
-                        if (normalizedStart < normalizedSiteOpen) {
-                            errors.push({ index: i, day_of_week, error: `Shift must start after site opening (${siteOpen})` });
-                            continue;
-                        }
-                        if (normalizedEnd > normalizedSiteClose) {
-                            errors.push({ index: i, day_of_week, error: `Shift must end before site closing (${siteClose})` });
-                            continue;
-                        }
+                // Validate against dynamic operating windows (site hours + event extensions)
+                const shiftDateStr = fmtDate(shiftDate);
+                const bounds = LocalGuideShiftService.getDynamicHoursForDate(site, weekEvents, shiftDateStr);
+                if (bounds.windows.length > 0) {
+                    const fitsInWindow = bounds.windows.some(w =>
+                        normalizedStart >= w.open && normalizedEnd <= w.close
+                    );
+                    if (!fitsInWindow) {
+                        const allowed = bounds.windows.map(w => `${w.open.substring(0, 5)}-${w.close.substring(0, 5)}`).join(', ');
+                        const label = bounds.events.length > 0 ? ' (includes event hours)' : '';
+                        errors.push({ index: i, day_of_week, error: `Shift must fit within operating windows: [${allowed}]${label}` });
+                        continue;
                     }
+                } else if (bounds.hasSchedule) {
+                    errors.push({ index: i, day_of_week, error: 'Site is closed on this day' });
+                    continue;
                 }
 
                 // Check self-overlap
@@ -386,13 +539,36 @@ class LocalGuideShiftService {
         const site = await Site.findByPk(submission.site_id);
 
         const normalizeTime = (time) => time.length === 5 ? `${time}:00` : time;
+        const fmtDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+        // Fetch approved events overlapping this week for dynamic hours
+        const updateWeekEndStr = fmtDate(weekEnd);
+        const updateDayBefore = new Date(weekStart.getTime());
+        updateDayBefore.setDate(updateDayBefore.getDate() - 1);
+        const updateDayBeforeStr = fmtDate(updateDayBefore);
+        const weekEvents = await Event.findAll({
+            where: {
+                site_id: submission.site_id,
+                status: 'approved',
+                is_active: true,
+                [Op.or]: [
+                    { start_date: { [Op.lte]: updateWeekEndStr }, end_date: { [Op.gte]: submission.week_start_date } },
+                    { end_date: null, start_date: { [Op.between]: [updateDayBeforeStr, updateWeekEndStr] } }
+                ]
+            }
+        });
+
         const validatedShifts = [];
         const errors = [];
 
         for (const shift of shifts) {
             // Validate individual shift date is not in the past
+            const weekStartDay = weekStart.getDay();
+            const shiftDay = parseInt(shift.day_of_week, 10);
+            const offset = (shiftDay - weekStartDay + 7) % 7;
+
             const shiftDate = new Date(weekStart);
-            shiftDate.setDate(shiftDate.getDate() + shift.day_of_week);
+            shiftDate.setDate(shiftDate.getDate() + offset);
             shiftDate.setHours(0, 0, 0, 0);
 
             if (shiftDate < today) {
@@ -406,22 +582,22 @@ class LocalGuideShiftService {
             const normalizedStart = normalizeTime(shift.start_time);
             const normalizedEnd = normalizeTime(shift.end_time);
 
-            // Validate opening hours if set
-            if (site.opening_hours) {
-                const siteOpen = site.opening_hours.open;
-                const siteClose = site.opening_hours.close;
-                if (siteOpen && siteClose) {
-                    const normalizedSiteOpen = normalizeTime(siteOpen);
-                    const normalizedSiteClose = normalizeTime(siteClose);
-                    if (normalizedStart < normalizedSiteOpen) {
-                        errors.push({ day_of_week: shift.day_of_week, error: `Shift must start after site opening (${siteOpen})` });
-                        continue;
-                    }
-                    if (normalizedEnd > normalizedSiteClose) {
-                        errors.push({ day_of_week: shift.day_of_week, error: `Shift must end before site closing (${siteClose})` });
-                        continue;
-                    }
+            // Validate against dynamic operating windows (site hours + event extensions)
+            const shiftDateStr = fmtDate(shiftDate);
+            const bounds = LocalGuideShiftService.getDynamicHoursForDate(site, weekEvents, shiftDateStr);
+            if (bounds.windows.length > 0) {
+                const fitsInWindow = bounds.windows.some(w =>
+                    normalizedStart >= w.open && normalizedEnd <= w.close
+                );
+                if (!fitsInWindow) {
+                    const allowed = bounds.windows.map(w => `${w.open.substring(0, 5)}-${w.close.substring(0, 5)}`).join(', ');
+                    const label = bounds.events.length > 0 ? ' (includes event hours)' : '';
+                    errors.push({ day_of_week: shift.day_of_week, error: `Shift must fit within operating windows: [${allowed}]${label}` });
+                    continue;
                 }
+            } else if (bounds.hasSchedule) {
+                errors.push({ day_of_week: shift.day_of_week, error: 'Site is closed on this day' });
+                continue;
             }
 
             // Check self-overlap
@@ -569,6 +745,29 @@ class LocalGuideShiftService {
 
         const site = await Site.findByPk(user.site_id);
 
+        // Fetch approved events overlapping this week for dynamic hours
+        const fmtDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const schedWeekStart = new Date(weekStartDate);
+        schedWeekStart.setHours(0, 0, 0, 0);
+        const schedWeekEnd = new Date(schedWeekStart);
+        schedWeekEnd.setDate(schedWeekEnd.getDate() + 6);
+        const schedWeekEndStr = fmtDate(schedWeekEnd);
+        const schedDayBefore = new Date(schedWeekStart);
+        schedDayBefore.setDate(schedDayBefore.getDate() - 1);
+        const schedDayBeforeStr = fmtDate(schedDayBefore);
+
+        const weekEvents = await Event.findAll({
+            where: {
+                site_id: user.site_id,
+                status: 'approved',
+                is_active: true,
+                [Op.or]: [
+                    { start_date: { [Op.lte]: schedWeekEndStr }, end_date: { [Op.gte]: weekStartDate } },
+                    { end_date: null, start_date: { [Op.between]: [schedDayBeforeStr, schedWeekEndStr] } }
+                ]
+            }
+        });
+
         const submissions = await GuideShiftSubmission.findAll({
             where: {
                 site_id: user.site_id,
@@ -615,11 +814,22 @@ class LocalGuideShiftService {
             schedule[day].sort((a, b) => a.start_time.localeCompare(b.start_time));
         }
 
+        // Compute daily_bounds for each day of the week
+        const daily_bounds = {};
+        for (let dayOffset = 0; dayOffset <= 6; dayOffset++) {
+            const dayDate = new Date(schedWeekStart.getTime());
+            dayDate.setDate(dayDate.getDate() + dayOffset);
+            const dayDateStr = fmtDate(dayDate);
+            const dayOfWeek = dayDate.getDay();
+            daily_bounds[dayOfWeek] = LocalGuideShiftService.getDynamicHoursForDate(site, weekEvents, dayDateStr);
+        }
+
         return {
             week_start_date: weekStartDate,
             site_id: user.site_id,
             site_name: site?.name || null,
             opening_hours: site?.opening_hours || null,
+            daily_bounds,
             schedule
         };
     }

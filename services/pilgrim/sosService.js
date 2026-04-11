@@ -206,12 +206,12 @@ class PilgrimSOSService {
                     for (const ev of activeEvents) {
                         let effectiveEndDate = ev.end_date || ev.start_date;
 
-                        
+
                         const evStart = ev.start_time ? ev.start_time.substring(0, 5) : null;
                         const evEnd = ev.end_time ? ev.end_time.substring(0, 5) : null;
                         const isCrossMidnight = evStart && evEnd && evStart > evEnd;
                         if (isCrossMidnight && !ev.end_date) {
-                            
+
                             const [sy, sm, sd] = ev.start_date.split('-').map(Number);
                             const tempDate = new Date(Date.UTC(sy, sm - 1, sd + 1));
                             const ey = tempDate.getUTCFullYear();
@@ -231,9 +231,19 @@ class PilgrimSOSService {
                                         hasActiveEvent = true; break;
                                     }
                                 } else {
-                                    // Cross-midnight event: valid if after start OR before end
-                                    if (currentTime >= evStart || currentTime <= evEnd) {
-                                        hasActiveEvent = true; break;
+                                    // Cross-midnight event
+                                    if (!ev.end_date) {
+                                        // Single-night event: check date-specific windows
+                                        if (currentDate === ev.start_date && currentTime >= evStart) {
+                                            hasActiveEvent = true; break;
+                                        } else if (currentDate === effectiveEndDate && currentTime <= evEnd) {
+                                            hasActiveEvent = true; break;
+                                        }
+                                    } else {
+                                        // Multi-day cross-midnight: valid if after start OR before end
+                                        if (currentTime >= evStart || currentTime <= evEnd) {
+                                            hasActiveEvent = true; break;
+                                        }
                                     }
                                 }
                             }

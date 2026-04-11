@@ -249,6 +249,43 @@
  *                       type: string
  *                     opening_hours:
  *                       type: object
+ *                     daily_bounds:
+ *                       type: object
+ *                       description: |
+ *                         Khung giờ hoạt động linh hoạt theo ngày (0=CN, 1-6=T2-T7).
+ *                         Mỗi ngày chứa một mảng windows (các khung giờ hợp lệ) và events.
+ *                         Gaps giữa các windows là khoảng thời gian site đóng cửa.
+ *                       additionalProperties:
+ *                         type: object
+ *                         properties:
+ *                           windows:
+ *                             type: array
+ *                             description: Các khung giờ hợp lệ để đăng ký ca trực
+ *                             items:
+ *                               type: object
+ *                               properties:
+ *                                 open:
+ *                                   type: string
+ *                                   example: "08:00:00"
+ *                                 close:
+ *                                   type: string
+ *                                   example: "17:00:00"
+ *                           events:
+ *                             type: array
+ *                             description: Danh sách events trong ngày đó
+ *                             items:
+ *                               type: object
+ *                               properties:
+ *                                 name:
+ *                                   type: string
+ *                                 start_time:
+ *                                   type: string
+ *                                   nullable: true
+ *                                 end_time:
+ *                                   type: string
+ *                                   nullable: true
+ *                                 all_day:
+ *                                   type: boolean
  *                     schedule:
  *                       type: object
  *                       description: Lịch theo ngày (0-6)
