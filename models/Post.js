@@ -24,15 +24,7 @@ const Post = sequelize.define('Post', {
             }
         }
     },
-    content_en: {
-        type: DataTypes.TEXT,
-        allowNull: true
-    },
     title: {
-        type: DataTypes.TEXT,
-        allowNull: true
-    },
-    title_en: {
         type: DataTypes.TEXT,
         allowNull: true
     },
