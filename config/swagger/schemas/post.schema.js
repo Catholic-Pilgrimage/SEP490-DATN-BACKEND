@@ -34,7 +34,7 @@
  *         title:
  *           type: string
  *           nullable: true
- *           example: "Nháº­t kÃ½ hÃ nh hÆ°Æ¡ng"
+ *           example: "Nhật ký hành hương"
  *         image_urls:
  *           type: array
  *           items:
