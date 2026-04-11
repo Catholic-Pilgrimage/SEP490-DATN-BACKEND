@@ -35,15 +35,35 @@ exports.createSubmission = async (req, res) => {
         }
         if (error.message.includes('Validation errors')) {
             let validationErrors = null;
+            let firstErrorMessage = req.__('local_guide.validation_errors') || 'Validation errors';
             try {
                 const jsonMatch = error.message.match(/\[.*\]/);
                 if (jsonMatch) {
                     validationErrors = JSON.parse(jsonMatch[0]);
+
+                    if (Array.isArray(validationErrors)) {
+                        validationErrors = validationErrors.map(ve => {
+                            if (ve.error.includes('Site is closed on this day')) {
+                                ve.error = req.__('local_guide.site_closed_on_day');
+                            } else if (ve.error.includes('Shift must fit within operating windows:')) {
+                                const allowedMatch = ve.error.match(/\[(.*?)\]/);
+                                const allowed = allowedMatch ? allowedMatch[1] : '';
+                                const hasEvent = ve.error.includes('includes event hours');
+                                const label = hasEvent ? req.__('local_guide.includes_event_hours') : '';
+                                ve.error = req.__('local_guide.shift_outside_operating_windows', { allowed, label });
+                            }
+                            return ve;
+                        });
+
+                        if (validationErrors.length > 0 && validationErrors[0].error) {
+                            firstErrorMessage = validationErrors[0].error;
+                        }
+                    }
                 }
             } catch (e) {
                 // If parsing fails, just use the raw message
             }
-            return ResponseUtil.badRequest(res, req.__('local_guide.validation_errors') || 'Validation errors', validationErrors);
+            return ResponseUtil.badRequest(res, firstErrorMessage, validationErrors);
         }
         if (error.message.includes('Shift conflicts detected') || error.message.includes('overlaps with another Local Guide')) {
             let conflictDetails = null;
@@ -115,15 +135,35 @@ exports.updateSubmission = async (req, res) => {
         }
         if (error.message.includes('Validation errors')) {
             let validationErrors = null;
+            let firstErrorMessage = req.__('local_guide.validation_errors') || 'Validation errors';
             try {
                 const jsonMatch = error.message.match(/\[.*\]/);
                 if (jsonMatch) {
                     validationErrors = JSON.parse(jsonMatch[0]);
+
+                    if (Array.isArray(validationErrors)) {
+                        validationErrors = validationErrors.map(ve => {
+                            if (ve.error.includes('Site is closed on this day')) {
+                                ve.error = req.__('local_guide.site_closed_on_day');
+                            } else if (ve.error.includes('Shift must fit within operating windows:')) {
+                                const allowedMatch = ve.error.match(/\[(.*?)\]/);
+                                const allowed = allowedMatch ? allowedMatch[1] : '';
+                                const hasEvent = ve.error.includes('includes event hours');
+                                const label = hasEvent ? req.__('local_guide.includes_event_hours') : '';
+                                ve.error = req.__('local_guide.shift_outside_operating_windows', { allowed, label });
+                            }
+                            return ve;
+                        });
+
+                        if (validationErrors.length > 0 && validationErrors[0].error) {
+                            firstErrorMessage = validationErrors[0].error;
+                        }
+                    }
                 }
             } catch (e) {
                 // If parsing fails, just use the raw message
             }
-            return ResponseUtil.badRequest(res, req.__('local_guide.validation_errors') || 'Validation errors', validationErrors);
+            return ResponseUtil.badRequest(res, firstErrorMessage, validationErrors);
         }
         if (error.message.includes('Shift conflicts detected') || error.message.includes('overlaps with another Local Guide')) {
             let conflictDetails = null;
