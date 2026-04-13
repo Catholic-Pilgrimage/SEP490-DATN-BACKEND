@@ -144,6 +144,13 @@ User.belongsToMany(Planner, {
   as: 'joinedPlanners'
 });
 
+// Direct associations for PlannerMember
+PlannerMember.belongsTo(Planner, { foreignKey: 'planner_id', as: 'planner' });
+Planner.hasMany(PlannerMember, { foreignKey: 'planner_id', as: 'plannerMembers' });
+
+PlannerMember.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+User.hasMany(PlannerMember, { foreignKey: 'user_id', as: 'plannerMemberships' });
+
 // Planner - PlannerMessage
 Planner.hasMany(PlannerMessage, { foreignKey: 'planner_id', as: 'messages' });
 PlannerMessage.belongsTo(Planner, { foreignKey: 'planner_id', as: 'planner' });
