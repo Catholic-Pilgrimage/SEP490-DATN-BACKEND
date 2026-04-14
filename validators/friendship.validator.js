@@ -38,6 +38,14 @@ class FriendshipValidator {
             .optional()
             .isIn(['accepted', 'pending']).withMessage('Status phải là accepted hoặc pending')
     ];
+
+    // Validate search by email
+    static searchByEmail = [
+        query('email')
+            .notEmpty().withMessage('Email không được để trống')
+            .isEmail().withMessage('Email không hợp lệ')
+            .normalizeEmail()
+    ];
 }
 
 module.exports = FriendshipValidator;

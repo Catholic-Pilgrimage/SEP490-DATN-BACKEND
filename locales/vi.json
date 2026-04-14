@@ -757,5 +757,25 @@
     "style_invalid": "Phong cách phải là devotional, informational, historical, hoặc youth",
     "current_date_invalid": "current_date phải là ngày hợp lệ (ISO 8601)",
     "count_invalid": "count phải là số nguyên từ 1 đến 10"
+  },
+  "friendship": {
+    "request_sent": "Đã gửi lời mời kết bạn",
+    "request_accepted": "Đã chấp nhận lời mời kết bạn",
+    "request_rejected": "Đã từ chối lời mời kết bạn",
+    "list_success": "Lấy danh sách thành công",
+    "removed": "Đã hủy kết bạn thành công",
+    "search_success": "Tìm thấy người dùng",
+    "not_found": "Không tìm thấy người dùng với email này",
+    "cannot_search_yourself": "Không thể tìm chính mình",
+    "cannot_send_self": "Không thể kết bạn với chính mình",
+    "user_not_found": "Không tìm thấy người dùng",
+    "already_friends": "Hai người đã là bạn bè",
+    "already_sent": "Đã gửi lời mời kết bạn trước đó",
+    "cannot_send": "Không thể gửi lời mời kết bạn",
+    "invalid_action": "Hành động không hợp lệ",
+    "request_not_found": "Không tìm thấy lời mời kết bạn",
+    "already_processed": "Lời mời kết bạn đã được xử lý",
+    "forbidden_respond": "Chỉ người nhận mới có thể phản hồi",
+    "friendship_not_found": "Không tìm thấy quan hệ bạn bè"
   }
 }

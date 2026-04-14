@@ -53,6 +53,11 @@ class CheckinService {
                 siteName: plannerItem.site?.name || 'điểm đến'
             }).catch(() => null)
         ));
+
+        try {
+            const PlannerChatService = require('./pilgrim/plannerChatService');
+            await PlannerChatService.sendSystemMessage(planner.id, `Đã có thành viên đầu tiên check-in tại ${plannerItem.site?.name || 'điểm đến'}. Hãy nhanh chóng check-in!`);
+        } catch (e) { }
     }
 
     static async getJoinedParticipantIds(plannerId, ownerId, options = {}) {
@@ -412,6 +417,11 @@ class CheckinService {
             reason: normalizedSkipReason
         }, { excludeUserId: ownerId });
 
+        try {
+            const PlannerChatService = require('./pilgrim/plannerChatService');
+            await PlannerChatService.sendSystemMessage(planner.id, `📍 Trưởng đoàn đã bỏ qua điểm ${plannerItem.site?.name || 'điểm đến'}. Lý do: ${normalizedSkipReason}`);
+        } catch (e) { }
+
         if (shouldAutoCancelPlanner) {
             await planner.update({ status: 'cancelled' });
         }
@@ -582,6 +592,11 @@ class CheckinService {
                         reason: normalizedSkipReason
                     }).catch(() => null)
                 ));
+
+                try {
+                    const PlannerChatService = require('./pilgrim/plannerChatService');
+                    await PlannerChatService.sendSystemMessage(planner.id, `⚠️ Trưởng đoàn đã chốt điểm ${plannerItem.site?.name || 'điểm đến'}. Có ${missingUsers.length} người chưa check-in bị đánh dấu không đến.`);
+                } catch (e) { }
             }
 
             return {

@@ -21,6 +21,54 @@ class FriendshipService {
     }
 
     /**
+     * Search for a user by email
+     * Returns public profile + friendship status relative to the caller
+     */
+    static async searchByEmail(callerId, email) {
+        const target = await User.findOne({
+            where: { email },
+            attributes: ['id', 'full_name', 'email', 'avatar_url', 'role']
+        });
+
+        if (!target) {
+            throw new Error('User not found');
+        }
+
+        if (target.id === callerId) {
+            throw new Error('Cannot search yourself');
+        }
+
+        // Get friendship status between caller and target
+        const friendship = await Friendship.findOne({
+            where: {
+                [Op.or]: [
+                    { requester_id: callerId, addressee_id: target.id },
+                    { requester_id: target.id, addressee_id: callerId }
+                ]
+            },
+            attributes: ['id', 'status', 'requester_id']
+        });
+
+        let friendshipStatus = null;
+        let friendshipId = null;
+        if (friendship) {
+            friendshipStatus = friendship.status;
+            friendshipId = friendship.id;
+        }
+
+        return {
+            id: target.id,
+            full_name: target.full_name,
+            email: target.email,
+            avatar_url: target.avatar_url,
+            role: target.role,
+            friendship_id: friendshipId,
+            friendship_status: friendshipStatus // null | 'pending' | 'accepted' | 'rejected' | 'blocked'
+        };
+    }
+
+
+    /**
      * Send a friend request
      * Checks both directions to prevent duplicate
      */

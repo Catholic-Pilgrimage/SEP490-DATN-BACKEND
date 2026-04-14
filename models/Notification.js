@@ -53,6 +53,7 @@ const Notification = sequelize.define('Notification', {
                 'planner_item_skipped_last',
                 'planner_item_added',
                 'planner_schedule_changed',
+                'planner_started',
                 'favorite_site_update',
                 'sos_planner_alert',
                 'narrative_approved',
@@ -75,7 +76,11 @@ const Notification = sequelize.define('Notification', {
                 // Friendship notifications
                 'friend_request',
                 'friend_accepted',
-                'planner_friend_invite'
+                'planner_friend_invite',
+                // Post notifications
+                'post_liked',
+                'post_commented',
+                'post_comment_replied'
             ]]
         }
     },

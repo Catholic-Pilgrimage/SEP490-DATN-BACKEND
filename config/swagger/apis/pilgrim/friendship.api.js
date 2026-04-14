@@ -242,3 +242,74 @@
  *       404:
  *         description: Không tìm thấy quan hệ bạn bè
  */
+
+/**
+ * @swagger
+ * /api/friendships/search:
+ *   get:
+ *     summary: Tìm kiếm người dùng bằng email
+ *     description: |
+ *       Tìm kiếm người dùng theo địa chỉ email để chuẩn bị gửi lời mời kết bạn.
+ *       - Trả về thông tin cơ bản của người dùng (tên, avatar).
+ *       - Trả về trạng thái quan hệ bạn bè hiện tại (`friendship_status`) để frontend biết nên hiển thị nút gì.
+ *       - `friendship_status = null`: Chưa có quan hệ → hiện nút **"Thêm bạn"**.
+ *       - `friendship_status = pending`: Đang chờ → hiện nút **"Đã gửi / Đang chờ"**.
+ *       - `friendship_status = accepted`: Đã là bạn bè.
+ *     tags: [Pilgrim - Friendship]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: email
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: email
+ *           example: user@example.com
+ *         description: Email của người dùng muốn tìm kiếm
+ *     responses:
+ *       200:
+ *         description: Tìm thấy người dùng
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       format: uuid
+ *                       description: ID người dùng — dùng để gửi lời mời kết bạn
+ *                     full_name:
+ *                       type: string
+ *                       example: Nguyễn Văn A
+ *                     email:
+ *                       type: string
+ *                       format: email
+ *                     avatar_url:
+ *                       type: string
+ *                       nullable: true
+ *                     role:
+ *                       type: string
+ *                       example: pilgrim
+ *                     friendship_id:
+ *                       type: string
+ *                       format: uuid
+ *                       nullable: true
+ *                       description: ID của friendship record (nếu đã có quan hệ)
+ *                     friendship_status:
+ *                       type: string
+ *                       nullable: true
+ *                       enum: [pending, accepted, rejected, blocked, null]
+ *                       description: Trạng thái quan hệ hiện tại với người này
+ *       400:
+ *         description: Email không hợp lệ hoặc tìm chính mình
+ *       404:
+ *         description: Không tìm thấy người dùng với email này
+ */
+
