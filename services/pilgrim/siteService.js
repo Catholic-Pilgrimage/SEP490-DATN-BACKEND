@@ -265,7 +265,7 @@ class PilgrimSiteService {
 
       const { count, rows } = await SiteMedia.findAndCountAll({
         where,
-        attributes: ['id', 'code', 'url', 'type', 'caption', 'created_at'],
+        attributes: ['id', 'code', 'url', 'type', 'caption', 'audio_url', 'narration_text', 'created_at'],
         order: [['created_at', 'DESC']],
         limit,
         offset

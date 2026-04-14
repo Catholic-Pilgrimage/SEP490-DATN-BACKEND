@@ -323,7 +323,7 @@
  * /api/sites/{siteId}/media:
  *   get:
  *     summary: Xem gallery của địa điểm (Public - không cần đăng nhập)
- *     description: Lấy danh sách hình ảnh/video đã được duyệt của địa điểm
+ *     description: Lấy danh sách media đã được duyệt của địa điểm (image/video/model_3d), bao gồm audio_url nếu media có thuyết minh.
  *     tags: [Public - Sites]
  *     parameters:
  *       - in: path
@@ -359,26 +359,62 @@
  *               properties:
  *                 success:
  *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                   example: Lấy danh sách media thành công
  *                 data:
- *                   type: array
- *                   items:
+ *                   type: object
+ *                   properties:
+ *                     site:
  *                     type: object
  *                     properties:
- *                       id:
- *                         type: string
- *                         format: uuid
- *                       code:
- *                         type: string
- *                       url:
- *                         type: string
- *                       type:
- *                         type: string
- *                         enum: [image, video, model_3d]
- *                       caption:
- *                         type: string
- *                       created_at:
- *                         type: string
- *                         format: date-time
+ *                         id:
+ *                           type: string
+ *                           format: uuid
+ *                         code:
+ *                           type: string
+ *                         name:
+ *                           type: string
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                           code:
+ *                             type: string
+ *                           url:
+ *                             type: string
+ *                           type:
+ *                             type: string
+ *                             enum: [image, video, model_3d]
+ *                           caption:
+ *                             type: string
+ *                             nullable: true
+ *                           audio_url:
+ *                             type: string
+ *                             nullable: true
+ *                             description: URL audio thuyết minh của media (nếu có)
+ *                           narration_text:
+ *                             type: string
+ *                             nullable: true
+ *                             description: Nội dung thuyết minh dạng văn bản (nếu có)
+ *                           created_at:
+ *                             type: string
+ *                             format: date-time
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                         limit:
+ *                           type: integer
+ *                         totalItems:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
  *       404:
  *         description: Không tìm thấy địa điểm
  */
