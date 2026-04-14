@@ -106,6 +106,12 @@
  *           maximum: 100
  *           default: 10
  *         description: Số mục trên mỗi trang
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [planning, locked, ongoing, completed, cancelled]
+ *         description: Lọc theo trạng thái kế hoạch
  *     responses:
  *       200:
  *         description: Lấy danh sách kế hoạch thành công
@@ -596,6 +602,86 @@
  *         description: Không có quyền - không phải chủ sở hữu
  *       404:
  *         description: Không tìm thấy kế hoạch hoặc địa điểm
+ */
+
+/**
+ * @swagger
+ * /api/planners/{id}/items/swap:
+ *   patch:
+ *     summary: Đổi chỗ 2 điểm đến trong kế hoạch
+ *     description: |
+ *       Đổi chỗ (swap) 2 item bất kỳ trong planner. Hỗ trợ cả cùng ngày và khác ngày.
+ *
+ *       Mobile client gửi kèm `affected_days` chứa snapshot thời gian đã tính sẵn
+ *       (bao gồm travel time từ VietMap). Backend validate cấu trúc rồi áp dụng
+ *       nguyên khối trong 1 transaction.
+ *
+ *       Điều kiện:
+ *       - Chỉ owner mới được thực hiện
+ *       - Planner phải đang ở trạng thái `planning`
+ *       - Planner chưa bị lock
+ *       - Cả 2 item phải còn ở trạng thái `upcoming`
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của kế hoạch
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/SwapPlannerItemsRequest'
+ *     responses:
+ *       200:
+ *         description: Đổi chỗ thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Đổi chỗ 2 địa điểm thành công"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     planner_id:
+ *                       type: string
+ *                       format: uuid
+ *                     swapped:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                         format: uuid
+ *                       example: ["uuid-item-a", "uuid-item-b"]
+ *                     items_by_day:
+ *                       type: object
+ *                       additionalProperties:
+ *                         type: array
+ *                         items:
+ *                           $ref: '#/components/schemas/PlannerItem'
+ *       400:
+ *         description: |
+ *           - Hai item trùng nhau
+ *           - Payload affected_days không khớp
+ *           - Planner đang ongoing/completed/cancelled
+ *           - Item đã visited/skipped
+ *       401:
+ *         description: Chưa xác thực
+ *       403:
+ *         description: Không có quyền - không phải chủ sở hữu
+ *       404:
+ *         description: Không tìm thấy kế hoạch hoặc item
  */
 
 /**

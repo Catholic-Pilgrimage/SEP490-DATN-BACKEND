@@ -297,7 +297,12 @@ class PlannerValidator {
 
         query('limit')
             .optional()
-            .isInt({ min: 1, max: 100 }).withMessage('Limit phải từ 1-100')
+            .isInt({ min: 1, max: 100 }).withMessage('Limit phải từ 1-100'),
+
+        query('status')
+            .optional()
+            .isIn(['planning', 'locked', 'ongoing', 'completed', 'cancelled'])
+            .withMessage('Status phải là planning, ongoing, completed hoặc cancelled')
     ];
 
     // Validate planner ID param
@@ -494,6 +499,59 @@ class PlannerValidator {
         body('friend_id')
             .notEmpty().withMessage('Friend ID không được để trống')
             .isUUID().withMessage('Friend ID không hợp lệ')
+    ];
+
+    // Validate swap planner items
+    static swapPlannerItems = [
+        param('id')
+            .isUUID().withMessage('Planner ID không hợp lệ'),
+
+        body('item_id_a')
+            .notEmpty().withMessage('Item A ID không được để trống')
+            .isUUID().withMessage('Item A ID không hợp lệ'),
+
+        body('item_id_b')
+            .notEmpty().withMessage('Item B ID không được để trống')
+            .isUUID().withMessage('Item B ID không hợp lệ')
+            .custom((value, { req }) => {
+                if (value === req.body.item_id_a) {
+                    throw new Error('Hai item đổi chỗ phải khác nhau');
+                }
+                return true;
+            }),
+
+        body('affected_days')
+            .isArray({ min: 1, max: 2 }).withMessage('affected_days phải là mảng có 1 hoặc 2 phần tử')
+            .custom((value) => {
+                // Check no duplicate leg_number
+                const legs = value.map(d => d.leg_number);
+                if (new Set(legs).size !== legs.length) {
+                    throw new Error('Không được trùng leg_number trong affected_days');
+                }
+
+                // Check no duplicate item id across all days
+                const allIds = value.flatMap(d => (d.items || []).map(i => i.id));
+                if (new Set(allIds).size !== allIds.length) {
+                    throw new Error('Không được trùng item ID giữa các ngày');
+                }
+
+                return true;
+            }),
+
+        body('affected_days.*.leg_number')
+            .isInt({ min: 1 }).withMessage('leg_number phải là số nguyên >= 1'),
+
+        body('affected_days.*.items')
+            .isArray({ min: 1 }).withMessage('Mỗi ngày phải có ít nhất 1 item'),
+
+        body('affected_days.*.items.*.id')
+            .isUUID().withMessage('Item ID không hợp lệ'),
+
+        body('affected_days.*.items.*.estimated_time')
+            .matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).withMessage('estimated_time phải có định dạng HH:MM'),
+
+        body('affected_days.*.items.*.travel_time_minutes')
+            .isInt({ min: 0 }).withMessage('travel_time_minutes phải là số nguyên không âm')
     ];
 
     // Validate remove member

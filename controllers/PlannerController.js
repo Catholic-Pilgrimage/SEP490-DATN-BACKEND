@@ -1060,6 +1060,125 @@ class PlannerController {
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
+
+    /**
+     * PATCH /planners/:id/items/swap - Swap two planner items
+     */
+    static async swapPlannerItems(req, res) {
+        try {
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
+            }
+
+            const { item_id_a, item_id_b, affected_days } = req.body;
+
+            let result = await PlannerService.swapPlannerItems(
+                req.params.id,
+                req.user.id,
+                item_id_a,
+                item_id_b,
+                affected_days
+            );
+            result = PlannerController.localizePlannerResult(req, result);
+
+            return ResponseUtil.success(res, result, req.__('planner.item_swap_success'));
+        } catch (error) {
+            console.error('Swap planner items error:', error.message);
+
+            if (error.message === 'Planner not found') {
+                return ResponseUtil.notFound(res, req.__('planner.not_found'));
+            }
+            if (error.message === 'Forbidden') {
+                return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
+            }
+            if (error.message === 'Item not found') {
+                return ResponseUtil.notFound(res, req.__('planner.item_not_found'));
+            }
+            if (error.message === 'Item does not belong to this planner') {
+                return ResponseUtil.badRequest(res, req.__('planner.item_not_belong'));
+            }
+            if (error.message === 'Items must differ') {
+                return ResponseUtil.badRequest(res, req.__('planner.swap_items_must_differ'));
+            }
+            if (error.message === 'Planner is locked') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));
+            }
+            if (error.message === 'Cannot swap ongoing journey') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_swap_ongoing'));
+            }
+            if (error.message === 'Cannot swap completed plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_swap_completed'));
+            }
+            if (error.message === 'Cannot swap cancelled plan') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_swap_cancelled'));
+            }
+            if (error.message === 'Swap payload invalid') {
+                return ResponseUtil.badRequest(res, req.__('planner.swap_payload_invalid'));
+            }
+            if (error.message === 'Cannot swap visited or skipped items') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_delete_processed'));
+            }
+            // Schedule re-validation errors (step 5b guards)
+            if (error.message.startsWith('Duplicate time in day:')) {
+                const parts = error.message.replace('Duplicate time in day: ', '').split(', ');
+                const time = parts[0];
+                const day = parts[1].replace('day ', '');
+                return ResponseUtil.badRequest(res, req.__('planner.duplicate_time_in_day', { time, day }));
+            }
+            if (error.message.startsWith('Invalid arrival time:')) {
+                const parts = error.message.replace('Invalid arrival time: ', '').split(', departure: ');
+                const time = parts[0];
+                const departureTime = parts[1];
+                return ResponseUtil.badRequest(res, req.__('planner.invalid_arrival_time', { time, departureTime }));
+            }
+            if (error.message.startsWith('Arrival time past midnight:')) {
+                const parts = error.message.replace('Arrival time past midnight: ', '').split(', ');
+                const departureTime = parts[0].replace('departure ', '');
+                const travelTime = parts[1].replace('travel ', '');
+                const day = parts[2].replace('day ', '');
+                return ResponseUtil.badRequest(res, req.__('planner.arrival_time_next_day', { departureTime, travelTime, day }));
+            }
+            if (error.message.startsWith('Site is closed on')) {
+                const day = error.message.replace('Site is closed on ', '').replace('s', '');
+                return ResponseUtil.badRequest(res, req.__('planner.site_closed_on_day', { day }));
+            }
+            if (error.message.startsWith('Site is closed at')) {
+                const parts = error.message.replace('Site is closed at ', '').split('. Opening hours: ');
+                const time = parts[0];
+                const hours = parts[1];
+                return ResponseUtil.badRequest(res, req.__('planner.site_closed_at', { time, hours }));
+            }
+            if (error.message.startsWith('Invalid arrival time suggested:')) {
+                const parts = error.message.replace('Invalid arrival time suggested: ', '').split(', departure ');
+                const timeStr = parts[0];
+                const restStr = parts[1]; // "07:15, travel 29m, suggested 07:44"
+
+                const split2 = restStr.split(', travel ');
+                const departureTimeStr = split2[0];
+                const restStr2 = split2[1]; // "29m, suggested 07:44"
+
+                const split3 = restStr2.split(', suggested ');
+                const travelTimeStr = split3[0];
+                const suggestedTimeStr = split3[1];
+
+                return ResponseUtil.badRequest(res, req.__('planner.invalid_arrival_time_suggested', {
+                    time: timeStr,
+                    departureTime: departureTimeStr,
+                    travelTime: travelTimeStr,
+                    suggestedTime: suggestedTimeStr
+                }));
+            }
+            if (error.message === 'Event time after end') {
+                return ResponseUtil.badRequest(res, req.__('planner.event_time_after_end', {
+                    time: error.time,
+                    eventName: error.eventName,
+                    endTime: error.endTime
+                }));
+            }
+            return ResponseUtil.error(res, req.__('error.server_error'));
+        }
+    }
 }
 
 module.exports = PlannerController;
