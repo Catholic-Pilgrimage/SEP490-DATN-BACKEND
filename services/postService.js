@@ -1,6 +1,7 @@
 const { Post, PostLike, PostComment, User, Journal, Site, Planner, PlannerItem, UserCheckin, Report, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const PlannerService = require('./plannerService');
+const NotificationService = require('./shared/notificationService');
 
 class PostService {
     getPostImageInput(postData = {}) {
@@ -618,6 +619,17 @@ class PostService {
             // Refresh post to get updated likes_count
             await post.reload();
 
+            // Send notification to post author (if not liking their own post)
+            if (post.user_id !== userId) {
+                const liker = await User.findByPk(userId, { attributes: ['id', 'full_name'] });
+                if (liker) {
+                    NotificationService.createNotification('post_liked', post.user_id, {
+                        likerName: liker.full_name,
+                        postId: post.id
+                    }).catch(err => console.error('Notification error:', err));
+                }
+            }
+
             return {
                 message: 'Post liked successfully',
                 likes_count: post.likes_count
@@ -681,8 +693,9 @@ class PostService {
                 throw error;
             }
 
+            let parentComment = null;
             if (parentId) {
-                const parentComment = await PostComment.findOne({
+                parentComment = await PostComment.findOne({
                     where: {
                         id: parentId,
                         post_id: postId,
@@ -703,6 +716,26 @@ class PostService {
                 content,
                 status: 'published'
             });
+
+            // Send notification
+            const commenter = await User.findByPk(userId, { attributes: ['id', 'full_name'] });
+            if (commenter) {
+                if (parentId && parentComment && parentComment.user_id !== userId) {
+                    // Send reply notification
+                    NotificationService.createNotification('post_comment_replied', parentComment.user_id, {
+                        replierName: commenter.full_name,
+                        postId: post.id,
+                        commentId: comment.id
+                    }).catch(err => console.error('Notification error:', err));
+                } else if (!parentId && post.user_id !== userId) {
+                    // Send comment notification
+                    NotificationService.createNotification('post_commented', post.user_id, {
+                        commenterName: commenter.full_name,
+                        postId: post.id,
+                        commentId: comment.id
+                    }).catch(err => console.error('Notification error:', err));
+                }
+            }
 
             // Fetch comment with author info
             return await PostComment.findByPk(comment.id, {

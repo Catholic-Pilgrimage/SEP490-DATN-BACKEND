@@ -705,5 +705,25 @@
     "assign_guide_success": "Guide has been assigned to handle this SOS successfully",
     "guide_not_found": "Guide not found or is not a valid local guide",
     "guide_not_same_site": "Guide does not belong to this site"
+  },
+  "friendship": {
+    "request_sent": "Friend request sent successfully",
+    "request_accepted": "Friend request accepted",
+    "request_rejected": "Friend request rejected",
+    "list_success": "List retrieved successfully",
+    "removed": "Friend removed successfully",
+    "search_success": "User found",
+    "not_found": "No user found with this email",
+    "cannot_search_yourself": "You cannot search for yourself",
+    "cannot_send_self": "You cannot send a friend request to yourself",
+    "user_not_found": "User not found",
+    "already_friends": "You are already friends",
+    "already_sent": "Friend request already sent",
+    "cannot_send": "Cannot send friend request",
+    "invalid_action": "Invalid action",
+    "request_not_found": "Friend request not found",
+    "already_processed": "Friend request has already been processed",
+    "forbidden_respond": "Only the recipient can respond to this request",
+    "friendship_not_found": "Friendship not found"
   }
 }

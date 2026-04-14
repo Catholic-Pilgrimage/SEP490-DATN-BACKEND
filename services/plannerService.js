@@ -2057,6 +2057,11 @@ class PlannerService {
                     time: this.normalizePlannerTimeValue(firstAddedItem?.estimated_time)
                 }, { excludeUserId: userId });
 
+                try {
+                    const PlannerChatService = require('./pilgrim/plannerChatService');
+                    await PlannerChatService.sendSystemMessage(planner.id, `🗓️ Lịch trình đã được cập nhật: thêm ${firstAddedItem?.site?.name || site.name || 'điểm đến'} vào ngày ${firstAddedItem?.leg_number || leg_number} lúc ${this.normalizePlannerTimeValue(firstAddedItem?.estimated_time)}`);
+                } catch (e) { }
+
                 return response;
             }
 
@@ -2122,6 +2127,11 @@ class PlannerService {
                 day: result.leg_number,
                 time: this.normalizePlannerTimeValue(result.estimated_time)
             }, { excludeUserId: userId });
+
+            try {
+                const PlannerChatService = require('./pilgrim/plannerChatService');
+                await PlannerChatService.sendSystemMessage(planner.id, `🗓️ Lịch trình đã được cập nhật: thêm ${result.site?.name || site.name || 'điểm đến'} vào ngày ${result.leg_number} lúc ${this.normalizePlannerTimeValue(result.estimated_time)}`);
+            } catch (e) { }
 
             if (eventTimeWarning) {
                 response.warning = eventTimeWarning;
@@ -3006,6 +3016,11 @@ class PlannerService {
                         siteName: nextUpcomingItem.site?.name || 'diem den',
                         time: this.normalizePlannerTimeValue(nextUpcomingItem.estimated_time)
                     }, { excludeUserId: userId });
+
+                    try {
+                        const PlannerChatService = require('./pilgrim/plannerChatService');
+                        await PlannerChatService.sendSystemMessage(planner.id, `⏰ Lịch trình đã thay đổi. Điểm tiếp theo là ${nextUpcomingItem.site?.name || 'điểm đến'} lúc ${this.normalizePlannerTimeValue(nextUpcomingItem.estimated_time)}`);
+                    } catch (e) { }
                 }
             }
 

@@ -12,6 +12,14 @@ router.post(
     FriendshipController.sendFriendRequest
 );
 
+// GET /api/friendships/search?email=... - Tìm kiếm người dùng bằng email
+router.get(
+    '/search',
+    authenticate,
+    FriendshipValidator.searchByEmail,
+    FriendshipController.searchByEmail
+);
+
 // POST /api/friendships/:id/respond - Chấp nhận/từ chối lời mời
 router.post(
     '/:id/respond',

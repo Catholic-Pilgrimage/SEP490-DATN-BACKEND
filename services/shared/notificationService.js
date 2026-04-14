@@ -263,8 +263,8 @@ const NOTIFICATION_TEMPLATES = {
 
     planner_first_checkin: {
         vi: {
-            title: 'Da co nguoi check-in',
-            message: 'Da co thanh vien check-in tai {{siteName}} trong ke hoach "{{plannerName}}". Hay check-in truoc khi diem den bi chot.'
+            title: 'Đã có người check-in',
+            message: 'Đã có thành viên check-in tại {{siteName}} trong kế hoạch "{{plannerName}}". Hãy check-in trước khi điểm đến bị chốt.'
         },
         en: {
             title: 'Someone checked in',
@@ -274,7 +274,7 @@ const NOTIFICATION_TEMPLATES = {
     planner_item_missed: {
         vi: {
             title: 'Bạn đã bị đánh dấu là không đến',
-            message: 'Truong doan da chot diem {{siteName}} trong ke hoach "{{plannerName}}" khi ban chua check-in. Ly do: {{reason}}.'
+            message: 'Trưởng đoàn đã chốt điểm {{siteName}} trong kế hoạch "{{plannerName}}" khi bạn chưa check-in. Lý do: {{reason}}.'
         },
         en: {
             title: 'You were marked missed',
@@ -283,8 +283,8 @@ const NOTIFICATION_TEMPLATES = {
     },
     planner_item_skipped: {
         vi: {
-            title: 'Dia diem da duoc bo qua',
-            message: 'Diem {{siteName}} da duoc bo qua. Ly do: {{reason}}. Hay di chuyen toi diem tiep theo {{nextSiteName}}.'
+            title: 'Địa điểm đã được bỏ qua',
+            message: 'Điểm {{siteName}} đã được bỏ qua. Lý do: {{reason}}. Hãy di chuyển tới điểm tiếp theo {{nextSiteName}}.'
         },
         en: {
             title: 'Stop skipped',
@@ -293,8 +293,8 @@ const NOTIFICATION_TEMPLATES = {
     },
     planner_item_skipped_last: {
         vi: {
-            title: 'Dia diem da duoc bo qua',
-            message: 'Diem {{siteName}} da duoc bo qua. Ly do: {{reason}}.'
+            title: 'Địa điểm đã được bỏ qua',
+            message: 'Điểm {{siteName}} đã được bỏ qua. Lý do: {{reason}}.'
         },
         en: {
             title: 'Stop skipped',
@@ -303,8 +303,8 @@ const NOTIFICATION_TEMPLATES = {
     },
     planner_item_added: {
         vi: {
-            title: 'Lich trinh da duoc cap nhat',
-            message: 'Lich trinh da duoc cap nhat: them {{siteName}} vao ngay {{day}} luc {{time}}.'
+            title: 'Lịch trình đã được cập nhật',
+            message: 'Lịch trình đã được cập nhật: thêm {{siteName}} vào ngày {{day}} lúc {{time}}.'
         },
         en: {
             title: 'Itinerary updated',
@@ -313,12 +313,22 @@ const NOTIFICATION_TEMPLATES = {
     },
     planner_schedule_changed: {
         vi: {
-            title: 'Lich trinh da thay doi',
-            message: 'Lich trinh da thay doi. Diem tiep theo la {{siteName}} luc {{time}}.'
+            title: 'Lịch trình đã thay đổi',
+            message: 'Lịch trình đã thay đổi. Điểm tiếp theo là {{siteName}} lúc {{time}}.'
         },
         en: {
             title: 'Schedule changed',
             message: 'The itinerary has changed. The next stop is {{siteName}} at {{time}}.'
+        }
+    },
+    planner_started: {
+        vi: {
+            title: 'Chuyến đi đã bắt đầu',
+            message: 'Kế hoạch "{{plannerName}}" đã chính thức bắt đầu. Hãy chuẩn bị check-in tại điểm đầu tiên!'
+        },
+        en: {
+            title: 'Trip started',
+            message: 'Planner "{{plannerName}}" has officially started. Get ready to check in at the first stop!'
         }
     },
 
@@ -522,6 +532,38 @@ const NOTIFICATION_TEMPLATES = {
         en: {
             title: 'Planner invitation from friend',
             message: '{{inviterName}} invited you to join planner "{{plannerName}}" (no deposit required)'
+        }
+    },
+
+    // Post notifications
+    post_liked: {
+        vi: {
+            title: 'Lượt thích mới',
+            message: '{{likerName}} đã thích bài viết của bạn'
+        },
+        en: {
+            title: 'New like',
+            message: '{{likerName}} liked your post'
+        }
+    },
+    post_commented: {
+        vi: {
+            title: 'Bình luận mới',
+            message: '{{commenterName}} đã bình luận về bài viết của bạn'
+        },
+        en: {
+            title: 'New comment',
+            message: '{{commenterName}} commented on your post'
+        }
+    },
+    post_comment_replied: {
+        vi: {
+            title: 'Phản hồi mới',
+            message: '{{replierName}} đã phản hồi bình luận của bạn'
+        },
+        en: {
+            title: 'New reply',
+            message: '{{replierName}} replied to your comment'
         }
     }
 };
