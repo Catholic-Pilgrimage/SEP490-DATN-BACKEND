@@ -475,7 +475,14 @@
     "group_edit_lock_required_before_lock": "Kế hoạch nhóm phải được đóng chỉnh sửa trước khi khóa hành trình.",
     "start_requires_lock": "Hành trình chỉ có thể bắt đầu khi kế hoạch đã ở trạng thái khóa.",
     "group_start_requires_lock": "Hành trình nhóm chỉ có thể bắt đầu khi lịch trình đã được khóa chốt cuối cùng.",
-    "is_locked_required": "Thiếu trường `is_locked` (true/false)"
+    "is_locked_required": "Thiếu trường `is_locked` (true/false)",
+    "item_swap_success": "Đổi chỗ 2 địa điểm thành công",
+    "swap_items_must_differ": "Hai địa điểm đổi chỗ phải khác nhau",
+    "swap_payload_invalid": "Dữ liệu ngày bị ảnh hưởng không khớp với trạng thái sau khi đổi chỗ",
+    "cannot_swap_ongoing": "Không thể đổi chỗ địa điểm khi hành trình đang diễn ra",
+    "cannot_swap_completed": "Không thể đổi chỗ địa điểm của kế hoạch đã hoàn thành",
+    "cannot_swap_cancelled": "Không thể đổi chỗ địa điểm của kế hoạch đã bị hủy",
+    "invalid_arrival_time_suggested": "Thời gian ước tính không hợp lệ theo bản đồ: Bạn tới điểm này quá sớm lúc {{time}}. Do điểm trước đó rời đi lúc {{departureTime}} và mất {{travelTime}} đi đường, bạn có thể tới nơi sớm nhất vào lúc {{suggestedTime}}"
   },
   "chat": {
     "get_messages_success": "Lấy tin nhắn thành công",

@@ -87,6 +87,14 @@ router.put(
 );
 
 
+// PATCH /:id/items/swap - Swap two planner items (same-day or cross-day)
+router.patch(
+    '/:id/items/swap',
+    authenticate,
+    PlannerValidator.swapPlannerItems,
+    PlannerController.swapPlannerItems
+);
+
 // PATCH /:id/status - Update planner status (unified endpoint for start/complete)
 router.patch(
     '/:id/status',

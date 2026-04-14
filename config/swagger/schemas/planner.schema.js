@@ -370,6 +370,55 @@
  *                 totalPages:
  *                   type: integer
  *
+ *     SwapPlannerItemsRequest:
+ *       type: object
+ *       required:
+ *         - item_id_a
+ *         - item_id_b
+ *         - affected_days
+ *       properties:
+ *         item_id_a:
+ *           type: string
+ *           format: uuid
+ *           description: "ID của item thứ nhất cần swap"
+ *         item_id_b:
+ *           type: string
+ *           format: uuid
+ *           description: "ID của item thứ hai cần swap"
+ *         affected_days:
+ *           type: array
+ *           minItems: 1
+ *           maxItems: 2
+ *           description: "Snapshot các ngày bị ảnh hưởng với thời gian đã tính sẵn từ mobile"
+ *           items:
+ *             type: object
+ *             required:
+ *               - leg_number
+ *               - items
+ *             properties:
+ *               leg_number:
+ *                 type: integer
+ *                 minimum: 1
+ *               items:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - id
+ *                     - estimated_time
+ *                     - travel_time_minutes
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       format: uuid
+ *                     estimated_time:
+ *                       type: string
+ *                       example: "09:00"
+ *                     travel_time_minutes:
+ *                       type: integer
+ *                       minimum: 0
+ *                       example: 30
+ *
  *     AddItemResponse:
  *       type: object
  *       properties:

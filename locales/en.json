@@ -482,7 +482,14 @@
     "group_edit_lock_required_before_lock": "Group planners must be edit-locked before locking the journey.",
     "start_requires_lock": "Trips can only start after the planner is in locked status.",
     "group_start_requires_lock": "Group trips can only start after the final schedule lock is in effect.",
-    "is_locked_required": "`is_locked` is required (true/false)"
+    "is_locked_required": "`is_locked` is required (true/false)",
+    "item_swap_success": "Items swapped successfully",
+    "swap_items_must_differ": "The two items to swap must be different",
+    "swap_payload_invalid": "Affected days payload does not match the expected post-swap state",
+    "cannot_swap_ongoing": "Cannot swap items in an ongoing journey",
+    "cannot_swap_completed": "Cannot swap items in a completed plan",
+    "cannot_swap_cancelled": "Cannot swap items in a cancelled plan",
+    "invalid_arrival_time_suggested": "Invalid estimated time: You arrive too early at {{time}}. The preceding stop departs at {{departureTime}} and travel takes {{travelTime}}, earliest arrival is {{suggestedTime}}"
   },
   "chat": {
     "get_messages_success": "Messages retrieved successfully",

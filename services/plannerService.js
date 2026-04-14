@@ -664,7 +664,7 @@ class PlannerService {
      */
     static async getUserPlanners(userId, filters = {}) {
         try {
-            const { page = 1, limit = 10 } = filters;
+            const { page = 1, limit = 10, status } = filters;
             const offset = (page - 1) * limit;
 
             // Lấy danh sách tất cả planner mà user liên quan (joined + dropped_out có dính tiền)
@@ -684,18 +684,25 @@ class PlannerService {
             visibleMembers.forEach(m => memberMap.set(m.planner_id, m));
             const visiblePlannerIds = Array.from(memberMap.keys());
 
+            const whereClause = {
+                is_active: true,
+                [Op.or]: [
+                    { user_id: userId }, // Planner do user tạo
+                    {
+                        id: {
+                            [Op.in]: visiblePlannerIds
+                        }
+                    } // Planner mà user tham gia hoặc từng tham gia (có dính tiền)
+                ]
+            };
+
+            // Filter theo status nếu có
+            if (status) {
+                whereClause.status = status;
+            }
+
             const { rows: planners, count: total } = await Planner.findAndCountAll({
-                where: {
-                    is_active: true,
-                    [Op.or]: [
-                        { user_id: userId }, // Planner do user tạo
-                        {
-                            id: {
-                                [Op.in]: visiblePlannerIds
-                            }
-                        } // Planner mà user tham gia hoặc từng tham gia (có dính tiền)
-                    ]
-                },
+                where: whereClause,
                 attributes: {
                     include: [
                         [
@@ -2225,6 +2232,324 @@ class PlannerService {
         } catch (error) {
             await transaction.rollback();
             Logger.error('Reorder planner items error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Swap two planner items (same-day or cross-day).
+     * Uses the affected_days snapshot from the mobile client for timing.
+     *
+     * @param {string} plannerId
+     * @param {string} userId
+     * @param {string} itemIdA
+     * @param {string} itemIdB
+     * @param {Array} affectedDays - FE-provided timing snapshot per day
+     */
+    static async swapPlannerItems(plannerId, userId, itemIdA, itemIdB, affectedDays) {
+        const transaction = await sequelize.transaction();
+
+        try {
+            // ── 1. Validate planner ownership & state ──
+            const planner = await Planner.findByPk(plannerId, { transaction });
+            if (!planner) throw new Error('Planner not found');
+            if (planner.user_id !== userId) throw new Error('Forbidden');
+
+            if (planner.status === 'ongoing') throw new Error('Cannot swap ongoing journey');
+            if (planner.status === 'completed') throw new Error('Cannot swap completed plan');
+            if (planner.status === 'cancelled') throw new Error('Cannot swap cancelled plan');
+
+            const plannerState = await this.getPlannerState(plannerId, planner, { transaction });
+            if (plannerState.editLocked) throw new Error('Planner is locked');
+
+            // ── 2. Validate items ──
+            if (itemIdA === itemIdB) throw new Error('Items must differ');
+
+            const [itemA, itemB] = await Promise.all([
+                PlannerItem.findByPk(itemIdA, { transaction }),
+                PlannerItem.findByPk(itemIdB, { transaction })
+            ]);
+
+            if (!itemA || !itemB) throw new Error('Item not found');
+            if (itemA.planner_id !== plannerId || itemB.planner_id !== plannerId) {
+                throw new Error('Item does not belong to this planner');
+            }
+            if (itemA.status !== 'upcoming' || itemB.status !== 'upcoming') {
+                throw new Error('Cannot swap visited or skipped items');
+            }
+
+            // ── 3. Validate affected_days payload ──
+            // Collect the unique leg_numbers involved in the swap
+            const involvedLegs = new Set([itemA.leg_number, itemB.leg_number]);
+            const payloadLegs = new Set(affectedDays.map(d => d.leg_number));
+
+            // The payload must cover EXACTLY the legs involved — no extra, no missing
+            if (payloadLegs.size !== involvedLegs.size) throw new Error('Swap payload invalid');
+            for (const leg of involvedLegs) {
+                if (!payloadLegs.has(leg)) throw new Error('Swap payload invalid');
+            }
+
+            // For each affected day, verify the item order is a valid swap
+            for (const day of affectedDays) {
+                const dbItems = await PlannerItem.findAll({
+                    where: { planner_id: plannerId, leg_number: day.leg_number },
+                    order: [['order_index', 'ASC']],
+                    attributes: ['id', 'order_index'],
+                    transaction
+                });
+
+                const dbIds = dbItems.map(i => i.id);
+                const payloadIds = day.items.map(i => i.id);
+
+                // Build the expected order after swap:
+                // - itemA occupies itemB's old position, itemB occupies itemA's old position
+                // - all other items stay in their original positions
+                const expectedOrder = dbIds.map(id => {
+                    if (id === itemIdA) return itemIdB;
+                    if (id === itemIdB) return itemIdA;
+                    return id;
+                });
+
+                // Payload order must match expected order exactly (no arbitrary resequencing)
+                if (expectedOrder.length !== payloadIds.length) {
+                    throw new Error('Swap payload invalid');
+                }
+                for (let i = 0; i < expectedOrder.length; i++) {
+                    if (expectedOrder[i] !== payloadIds[i]) {
+                        throw new Error('Swap payload invalid');
+                    }
+                }
+            }
+
+            // ── 4. Apply FE-provided order + timing for each affected day ──
+            // Use raw SQL to temporarily set order_index to unique negative values,
+            // bypassing the unique constraint check that Sequelize ORM triggers.
+            // This is needed because in cross-day swaps, items on different payload days
+            // may share the same leg_number in the DB before the swap happens.
+
+            // Step A: Collect all affected item IDs and move them to unique temp order_index
+            const allAffectedItemIds = affectedDays.flatMap(d => d.items.map(i => i.id));
+            for (let g = 0; g < allAffectedItemIds.length; g++) {
+                const tempOrder = -(g + 1) * 1000; // e.g. -1000, -2000, -3000 — guaranteed unique
+                await sequelize.query(
+                    `UPDATE planner_items SET order_index = :tempOrder, updated_at = NOW()
+                     WHERE id = :itemId AND planner_id = :plannerId`,
+                    {
+                        replacements: { tempOrder, itemId: allAffectedItemIds[g], plannerId },
+                        transaction
+                    }
+                );
+            }
+
+            // Step B: Swap leg_number if cross-day (now safe — all order_index are unique negatives)
+            const isCrossDay = itemA.leg_number !== itemB.leg_number;
+
+            if (isCrossDay) {
+                const legA = itemA.leg_number;
+                const legB = itemB.leg_number;
+
+                await sequelize.query(
+                    `UPDATE planner_items SET leg_number = :newLeg, updated_at = NOW()
+                     WHERE id = :itemId`,
+                    { replacements: { newLeg: legB, itemId: itemIdA }, transaction }
+                );
+                await sequelize.query(
+                    `UPDATE planner_items SET leg_number = :newLeg, updated_at = NOW()
+                     WHERE id = :itemId`,
+                    { replacements: { newLeg: legA, itemId: itemIdB }, transaction }
+                );
+            }
+
+            // Step C: Set final order_index + timing values
+            for (const day of affectedDays) {
+                for (let i = 0; i < day.items.length; i++) {
+                    const itemPayload = day.items[i];
+                    await PlannerItem.update(
+                        {
+                            order_index: i + 1,
+                            estimated_time: itemPayload.estimated_time,
+                            travel_time_minutes: itemPayload.travel_time_minutes
+                        },
+                        {
+                            where: { id: itemPayload.id, planner_id: plannerId },
+                            transaction
+                        }
+                    );
+                }
+            }
+
+            // ── 5b. Re-validate schedule integrity for affected days ──
+            // Sort affected days by leg_number to process in order
+            const sortedAffectedDays = [...affectedDays].sort((a, b) => a.leg_number - b.leg_number);
+            const swapWarnings = [];
+
+            for (const day of sortedAffectedDays) {
+                const dayItems = await PlannerItem.findAll({
+                    where: { planner_id: plannerId, leg_number: day.leg_number },
+                    include: [{ model: Site, as: 'site', attributes: ['id', 'name', 'opening_hours'] }],
+                    order: [['order_index', 'ASC']],
+                    transaction
+                });
+
+                const seenTimes = new Set();
+                let prevDepartureMinutes = null;
+
+                // ── Cross-day boundary: seed from previous day's last item ──
+                // Always seed so that first item's travel_time is validated
+                // against the previous day's departure (not only on midnight overflow)
+                if (day.leg_number > 1) {
+                    const prevDayLastItem = await PlannerItem.findOne({
+                        where: { planner_id: plannerId, leg_number: day.leg_number - 1 },
+                        order: [['order_index', 'DESC']],
+                        attributes: ['estimated_time', 'rest_duration'],
+                        transaction
+                    });
+
+                    if (prevDayLastItem && prevDayLastItem.estimated_time) {
+                        const [ph, pm] = prevDayLastItem.estimated_time.split(':').map(Number);
+                        const prevRest = parseDurationToMinutes(prevDayLastItem.rest_duration) || 0;
+                        const prevDayDeparture = ph * 60 + pm + prevRest;
+
+                        if (prevDayDeparture >= 1440) {
+                            // Departure crosses midnight → carry overflow into current day
+                            prevDepartureMinutes = prevDayDeparture - 1440;
+                        } else {
+                            // Departure within same day → seed raw value so first item's
+                            // travel_time can be checked for midnight crossing
+                            prevDepartureMinutes = prevDayDeparture;
+                        }
+                    }
+                }
+
+                for (let i = 0; i < dayItems.length; i++) {
+                    const item = dayItems[i];
+                    const estTime = item.estimated_time;
+                    const travelMins = item.travel_time_minutes || 0;
+
+                    // Guard: duplicate estimated_time within same day
+                    if (seenTimes.has(estTime)) {
+                        throw new Error(`Duplicate time in day: ${estTime}, day ${day.leg_number}`);
+                    }
+                    seenTimes.add(estTime);
+
+                    if (estTime) {
+                        const [h, m] = estTime.split(':').map(Number);
+                        const currentMinutes = h * 60 + m;
+
+                        // Guard: arrival ordering — must be at/after previous departure + travel
+                        if (prevDepartureMinutes !== null) {
+                            const minimumArrival = prevDepartureMinutes + travelMins;
+
+                            // Check midnight crossing with travel
+                            if (minimumArrival >= 1440) {
+                                const departH = Math.floor(prevDepartureMinutes / 60);
+                                const departM = prevDepartureMinutes % 60;
+                                const travelH = Math.floor(travelMins / 60);
+                                const travelM = travelMins % 60;
+                                const travelStr = travelH > 0 ? `${travelH}h ${travelM}m` : `${travelM}m`;
+                                throw new Error(`Arrival time past midnight: departure ${String(departH).padStart(2, '0')}:${String(departM).padStart(2, '0')}, travel ${travelStr}, day ${day.leg_number}`);
+                            }
+
+                            if (currentMinutes < prevDepartureMinutes) {
+                                throw new Error(`Invalid arrival time: ${estTime}, departure: ${String(Math.floor(prevDepartureMinutes / 60)).padStart(2, '0')}:${String(prevDepartureMinutes % 60).padStart(2, '0')}`);
+                            }
+
+                            // With 5 min tolerance for travel (matching addPlannerItem)
+                            if (travelMins > 0 && currentMinutes < minimumArrival - 5) {
+                                const sugH = Math.floor(minimumArrival / 60) % 24;
+                                const sugM = minimumArrival % 60;
+                                const suggestedTimeStr = `${String(sugH).padStart(2, '0')}:${String(sugM).padStart(2, '0')}`;
+                                const departH = Math.floor(prevDepartureMinutes / 60);
+                                const departM = prevDepartureMinutes % 60;
+                                const departureTimeStr = `${String(departH).padStart(2, '0')}:${String(departM).padStart(2, '0')}`;
+                                const travelH = Math.floor(travelMins / 60);
+                                const travelM = travelMins % 60;
+                                const travelStr = travelH > 0 ? `${travelH}h ${travelM}m` : `${travelM}m`;
+                                throw new Error(`Invalid arrival time suggested: ${estTime}, departure ${departureTimeStr}, travel ${travelStr}, suggested ${suggestedTimeStr}`);
+                            }
+                        }
+
+                        // Calculate departure time for next iteration
+                        const restMinutes = parseDurationToMinutes(item.rest_duration) || 0;
+                        prevDepartureMinutes = currentMinutes + restMinutes;
+
+                        // Guard: departure past midnight (only if not last item)
+                        if (prevDepartureMinutes >= 1440 && i < dayItems.length - 1) {
+                            throw new Error(`Arrival time past midnight: departure ${estTime}, travel 0m, day ${day.leg_number}`);
+                        }
+                    }
+
+                    // Guard: opening hours
+                    if (item.site && item.site.opening_hours && planner.start_date && estTime) {
+                        const startDate = new Date(planner.start_date);
+                        const actualDate = new Date(startDate);
+                        actualDate.setDate(startDate.getDate() + (day.leg_number - 1));
+
+                        const openingCheck = isWithinOpeningHours(estTime, item.site.opening_hours, actualDate);
+                        if (!openingCheck.isOpen) {
+                            Logger.warn(`Swap opening hours validation failed: ${openingCheck.message}`);
+                            throw new Error(openingCheck.message);
+                        }
+                    }
+
+                    // Guard: event timing window
+                    if (item.event_id && estTime) {
+                        const eventInfo = await Event.findByPk(item.event_id, { transaction });
+                        if (eventInfo) {
+                            // validateEventTimingForPlannerItem throws on hard error,
+                            // returns { warning } on soft overlap — collect warnings
+                            const eventResult = this.validateEventTimingForPlannerItem(
+                                planner,
+                                day.leg_number,
+                                estTime,
+                                eventInfo
+                            );
+                            if (eventResult && eventResult.warning) {
+                                swapWarnings.push(eventResult.warning);
+                            }
+                        }
+                    }
+                }
+            }
+
+            await transaction.commit();
+
+            // ── 6. Fetch and return updated items for affected days ──
+            const affectedLegNumbers = affectedDays.map(d => d.leg_number);
+            const updatedItems = await PlannerItem.findAll({
+                where: {
+                    planner_id: plannerId,
+                    leg_number: { [Op.in]: affectedLegNumbers }
+                },
+                include: [
+                    { model: Site, as: 'site', attributes: ['id', 'name', 'code', 'province', 'latitude', 'longitude', 'cover_image', 'patron_saint'] }
+                ],
+                order: [['leg_number', 'ASC'], ['order_index', 'ASC']]
+            });
+
+            // Group by day
+            const itemsByDay = {};
+            for (const item of updatedItems) {
+                const leg = item.leg_number;
+                if (!itemsByDay[leg]) itemsByDay[leg] = [];
+                itemsByDay[leg].push(this.formatPlannerItemResponse(item));
+            }
+
+            Logger.info(`Items ${itemIdA} and ${itemIdB} swapped in planner ${plannerId} by user ${userId}`);
+
+            return {
+                planner_id: plannerId,
+                swapped: [itemIdA, itemIdB],
+                items_by_day: itemsByDay,
+                warnings: swapWarnings.length > 0 ? swapWarnings : undefined,
+                messageKey: 'planner.item_swap_success',
+                message: 'Items swapped successfully'
+            };
+        } catch (error) {
+            if (transaction && !transaction.finished) {
+                await transaction.rollback();
+            }
+            Logger.error('Swap planner items error:', error);
             throw error;
         }
     }
