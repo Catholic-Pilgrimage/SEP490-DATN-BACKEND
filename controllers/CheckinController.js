@@ -171,6 +171,12 @@ class CheckinController {
             if (err.message === 'Skip reason is required') {
                 return ResponseUtil.badRequest(res, req.__('checkin.skip_reason_required'));
             }
+            if (err.message.startsWith('Sequential required:')) {
+                const parts = err.message.replace('Sequential required: ', '').split(', ');
+                const day = parts[0].replace('day ', '');
+                const order = parts[1].replace('order ', '');
+                return ResponseUtil.badRequest(res, req.__('checkin.sequential_required', { day, order }));
+            }
             return ResponseUtil.error(res, err.message || req.__('error.server_error'), 500);
         }
     }

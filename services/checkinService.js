@@ -375,6 +375,28 @@ class CheckinService {
             throw new Error('This site is already closed, cannot change');
         }
 
+        // Skip must follow itinerary order: all previous items must already be closed.
+        const allPlannerItems = await PlannerItem.findAll({
+            where: { planner_id: planner.id },
+            order: [['leg_number', 'ASC'], ['order_index', 'ASC']],
+            attributes: ['id', 'leg_number', 'order_index']
+        });
+
+        const currentItemIndex = allPlannerItems.findIndex(item => item.id === plannerItemId);
+
+        if (currentItemIndex === -1) {
+            throw new Error('Planner item does not belong to this planner');
+        }
+
+        for (let i = 0; i < currentItemIndex; i++) {
+            const previousItem = allPlannerItems[i];
+            const prevItemRecord = await PlannerItem.findByPk(previousItem.id, { attributes: ['status'] });
+
+            if (!prevItemRecord || (prevItemRecord.status !== 'visited' && prevItemRecord.status !== 'skipped')) {
+                throw new Error(`Sequential required: day ${previousItem.leg_number}, order ${previousItem.order_index}`);
+            }
+        }
+
         const checkedInCount = await UserCheckin.count({
             where: {
                 planner_item_id: plannerItemId,

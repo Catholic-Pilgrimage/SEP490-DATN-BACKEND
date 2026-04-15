@@ -206,6 +206,26 @@ class PlannerService {
         });
     }
 
+    static async getProgressLockedDayForAddItem(plannerId, options = {}) {
+        const maxProcessedLeg = await PlannerItem.max('leg_number', {
+            where: {
+                planner_id: plannerId,
+                status: {
+                    [Op.in]: ['visited', 'skipped']
+                }
+            },
+            transaction: options.transaction
+        });
+
+        const normalizedMaxProcessedLeg = Number.parseInt(maxProcessedLeg, 10);
+        if (!Number.isInteger(normalizedMaxProcessedLeg) || normalizedMaxProcessedLeg < 2) {
+            return 0;
+        }
+
+        // If day N already has processed items, days < N are considered closed for add.
+        return normalizedMaxProcessedLeg - 1;
+    }
+
     static async notifyOngoingPlannerMembers(planner, type, data = {}, options = {}) {
         if (!planner || planner.status !== 'ongoing') {
             return [];
@@ -225,6 +245,41 @@ class PlannerService {
             planner.user_id,
             ...joinedMembers.map(member => member.user_id)
         ])].filter(userId => userId && userId !== options.excludeUserId);
+
+        if (participantIds.length === 0) {
+            return [];
+        }
+
+        const notifications = [];
+        for (const receiverId of participantIds) {
+            try {
+                const notification = await NotificationService.createNotification(type, receiverId, data);
+                notifications.push(notification);
+            } catch (error) {
+                Logger.warn(`Failed to notify planner member ${receiverId} for ${type}: ${error.message}`);
+            }
+        }
+
+        return notifications;
+    }
+
+    static async notifyJoinedPlannerMembers(planner, type, data = {}, options = {}) {
+        if (!planner) {
+            return [];
+        }
+
+        const NotificationService = require('./shared/notificationService');
+        const joinedMembers = await PlannerMember.findAll({
+            where: {
+                planner_id: planner.id,
+                join_status: 'joined'
+            },
+            attributes: ['user_id'],
+            transaction: options.transaction
+        });
+
+        const participantIds = [...new Set(joinedMembers.map(member => member.user_id))]
+            .filter(userId => userId && userId !== options.excludeUserId);
 
         if (participantIds.length === 0) {
             return [];
@@ -884,9 +939,19 @@ class PlannerService {
             const requestedEndDate = this.normalizeDateOnlyValue(updateData.end_date);
             const currentStartDate = this.normalizeDateOnlyValue(planner.start_date);
             const currentEndDate = this.normalizeDateOnlyValue(planner.end_date);
+            const isUpdatingEndDate = requestedEndDate !== undefined && requestedEndDate !== currentEndDate;
+            const effectiveNumPeopleForDateRule = Number(updateData.number_of_people ?? planner.number_of_people ?? 1);
+            const isGroupPlannerForDateRule = Number.isFinite(effectiveNumPeopleForDateRule)
+                ? effectiveNumPeopleForDateRule > 1
+                : false;
+            const hasStartedSharingPlanner = Boolean(plannerState.firstInviteAt || plannerState.hasSharedCommitment);
 
             if (requestedStartDate !== undefined && requestedStartDate !== currentStartDate) {
-                throw new Error('Start date cannot be changed after creation');
+                if (!isGroupPlannerForDateRule || hasStartedSharingPlanner) {
+                    throw new Error('Start date cannot be changed after first share');
+                }
+
+                dataToUpdate.start_date = requestedStartDate;
             }
 
             if (requestedEndDate !== undefined && requestedEndDate !== currentEndDate) {
@@ -976,7 +1041,7 @@ class PlannerService {
                     throw new Error('Planner exceeds 30 days');
                 }
 
-                if (dataToUpdate.end_date !== undefined) {
+                if (dataToUpdate.start_date !== undefined || dataToUpdate.end_date !== undefined) {
                     const maxLegNumber = Number(await PlannerItem.max('leg_number', {
                         where: { planner_id: plannerId }
                     })) || 0;
@@ -1065,12 +1130,13 @@ class PlannerService {
                 }
             }
 
-            if (plannerState.hasSharedCommitment) {
+            // After first share, schedule must remain complete (every day has at least one item).
+            if (hasStartedSharingPlanner) {
                 if (!nextPlannerSnapshot.start_date || !nextPlannerSnapshot.end_date) {
                     throw new Error('Cannot make planner incomplete after sharing');
                 }
                 const nextScheduleState = await this.getPlannerScheduleState(plannerId, nextPlannerSnapshot);
-                if (!nextScheduleState.isValid) {
+                if (!nextScheduleState.isValid && !isUpdatingEndDate) {
                     const error = new Error('Cannot make planner incomplete after sharing');
                     error.missingDays = nextScheduleState.missingDays;
                     error.extraDays = nextScheduleState.extraDays;
@@ -1704,6 +1770,15 @@ class PlannerService {
                 }
             } else if (leg_number < 1) {
                 throw new Error('Day number must be at least 1');
+            }
+
+            if (planner.status === 'ongoing') {
+                const requestedLegNumber = Number.parseInt(leg_number, 10);
+                const progressLockedDay = await this.getProgressLockedDayForAddItem(plannerId, { transaction });
+
+                if (progressLockedDay > 0 && requestedLegNumber <= progressLockedDay) {
+                    throw new Error('Cannot add item to closed day');
+                }
             }
 
             // ===== VALIDATION: Không được bỏ trống ngày trước đó =====
@@ -2732,25 +2807,16 @@ class PlannerService {
 
             // Nếu đây là item cuối cùng của ngày
             if (itemCountInDay === 1) {
-                // Kiểm tra xem có ngày nào lớn hơn không
-                if (plannerState.hasSharedCommitment && planner.start_date && planner.end_date) {
+                const hasStartedSharingPlanner = Boolean(plannerState.firstInviteAt || plannerState.hasSharedCommitment);
+
+                // After first share with date-ranged planners, each day must keep at least one location.
+                if (hasStartedSharingPlanner && planner.start_date && planner.end_date) {
+                    const scheduleState = await this.getPlannerScheduleState(plannerId, planner, { transaction });
                     const error = new Error('Cannot make planner incomplete after sharing');
                     error.missingDays = [legNumber];
+                    error.extraDays = scheduleState.extraDays;
+                    error.totalDays = scheduleState.totalDays;
                     throw error;
-                }
-
-                const higherDayExists = await PlannerItem.findOne({
-                    where: {
-                        planner_id: plannerId,
-                        leg_number: { [Op.gt]: legNumber }
-                    },
-                    attributes: ['leg_number'],
-                    order: [['leg_number', 'ASC']],
-                    transaction
-                });
-
-                if (higherDayExists) {
-                    throw new Error(`Cannot delete last item gap: day ${legNumber}, higherDay ${higherDayExists.leg_number}`);
                 }
             }
             // ===== END: Validation =====
@@ -3550,6 +3616,14 @@ class PlannerService {
 
                 await this.syncPlannerLockState(planner, { transaction: t });
 
+                await this.notifyJoinedPlannerMembers(planner, 'planner_locked', {
+                    plannerId: planner.id,
+                    plannerName: planner.name || 'Planner'
+                }, {
+                    transaction: t,
+                    excludeUserId: userId
+                });
+
                 Logger.info(`Planner ${plannerId} manually locked by user ${userId} (planning -> locked)`);
             }
             // Handle 'ongoing' status (start planner)
@@ -4284,6 +4358,13 @@ class PlannerService {
                 await planner.update({
                     is_locked: true,
                     edit_lock_at: new Date()
+                });
+
+                await this.notifyJoinedPlannerMembers(planner, 'planner_edit_locked', {
+                    plannerId: planner.id,
+                    plannerName: planner.name || 'Planner'
+                }, {
+                    excludeUserId: userId
                 });
             } else {
                 if (planner.status === 'locked' || this.isPlannerLocked(planner)) {

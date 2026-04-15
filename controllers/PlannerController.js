@@ -65,7 +65,7 @@ class PlannerController {
             if (error.message === 'Ngày bắt đầu kế hoạch phải từ ngày mai trở đi') {
                 return ResponseUtil.badRequest(res, req.__('planner.start_date_from_tomorrow'));
             }
-            if (error.message === 'Start date cannot be changed after creation') {
+            if (error.message === 'Start date cannot be changed after first share') {
                 return ResponseUtil.badRequest(res, req.__('planner.start_date_immutable'));
             }
             if (error.message === 'Number of days must be at least 1') {
@@ -162,7 +162,10 @@ class PlannerController {
             if (error.message === 'Ngày bắt đầu kế hoạch phải từ ngày mai trở đi') {
                 return ResponseUtil.badRequest(res, req.__('planner.start_date_from_tomorrow'));
             }
-            if (error.message === 'Start date cannot be changed after creation') {
+            if (
+                error.message === 'Start date cannot be changed after creation'
+                || error.message === 'Start date cannot be changed after first share'
+            ) {
                 return ResponseUtil.badRequest(res, req.__('planner.start_date_immutable'));
             }
             if (error.message === 'Number of days must be at least 1') {
@@ -347,6 +350,9 @@ class PlannerController {
             }
             if (error.message === 'Planner is locked') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));
+            }
+            if (error.message === 'Cannot add item to closed day') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_add_closed_day'));
             }
             if (error.message === 'Cannot make planner incomplete after sharing') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_break_schedule_after_sharing'));
