@@ -73,10 +73,6 @@
  *                 default: 1
  *                 description: Số người tham gia hành hương
  *                 example: 2
- *               patron_saint:
- *                 type: string
- *                 description: Bổn mạng của pilgrim, AI sẽ ưu tiên site liên quan và thêm ghi chú tâm linh
- *                 example: "Đức Mẹ Maria"
  *     responses:
  *       200:
  *         description: Gợi ý lộ trình thành công

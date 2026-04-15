@@ -9,6 +9,13 @@ const Logger = require('../../utils/logger.util');
  */
 exports.sendSystemMessage = async (plannerId, content) => {
     try {
+        const memberCount = await PlannerMember.count({ where: { planner_id: plannerId } });
+        const inviteCount = await PlannerInvite.count({ where: { planner_id: plannerId } });
+
+        if (memberCount <= 1 && inviteCount === 0) {
+            return null;
+        }
+
         const message = await PlannerMessage.create({
             planner_id: plannerId,
             user_id: null,

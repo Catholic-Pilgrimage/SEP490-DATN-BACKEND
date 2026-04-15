@@ -67,6 +67,64 @@ class OSRMUtil {
             return null;
         }
     }
+
+    /**
+     * Get an NxN distance and duration matrix for an array of points from VietMap
+     * @param {Array} points - Array of {lat, lng} coordinates
+     * @param {string} vehicle - Vehicle type: 'car', 'bike', 'motorcycle', or 'foot'
+     * @returns {Object|null} - {distances: 2D array, durations: 2D array} or null
+     */
+    static async getDistanceMatrix(points, vehicle = 'bike') {
+        try {
+            const apiKey = process.env.VIETMAP_API_KEY;
+            const baseUrl = 'https://maps.vietmap.vn/api/matrix';
+
+            if (!apiKey) {
+                Logger.error('VIETMAP_API_KEY is not configured');
+                return null;
+            }
+
+            if (!points || points.length < 2) return null;
+
+            const pointParams = points.map(p => `point=${p.lat},${p.lng}`).join('&');
+            const url = `${baseUrl}?apikey=${apiKey}&${pointParams}&vehicle=${vehicle}`;
+
+            Logger.info(`VietMap Bulk Matrix API call: ${points.length} points, vehicle=${vehicle}`);
+
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+            const response = await fetch(url, {
+                signal: controller.signal
+            });
+
+            clearTimeout(timeout);
+
+            if (!response.ok) {
+                Logger.warn(`VietMap Bulk Matrix API returned status ${response.status}`);
+                return null;
+            }
+
+            const data = await response.json();
+
+            if (!data.distances || !data.distances.length) {
+                Logger.warn('VietMap Bulk Matrix: No distances returned');
+                return null;
+            }
+
+            return {
+                distances: data.distances, // 2D array in meters
+                durations: data.durations  // 2D array in seconds
+            };
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                Logger.error('VietMap Bulk Matrix API timeout');
+            } else {
+                Logger.error('VietMap Bulk Matrix API error:', error.message);
+            }
+            return null;
+        }
+    }
 }
 
 module.exports = OSRMUtil;
