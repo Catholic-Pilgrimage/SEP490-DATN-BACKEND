@@ -813,6 +813,75 @@ class JournalService {
                 finalVideoUrl = videoFile.path || videoFile.url || null;
             }
 
+            const requestedPlannerItemInput = this.getPlannerItemInput(updateData);
+            const hasPlannerItemUpdate = requestedPlannerItemInput !== undefined;
+            let finalPlannerItemIds = this.normalizePlannerItemIds(journal.planner_item_id);
+            let finalPlannerId = journal.planner_id;
+            let finalSiteId = journal.site_id;
+
+            if (hasPlannerItemUpdate) {
+                const requestedPlannerItemIds = this.normalizePlannerItemIds(
+                    requestedPlannerItemInput,
+                    Array.isArray(updateData?.planner_item_id) ? null : updateData?.planner_item_id
+                );
+
+                if (requestedPlannerItemIds.length === 0) {
+                    throw new Error('Planner item ID is invalid');
+                }
+
+                const plannerItems = await this.getPlannerItemsByIds(requestedPlannerItemIds, { includePlanner: true });
+
+                if (plannerItems.length !== requestedPlannerItemIds.length) {
+                    throw new Error('Planner item not found');
+                }
+
+                const plannerItemMap = new Map(plannerItems.map(item => [item.id, item]));
+                const orderedPlannerItems = requestedPlannerItemIds.map(id => plannerItemMap.get(id)).filter(Boolean);
+                const plannerIds = [...new Set(orderedPlannerItems.map(item => item.planner_id).filter(Boolean))];
+
+                if (plannerIds.length !== 1) {
+                    throw new Error('Planner items must belong to the same journey.');
+                }
+
+                const resolvedPlanner = orderedPlannerItems[0].planner;
+                if (!resolvedPlanner) {
+                    throw new Error('Associated planner not found.');
+                }
+
+                if (resolvedPlanner.status !== 'completed') {
+                    throw new Error('You can only create a journal for a completed journey.');
+                }
+
+                const checkins = await UserCheckin.findAll({
+                    where: {
+                        user_id: userId,
+                        planner_item_id: requestedPlannerItemIds,
+                        status: 'checked_in'
+                    },
+                    attributes: ['planner_item_id']
+                });
+
+                const checkedInItemIds = new Set(checkins.map(checkin => checkin.planner_item_id));
+                if (requestedPlannerItemIds.some(id => !checkedInItemIds.has(id))) {
+                    throw new Error('You must check-in at all selected locations before creating a journal.');
+                }
+
+                const existingPoint = await this.findExistingPointJournal(userId, requestedPlannerItemIds, {
+                    activeOnly: true,
+                    excludeJournalId: journalId
+                });
+
+                if (existingPoint) {
+                    throw this.createJournalConflictError('Already exists', existingPoint);
+                }
+
+                const resolvedSiteIds = [...new Set(orderedPlannerItems.map(item => item.site_id).filter(Boolean))];
+
+                finalPlannerItemIds = requestedPlannerItemIds;
+                finalPlannerId = plannerIds[0];
+                finalSiteId = resolvedSiteIds.length === 1 ? resolvedSiteIds[0] : null;
+            }
+
             // Prepare update data
             const dataToUpdate = {
                 title: normalizedTitle,
@@ -820,6 +889,9 @@ class JournalService {
                 image_url: finalImageUrls,
                 audio_url: finalAudioUrl,
                 video_url: finalVideoUrl,
+                planner_item_id: finalPlannerItemIds,
+                planner_id: finalPlannerId,
+                site_id: finalSiteId,
                 privacy: 'private'
             };
 

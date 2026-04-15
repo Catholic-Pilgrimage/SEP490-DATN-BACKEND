@@ -209,6 +209,27 @@ class JournalController {
             if (error.message === 'Journal not found') {
                 return ResponseUtil.notFound(res, req.__('journal.not_found'));
             }
+            if (error.message === 'Planner item not found') {
+                return ResponseUtil.notFound(res, req.__('journal.planner_item_not_found'));
+            }
+            if (error.message === 'Associated planner not found.') {
+                return ResponseUtil.notFound(res, req.__('journal.planner_not_found'));
+            }
+            if (error.message === 'Planner item ID is invalid') {
+                return ResponseUtil.badRequest(res, req.__('journal.planner_item_not_found'));
+            }
+            if (error.message === 'Planner items must belong to the same journey.') {
+                return ResponseUtil.badRequest(res, req.__('journal.planner_items_same_planner'));
+            }
+            if (error.message === 'You can only create a journal for a completed journey.') {
+                return ResponseUtil.badRequest(res, req.__('journal.planner_not_completed'));
+            }
+            if (error.message === 'You must check-in at all selected locations before creating a journal.') {
+                return ResponseUtil.badRequest(res, req.__('journal.multi_checkin_required'));
+            }
+            if (error.message === 'Already exists') {
+                return ResponseUtil.badRequest(res, req.__('journal.already_exists'), error.details || null);
+            }
             if (error.message === 'Title and content are required') {
                 return ResponseUtil.badRequest(res, req.__('journal.title_content_required'));
             }
