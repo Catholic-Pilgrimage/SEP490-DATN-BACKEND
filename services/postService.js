@@ -461,25 +461,6 @@ class PostService {
 
             const { title, content } = data;
 
-            // Planner shares still read from the original planner, so keep them read-only here.
-            if (post.planner_id) {
-                if (
-                    title !== undefined ||
-                    content !== undefined ||
-                    this.getPostImageInput(data) !== undefined ||
-                    data.audio_url !== undefined ||
-                    data.video_url !== undefined ||
-                    (imageFiles && imageFiles.length > 0) ||
-                    audioFile ||
-                    videoFile
-                ) {
-                    const type = post.journal_id ? 'nhật ký' : 'hành trình';
-                    const error = new Error(`Không thể chỉnh sửa nội dung của ${type} đã chia sẻ thông qua từ nhật ký tâm linh. Vui lòng chỉnh sửa bản gốc.`);
-                    error.statusCode = 400;
-                    throw error;
-                }
-            }
-
             const postData = post.toJSON();
             const useLegacyJournalSnapshot = this.shouldUseLegacyJournalSnapshot(postData);
             const snapshotTitle = useLegacyJournalSnapshot ? postData.sourceJournal?.title || post.title || null : post.title;
