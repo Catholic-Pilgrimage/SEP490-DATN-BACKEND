@@ -65,6 +65,9 @@ class PlannerController {
             if (error.message === 'Ngày bắt đầu kế hoạch phải từ ngày mai trở đi') {
                 return ResponseUtil.badRequest(res, req.__('planner.start_date_from_tomorrow'));
             }
+            if (error.message === 'Start date cannot be changed after creation') {
+                return ResponseUtil.badRequest(res, req.__('planner.start_date_immutable'));
+            }
             if (error.message === 'Number of days must be at least 1') {
                 return ResponseUtil.badRequest(res, req.__('planner.invalid_days'));
             }
@@ -73,6 +76,16 @@ class PlannerController {
             }
             if (error.message === 'Planner exceeds 30 days') {
                 return ResponseUtil.badRequest(res, req.__('planner.exceeds_max_days'));
+            }
+            if (error.message === 'End date cannot be earlier than existing itinerary days') {
+                return ResponseUtil.badRequest(
+                    res,
+                    req.__('planner.end_date_conflicts_existing_items', { day: error.maxLegNumber || '?' }),
+                    {
+                        max_leg_number: error.maxLegNumber,
+                        allowed_max_days: error.allowedMaxDays
+                    }
+                );
             }
             if (error.message === 'Planner dates overlap') {
                 return ResponseUtil.badRequest(res, req.__('planner.dates_overlap', { dates: error.conflictDates.join(', ') }), { conflict_dates: error.conflictDates });
@@ -149,6 +162,9 @@ class PlannerController {
             if (error.message === 'Ngày bắt đầu kế hoạch phải từ ngày mai trở đi') {
                 return ResponseUtil.badRequest(res, req.__('planner.start_date_from_tomorrow'));
             }
+            if (error.message === 'Start date cannot be changed after creation') {
+                return ResponseUtil.badRequest(res, req.__('planner.start_date_immutable'));
+            }
             if (error.message === 'Number of days must be at least 1') {
                 return ResponseUtil.badRequest(res, req.__('planner.invalid_days'));
             }
@@ -160,6 +176,16 @@ class PlannerController {
             }
             if (error.message === 'Planner exceeds 30 days') {
                 return ResponseUtil.badRequest(res, req.__('planner.exceeds_max_days'));
+            }
+            if (error.message === 'End date cannot be earlier than existing itinerary days') {
+                return ResponseUtil.badRequest(
+                    res,
+                    req.__('planner.end_date_conflicts_existing_items', { day: error.maxLegNumber || '?' }),
+                    {
+                        max_leg_number: error.maxLegNumber,
+                        allowed_max_days: error.allowedMaxDays
+                    }
+                );
             }
             if (error.message === 'Planner dates overlap') {
                 return ResponseUtil.badRequest(res, req.__('planner.dates_overlap', { dates: error.conflictDates.join(', ') }), { conflict_dates: error.conflictDates });
