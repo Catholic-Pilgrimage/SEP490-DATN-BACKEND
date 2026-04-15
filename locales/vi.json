@@ -442,6 +442,7 @@
     "cannot_add_completed": "Không thể thêm địa điểm vào kế hoạch đã hoàn thành",
     "cannot_add_cancelled": "Không thể thêm địa điểm vào kế hoạch đã bị hủy",
     "cannot_add_expired": "Không thể thêm địa điểm vào kế hoạch đã hết hạn",
+    "cannot_add_closed_day": "Không thể thêm địa điểm vào ngày đã khóa.",
     "invalid_arrival_time": "Thời gian đến {{time}} không hợp lệ. Địa điểm trước đó rời đi lúc {{departureTime}}. Vui lòng chọn thời gian sau {{departureTime}}.",
     "arrival_time_next_day": "Thời gian đến không hợp lệ. Rời lúc {{departureTime}} + {{travelTime}} di chuyển = qua ngày hôm sau. Không thể thêm địa điểm này vào lịch trình của ngày {{day}}.",
     "arrival_time_suggested": "Thời gian đến {{time}} không hợp lệ. Rời lúc {{departureTime}} + {{travelTime}} di chuyển = đến khoảng {{suggestedTime}}. Vui lòng chọn thời gian từ {{suggestedTime}} trở đi.",

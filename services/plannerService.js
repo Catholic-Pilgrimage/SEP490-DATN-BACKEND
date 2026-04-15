@@ -206,6 +206,26 @@ class PlannerService {
         });
     }
 
+    static async getProgressLockedDayForAddItem(plannerId, options = {}) {
+        const maxProcessedLeg = await PlannerItem.max('leg_number', {
+            where: {
+                planner_id: plannerId,
+                status: {
+                    [Op.in]: ['visited', 'skipped']
+                }
+            },
+            transaction: options.transaction
+        });
+
+        const normalizedMaxProcessedLeg = Number.parseInt(maxProcessedLeg, 10);
+        if (!Number.isInteger(normalizedMaxProcessedLeg) || normalizedMaxProcessedLeg < 2) {
+            return 0;
+        }
+
+        // If day N already has processed items, days < N are considered closed for add.
+        return normalizedMaxProcessedLeg - 1;
+    }
+
     static async notifyOngoingPlannerMembers(planner, type, data = {}, options = {}) {
         if (!planner || planner.status !== 'ongoing') {
             return [];
@@ -1750,6 +1770,15 @@ class PlannerService {
                 }
             } else if (leg_number < 1) {
                 throw new Error('Day number must be at least 1');
+            }
+
+            if (planner.status === 'ongoing') {
+                const requestedLegNumber = Number.parseInt(leg_number, 10);
+                const progressLockedDay = await this.getProgressLockedDayForAddItem(plannerId, { transaction });
+
+                if (progressLockedDay > 0 && requestedLegNumber <= progressLockedDay) {
+                    throw new Error('Cannot add item to closed day');
+                }
             }
 
             // ===== VALIDATION: Không được bỏ trống ngày trước đó =====

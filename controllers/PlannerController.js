@@ -351,6 +351,9 @@ class PlannerController {
             if (error.message === 'Planner is locked') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_modify_locked'));
             }
+            if (error.message === 'Cannot add item to closed day') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_add_closed_day'));
+            }
             if (error.message === 'Cannot make planner incomplete after sharing') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_break_schedule_after_sharing'));
             }

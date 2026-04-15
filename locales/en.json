@@ -448,6 +448,7 @@
     "cannot_add_completed": "Cannot add site to a completed plan",
     "cannot_add_cancelled": "Cannot add site to a cancelled plan",
     "cannot_add_expired": "Cannot add site to an expired plan",
+    "cannot_add_closed_day": "Cannot add a site to a closed day.",
     "invalid_arrival_time": "Invalid arrival time {{time}}. Previous site departure was at {{departureTime}}. Please choose a time after {{departureTime}}.",
     "arrival_time_next_day": "Invalid arrival time. Departure at {{departureTime}} + {{travelTime}} travel = past midnight. Cannot add to schedule of day {{day}}.",
     "arrival_time_suggested": "Invalid arrival time {{time}}. Departure at {{departureTime}} + {{travelTime}} travel = arriving around {{suggestedTime}}. Please choose a time from {{suggestedTime}} onwards.",
