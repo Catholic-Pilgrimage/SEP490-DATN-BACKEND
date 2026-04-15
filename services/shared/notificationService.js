@@ -321,6 +321,16 @@ const NOTIFICATION_TEMPLATES = {
             message: 'The itinerary has changed. The next stop is {{siteName}} at {{time}}.'
         }
     },
+    planner_edit_locked: {
+        vi: {
+            title: 'Kế hoạch đã khóa chỉnh sửa',
+            message: 'Chủ nhóm đã khóa chỉnh sửa kế hoạch "{{plannerName}}".'
+        },
+        en: {
+            title: 'Planner edit locked',
+            message: 'The owner has locked edits for planner "{{plannerName}}".'
+        }
+    },
     planner_started: {
         vi: {
             title: 'Chuyến đi đã bắt đầu',
@@ -329,6 +339,16 @@ const NOTIFICATION_TEMPLATES = {
         en: {
             title: 'Trip started',
             message: 'Planner "{{plannerName}}" has officially started. Get ready to check in at the first stop!'
+        }
+    },
+    planner_locked: {
+        vi: {
+            title: 'Kế hoạch đã được chốt',
+            message: 'Kế hoạch "{{plannerName}}" đã được chốt và sẵn sàng khởi hành.'
+        },
+        en: {
+            title: 'Planner locked',
+            message: 'Planner "{{plannerName}}" has been locked and is ready to start.'
         }
     },
 

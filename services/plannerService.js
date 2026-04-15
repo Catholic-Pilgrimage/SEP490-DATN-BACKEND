@@ -243,6 +243,41 @@ class PlannerService {
         return notifications;
     }
 
+    static async notifyJoinedPlannerMembers(planner, type, data = {}, options = {}) {
+        if (!planner) {
+            return [];
+        }
+
+        const NotificationService = require('./shared/notificationService');
+        const joinedMembers = await PlannerMember.findAll({
+            where: {
+                planner_id: planner.id,
+                join_status: 'joined'
+            },
+            attributes: ['user_id'],
+            transaction: options.transaction
+        });
+
+        const participantIds = [...new Set(joinedMembers.map(member => member.user_id))]
+            .filter(userId => userId && userId !== options.excludeUserId);
+
+        if (participantIds.length === 0) {
+            return [];
+        }
+
+        const notifications = [];
+        for (const receiverId of participantIds) {
+            try {
+                const notification = await NotificationService.createNotification(type, receiverId, data);
+                notifications.push(notification);
+            } catch (error) {
+                Logger.warn(`Failed to notify planner member ${receiverId} for ${type}: ${error.message}`);
+            }
+        }
+
+        return notifications;
+    }
+
     static validateEventTimingForPlannerItem(planner, legNumber, estimatedTime, event) {
         const itemTime = this.parseTimeValue(estimatedTime);
         if (!event || !itemTime) {
@@ -3552,6 +3587,14 @@ class PlannerService {
 
                 await this.syncPlannerLockState(planner, { transaction: t });
 
+                await this.notifyJoinedPlannerMembers(planner, 'planner_locked', {
+                    plannerId: planner.id,
+                    plannerName: planner.name || 'Planner'
+                }, {
+                    transaction: t,
+                    excludeUserId: userId
+                });
+
                 Logger.info(`Planner ${plannerId} manually locked by user ${userId} (planning -> locked)`);
             }
             // Handle 'ongoing' status (start planner)
@@ -4286,6 +4329,13 @@ class PlannerService {
                 await planner.update({
                     is_locked: true,
                     edit_lock_at: new Date()
+                });
+
+                await this.notifyJoinedPlannerMembers(planner, 'planner_edit_locked', {
+                    plannerId: planner.id,
+                    plannerName: planner.name || 'Planner'
+                }, {
+                    excludeUserId: userId
                 });
             } else {
                 if (planner.status === 'locked' || this.isPlannerLocked(planner)) {
