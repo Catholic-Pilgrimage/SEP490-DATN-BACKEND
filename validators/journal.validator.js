@@ -98,7 +98,25 @@ class JournalValidator {
 
         body('site_id')
             .optional()
-            .isString().withMessage('Site ID must be a string')
+            .isString().withMessage('Site ID must be a string'),
+
+        body().custom((value, { req }) => {
+            const plannerItemInput = getPlannerItemIdInput(req.body);
+            if (plannerItemInput === undefined) {
+                return true;
+            }
+
+            const plannerItemIds = normalizePlannerItemIdInput(plannerItemInput);
+            if (plannerItemIds === null || plannerItemIds.length === 0) {
+                throw new Error('Planner item ID is invalid');
+            }
+
+            if (plannerItemIds.some(id => typeof id !== 'string' || !UUID_REGEX.test(id.trim()))) {
+                throw new Error('Planner item ID is invalid');
+            }
+
+            return true;
+        })
     ];
 
     static getPublicJournals = [];
