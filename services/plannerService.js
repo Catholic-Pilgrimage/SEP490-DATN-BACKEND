@@ -885,11 +885,12 @@ class PlannerService {
             const currentStartDate = this.normalizeDateOnlyValue(planner.start_date);
             const currentEndDate = this.normalizeDateOnlyValue(planner.end_date);
 
-            if (
-                (requestedStartDate !== undefined && requestedStartDate !== currentStartDate) ||
-                (requestedEndDate !== undefined && requestedEndDate !== currentEndDate)
-            ) {
-                throw new Error('Planner dates can only be set during creation');
+            if (requestedStartDate !== undefined && requestedStartDate !== currentStartDate) {
+                throw new Error('Start date cannot be changed after creation');
+            }
+
+            if (requestedEndDate !== undefined && requestedEndDate !== currentEndDate) {
+                dataToUpdate.end_date = requestedEndDate;
             }
 
             if (updateData.edit_lock_at !== undefined) {
@@ -973,6 +974,19 @@ class PlannerService {
                 const diffDays = Math.ceil((endObj - startObj) / (1000 * 60 * 60 * 24)) + 1;
                 if (diffDays > 30) {
                     throw new Error('Planner exceeds 30 days');
+                }
+
+                if (dataToUpdate.end_date !== undefined) {
+                    const maxLegNumber = Number(await PlannerItem.max('leg_number', {
+                        where: { planner_id: plannerId }
+                    })) || 0;
+
+                    if (maxLegNumber > diffDays) {
+                        const error = new Error('End date cannot be earlier than existing itinerary days');
+                        error.maxLegNumber = maxLegNumber;
+                        error.allowedMaxDays = diffDays;
+                        throw error;
+                    }
                 }
             }
 
