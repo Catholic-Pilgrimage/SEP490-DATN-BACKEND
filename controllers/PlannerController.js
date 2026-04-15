@@ -65,7 +65,7 @@ class PlannerController {
             if (error.message === 'Ngày bắt đầu kế hoạch phải từ ngày mai trở đi') {
                 return ResponseUtil.badRequest(res, req.__('planner.start_date_from_tomorrow'));
             }
-            if (error.message === 'Start date cannot be changed after creation') {
+            if (error.message === 'Start date cannot be changed after first share') {
                 return ResponseUtil.badRequest(res, req.__('planner.start_date_immutable'));
             }
             if (error.message === 'Number of days must be at least 1') {
@@ -162,7 +162,10 @@ class PlannerController {
             if (error.message === 'Ngày bắt đầu kế hoạch phải từ ngày mai trở đi') {
                 return ResponseUtil.badRequest(res, req.__('planner.start_date_from_tomorrow'));
             }
-            if (error.message === 'Start date cannot be changed after creation') {
+            if (
+                error.message === 'Start date cannot be changed after creation'
+                || error.message === 'Start date cannot be changed after first share'
+            ) {
                 return ResponseUtil.badRequest(res, req.__('planner.start_date_immutable'));
             }
             if (error.message === 'Number of days must be at least 1') {
