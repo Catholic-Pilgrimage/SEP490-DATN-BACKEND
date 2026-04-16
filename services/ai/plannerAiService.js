@@ -1,5 +1,6 @@
 const { generateJSON } = require('../../config/googleai.config');
-const { Site } = require('../../models');
+const { Site, MassSchedule, Event } = require('../../models');
+const { Op } = require('sequelize');
 const Logger = require('../../utils/logger.util');
 
 /**
@@ -32,8 +33,47 @@ class PlannerAiService {
   /**
    * Calculate pairwise distances between sites (for AI context)
    */
-  static _calculateDistances(sitesInfo) {
+  static async _calculateDistances(sitesInfo, transportMode) {
+    const OSRMUtil = require('../../utils/osrm.util');
+
+    const vehicleMap = {
+      motorbike: 'motorcycle',
+      car: 'car',
+      bus: 'car'
+    };
+    const vehicle = vehicleMap[transportMode] || 'car';
+
+    const points = sitesInfo.filter(s => s.lat && s.lng).map(s => ({ lat: s.lat, lng: s.lng }));
     const distances = [];
+
+    // Attempt to get real data from VietMap
+    if (points.length >= 2) {
+      const matrixResult = await OSRMUtil.getDistanceMatrix(points, vehicle);
+
+      if (matrixResult && matrixResult.distances && matrixResult.durations) {
+        for (let i = 0; i < points.length; i++) {
+          for (let j = i + 1; j < points.length; j++) {
+            const a = sitesInfo.find(s => s.lat === points[i].lat && s.lng === points[i].lng);
+            const b = sitesInfo.find(s => s.lat === points[j].lat && s.lng === points[j].lng);
+
+            const distMeters = matrixResult.distances[i][j];
+            const durationSeconds = matrixResult.durations[i][j];
+
+            if (distMeters != null && durationSeconds != null && a && b) {
+              distances.push({
+                from: a.name,
+                to: b.name,
+                real_distance_km: Math.round(distMeters / 1000),
+                real_travel_minutes: Math.ceil(durationSeconds / 60)
+              });
+            }
+          }
+        }
+        if (distances.length > 0) return { isReal: true, distances };
+      }
+    }
+
+    // Fallback to Haversine if VietMap fails
     for (let i = 0; i < sitesInfo.length; i++) {
       for (let j = i + 1; j < sitesInfo.length; j++) {
         const a = sitesInfo[i];
@@ -49,7 +89,7 @@ class PlannerAiService {
         }
       }
     }
-    return distances;
+    return { isReal: false, distances };
   }
 
   /**
@@ -81,34 +121,82 @@ class PlannerAiService {
 
     const { start_date, max_days, transport_mode = 'car', priority = 'balanced', number_of_people = 1, patron_saint } = params;
 
+    // Filter events starting today or later (or within planner dates)
+    const eventDateFilter = start_date ? new Date(start_date) : new Date();
+
     const sites = await Site.findAll({
       where: { id: siteIds, is_active: true },
-      attributes: ['id', 'name', 'description', 'address', 'province', 'region', 'type', 'latitude', 'longitude', 'patron_saint', 'opening_hours']
+      attributes: ['id', 'name', 'description', 'address', 'province', 'region', 'type', 'latitude', 'longitude', 'patron_saint', 'opening_hours'],
+      include: [
+        {
+          model: MassSchedule,
+          as: 'massSchedules',
+          where: { is_active: true, status: 'approved' },
+          required: false,
+          attributes: ['days_of_week', 'time', 'note']
+        },
+        {
+          model: Event,
+          as: 'events',
+          where: {
+            is_active: true,
+            status: 'approved',
+            [Op.or]: [
+              { end_date: { [Op.gte]: eventDateFilter } },
+              { end_date: null, start_date: { [Op.gte]: eventDateFilter } }
+            ]
+          },
+          required: false,
+          attributes: ['name', 'start_date', 'end_date', 'start_time', 'end_time']
+        }
+      ]
     });
 
     if (sites.length < 2) {
       throw new Error('Could not find enough valid sites. At least 2 active sites are required.');
     }
 
-    const sitesInfo = sites.map(s => ({
-      id: s.id,
-      name: s.name,
-      description: (s.description || '').substring(0, 200),
-      address: s.address || s.province || 'N/A',
-      province: s.province || 'N/A',
-      region: s.region,
-      type: s.type,
-      lat: s.latitude ? parseFloat(s.latitude) : null,
-      lng: s.longitude ? parseFloat(s.longitude) : null,
-      patron_saint: s.patron_saint || null,
-      opening_hours: s.opening_hours || null
-    }));
+    const sitesInfo = sites.map(s => {
+      // Format Mass Schedules
+      const masses = (s.massSchedules || []).map(m => {
+        const daysMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const days = (m.days_of_week || []).map(d => daysMap[d]).join(', ');
+        return `${days} at ${m.time}` + (m.note ? ` (${m.note})` : '');
+      });
+
+      // Format Events
+      const events = (s.events || []).map(e => {
+        return `'${e.name}' from ${e.start_date}` +
+          (e.end_date ? ` to ${e.end_date}` : '') +
+          (e.start_time ? ` (${e.start_time}` + (e.end_time ? `-${e.end_time}` : '') + `)` : '');
+      });
+
+      return {
+        id: s.id,
+        name: s.name,
+        description: (s.description || '').substring(0, 200),
+        address: s.address || s.province || 'N/A',
+        province: s.province || 'N/A',
+        region: s.region,
+        type: s.type,
+        lat: s.latitude ? parseFloat(s.latitude) : null,
+        lng: s.longitude ? parseFloat(s.longitude) : null,
+        patron_saint: s.patron_saint || null,
+        opening_hours: s.opening_hours || null,
+        mass_schedules: masses.length > 0 ? masses : null,
+        upcoming_events: events.length > 0 ? events : null
+      };
+    });
 
     // Calculate pairwise distances for AI context
-    const distances = this._calculateDistances(sitesInfo);
-    const distanceInfo = distances.length > 0
-      ? `\nPairwise distances (straight-line → estimated road):\n${distances.map(d => `- ${d.from} ↔ ${d.to}: ~${d.straight_line_km}km straight / ~${d.estimated_road_km}km road`).join('\n')}`
-      : '';
+    const distancesData = await this._calculateDistances(sitesInfo, transport_mode);
+    let distanceInfo = '';
+
+    if (distancesData.isReal && distancesData.distances.length > 0) {
+      distanceInfo = `\nREAL VietMap Pairwise Distances/Times (MUST use these EXACT 'real_travel_minutes' when predicting scheduling):\n${distancesData.distances.map(d => `- ${d.from} ↔ ${d.to}: ${d.real_distance_km}km, takes ${d.real_travel_minutes} minutes`).join('\n')}`;
+    } else if (!distancesData.isReal && distancesData.distances.length > 0) {
+      distanceInfo = `\nEstimated Pairwise distances (straight-line → estimated road):\n${distancesData.distances.map(d => `- ${d.from} ↔ ${d.to}: ~${d.straight_line_km}km straight / ~${d.estimated_road_km}km road`).join('\n')}`;
+    }
 
     const transportMap = { car: 'Ô tô', bus: 'Xe khách', motorbike: 'Xe máy' };
     const transportVi = transportMap[transport_mode] || 'Ô tô';
@@ -134,6 +222,7 @@ ${patron_saint ? `- Pilgrim's Patron Saint (Bổn mạng): ${patron_saint}. IMPO
 Requirements:
 - Organize into daily itinerary, grouping nearby sites (same region/province) on same day
 - Use the provided distance data to estimate realistic travel times for Vietnam roads
+- IMPORTANT: Review 'opening_hours', 'mass_schedules', and 'upcoming_events' in the Sites JSON. Try to schedule visits to ALIGN with a Mass or an interesting Event when possible!
 - Visit duration: shrine ~90min, church ~60min, monastery ~120min, center ~45min. Format as "Xh" or "XhYm" (e.g. "1h30m", "2h")
 - Each stop needs an estimated arrival/start time in HH:mm format
 - Add a short spiritual note for each stop (Vietnamese)
@@ -161,24 +250,24 @@ Return JSON:
           "site_name": "For display only",
           "day_number": 1,
           "order_index": 1,
-          "estimated_time": "08:00",
+          "estimated_time": "08:00 (ONLY for order_index 1. For others, return null)",
           "rest_duration": "1h30m",
           "travel_time_minutes": 45,
-          "note": "Ghi chú tâm linh (tiếng Việt)"
+          "note": "Ghi chú tâm linh (tiếng Việt) - vd: Tham dự Thánh Lễ lúc 09:00"
         }
       ]
     }
   ],
-  "summary": "Tóm tắt lộ trình (tiếng Việt, 2-3 câu)",
+  "summary": "Tóm tắt lộ trình (tiếng Việt, 2-3 câu). Nếu có tham dự sự kiện/thánh lễ nổi bật, hãy nhắc tới.",
   "total_estimated_km": 450,
   "tips": ["Mẹo cho khách hành hương (tiếng Việt)"]
 }
 
 Rules for items:
 - order_index starts at 1 for each day and increments sequentially
-- For the FIRST item of each day: travel_time_minutes = 0 (or travel from previous day's last stop)
-- rest_duration must use format like "1h", "1h30m", "45m"
-- estimated_time must use HH:mm format like "08:00", "14:30"`;
+- For the FIRST item of each day: travel_time_minutes = 0. MUST provide estimated_time (e.g. "08:00").
+- For SUBSEQUENT items (order_index > 1): DO NOT calculate estimated_time (set to null), the system will auto-calculate it based on travel_time_minutes and previous rest_duration.
+- rest_duration must use format like "1h", "1h30m", "45m"`;
 
     Logger.info(`Google AI: Route for ${sites.length} sites, mode=${transport_mode}, priority=${priority}`);
     const result = await generateJSON('route', prompt, { temperature: 0.7 });
