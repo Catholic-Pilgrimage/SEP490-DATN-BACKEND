@@ -177,6 +177,10 @@ class CheckinController {
                 const order = parts[1].replace('order ', '');
                 return ResponseUtil.badRequest(res, req.__('checkin.sequential_required', { day, order }));
             }
+            if (err.message === 'Previous day is not closed') {
+                const day = err.requiredDay || '?';
+                return ResponseUtil.badRequest(res, req.__('checkin.previous_day_not_closed', { day }));
+            }
             return ResponseUtil.error(res, err.message || req.__('error.server_error'), 500);
         }
     }
