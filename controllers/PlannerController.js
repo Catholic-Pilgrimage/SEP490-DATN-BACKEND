@@ -784,6 +784,16 @@ class PlannerController {
                     'Trips can only start after the planner is in locked status.'
                 );
             }
+            if (error.message === 'Final planner day is not closed') {
+                const day = Number(error.requiredDay || 0);
+                return this.badRequestWithFallback(
+                    res,
+                    req,
+                    'planner.final_day_not_closed',
+                    `Please close Day ${day || '?'} before completing the planner.`,
+                    { day: Number.isInteger(day) && day > 0 ? day : '?' }
+                );
+            }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
@@ -883,6 +893,77 @@ class PlannerController {
                     req,
                     'planner.start_requires_lock',
                     'Trips can only start after the planner is in locked status.'
+                );
+            }
+            return ResponseUtil.error(res, req.__('error.server_error'));
+        }
+    }
+
+    /**
+     * POST /planners/:id/days/:dayNumber/close - Close a day in ongoing planner
+     */
+    static async closePlannerDay(req, res) {
+        try {
+            const dayNumber = Number.parseInt(req.params.dayNumber, 10);
+            if (!Number.isInteger(dayNumber) || dayNumber < 1) {
+                return ResponseUtil.badRequest(res, req.__('planner.day_close_invalid'));
+            }
+
+            let result = await PlannerService.closePlannerDay(
+                req.params.id,
+                req.user.id,
+                dayNumber
+            );
+            result = PlannerController.localizePlannerResult(req, result);
+
+            return ResponseUtil.success(res, result, req.__('planner.day_close_success', { day: dayNumber }));
+        } catch (error) {
+            if (error.message === 'Planner not found') {
+                return ResponseUtil.notFound(res, req.__('planner.not_found'));
+            }
+            if (error.message === 'Forbidden') {
+                return ResponseUtil.forbidden(res, req.__('planner.forbidden'));
+            }
+            if (error.message === 'Planner is not ongoing') {
+                return ResponseUtil.badRequest(res, req.__('planner.day_close_not_ongoing'));
+            }
+            if (error.message === 'Planner day has no items') {
+                return ResponseUtil.badRequest(res, req.__('planner.day_close_no_items'));
+            }
+            if (error.message === 'Planner day is not fully processed') {
+                const day = Number(error.day || dayNumber || 0);
+                const remaining = Number(error.remainingItems || 0);
+
+                return ResponseUtil.badRequest(
+                    res,
+                    req.__('planner.day_close_incomplete', {
+                        day: Number.isInteger(day) && day > 0 ? day : '?',
+                        remaining: Number.isInteger(remaining) ? remaining : 0
+                    }),
+                    {
+                        day: Number.isInteger(day) && day > 0 ? day : null,
+                        remaining_items: Number.isInteger(remaining) ? remaining : null,
+                        closed_items: Number.isInteger(error.closedItems) ? error.closedItems : null,
+                        total_items: Number.isInteger(error.totalItems) ? error.totalItems : null
+                    }
+                );
+            }
+            if (error.message === 'Planner day must be closed sequentially') {
+                const expectedDay = error.expectedDay || '?';
+                const remaining = Number(error.remainingItems || 0);
+                const messageKey = Number.isInteger(remaining) && remaining > 0
+                    ? 'planner.day_close_sequential_incomplete_prev'
+                    : 'planner.day_close_sequential';
+
+                return ResponseUtil.badRequest(
+                    res,
+                    req.__(messageKey, { day: expectedDay, remaining }),
+                    {
+                        expected_day: Number.isInteger(error.expectedDay) ? error.expectedDay : null,
+                        remaining_items: Number.isInteger(remaining) ? remaining : null,
+                        closed_items: Number.isInteger(error.closedItems) ? error.closedItems : null,
+                        total_items: Number.isInteger(error.totalItems) ? error.totalItems : null
+                    }
                 );
             }
             return ResponseUtil.error(res, req.__('error.server_error'));

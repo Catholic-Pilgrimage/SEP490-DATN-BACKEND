@@ -103,6 +103,13 @@ router.patch(
     PlannerController.updatePlannerStatus
 );
 
+router.post(
+    '/:id/days/:dayNumber/close',
+    authenticate,
+    PlannerValidator.validatePlannerId,
+    PlannerController.closePlannerDay
+);
+
 router.patch(
     '/:id/lock',
     authenticate,

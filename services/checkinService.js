@@ -312,20 +312,6 @@ class CheckinService {
 
         if (checkedInCount >= totalExpected) {
             await plannerItem.update({ status: 'visited' });
-
-            // Check xem còn phải điểm cuối không
-            const allItems = await PlannerItem.findAll({
-                where: { planner_id: planner.id },
-                attributes: ['status']
-            });
-            const allFinished = allItems.every(i => i.status === 'visited' || i.status === 'skipped');
-            if (allFinished && newPlannerStatus !== 'completed') {
-                await planner.update({ status: 'completed', completed_at: new Date() });
-                const PlannerAntiFraudService = require('./pilgrim/plannerAntiFraudService');
-                await PlannerAntiFraudService.verifyAndSettlePlanner(planner.id);
-                newPlannerStatus = 'completed';
-                Logger.info(`Planner ${planner.id} auto-completed after final check-in by all members`);
-            }
         }
 
         return {
@@ -375,6 +361,19 @@ class CheckinService {
             throw new Error('This site is already closed, cannot change');
         }
 
+        // Day N can only be processed after day N-1 has been explicitly closed.
+        if (Number(plannerItem.leg_number) > 1) {
+            const PlannerService = require('./plannerService');
+            const requiredClosedDay = Number(plannerItem.leg_number) - 1;
+            const progressLockedDay = await PlannerService.getProgressLockedDayForAddItem(planner.id);
+
+            if (progressLockedDay < requiredClosedDay) {
+                const error = new Error('Previous day is not closed');
+                error.requiredDay = requiredClosedDay;
+                throw error;
+            }
+        }
+
         // Skip must follow itinerary order: all previous items must already be closed.
         const allPlannerItems = await PlannerItem.findAll({
             where: { planner_id: planner.id },
@@ -420,13 +419,6 @@ class CheckinService {
         });
 
         const PlannerService = require('./plannerService');
-        const checkinStats = await PlannerService.getCheckinStats(planner.id);
-
-        const shouldAutoCancelPlanner =
-            planner.status === 'ongoing' &&
-            checkinStats.totalItems > 0 &&
-            checkinStats.checkedInItems === checkinStats.totalItems &&
-            checkinStats.visitedCount === 0;
 
         const nextUpcomingItem = await PlannerService.getNextUpcomingPlannerItem(planner.id);
         const notificationType = nextUpcomingItem ? 'planner_item_skipped' : 'planner_item_skipped_last';
@@ -443,10 +435,6 @@ class CheckinService {
             const PlannerChatService = require('./pilgrim/plannerChatService');
             await PlannerChatService.sendSystemMessage(planner.id, `📍 Trưởng đoàn đã bỏ qua điểm ${plannerItem.site?.name || 'điểm đến'}. Lý do: ${normalizedSkipReason}`);
         } catch (e) { }
-
-        if (shouldAutoCancelPlanner) {
-            await planner.update({ status: 'cancelled' });
-        }
 
         return { message: 'Đã đánh dấu bỏ qua địa điểm này cho toàn đoàn' };
     }
@@ -498,6 +486,19 @@ class CheckinService {
 
             if (plannerItem.status !== 'upcoming') {
                 throw new Error('This site has already been processed, cannot update status');
+            }
+
+            // Day N can only be processed after day N-1 has been explicitly closed.
+            if (Number(plannerItem.leg_number) > 1) {
+                const PlannerService = require('./plannerService');
+                const requiredClosedDay = Number(plannerItem.leg_number) - 1;
+                const progressLockedDay = await PlannerService.getProgressLockedDayForAddItem(planner.id, { transaction: t });
+
+                if (progressLockedDay < requiredClosedDay) {
+                    const error = new Error('Previous day is not closed');
+                    error.requiredDay = requiredClosedDay;
+                    throw error;
+                }
             }
 
             // Lấy tất cả user đã tham gia chuyến đi
@@ -590,15 +591,6 @@ class CheckinService {
                 status: 'visited',
                 skip_reason: missingUsers.length > 0 ? normalizedSkipReason : null
             }, { transaction: t });
-
-            // Autocomplete planner if this was the last item
-            const allItems = await PlannerItem.findAll({ where: { planner_id: planner.id }, attributes: ['status'], transaction: t });
-            const allFinished = allItems.every(i => i.status === 'visited' || i.status === 'skipped');
-            if (allFinished) {
-                await planner.update({ status: 'completed', completed_at: new Date() }, { transaction: t });
-                const PlannerAntiFraudService = require('./pilgrim/plannerAntiFraudService');
-                await PlannerAntiFraudService.verifyAndSettlePlanner(planner.id, t);
-            }
 
             await t.commit();
 
