@@ -1781,33 +1781,6 @@ class PlannerService {
                 }
             }
 
-            // ===== VALIDATION: Không được bỏ trống ngày trước đó =====
-            if (leg_number > 1 && !multiDayItems) {
-                // Lấy tất cả các ngày đã có items
-                const existingDays = await PlannerItem.findAll({
-                    where: { planner_id: plannerId },
-                    attributes: [
-                        [sequelize.fn('DISTINCT', sequelize.col('leg_number')), 'leg_number']
-                    ],
-                    raw: true
-                });
-
-                const legNumbersSet = new Set(existingDays.map(d => d.leg_number));
-
-                // Kiểm tra các ngày từ 1 đến leg_number-1
-                const missingDays = [];
-                for (let i = 1; i < leg_number; i++) {
-                    if (!legNumbersSet.has(i)) {
-                        missingDays.push(i);
-                    }
-                }
-
-                if (missingDays.length > 0) {
-                    throw new Error(`Missing preceding days: current day ${leg_number}, missing days ${missingDays.join(', ')}`);
-                }
-            }
-            // ===== END: Validation =====
-
             let travelTimeMinutes = 0;
 
             // Get previous site in same day (if exists)
