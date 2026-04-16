@@ -6,7 +6,8 @@ const ROOT = path.resolve(__dirname, '../..');
 const MODULES = {
     MODELS: path.join(ROOT, 'models', 'index.js'),
     GOOGLE_AI: path.join(ROOT, 'services', 'ai', 'googleAiService.js'),
-    AI_CACHE: path.join(ROOT, 'services', 'ai', 'aiCacheService.js')
+    AI_CACHE: path.join(ROOT, 'services', 'ai', 'aiCacheService.js'),
+    AI_PROMPT: path.join(ROOT, 'services', 'ai', 'aiPromptService.js')
 };
 
 function clearModules() {
@@ -58,12 +59,12 @@ function loadTranslationAiService(overrides = {}) {
         translatePostToEnglish: async (title, content) => {
             state.googleTranslatePostCalls.push({ title, content });
             if (overrides.googleTranslatePost) return overrides.googleTranslatePost(title, content);
-            return { title_en: 'En', content_en: 'En' };
+            return { title_en: 'En', content_en: 'En', metadata: { generated_by: 'google_ai', prompt_version: 1 } };
         },
         translateCommentToEnglish: async (content) => {
             state.googleTranslateCommentCalls.push({ content });
             if (overrides.googleTranslateComment) return overrides.googleTranslateComment(content);
-            return { content_en: 'En' };
+            return { content_en: 'En', metadata: { generated_by: 'google_ai', prompt_version: 1 } };
         }
     });
 
@@ -79,6 +80,13 @@ function loadTranslationAiService(overrides = {}) {
                 state.cacheSetCalls.push({ feature, key, data });
                 if (overrides.cacheSet) return overrides.cacheSet(feature, key, data);
             }
+        }
+    });
+
+    // Mock AiPromptService — TranslationAiService now imports it for prompt_version in cache keys
+    setMock(MODULES.AI_PROMPT, {
+        AiPromptService: {
+            getPromptByKey: async () => ({ promptKey: 'mock', instructionText: 'mock', version: 1, source: 'default' })
         }
     });
 
@@ -157,11 +165,10 @@ test('translatePost calls AI, saves to cache, and returns data if cache misses',
     assert.equal(state.googleTranslatePostCalls.length, 1);
     assert.deepEqual(state.googleTranslatePostCalls[0], { title: 'Vi', content: 'Vi' });
     assert.equal(state.cacheSetCalls.length, 1);
-    assert.deepEqual(state.cacheSetCalls[0], {
-        feature: 'translate_post',
-        key: 'mock_cache_key',
-        data: { title_en: 'En', content_en: 'En' }
-    });
+    assert.equal(state.cacheSetCalls[0].feature, 'translate_post');
+    assert.equal(state.cacheSetCalls[0].key, 'mock_cache_key');
+    assert.equal(state.cacheSetCalls[0].data.title_en, 'En');
+    assert.equal(state.cacheSetCalls[0].data.content_en, 'En');
 });
 
 test('translateComment throws 404 if comment not found', async () => {
@@ -233,9 +240,7 @@ test('translateComment calls AI, saves to cache, and returns data if cache misse
     assert.equal(state.googleTranslateCommentCalls.length, 1);
     assert.deepEqual(state.googleTranslateCommentCalls[0], { content: 'Vi' });
     assert.equal(state.cacheSetCalls.length, 1);
-    assert.deepEqual(state.cacheSetCalls[0], {
-        feature: 'translate_comment',
-        key: 'mock_cache_key',
-        data: { content_en: 'En' }
-    });
+    assert.equal(state.cacheSetCalls[0].feature, 'translate_comment');
+    assert.equal(state.cacheSetCalls[0].key, 'mock_cache_key');
+    assert.equal(state.cacheSetCalls[0].data.content_en, 'En');
 });

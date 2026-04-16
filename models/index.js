@@ -33,6 +33,7 @@ const SiteReview = require('./SiteReview');
 const SiteReviewReply = require('./SiteReviewReply');
 const Friendship = require('./Friendship');
 const AiCache = require('./AiCache');
+const AiPrompt = require('./AiPrompt');
 
 // ===================== WALLETS & TRANSACTIONS =====================
 
@@ -330,6 +331,11 @@ Friendship.belongsTo(User, { foreignKey: 'requester_id', as: 'requester' });
 User.hasMany(Friendship, { foreignKey: 'addressee_id', as: 'receivedFriendRequests' });
 Friendship.belongsTo(User, { foreignKey: 'addressee_id', as: 'addressee' });
 
+// ===================== AI PROMPTS =====================
+
+// AiPrompt - User (updated_by)
+AiPrompt.belongsTo(User, { foreignKey: 'updated_by', as: 'updatedByUser' });
+
 
 const db = {
   sequelize,
@@ -366,7 +372,8 @@ const db = {
   SiteReview,
   SiteReviewReply,
   Friendship,
-  AiCache
+  AiCache,
+  AiPrompt
 };
 
 module.exports = db;

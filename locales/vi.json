@@ -780,5 +780,12 @@
     "already_processed": "Lời mời kết bạn đã được xử lý",
     "forbidden_respond": "Chỉ người nhận mới có thể phản hồi",
     "friendship_not_found": "Không tìm thấy quan hệ bạn bè"
+  },
+  "ai_prompt": {
+    "list_success": "Lấy danh sách AI prompt thành công",
+    "get_success": "Lấy thông tin AI prompt thành công",
+    "update_success": "Cập nhật AI prompt thành công",
+    "not_found": "Không tìm thấy prompt",
+    "invalid_key": "Prompt key không hợp lệ"
   }
 }

@@ -1,6 +1,7 @@
 const { Post, PostComment } = require('../../models');
 const GoogleAiService = require('./googleAiService');
 const { AiCacheService } = require('./aiCacheService');
+const { AiPromptService } = require('./aiPromptService');
 
 class TranslationAiService {
 
@@ -20,11 +21,15 @@ class TranslationAiService {
                 throw error;
             }
 
+            // Include prompt_version in cache key for invalidation when admin updates prompt
+            const promptConfig = await AiPromptService.getPromptByKey('translation_post_vi_en');
+
             const cacheKey = AiCacheService.buildCacheKey({
                 post_id: post.id,
                 updated_at: post.updated_at ? new Date(post.updated_at).toISOString() : '',
                 title: post.title || '',
-                content: post.content || ''
+                content: post.content || '',
+                prompt_version: promptConfig.version
             });
 
             const cachedResult = await AiCacheService.get('translate_post', cacheKey);
@@ -66,9 +71,13 @@ class TranslationAiService {
                 throw error;
             }
 
+            // Include prompt_version in cache key for invalidation when admin updates prompt
+            const promptConfig = await AiPromptService.getPromptByKey('translation_comment_vi_en');
+
             const cacheKey = AiCacheService.buildCacheKey({
                 comment_id: comment.id,
-                content: comment.content || ''
+                content: comment.content || '',
+                prompt_version: promptConfig.version
             });
 
             const cachedResult = await AiCacheService.get('translate_comment', cacheKey);

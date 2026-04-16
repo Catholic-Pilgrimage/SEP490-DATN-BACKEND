@@ -2,7 +2,8 @@ const { generateJSON } = require('../../config/googleai.config');
 const { Site, Event, SiteReview, User } = require('../../models');
 const { Op } = require('sequelize');
 const Logger = require('../../utils/logger.util');
-const { AiCacheService, PROMPT_VERSIONS, MODEL_VERSION } = require('./aiCacheService');
+const { AiCacheService, MODEL_VERSION } = require('./aiCacheService');
+const { AiPromptService } = require('./aiPromptService');
 
 /**
  * Google AI Service — AI features for Local Guides
@@ -53,14 +54,17 @@ Site Information:
             }
         }
 
-        // ─── Cache check ───
+        // ─── Get instruction text from DB or fallback ───
+        const promptConfig = await AiPromptService.getPromptByKey('article');
+
+        // ─── Cache check (use DB prompt version) ───
         const cacheKey = AiCacheService.buildCacheKey({
             site_id: siteId || '',
             topic: topic.trim().toLowerCase(),
             additional_context: (additionalContext || '').trim().toLowerCase(),
             language, length, style,
             site_updated_at: siteUpdatedAt,
-            prompt_version: PROMPT_VERSIONS.generate_article,
+            prompt_version: promptConfig.version,
             model: MODEL_VERSION
         });
         const cached = await AiCacheService.get('generate_article', cacheKey);
@@ -79,21 +83,15 @@ Site Information:
         };
         const styleInstruction = styleMap[style] || styleMap.devotional;
 
-        const prompt = `You are a Catholic content writer specializing in pilgrimage sites in Vietnam.
-Write a devotional and inspiring article about the following topic.
+        const prompt = `${promptConfig.instructionText}
 
 Topic: ${topic}
 ${siteContext}
 ${additionalContext ? `Additional context from Local Guide: ${additionalContext}` : ''}
 
-Requirements:
 - ${langInstruction}
 - ${styleInstruction}
 - Length: approximately ${wordCount} words
-- Structure: Clear introduction, structured body with subsections if needed, meaningful conclusion
-- Include historical and spiritual significance
-- If relevant, mention patron saints, miracles, or notable Catholic traditions
-- Reference specific details from the site information provided above
 
 Return JSON:
 {
@@ -103,7 +101,7 @@ Return JSON:
   "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"]
 }`;
 
-        Logger.info(`[AI API Call] Article for site=${siteId}, topic="${topic}", lang=${language}, style=${style}`);
+        Logger.info(`[AI API Call] Article for site=${siteId}, topic="${topic}", lang=${language}, style=${style}, prompt_source=${promptConfig.source}`);
         const result = await generateJSON('article', prompt, { temperature: 0.8 });
 
         // Output guard
@@ -162,7 +160,10 @@ Return JSON:
             throw new Error('No reviews found for this site');
         }
 
-        // ─── Cache check ───
+        // ─── Get instruction text from DB or fallback ───
+        const promptConfig = await AiPromptService.getPromptByKey('review_summary');
+
+        // ─── Cache check (use DB prompt version) ───
         const siteUpdatedAt = site.updated_at ? new Date(site.updated_at).toISOString() : '';
         const cacheKey = AiCacheService.buildCacheKey({
             site_id: siteId,
@@ -170,7 +171,7 @@ Return JSON:
             site_updated_at: siteUpdatedAt,
             active_review_count: String(totalReviews),
             latest_review_updated_at: latestReviewUpdatedAt ? new Date(latestReviewUpdatedAt).toISOString() : '',
-            prompt_version: PROMPT_VERSIONS.summarize_reviews,
+            prompt_version: promptConfig.version,
             model: MODEL_VERSION
         });
         const cached = await AiCacheService.get('summarize_reviews', cacheKey);
@@ -198,7 +199,7 @@ Return JSON:
             ? 'Write the summary in English.'
             : 'Viết tóm tắt bằng tiếng Việt.';
 
-        const prompt = `You are a review analyst for a Catholic pilgrimage site in Vietnam.
+        const prompt = `${promptConfig.instructionText}
 
 Site: ${site.name}
 Type: ${site.type} (${this._typeLabel(site.type)})
@@ -211,12 +212,6 @@ ${reviewText}
 
 ${langInstruction}
 
-Analyze these reviews and provide a structured summary. Focus on:
-1. Overall impression from visitors
-2. Key strengths mentioned repeatedly
-3. Key weaknesses or areas for improvement
-4. A concise overall summary (2-3 sentences)
-
 Return JSON:
 {
   "overall_summary": "Tóm tắt tổng quan 2-3 câu về trải nghiệm khách hành hương",
@@ -226,7 +221,7 @@ Return JSON:
   "highlights": ["Điểm nổi bật 1 được nhiều người nhắc đến", "Điểm nổi bật 2"]
 }`;
 
-        Logger.info(`[AI API Call] Summarizing ${reviews.length} reviews for site=${siteId} (total: ${totalReviews})`);
+        Logger.info(`[AI API Call] Summarizing ${reviews.length} reviews for site=${siteId} (total: ${totalReviews}), prompt_source=${promptConfig.source}`);
         const result = await generateJSON('review_summary', prompt, { temperature: 0.4 });
 
         // Output guard
@@ -307,7 +302,10 @@ Description: ${(site.description || '').substring(0, 300)}`;
             }
         }
 
-        // ─── Cache check ───
+        // ─── Get instruction text from DB or fallback ───
+        const promptConfig = await AiPromptService.getPromptByKey('events');
+
+        // ─── Cache check (use DB prompt version) ───
         const cacheKey = AiCacheService.buildCacheKey({
             site_id: siteId || '',
             current_date: dateStr,
@@ -315,7 +313,7 @@ Description: ${(site.description || '').substring(0, 300)}`;
             site_updated_at: siteUpdatedAt,
             active_event_count: String(recentEvents.length),
             latest_event_updated_at: latestEventUpdatedAt,
-            prompt_version: PROMPT_VERSIONS.suggest_events,
+            prompt_version: promptConfig.version,
             model: MODEL_VERSION
         });
         const cached = await AiCacheService.get('suggest_events', cacheKey);
@@ -325,7 +323,7 @@ Description: ${(site.description || '').substring(0, 300)}`;
             ? recentEvents.map(e => `- ${e.name} (${e.start_date}${e.end_date ? ' → ' + e.end_date : ''}) [${e.category || 'no category'}]`).join('\n')
             : 'No recent events';
 
-        const prompt = `You are a Catholic liturgical calendar expert and event planner for pilgrimage sites in Vietnam.
+        const prompt = `${promptConfig.instructionText}
 
 Current date: ${dateStr}
 ${siteContext}
@@ -333,19 +331,7 @@ ${siteContext}
 Recent/existing events at this site (DO NOT suggest duplicates or very similar events):
 ${recentList}
 
-Based on the current date, determine the liturgical season and suggest ${count} NEW and UNIQUE event ideas that don't overlap with existing events.
-
-IMPORTANT: The output must use these EXACT field names to be compatible with our Event API:
-
-For each event provide data that can be directly used to create an event:
-- name: Event name in Vietnamese (max 255 chars)
-- description: Detailed description in Vietnamese (2-4 sentences)
-- start_date: YYYY-MM-DD format (must be in the future from ${dateStr})
-- end_date: YYYY-MM-DD format (same as start_date for single-day events, or later for multi-day)
-- start_time: HH:mm:ss format (e.g. "08:00:00", "19:30:00")
-- end_time: HH:mm:ss format
-- location: Specific location within or near the site (e.g. "Sân nhà thờ", "Hội trường giáo xứ")
-- category: One of: solemn_feast, sacrament_mass, procession, adoration, patron_feast, festival, performance, sports, retreat, camp, course, pilgrimage, charity
+Suggest ${count} NEW and UNIQUE event ideas.
 
 Return JSON:
 {
@@ -368,7 +354,7 @@ Return JSON:
   ]
 }`;
 
-        Logger.info(`[AI API Call] Suggesting events for site=${siteId}, date=${dateStr}, count=${count}`);
+        Logger.info(`[AI API Call] Suggesting events for site=${siteId}, date=${dateStr}, count=${count}, prompt_source=${promptConfig.source}`);
         const result = await generateJSON('events', prompt, { temperature: 0.8 });
 
         // Output guard
@@ -451,22 +437,18 @@ Return JSON:
             ? 'The prayer should be in English.'
             : 'The prayer should be in Vietnamese.';
 
+        // ─── Get instruction text from DB or fallback ───
+        const promptConfig = await AiPromptService.getPromptByKey('prayer');
+
         const prompt = [
-            "You are a Catholic spiritual guide helping a pilgrim write their spiritual journal.",
-            "Based on the context of their pilgrimage and the text they have written so far, suggest a short, meaningful, and personalized Catholic prayer.",
+            promptConfig.instructionText,
             "",
             contextDescription,
             current_text ? "What the pilgrim has written so far: '" + current_text + "'" : "The pilgrim has not written anything yet.",
             mood ? "The pilgrim's current mood/feeling: " + mood : "",
             intention ? "The pilgrim's special intention for this prayer: " + intention : "",
             "",
-            "Requirements:",
             "- " + langInstruction,
-            "- It must be devotional, authentic, and use proper Catholic terminology (e.g., Lạy Chúa, xin thương xót, tạ ơn, hiệp thông, ơn sủng...).",
-            "- If a patron saint is mentioned, you can ask for their intercession (e.g., 'Nhờ lời chuyển cầu của...').",
-            "- Keep the prayer concise (about 3-5 sentences), suitable for a journal entry.",
-            "- Provide a brief explanation (1-2 sentences) of why this prayer fits their current experience.",
-            "- Provide 2-5 relevant tags (in English or Vietnamese, e.g., 'gratitude', 'peace', 'repentance', 'family').",
             "",
             'Return JSON:',
             '{',
@@ -476,7 +458,7 @@ Return JSON:
             '}'
         ].filter(line => line !== "").join("\n");
 
-        Logger.info("Google AI: Suggesting prayer for user=" + userId + ", type=" + contextType);
+        Logger.info("Google AI: Suggesting prayer for user=" + userId + ", type=" + contextType + ", prompt_source=" + promptConfig.source);
         const result = await generateJSON('prayer', prompt, { temperature: 0.7 });
 
         // Output guard
@@ -498,25 +480,23 @@ Return JSON:
 
     /**
      * 5. Translate post title and content into English automatically.
+     * Caching is handled by TranslationAiService at a higher level.
      * @param {string|null} title - Original post title
      * @param {string} content - Original post content
-     * @returns {Promise<{title_en: string|null, content_en: string|null}>}
+     * @returns {Promise<{title_en: string|null, content_en: string|null, metadata: object}>}
      */
     static async translatePostToEnglish(title, content) {
         if (!content && !title) {
             return { title_en: title || null, content_en: content || null };
         }
 
+        // ─── Get instruction text from DB or fallback ───
+        const promptConfig = await AiPromptService.getPromptByKey('translation_post_vi_en');
+
         const prompt = [
-            "You are a professional translator specializing in Vietnamese to English translation, especially for Catholic communities and social media posts.",
-            "Please translate the following post into natural, well-formatted English.",
+            promptConfig.instructionText,
             title ? `Original Title:\n${title}\n` : "",
             content ? `Original Content:\n${content}\n` : "",
-            "Requirements:",
-            "- Maintain the original tone and any Catholic formatting or terminology.",
-            "- Return a JSON object with 'title_en' and 'content_en'.",
-            "- If there is no title originally, return null or empty string for 'title_en'.",
-            "- If there is no content originally, return null or empty string for 'content_en'.",
             "Return JSON: ",
             "{",
             '  "title_en": "Translated title here (or null)",',
@@ -524,45 +504,45 @@ Return JSON:
             "}"
         ].filter(Boolean).join("\n");
 
-        Logger.info("[AI API Call] Translating post to English");
+        Logger.info(`[AI API Call] Translating post to English, prompt_source=${promptConfig.source}`);
         const result = await generateJSON('translation', prompt, { temperature: 0.3 });
 
         return {
             title_en: result.title_en || null,
             content_en: result.content_en || null,
-            metadata: { generated_by: 'google_ai' }
+            metadata: { generated_by: 'google_ai', prompt_version: promptConfig.version }
         };
     }
 
     /**
      * 6. Translate comment content into English.
+     * Caching is handled by TranslationAiService at a higher level.
      * @param {string} content - Original comment content
-     * @returns {Promise<{content_en: string|null}>}
+     * @returns {Promise<{content_en: string|null, metadata: object}>}
      */
     static async translateCommentToEnglish(content) {
         if (!content) {
             return { content_en: null };
         }
 
+        // ─── Get instruction text from DB or fallback ───
+        const promptConfig = await AiPromptService.getPromptByKey('translation_comment_vi_en');
+
         const prompt = [
-            "You are a professional translator specializing in Vietnamese to English translation.",
-            "Please translate the following short comment into natural English.",
+            promptConfig.instructionText,
             `Comment:\n${content}\n`,
-            "Requirements:",
-            "- Maintain original tone.",
-            "- Return a JSON object with 'content_en'.",
             "Return JSON: ",
             "{",
             '  "content_en": "Translated comment"',
             "}"
         ].join("\n");
 
-        Logger.info("[AI API Call] Translating comment to English");
+        Logger.info(`[AI API Call] Translating comment to English, prompt_source=${promptConfig.source}`);
         const result = await generateJSON('translation', prompt, { temperature: 0.3 });
 
         return {
             content_en: result.content_en || null,
-            metadata: { generated_by: 'google_ai' }
+            metadata: { generated_by: 'google_ai', prompt_version: promptConfig.version }
         };
     }
 

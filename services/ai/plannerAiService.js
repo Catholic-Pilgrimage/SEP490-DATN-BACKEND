@@ -2,6 +2,7 @@ const { generateJSON } = require('../../config/googleai.config');
 const { Site, MassSchedule, Event } = require('../../models');
 const { Op } = require('sequelize');
 const Logger = require('../../utils/logger.util');
+const { AiPromptService } = require('./aiPromptService');
 
 /**
  * Planner AI Service — AI Route Suggestion for Pilgrims
@@ -205,8 +206,11 @@ class PlannerAiService {
     const speedMap = { car: '50-60', bus: '40-50', motorbike: '30-40' };
     const avgSpeed = speedMap[transport_mode] || '50-60';
 
-    const prompt = `You are an expert Catholic pilgrimage route planner in Vietnam.
-Given these pilgrimage sites, suggest the optimal route.
+    // ─── Get instruction text from DB or fallback ───
+    const promptConfig = await AiPromptService.getPromptByKey('route');
+    const instruction = promptConfig.instructionText;
+
+    const prompt = `${instruction}
 
 Sites:
 ${JSON.stringify(sitesInfo, null, 2)}
@@ -218,15 +222,6 @@ Parameters:
 ${start_date ? `- Start date: ${start_date}` : ''}
 ${max_days ? `- Max days: ${max_days}` : '- Suggest optimal number of days'}
 ${patron_saint ? `- Pilgrim's Patron Saint (Bổn mạng): ${patron_saint}. IMPORTANT: Prioritize sites related to this saint. Add spiritual connections to this patron saint in the notes.` : ''}
-
-Requirements:
-- Organize into daily itinerary, grouping nearby sites (same region/province) on same day
-- Use the provided distance data to estimate realistic travel times for Vietnam roads
-- IMPORTANT: Review 'opening_hours', 'mass_schedules', and 'upcoming_events' in the Sites JSON. Try to schedule visits to ALIGN with a Mass or an interesting Event when possible!
-- Visit duration: shrine ~90min, church ~60min, monastery ~120min, center ~45min. Format as "Xh" or "XhYm" (e.g. "1h30m", "2h")
-- Each stop needs an estimated arrival/start time in HH:mm format
-- Add a short spiritual note for each stop (Vietnamese)
-- Each item MUST have an order_index (1-based, sequential within each day)
 
 IMPORTANT: The output must use these EXACT field names to be compatible with our Planner API:
 
@@ -269,7 +264,7 @@ Rules for items:
 - For SUBSEQUENT items (order_index > 1): DO NOT calculate estimated_time (set to null), the system will auto-calculate it based on travel_time_minutes and previous rest_duration.
 - rest_duration must use format like "1h", "1h30m", "45m"`;
 
-    Logger.info(`Google AI: Route for ${sites.length} sites, mode=${transport_mode}, priority=${priority}`);
+    Logger.info(`Google AI: Route for ${sites.length} sites, mode=${transport_mode}, priority=${priority}, prompt_source=${promptConfig.source}`);
     const result = await generateJSON('route', prompt, { temperature: 0.7 });
 
     // Output guard: validate AI returned a valid route schema

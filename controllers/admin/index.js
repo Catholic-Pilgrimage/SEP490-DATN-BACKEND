@@ -4,6 +4,7 @@ const AdminVerificationController = require('./VerificationController');
 const AdminUserController = require('./UserController');
 const AdminDashboardController = require('./DashboardController');
 const AdminFinanceController = require('./FinanceController');
+const AiPromptController = require('./AiPromptController');
 
 module.exports = {
     AdminSOSController,
@@ -11,5 +12,6 @@ module.exports = {
     AdminVerificationController,
     AdminUserController,
     AdminDashboardController,
-    AdminFinanceController
+    AdminFinanceController,
+    AiPromptController
 };

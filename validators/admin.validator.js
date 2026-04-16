@@ -89,6 +89,36 @@ class AdminValidator {
       .optional()
       .isUUID().withMessage('Site ID phải là UUID hợp lệ')
   ];
+
+  // Validate AI prompt key param
+  static getAiPromptByKey = [
+    param('key')
+      .isString().withMessage('Prompt key phải là chuỗi')
+      .trim()
+      .isIn(['route', 'article', 'review_summary', 'events', 'prayer', 'translation_post_vi_en', 'translation_comment_vi_en'])
+      .withMessage('Prompt key không hợp lệ')
+  ];
+
+  // Validate AI prompt update
+  static updateAiPromptByKey = [
+    param('key')
+      .isString().withMessage('Prompt key phải là chuỗi')
+      .trim()
+      .isIn(['route', 'article', 'review_summary', 'events', 'prayer', 'translation_post_vi_en', 'translation_comment_vi_en'])
+      .withMessage('Prompt key không hợp lệ'),
+
+    body('instruction_text')
+      .notEmpty().withMessage('Instruction text không được để trống')
+      .isString().withMessage('Instruction text phải là chuỗi')
+      .trim()
+      .isLength({ min: 1, max: 30000 }).withMessage('Instruction text phải từ 1-30000 ký tự'),
+
+    body('description')
+      .optional()
+      .isString().withMessage('Description phải là chuỗi')
+      .trim()
+      .isLength({ max: 1000 }).withMessage('Description tối đa 1000 ký tự')
+  ];
 }
 
 module.exports = AdminValidator;
