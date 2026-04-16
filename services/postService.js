@@ -170,7 +170,7 @@ class PostService {
             {
                 model: Journal,
                 as: 'sourceJournal',
-                attributes: ['id', 'title', 'content', 'image_url', 'audio_url', 'video_url', 'site_id', 'is_active']
+                attributes: ['id', 'title', 'content', 'image_url', 'audio_url', 'video_url', 'site_id', 'planner_item_id', 'is_active']
             },
             {
                 model: Site,
@@ -211,6 +211,98 @@ class PostService {
                 ]
             }
         ];
+    }
+
+    async resolveSiteById(siteId) {
+        if (!siteId) {
+            return null;
+        }
+
+        return Site.findByPk(siteId, {
+            attributes: ['id', 'name', 'province']
+        });
+    }
+
+    normalizeUuidArrayInput(rawValue) {
+        if (!Array.isArray(rawValue)) {
+            return [];
+        }
+
+        return rawValue
+            .filter(Boolean)
+            .map(value => String(value).trim())
+            .filter(Boolean);
+    }
+
+    addUniqueSharedLocation(locations, site) {
+        if (!site?.id || !site?.name) {
+            return;
+        }
+
+        const existed = locations.some(location => location.site_id === site.id);
+        if (existed) {
+            return;
+        }
+
+        locations.push({
+            site_id: site.id,
+            name: site.name,
+            province: site.province || null
+        });
+    }
+
+    async buildPostSharedLocations(postData) {
+        const locations = [];
+
+        if (postData.site) {
+            this.addUniqueSharedLocation(locations, postData.site);
+        }
+
+        if (!locations.length && postData.site_id) {
+            const site = await this.resolveSiteById(postData.site_id);
+            this.addUniqueSharedLocation(locations, site);
+        }
+
+        const plannerItemIds = this.normalizeUuidArrayInput(postData?.sourceJournal?.planner_item_id);
+        if (plannerItemIds.length > 0) {
+            const plannerItems = await PlannerItem.findAll({
+                where: { id: { [Op.in]: plannerItemIds } },
+                attributes: ['id'],
+                include: [
+                    {
+                        model: Site,
+                        as: 'site',
+                        attributes: ['id', 'name', 'province']
+                    }
+                ]
+            });
+
+            const itemById = new Map(plannerItems.map(item => [item.id, item]));
+            plannerItemIds.forEach(itemId => {
+                const plannerItem = itemById.get(itemId);
+                this.addUniqueSharedLocation(locations, plannerItem?.site);
+            });
+        }
+
+        if (!locations.length && postData?.sourceJournal?.site_id) {
+            const sourceSite = await this.resolveSiteById(postData.sourceJournal.site_id);
+            this.addUniqueSharedLocation(locations, sourceSite);
+        }
+
+        const fallbackTitle = postData.title || postData?.sourceJournal?.title || null;
+        if (locations.length > 0) {
+            return {
+                locations,
+                location_display_name: locations[0].name,
+                location_source: locations.length > 1 ? 'planner_items' : 'site'
+            };
+        }
+
+        return {
+            locations: [],
+            location_display_name: fallbackTitle,
+            location_source: fallbackTitle ? 'journal_title_fallback' : 'none'
+        };
     }
 
     normalizePostTitle(title) {
@@ -276,6 +368,11 @@ class PostService {
         if (postData.planner_id && postData.planner) {
             postData.journey = await this.enrichPlannerJourneyForPost(post);
         }
+
+        const sharedLocation = await this.buildPostSharedLocations(postData);
+        postData.shared_locations = sharedLocation.locations;
+        postData.location_display_name = sharedLocation.location_display_name;
+        postData.location_source = sharedLocation.location_source;
 
         postData.sourceJournal = this.buildJournalSnapshot(postData);
 
@@ -441,7 +538,7 @@ class PostService {
                     {
                         model: Journal,
                         as: 'sourceJournal',
-                        attributes: ['id', 'title', 'content', 'image_url', 'audio_url', 'video_url', 'site_id', 'is_active']
+                        attributes: ['id', 'title', 'content', 'image_url', 'audio_url', 'video_url', 'site_id', 'planner_item_id', 'is_active']
                     }
                 ]
             });
