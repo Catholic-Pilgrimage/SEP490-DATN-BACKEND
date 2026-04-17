@@ -1,4 +1,4 @@
-const PlannerService = require('../services/plannerService');
+﻿const PlannerService = require('../services/plannerService');
 const ResponseUtil = require('../utils/response.util');
 const { validationResult } = require('express-validator');
 const { formatValidationErrors } = require('../utils/validation.util');
@@ -208,6 +208,14 @@ class PlannerController {
             if (error.message === 'Cannot update completed plan') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_update_completed'));
             }
+            if (error.message === 'Cannot update ongoing plan') {
+                return PlannerController.badRequestWithFallback(
+                    res,
+                    req,
+                    'planner.cannot_update_ongoing',
+                    'Không thể cập nhật kế hoạch đã bắt đầu',
+                );
+            }
             if (error.message === 'Cannot update cancelled plan') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_update_cancelled'));
             }
@@ -331,7 +339,7 @@ class PlannerController {
             }
             if (error.message.includes('Invalid day number')) {
                 const max = error.message.match(/\d+/)?.[0] || '?';
-                return this.badRequestWithFallback(
+                return PlannerController.badRequestWithFallback(
                     res,
                     req,
                     'planner.invalid_leg_number_range',
@@ -373,7 +381,7 @@ class PlannerController {
             }
             if (error.message.includes('Travel time between sites is too long')) {
                 const hours = error.message.match(/(\d+) hours/)?.[1] || '?';
-                return this.badRequestWithFallback(
+                return PlannerController.badRequestWithFallback(
                     res,
                     req,
                     'planner.travel_time_too_long',
@@ -384,7 +392,7 @@ class PlannerController {
             if (error.message.includes('Total time for day')) {
                 const dayMatch = error.message.match(/day (\d+)/)?.[1] || '?';
                 const hoursMatch = error.message.match(/(\d+) hours/)?.[1] || '?';
-                return this.badRequestWithFallback(
+                return PlannerController.badRequestWithFallback(
                     res,
                     req,
                     'planner.total_time_exceeds_24h',
@@ -736,7 +744,7 @@ class PlannerController {
                 const parts = error.message.replace('Incomplete schedule: ', '').split(', ');
                 const missingDays = parts[0].replace('missing days ', '');
                 const totalDays = parts[1].replace('total days ', '');
-                return this.badRequestWithFallback(
+                return PlannerController.badRequestWithFallback(
                     res,
                     req,
                     'planner.incomplete_schedule',
@@ -745,7 +753,7 @@ class PlannerController {
                 );
             }
             if (error.message === 'Planner is not in planning status') {
-                return this.badRequestWithFallback(
+                return PlannerController.badRequestWithFallback(
                     res,
                     req,
                     'planner.not_planning',
@@ -753,7 +761,7 @@ class PlannerController {
                 );
             }
             if (error.message === 'Planner must have start_date and end_date to start') {
-                return this.badRequestWithFallback(
+                return PlannerController.badRequestWithFallback(
                     res,
                     req,
                     'planner.missing_dates',
@@ -761,7 +769,7 @@ class PlannerController {
                 );
             }
             if (error.message === 'Group trip requires at least 2 joined members') {
-                return this.badRequestWithFallback(
+                return PlannerController.badRequestWithFallback(
                     res,
                     req,
                     'planner.group_requires_two_joined',
@@ -769,7 +777,7 @@ class PlannerController {
                 );
             }
             if (error.message === 'Group planner must be edit locked before locking') {
-                return this.badRequestWithFallback(
+                return PlannerController.badRequestWithFallback(
                     res,
                     req,
                     'planner.group_edit_lock_required_before_lock',
@@ -777,7 +785,7 @@ class PlannerController {
                 );
             }
             if (error.message === 'Planner must be locked before starting' || error.message === 'Planner must be fully locked before starting group trip') {
-                return this.badRequestWithFallback(
+                return PlannerController.badRequestWithFallback(
                     res,
                     req,
                     'planner.start_requires_lock',
@@ -786,7 +794,7 @@ class PlannerController {
             }
             if (error.message === 'Final planner day is not closed') {
                 const day = Number(error.requiredDay || 0);
-                return this.badRequestWithFallback(
+                return PlannerController.badRequestWithFallback(
                     res,
                     req,
                     'planner.final_day_not_closed',
@@ -837,7 +845,7 @@ class PlannerController {
                 const parts = error.message.replace('Cannot transition status: from ', '').split(' to ');
                 const from = parts[0];
                 const to = parts[1];
-                return this.badRequestWithFallback(
+                return PlannerController.badRequestWithFallback(
                     res,
                     req,
                     'planner.cannot_transition_status',
@@ -849,7 +857,7 @@ class PlannerController {
                 const parts = error.message.replace('Incomplete schedule: ', '').split(', ');
                 const missingDays = parts[0].replace('missing days ', '');
                 const totalDays = parts[1].replace('total days ', '');
-                return this.badRequestWithFallback(
+                return PlannerController.badRequestWithFallback(
                     res,
                     req,
                     'planner.incomplete_schedule',
@@ -864,7 +872,7 @@ class PlannerController {
                 return ResponseUtil.badRequest(res, req.__('planner.min_visited_required'));
             }
             if (error.message === 'Planner must have start_date and end_date to start') {
-                return this.badRequestWithFallback(
+                return PlannerController.badRequestWithFallback(
                     res,
                     req,
                     'planner.missing_dates',
@@ -872,7 +880,7 @@ class PlannerController {
                 );
             }
             if (error.message === 'Group trip requires at least 2 joined members') {
-                return this.badRequestWithFallback(
+                return PlannerController.badRequestWithFallback(
                     res,
                     req,
                     'planner.group_requires_two_joined',
@@ -880,7 +888,7 @@ class PlannerController {
                 );
             }
             if (error.message === 'Group planner must be edit locked before locking') {
-                return this.badRequestWithFallback(
+                return PlannerController.badRequestWithFallback(
                     res,
                     req,
                     'planner.group_edit_lock_required_before_lock',
@@ -888,7 +896,7 @@ class PlannerController {
                 );
             }
             if (error.message === 'Planner must be locked before starting' || error.message === 'Planner must be fully locked before starting group trip') {
-                return this.badRequestWithFallback(
+                return PlannerController.badRequestWithFallback(
                     res,
                     req,
                     'planner.start_requires_lock',
@@ -929,6 +937,15 @@ class PlannerController {
             }
             if (error.message === 'Planner day has no items') {
                 return ResponseUtil.badRequest(res, req.__('planner.day_close_no_items'));
+            }
+            if (error.message === 'Planner day already closed') {
+                const day = Number(error.day || dayNumber || 0);
+                return ResponseUtil.badRequest(
+                    res,
+                    req.__('planner.day_close_already_closed', {
+                        day: Number.isInteger(day) && day > 0 ? day : '?'
+                    })
+                );
             }
             if (error.message === 'Planner day is not fully processed') {
                 const day = Number(error.day || dayNumber || 0);

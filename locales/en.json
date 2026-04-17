@@ -453,6 +453,7 @@
     "day_close_invalid": "Invalid day number to close.",
     "day_close_not_ongoing": "A day can only be closed when the journey is ongoing.",
     "day_close_no_items": "This day has no sites to close.",
+    "day_close_already_closed": "Day {{day}} has already been closed.",
     "day_close_incomplete": "Cannot close Day {{day}} because {{remaining}} site(s) are not visited or skipped yet. Please check in or skip all remaining sites first.",
     "day_close_sequential": "You must close day {{day}} first.",
     "day_close_sequential_incomplete_prev": "Please close Day {{day}} first. This day still has {{remaining}} site(s) not visited or skipped.",
