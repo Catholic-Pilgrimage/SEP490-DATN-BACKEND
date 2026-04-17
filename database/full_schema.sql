@@ -586,6 +586,7 @@ CREATE TABLE IF NOT EXISTS planners (
     lock_duration_hours INTEGER DEFAULT 24,
     edit_lock_at TIMESTAMP WITH TIME ZONE,
     is_locked BOOLEAN DEFAULT FALSE,
+    last_closed_day INTEGER DEFAULT 0 CHECK (last_closed_day >= 0),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_planner_dates CHECK (end_date IS NULL OR end_date >= start_date)
@@ -596,6 +597,16 @@ ADD COLUMN IF NOT EXISTS lock_duration_hours INTEGER DEFAULT 24;
 
 ALTER TABLE planners
 ADD COLUMN IF NOT EXISTS edit_lock_at TIMESTAMP WITH TIME ZONE;
+
+ALTER TABLE planners
+ADD COLUMN IF NOT EXISTS last_closed_day INTEGER DEFAULT 0;
+
+UPDATE planners
+SET last_closed_day = 0
+WHERE last_closed_day IS NULL;
+
+ALTER TABLE planners
+ALTER COLUMN last_closed_day SET DEFAULT 0;
 
 ALTER TABLE planners
 DROP COLUMN IF EXISTS discussion_started_at;

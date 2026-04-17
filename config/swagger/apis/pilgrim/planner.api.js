@@ -816,6 +816,85 @@
 
 /**
  * @swagger
+ * /api/planners/{id}/days/{dayNumber}/close:
+ *   post:
+ *     summary: "[Trưởng đoàn] Chốt ngày hành hương"
+ *     description: |
+ *       **Chỉ dành cho Trưởng đoàn (Owner)**.
+ *
+ *       Dùng để chốt theo từng ngày khi planner đang **ongoing**.
+ *
+ *       Quy tắc:
+ *       - Ngày cần chốt phải có địa điểm
+ *       - Tất cả địa điểm trong ngày phải ở trạng thái **visited** hoặc **skipped**
+ *       - Chốt theo thứ tự liên tiếp: phải chốt ngày trước đó trước (ngày 1 rồi mới ngày 2...)
+ *
+ *       Sau khi chốt ngày thành công, hệ thống không cho thêm địa điểm vào các ngày đã chốt.
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của hành trình
+ *       - in: path
+ *         name: dayNumber
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: Số ngày cần chốt (1, 2, 3...)
+ *     responses:
+ *       200:
+ *         description: Chốt ngày thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Đã chốt ngày 1 thành công."
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     planner_id:
+ *                       type: string
+ *                       format: uuid
+ *                     closed_day:
+ *                       type: integer
+ *                       example: 1
+ *                     next_day_to_close:
+ *                       type: integer
+ *                       nullable: true
+ *                       example: 2
+ *                     has_next_day:
+ *                       type: boolean
+ *                       example: true
+ *       400:
+ *         description: |
+ *           - dayNumber không hợp lệ
+ *           - Planner chưa ở trạng thái ongoing
+ *           - Ngày chưa có địa điểm
+ *           - Ngày chưa hoàn tất visited/skipped toàn bộ địa điểm
+ *           - Chưa chốt đủ các ngày trước đó theo thứ tự
+ *       401:
+ *         description: Chưa xác thực
+ *       403:
+ *         description: Không phải Trưởng đoàn
+ *       404:
+ *         description: Không tìm thấy hành trình
+ */
+
+/**
+ * @swagger
  * /api/planners/{id}/progress:
  *   get:
  *     summary: Lấy tiến độ của tất cả thành viên trong planner

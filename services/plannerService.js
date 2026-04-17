@@ -109,7 +109,10 @@ class PlannerService {
     static async markPlannerAsOngoing(planner, options = {}) {
         const updateData = {
             status: 'ongoing',
-            is_locked: false
+            is_locked: false,
+            last_closed_day: Number.isInteger(Number(planner.last_closed_day))
+                ? Number(planner.last_closed_day)
+                : 0
         };
 
         if (!planner.started_at) {
@@ -206,24 +209,70 @@ class PlannerService {
         });
     }
 
-    static async getProgressLockedDayForAddItem(plannerId, options = {}) {
-        const maxProcessedLeg = await PlannerItem.max('leg_number', {
-            where: {
-                planner_id: plannerId,
-                status: {
-                    [Op.in]: ['visited', 'skipped']
-                }
-            },
+    static async getPlannerDayProgressState(plannerId, options = {}) {
+        const items = await PlannerItem.findAll({
+            where: { planner_id: plannerId },
+            attributes: ['leg_number', 'status'],
             transaction: options.transaction
         });
 
-        const normalizedMaxProcessedLeg = Number.parseInt(maxProcessedLeg, 10);
-        if (!Number.isInteger(normalizedMaxProcessedLeg) || normalizedMaxProcessedLeg < 2) {
+        const dayStatsByLeg = new Map();
+
+        for (const item of items) {
+            const legNumber = Number.parseInt(item.leg_number, 10);
+            if (!Number.isInteger(legNumber) || legNumber < 1) {
+                continue;
+            }
+
+            const current = dayStatsByLeg.get(legNumber) || {
+                leg_number: legNumber,
+                total_items: 0,
+                closed_items: 0,
+                is_closed: false
+            };
+
+            current.total_items += 1;
+            if (item.status === 'visited' || item.status === 'skipped') {
+                current.closed_items += 1;
+            }
+
+            current.is_closed = current.total_items > 0 && current.closed_items === current.total_items;
+            dayStatsByLeg.set(legNumber, current);
+        }
+
+        const dayStats = [...dayStatsByLeg.values()].sort((left, right) => left.leg_number - right.leg_number);
+        const maxDay = dayStats.length > 0 ? dayStats[dayStats.length - 1].leg_number : 0;
+
+        let contiguousClosedDay = 0;
+        for (let day = 1; day <= maxDay; day += 1) {
+            const stats = dayStatsByLeg.get(day);
+            if (!stats || !stats.is_closed) {
+                break;
+            }
+
+            contiguousClosedDay = day;
+        }
+
+        return {
+            dayStats,
+            dayStatsByLeg,
+            maxDay,
+            contiguousClosedDay
+        };
+    }
+
+    static async getProgressLockedDayForAddItem(plannerId, options = {}) {
+        const planner = await Planner.findByPk(plannerId, {
+            attributes: ['id', 'last_closed_day'],
+            transaction: options.transaction
+        });
+
+        if (!planner) {
             return 0;
         }
 
-        // If day N already has processed items, days < N are considered closed for add.
-        return normalizedMaxProcessedLeg - 1;
+        const normalizedClosedDay = Number.parseInt(planner.last_closed_day, 10);
+        return Number.isInteger(normalizedClosedDay) && normalizedClosedDay > 0 ? normalizedClosedDay : 0;
     }
 
     static async notifyOngoingPlannerMembers(planner, type, data = {}, options = {}) {
@@ -3548,6 +3597,115 @@ class PlannerService {
     }
 
     /**
+     * Close a planner day for ongoing journeys.
+     * Rule:
+     * - day must be fully processed (all items visited/skipped)
+     * - close must be sequential from day 1
+     */
+    static async closePlannerDay(plannerId, userId, dayNumber) {
+        try {
+            const normalizedDayNumber = Number.parseInt(dayNumber, 10);
+            if (!Number.isInteger(normalizedDayNumber) || normalizedDayNumber < 1) {
+                throw new Error('Invalid planner day number');
+            }
+
+            const planner = await Planner.findByPk(plannerId);
+            if (!planner) {
+                throw new Error('Planner not found');
+            }
+
+            if (planner.user_id !== userId) {
+                throw new Error('Forbidden');
+            }
+
+            if (planner.status !== 'ongoing') {
+                throw new Error('Planner is not ongoing');
+            }
+
+            const dayProgress = await this.getPlannerDayProgressState(plannerId);
+            const dayStats = dayProgress.dayStatsByLeg.get(normalizedDayNumber);
+            const currentClosedDay = Number.isInteger(Number(planner.last_closed_day))
+                ? Number(planner.last_closed_day)
+                : 0;
+
+            if (!dayStats || dayStats.total_items <= 0) {
+                throw new Error('Planner day has no items');
+            }
+
+            if (normalizedDayNumber === currentClosedDay) {
+                const nextDayToClose = normalizedDayNumber + 1;
+                const hasNextDay = Boolean(dayProgress.dayStatsByLeg.get(nextDayToClose));
+
+                return {
+                    planner_id: plannerId,
+                    closed_day: normalizedDayNumber,
+                    next_day_to_close: hasNextDay ? nextDayToClose : null,
+                    has_next_day: hasNextDay,
+                    messageKey: 'planner.day_close_success',
+                    messageParams: { day: normalizedDayNumber }
+                };
+            }
+
+            const expectedDay = currentClosedDay + 1;
+            if (normalizedDayNumber !== expectedDay) {
+                const expectedDayStats = dayProgress.dayStatsByLeg.get(expectedDay);
+                const error = new Error('Planner day must be closed sequentially');
+                error.expectedDay = expectedDay;
+                error.closedItems = Number(expectedDayStats?.closed_items || 0);
+                error.totalItems = Number(expectedDayStats?.total_items || 0);
+                error.remainingItems = Math.max(0, error.totalItems - error.closedItems);
+                throw error;
+            }
+
+            if (!dayStats.is_closed) {
+                const error = new Error('Planner day is not fully processed');
+                error.day = normalizedDayNumber;
+                error.closedItems = Number(dayStats.closed_items || 0);
+                error.totalItems = Number(dayStats.total_items || 0);
+                error.remainingItems = Math.max(0, error.totalItems - error.closedItems);
+                throw error;
+            }
+
+            await planner.update({ last_closed_day: normalizedDayNumber });
+
+            const nextDayToClose = normalizedDayNumber + 1;
+            const hasNextDay = Boolean(dayProgress.dayStatsByLeg.get(nextDayToClose));
+
+            let plannerStatus = planner.status;
+            if (!hasNextDay && planner.status === 'ongoing') {
+                const checkinStats = await this.getCheckinStats(plannerId);
+                const finalStatus = Number(checkinStats.visitedCount || 0) > 0 ? 'completed' : 'cancelled';
+
+                const updateData = { status: finalStatus };
+                if (finalStatus === 'completed') {
+                    updateData.completed_at = new Date();
+                }
+
+                await planner.update(updateData);
+                plannerStatus = finalStatus;
+
+                if (finalStatus === 'completed') {
+                    const PlannerAntiFraudService = require('./pilgrim/plannerAntiFraudService');
+                    await PlannerAntiFraudService.verifyAndSettlePlanner(plannerId);
+                }
+            }
+
+            return {
+                planner_id: plannerId,
+                closed_day: normalizedDayNumber,
+                next_day_to_close: hasNextDay ? nextDayToClose : null,
+                has_next_day: hasNextDay,
+                planner_status: plannerStatus,
+                messageKey: 'planner.day_close_success',
+                messageParams: { day: normalizedDayNumber }
+            };
+        } catch (error) {
+            Logger.error('Close planner day error:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Update planner status (unified endpoint for lock/start/complete)
      * @param {string} plannerId - Planner ID
      * @param {string} userId - User ID
@@ -3641,6 +3799,21 @@ class PlannerService {
                     throw new Error(`Incomplete schedule: missing days ${missingDaysStr}, total days ${continuityCheck.totalDays}`);
                 }
                 // ===== END: Validation =====
+
+                if (status === 'completed') {
+                    const dayProgress = await this.getPlannerDayProgressState(plannerId, { transaction: t });
+                    const maxDay = Number(dayProgress.maxDay || 0);
+                    const currentClosedDay = Number.isInteger(Number(planner.last_closed_day))
+                        ? Number(planner.last_closed_day)
+                        : 0;
+
+                    if (maxDay > 0 && currentClosedDay < maxDay) {
+                        const error = new Error('Final planner day is not closed');
+                        error.requiredDay = maxDay;
+                        error.currentClosedDay = currentClosedDay;
+                        throw error;
+                    }
+                }
 
                 // ===== VALIDATION: Check visitedCount =====
                 const checkinStats = await this.getCheckinStats(plannerId);

@@ -94,6 +94,14 @@ const Planner = sequelize.define('Planner', {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
         allowNull: false
+    },
+    last_closed_day: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+        allowNull: false,
+        validate: {
+            min: 0
+        }
     }
 }, {
     tableName: 'planners',

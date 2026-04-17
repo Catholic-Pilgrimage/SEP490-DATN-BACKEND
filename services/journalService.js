@@ -1042,11 +1042,26 @@ class JournalService {
                 throw new Error('This journal has already been shared to the community');
             }
 
+            let resolvedSiteId = journal.site_id || null;
+            if (!resolvedSiteId) {
+                const plannerItemIds = Array.isArray(journal.planner_item_id)
+                    ? journal.planner_item_id.filter(Boolean)
+                    : [];
+
+                if (plannerItemIds.length === 1) {
+                    const plannerItem = await PlannerItem.findByPk(plannerItemIds[0], {
+                        attributes: ['site_id']
+                    });
+
+                    resolvedSiteId = plannerItem?.site_id || null;
+                }
+            }
+
             // Create post as a reference to the journal
             const post = await Post.create({
                 user_id: userId,
                 journal_id: journalId,
-                site_id: journal.site_id || null,
+                site_id: resolvedSiteId,
                 title: journal.title,
                 content: journal.content,
                 image_urls: journal.image_url || [],
