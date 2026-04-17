@@ -107,7 +107,11 @@ exports.createTransitionRequest = async (req, res) => {
 
         const result = await PilgrimVerificationService.createTransitionRequest(userId, req.body);
 
-        return ResponseUtil.created(res, result, req.__('verification.transition_create_success'));
+        const messageKey = result.claim_type === 'unassigned'
+            ? 'verification.claim_success'
+            : 'verification.transition_create_success';
+
+        return ResponseUtil.created(res, result, req.__(messageKey));
     } catch (error) {
         if (error.message === 'existing_site_id is required') {
             return ResponseUtil.badRequest(res, req.__('verification.existing_site_required'));

@@ -164,6 +164,7 @@
     "not_pending": "Yêu cầu không ở trạng thái chờ xử lý",
     "rejection_reason_required": "Vui lòng nhập lý do từ chối",
     "transition_create_success": "Gửi yêu cầu thay thế quản lý thành công",
+    "claim_success": "Gửi yêu cầu xin quản lý địa điểm trống thành công",
     "existing_site_required": "Vui lòng chọn địa điểm muốn xin quản lý",
     "site_no_manager": "Địa điểm này chưa có quản lý. Hãy sử dụng form đăng ký thông thường",
     "guest_info_required": "Email và họ tên là bắt buộc",

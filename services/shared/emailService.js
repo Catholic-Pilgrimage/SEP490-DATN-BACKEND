@@ -739,7 +739,7 @@ class EmailService {
         <strong>Những việc cần làm:</strong>
       </p>
       <ul style="color: #333; line-height: 2;">
-        <li>Xem qua danh sách Local Guide được thừa kế</li>
+        <li>Quản lý danh sách Local Guide của địa điểm</li>
         <li>Kiểm tra và duyệt các nội dung đang chờ xử lý</li>
         <li>Cập nhật thông tin cơ sở nếu cần</li>
       </ul>

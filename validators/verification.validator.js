@@ -83,6 +83,46 @@ class VerificationValidator {
             .trim()
     ];
 
+    // Validate transition request - Guest (unauthenticated, must provide applicant info)
+    static createTransitionRequestGuest = [
+        body('existing_site_id')
+            .notEmpty().withMessage('ID địa điểm không được để trống')
+            .isUUID().withMessage('ID địa điểm không hợp lệ'),
+
+        body('transition_reason')
+            .optional({ checkFalsy: true })
+            .isLength({ min: 10, max: 2000 }).withMessage('Lý do phải từ 10-2000 ký tự')
+            .trim(),
+
+        body('applicant_email')
+            .notEmpty().withMessage('Email không được để trống')
+            .isEmail().withMessage('Email không hợp lệ')
+            .normalizeEmail()
+            .trim(),
+
+        body('applicant_name')
+            .notEmpty().withMessage('Họ tên không được để trống')
+            .isLength({ min: 2, max: 255 }).withMessage('Họ tên phải từ 2-255 ký tự')
+            .trim(),
+
+        body('applicant_phone')
+            .optional()
+            .matches(/^[0-9]{10,11}$/).withMessage('Số điện thoại phải là 10-11 chữ số')
+            .trim()
+    ];
+
+    // Validate transition request - Pilgrim (authenticated, no applicant fields needed)
+    static createTransitionRequestPilgrim = [
+        body('existing_site_id')
+            .notEmpty().withMessage('ID địa điểm không được để trống')
+            .isUUID().withMessage('ID địa điểm không hợp lệ'),
+
+        body('transition_reason')
+            .optional({ checkFalsy: true })
+            .isLength({ min: 10, max: 2000 }).withMessage('Lý do phải từ 10-2000 ký tự')
+            .trim()
+    ];
+
     // Validate update status (Admin) - RESTful: status in body
     static updateStatus = [
         body('status')

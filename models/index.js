@@ -337,6 +337,12 @@ Friendship.belongsTo(User, { foreignKey: 'addressee_id', as: 'addressee' });
 AiPrompt.belongsTo(User, { foreignKey: 'updated_by', as: 'updatedByUser' });
 
 
+// ===================== VERIFICATION REQUESTS =====================
+
+// VerificationRequest - Site (Existing Site to Manage)
+Site.hasMany(VerificationRequest, { foreignKey: 'existing_site_id', as: 'transitionRequests' });
+VerificationRequest.belongsTo(Site, { foreignKey: 'existing_site_id', as: 'existingSite' });
+
 const db = {
   sequelize,
   User,

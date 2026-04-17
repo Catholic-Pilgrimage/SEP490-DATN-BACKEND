@@ -178,13 +178,14 @@
  * @swagger
  * /api/verification/transition:
  *   post:
- *     summary: Gửi yêu cầu thay thế Manager (Guest - Manager Transition)
+ *     summary: Gửi yêu cầu thay thế Manager hoặc nhận site (Guest - Manager Transition / Claim)
  *     description: |
- *       Cho phép người chưa có tài khoản hoặc Pilgrim gửi yêu cầu thay thế Manager của một địa điểm có sẵn.
+ *       Cho phép người chưa có tài khoản hoặc Pilgrim gửi yêu cầu thay thế Manager của một địa điểm có sẵn, 
+ *       hoặc xin nhận quản lý một site do Admin tạo sẵn (unassigned).
  *       Khi Admin approve:
- *       - Manager cũ bị demote về Pilgrim
- *       - Local Guides được đánh dấu "inherited"
- *       - Người xin trở thành Manager mới của site
+ *       - Nếu site đã có manager: Manager cũ bị demote về Pilgrim, Local Guides chuyển thành "inherited"
+ *       - Nếu site unassigned: Site được gán cho người mới (active status do admin quyết định sau)
+ *       - Người xin luôn trở thành Manager mới của site
  *     tags: [Pilgrim - Verification]
  *     requestBody:
  *       required: true
@@ -194,7 +195,6 @@
  *             type: object
  *             required:
  *               - existing_site_id
- *               - transition_reason
  *             properties:
  *               applicant_email:
  *                 type: string
@@ -215,8 +215,8 @@
  *                 description: ID của Site muốn xin quản lý
  *               transition_reason:
  *                 type: string
- *                 description: Lý do xin thay thế Manager hiện tại
- *                 example: "Manager hiện tại không còn hoạt động..."
+ *                 description: Lý do xin thay thế Manager hiện tại hoặc lý do muốn nhận quản lý site này
+ *                 example: "Manager hiện tại không còn hoạt động, hoặc tôi muốn quản lý nhà thờ này..."
  *               certificate:
  *                 type: string
  *                 format: binary
@@ -256,18 +256,19 @@
  *                       type: string
  *                       example: pending
  *       400:
- *         description: Dữ liệu không hợp lệ hoặc site không có manager
+ *         description: Dữ liệu không hợp lệ hoặc site không tồn tại
  *       409:
- *         description: Đã có yêu cầu pending hoặc site đã có yêu cầu transition pending
+ *         description: Đã có yêu cầu pending hoặc site đã có yêu cầu transition/claim pending
  */
 
 /**
  * @swagger
  * /api/verification-requests/transition:
  *   post:
- *     summary: Gửi yêu cầu thay thế Manager (Pilgrim only - Manager Transition)
+ *     summary: Gửi yêu cầu thay thế Manager hoặc nhận site (Pilgrim only - Manager Transition / Claim)
  *     description: |
- *       Cho phép Pilgrim gửi yêu cầu thay thế Manager của một địa điểm có sẵn.
+ *       Cho phép Pilgrim gửi yêu cầu thay thế Manager của một địa điểm có sẵn 
+ *       hoặc xin nhận quản lý một site do Admin tạo sẵn (unassigned).
  *       Thông tin người dùng sẽ lấy từ token đăng nhập.
  *     tags: [Pilgrim - Verification]
  *     security:
@@ -288,7 +289,7 @@
  *                 description: ID của Site muốn xin quản lý
  *               transition_reason:
  *                 type: string
- *                 description: Lý do xin thay thế Manager hiện tại
+ *                 description: Lý do xin thay thế Manager hiện tại hoặc lý do muốn nhận quản lý site này
  *               certificate:
  *                 type: string
  *                 format: binary

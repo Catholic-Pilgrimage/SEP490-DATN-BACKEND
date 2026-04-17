@@ -1,7 +1,7 @@
 const { body } = require('express-validator');
 
 class SiteValidator {
-  // Validate create site
+  // Validate create site (Manager) - province optional, service backfills from verification request
   static createSite = [
     body('name')
       .notEmpty().withMessage('Tên địa điểm không được để trống')
@@ -24,7 +24,7 @@ class SiteValidator {
       .trim(),
 
     body('province')
-      .optional()
+      .notEmpty().withMessage('Tỉnh/Thành không được để trống')
       .isLength({ max: 100 }).withMessage('Tên tỉnh/thành không quá 100 ký tự')
       .trim(),
 
@@ -82,6 +82,44 @@ class SiteValidator {
         }
         return true;
       })
+  ];
+
+  // Validate create site (Admin) - province required
+  static createSiteAdmin = [
+    body('name')
+      .notEmpty().withMessage('Tên địa điểm không được để trống')
+      .isLength({ min: 2, max: 255 }).withMessage('Tên địa điểm phải từ 2-255 ký tự')
+      .trim(),
+
+    body('province')
+      .notEmpty().withMessage('Tỉnh/Thành không được để trống')
+      .isLength({ max: 100 }).withMessage('Tên tỉnh/thành không quá 100 ký tự')
+      .trim(),
+
+    body('region')
+      .notEmpty().withMessage('Vùng miền không được để trống')
+      .isIn(['Bac', 'Trung', 'Nam']).withMessage('Vùng miền phải là Bac, Trung hoặc Nam'),
+
+    body('type')
+      .notEmpty().withMessage('Loại địa điểm không được để trống')
+      .isIn(['church', 'shrine', 'monastery', 'center', 'other'])
+      .withMessage('Loại địa điểm phải là church, shrine, monastery, center hoặc other'),
+
+    body('description').optional().isString().trim(),
+    body('history').optional().isString().trim(),
+    body('address').optional().isString().trim(),
+    body('district').optional().isLength({ max: 100 }).trim(),
+    body('latitude').optional().isFloat({ min: -90, max: 90 }),
+    body('longitude').optional().isFloat({ min: -180, max: 180 }),
+    body('patron_saint').optional().isLength({ max: 255 }).trim(),
+    body('opening_hours').optional().custom((value) => {
+      if (typeof value === 'string') { try { JSON.parse(value); } catch { throw new Error('Giờ mở cửa phải là JSON hợp lệ'); } }
+      return true;
+    }),
+    body('contact_info').optional().custom((value) => {
+      if (typeof value === 'string') { try { JSON.parse(value); } catch { throw new Error('Thông tin liên hệ phải là JSON hợp lệ'); } }
+      return true;
+    })
   ];
 
   // Validate update site (all fields optional for partial update)
