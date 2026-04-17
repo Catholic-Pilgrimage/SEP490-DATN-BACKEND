@@ -737,5 +737,12 @@
     "already_processed": "Friend request has already been processed",
     "forbidden_respond": "Only the recipient can respond to this request",
     "friendship_not_found": "Friendship not found"
+  },
+  "ai_prompt": {
+    "list_success": "AI prompts retrieved successfully",
+    "get_success": "AI prompt retrieved successfully",
+    "update_success": "AI prompt updated successfully",
+    "not_found": "Prompt not found",
+    "invalid_key": "Invalid prompt key"
   }
 }

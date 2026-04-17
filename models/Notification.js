@@ -63,6 +63,7 @@ const Notification = sequelize.define('Notification', {
                 // Admin notifications
                 'verification_submitted',
                 'site_registration_submitted',
+                'site_ready_for_publish',
                 // Manager notifications (content submitted by LocalGuide)
                 'media_submitted',
                 'event_submitted',

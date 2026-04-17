@@ -464,11 +464,11 @@ class PilgrimSiteService {
   }
 
   /**
-   * Public: Get sites available for manager transition
-   * Criteria:
-   * - Site is active
-   * - Site has a current manager
-   * - No pending transition request for this site
+   * Public: Get sites available for claim or manager transition
+   * Returns:
+   *   - Sites with a current active manager (claim_type = 'transition')
+   *   - Sites with NO manager, created by admin (claim_type = 'unassigned')
+   * Both types must have no pending claim/transition request.
    */
   static async getAvailableSites(filters = {}) {
     try {
@@ -476,82 +476,71 @@ class PilgrimSiteService {
       const limit = parseInt(filters.limit) || 10;
       const offset = (page - 1) * limit;
 
-      // Get sites with active managers (using 'siteStaff' association)
-      const sitesWithManagers = await Site.findAll({
-        where: { is_active: true },
-        attributes: ['id'],
-        include: [{
-          model: User,
-          as: 'siteStaff',
-          where: {
-            role: 'manager',
-            status: 'active'
-          },
-          required: true,
-          attributes: ['id']
-        }]
-      });
-
-      const siteIdsWithManagers = sitesWithManagers.map(s => s.id);
-
-      if (siteIdsWithManagers.length === 0) {
-        return {
-          data: [],
-          pagination: { page, limit, totalItems: 0, totalPages: 0 }
-        };
-      }
-
-      // Exclude sites that already have pending transition requests
-      const pendingTransitions = await VerificationRequest.findAll({
-        where: {
-          existing_site_id: { [Op.ne]: null },
-          status: 'pending'
-        },
-        attributes: ['existing_site_id']
-      });
-
-      const excludeSiteIds = pendingTransitions.map(r => r.existing_site_id);
-      const availableSiteIds = siteIdsWithManagers.filter(id => !excludeSiteIds.includes(id));
-
-      if (availableSiteIds.length === 0) {
-        return {
-          data: [],
-          pagination: { page, limit, totalItems: 0, totalPages: 0 }
-        };
-      }
-
-      // Build where clause
-      const where = {
-        id: { [Op.in]: availableSiteIds },
-        is_active: true
-      };
-
-      // Optional filters
-      if (filters.province) where.province = filters.province;
-      if (filters.region) where.region = filters.region;
-      if (filters.search) {
-        where.name = { [Op.iLike]: `%${filters.search}%` };
-      }
-
-      // Fetch available sites with manager info
-      const { count, rows } = await Site.findAndCountAll({
-        where,
-        attributes: ['id', 'code', 'name', 'address', 'province', 'region', 'type', 'cover_image'],
+      // Get all sites (active OR inactive pre-created) with optional manager via LEFT JOIN
+      const allSites = await Site.findAll({
+        attributes: ['id', 'code', 'name', 'address', 'province', 'region', 'type', 'cover_image', 'is_active'],
         include: [{
           model: User,
           as: 'siteStaff',
           where: { role: 'manager', status: 'active' },
-          required: true,
+          required: false, // LEFT JOIN: also return sites with no manager
           attributes: ['id', 'full_name', 'email']
-        }],
-        order: [['name', 'ASC']],
-        limit,
-        offset
+        }]
       });
 
-      // Format response (siteStaff is array, get first manager)
-      const data = rows.map(site => {
-        const manager = site.siteStaff && site.siteStaff.find(u => u.role === 'manager');
+      // Separate sites:
+      //   managed = active site that already has a manager (transition candidate)
+      //   unassigned = inactive site with no manager (admin placeholder, claim candidate)
+      const sitesWithManagers = allSites.filter(s => s.is_active && s.siteStaff && s.siteStaff.length > 0);
+      const sitesWithoutManagers = allSites.filter(s => !s.siteStaff || s.siteStaff.length === 0);
+
+      // For unassigned sites, only include those that are NOT already active
+      // (is_active=false means admin-created placeholder awaiting a manager)
+      const unassignedSites = sitesWithoutManagers.filter(s => !s.is_active);
+
+      // Combine candidates
+      const candidates = [...sitesWithManagers, ...unassignedSites];
+      if (candidates.length === 0) {
+        return { data: [], pagination: { page, limit, totalItems: 0, totalPages: 0 } };
+      }
+
+      const candidateIds = candidates.map(s => s.id);
+
+      // Exclude any site that already has a pending claim/transition request
+      const pendingTransitions = await VerificationRequest.findAll({
+        where: {
+          existing_site_id: { [Op.in]: candidateIds },
+          status: 'pending'
+        },
+        attributes: ['existing_site_id']
+      });
+      const pendingSiteIds = new Set(pendingTransitions.map(r => r.existing_site_id));
+
+      let available = candidates.filter(s => !pendingSiteIds.has(s.id));
+
+      // Optional filters
+      if (filters.province) available = available.filter(s => s.province === filters.province);
+      if (filters.region) available = available.filter(s => s.region === filters.region);
+      if (filters.search) {
+        const q = filters.search.toLowerCase();
+        available = available.filter(s => s.name.toLowerCase().includes(q));
+      }
+      if (filters.claim_type) {
+        if (filters.claim_type === 'transition') {
+          available = available.filter(s => s.siteStaff && s.siteStaff.length > 0);
+        } else if (filters.claim_type === 'unassigned') {
+          available = available.filter(s => !s.siteStaff || s.siteStaff.length === 0);
+        }
+      }
+
+      // Paginate
+      const totalItems = available.length;
+      const paginated = available.slice(offset, offset + limit);
+
+      const data = paginated.map(site => {
+        const manager = site.siteStaff && site.siteStaff.length > 0
+          ? { id: site.siteStaff[0].id, full_name: site.siteStaff[0].full_name }
+          : null;
         return {
           id: site.id,
           code: site.code,
@@ -561,10 +550,8 @@ class PilgrimSiteService {
           region: site.region,
           type: site.type,
           cover_image: site.cover_image,
-          current_manager: manager ? {
-            id: manager.id,
-            full_name: manager.full_name
-          } : null
+          current_manager: manager,
+          claim_type: manager ? 'transition' : 'unassigned'
         };
       });
 
@@ -573,12 +560,12 @@ class PilgrimSiteService {
         pagination: {
           page,
           limit,
-          totalItems: count,
-          totalPages: Math.ceil(count / limit)
+          totalItems,
+          totalPages: Math.ceil(totalItems / limit)
         }
       };
     } catch (error) {
-      Logger.error('Get available sites for transition error:', error);
+      Logger.error('Get available sites for claim/transition error:', error);
       throw error;
     }
   }

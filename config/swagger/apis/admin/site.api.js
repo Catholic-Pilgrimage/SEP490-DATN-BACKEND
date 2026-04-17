@@ -10,6 +10,134 @@
 /**
  * @swagger
  * /api/admin/sites:
+ *   post:
+ *     summary: Tạo địa điểm mới (Admin pre-create, chưa có manager)
+ *     description: |
+ *       Admin tạo sẵn site (placeholder) để phục vụ demo hoặc dữ liệu nền.
+ *       Site được tạo với is_active = false và chưa có manager.
+ *       User có thể xin nhận quản lý qua flow transition/claim.
+ *     tags: [Admin - Sites]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - province
+ *               - region
+ *               - type
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: "Nhà thờ Đức Bà Sài Gòn"
+ *                 description: Tên địa điểm (2-255 ký tự)
+ *               province:
+ *                 type: string
+ *                 example: "Hồ Chí Minh"
+ *                 description: Tỉnh/Thành (bắt buộc)
+ *               region:
+ *                 type: string
+ *                 enum: [Bac, Trung, Nam]
+ *                 example: "Nam"
+ *               type:
+ *                 type: string
+ *                 enum: [church, shrine, monastery, center, other]
+ *                 example: "church"
+ *               description:
+ *                 type: string
+ *                 example: "Nhà thờ chính tòa của Tổng Giáo phận Sài Gòn"
+ *               history:
+ *                 type: string
+ *                 example: "Được xây dựng từ năm 1863-1880"
+ *               address:
+ *                 type: string
+ *                 example: "01 Công xã Paris, Bến Nghé, Quận 1"
+ *               district:
+ *                 type: string
+ *                 example: "Quận 1"
+ *               latitude:
+ *                 type: number
+ *                 example: 10.779738
+ *               longitude:
+ *                 type: number
+ *                 example: 106.699092
+ *               patron_saint:
+ *                 type: string
+ *                 example: "Đức Mẹ Vô Nhiễm Nguyên Tội"
+ *               cover_image:
+ *                 type: string
+ *                 format: binary
+ *               opening_hours:
+ *                 type: string
+ *                 example: '{"monday":"05:00-18:00"}'
+ *               contact_info:
+ *                 type: string
+ *                 example: '{"phone":"028-3822-0477"}'
+ *     responses:
+ *       201:
+ *         description: Tạo thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Tạo địa điểm thành công"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       format: uuid
+ *                     code:
+ *                       type: string
+ *                       example: "CHNAM099"
+ *                     name:
+ *                       type: string
+ *                       example: "Nhà thờ Đức Bà Sài Gòn"
+ *                     province:
+ *                       type: string
+ *                     region:
+ *                       type: string
+ *                       enum: [Bac, Trung, Nam]
+ *                     type:
+ *                       type: string
+ *                     is_active:
+ *                       type: boolean
+ *                       example: false
+ *                       description: Luôn là false khi admin pre-create
+ *                     created_by:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                           format: uuid
+ *                         full_name:
+ *                           type: string
+ *                         email:
+ *                           type: string
+ *                     created_at:
+ *                       type: string
+ *                       format: date-time
+ *       400:
+ *         description: Dữ liệu không hợp lệ
+ *       403:
+ *         description: Không có quyền admin
+ *       409:
+ *         description: Mã site đã tồn tại
+ */
+
+/**
+ * @swagger
+ * /api/admin/sites:
  *   get:
  *     summary: Lấy danh sách địa điểm (Admin only)
  *     tags: [Admin - Sites]

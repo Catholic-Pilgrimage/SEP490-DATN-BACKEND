@@ -12,16 +12,9 @@ const Logger = require('../../utils/logger.util');
  *   - Never cache errors, quota failures, or invalid schemas
  *   - suggestPrayer: no DB cache (sensitive/personal data)
  *   - suggestRoute: bypass Phase 1 (high request variance)
+ *   - Prompt versioning: each AI service gets version from AiPromptService
+ *     and passes it into buildCacheKey(). No hardcoded PROMPT_VERSIONS here.
  */
-
-// ─── Prompt versions: bump when prompt text changes ───
-const PROMPT_VERSIONS = {
-    summarize_reviews: 'v1',
-    suggest_events: 'v1',
-    generate_article: 'v1',
-    translate_post: 'v1',
-    translate_comment: 'v1'
-};
 
 // ─── TTL configs (milliseconds) ───
 const TTL = {
@@ -135,4 +128,4 @@ class AiCacheService {
     }
 }
 
-module.exports = { AiCacheService, PROMPT_VERSIONS, TTL, MODEL_VERSION };
+module.exports = { AiCacheService, TTL, MODEL_VERSION };

@@ -226,8 +226,27 @@ class ManagerSiteService {
         if (existingSite) throw new Error('Site already exists');
       }
 
+      // Check readiness BEFORE update
+      const checkReadiness = (s) => {
+        return Boolean(s.name && s.province && s.address && s.latitude && s.longitude && s.cover_image && s.description && s.description.length >= 20);
+      };
+      const wasReady = checkReadiness(site);
+
       await site.update(dataToUpdate);
       Logger.info(`Site updated by manager ${managerId}: ${site.code}`);
+
+      // Check readiness AFTER update
+      const isReadyNow = checkReadiness(site);
+
+      // If it transitioned from not ready to ready AND is currently inactive, notify admins
+      if (!site.is_active && !wasReady && isReadyNow) {
+        await NotificationService.notifyAllAdmins('site_ready_for_publish', {
+          siteName: site.name,
+          siteCode: site.code,
+          managerName: manager.full_name
+        });
+        Logger.info(`Site ${site.code} is now fully populated. Notifying admins for review.`);
+      }
 
       // Notify users who favorited this site 
       const importantFields = ['opening_hours', 'address', 'contact_info'];

@@ -25,6 +25,30 @@ const parseJsonFields = (req, res) => {
     return null;
 };
 
+// Admin: Create placeholder site
+exports.createSite = async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return ResponseUtil.badRequest(res, req.__('validation.failed'), formatValidationErrors(errors.array()));
+        }
+
+        const parseError = parseJsonFields(req, res);
+        if (parseError) return parseError;
+
+        const result = await adminSiteService.createSite(req.body, req.user.id);
+        return ResponseUtil.created(res, result, req.__('site.create_success'));
+    } catch (error) {
+        if (error.message === 'name, province, region, type are required') {
+            return ResponseUtil.badRequest(res, req.__('validation.failed'));
+        }
+        if (error.message === 'Site code already exists') {
+            return ResponseUtil.conflict(res, req.__('site.already_exists'));
+        }
+        return ResponseUtil.error(res, req.__('error.server_error'));
+    }
+};
+
 // Admin: Get all sites
 exports.getSites = async (req, res) => {
     try {

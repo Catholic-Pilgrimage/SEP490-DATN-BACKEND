@@ -127,9 +127,9 @@ exports.getPublicSiteNearbyPlaces = async (req, res) => {
 // Public: Get sites available for manager transition
 exports.getAvailableSites = async (req, res) => {
     try {
-        const { page, limit, province, region, search } = req.query;
+        const { page, limit, province, region, search, claim_type } = req.query;
         const result = await PilgrimSiteService.getAvailableSites({
-            page, limit, province, region, search
+            page, limit, province, region, search, claim_type
         });
         return ResponseUtil.success(res, result, req.__('site.available_sites_success'));
     } catch (error) {

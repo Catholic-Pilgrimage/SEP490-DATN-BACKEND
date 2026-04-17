@@ -14,6 +14,16 @@ const { upload } = require('../config/cloudinary.config');
 const adminRouter = express.Router();
 adminRouter.use(i18nMiddleware);
 
+// POST /api/admin/sites - Create placeholder site (pre-created, unmanaged)
+adminRouter.post(
+  '/',
+  authMiddleware,
+  authMiddleware.authorize('admin'),
+  upload.single('cover_image'),
+  SiteValidator.createSiteAdmin,
+  AdminSiteController.createSite
+);
+
 // GET /api/admin/sites - Get all sites
 adminRouter.get(
   '/',

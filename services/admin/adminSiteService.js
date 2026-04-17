@@ -654,6 +654,63 @@ class AdminSiteService {
       throw error;
     }
   }
+
+  /**
+   * Admin: Create a placeholder site (pre-created, unmanaged, is_active=false by default)
+   */
+  static async createSite(siteData, adminId) {
+    try {
+      const { ManagerSiteService } = require('../manager');
+      const { name, province, region, type, description, history, address, district,
+        latitude, longitude, patron_saint, opening_hours, contact_info, cover_image, code: requestedCode } = siteData;
+
+      if (!name || !province || !region || !type) {
+        throw new Error('name, province, region, type are required');
+      }
+      if (!['Bac', 'Trung', 'Nam'].includes(region)) {
+        throw new Error('Invalid region. Must be Bac, Trung or Nam');
+      }
+      if (!['church', 'shrine', 'monastery', 'center', 'other'].includes(type)) {
+        throw new Error('Invalid type. Must be church, shrine, monastery, center or other');
+      }
+
+      let code;
+      if (requestedCode) {
+        const existing = await Site.findOne({ where: { code: requestedCode } });
+        if (existing) throw new Error('Site code already exists');
+        code = requestedCode;
+      } else {
+        code = await ManagerSiteService.generateSiteCode(type, region);
+      }
+
+      const site = await Site.create({
+        code,
+        name: name.trim(),
+        province: province.trim(),
+        region,
+        type,
+        description: description?.trim() || null,
+        history: history?.trim() || null,
+        address: address?.trim() || null,
+        district: district?.trim() || null,
+        latitude: latitude || null,
+        longitude: longitude || null,
+        patron_saint: patron_saint?.trim() || null,
+        cover_image: cover_image || null,
+        opening_hours: opening_hours || null,
+        contact_info: contact_info || null,
+        created_by: adminId,
+        is_active: false // Placeholder: admin publishes after manager is assigned
+      });
+
+      Logger.info(`Admin ${adminId} created placeholder site: ${site.code} - ${site.name}`);
+      const creator = await User.findByPk(adminId, { attributes: ['id', 'full_name', 'email'] });
+      return this.formatSiteResponse(site, creator);
+    } catch (error) {
+      Logger.error('Admin create site error:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = AdminSiteService;

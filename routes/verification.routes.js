@@ -21,10 +21,11 @@ publicRouter.post(
     PilgrimVerificationController.createGuestRequest
 );
 
-// POST - Submit transition request (guest or pilgrim)
+// POST - Submit transition request (guest or pilgrim, no auth)
 publicRouter.post(
     '/transition',
     uploadDocument.single('certificate'),
+    VerificationValidator.createTransitionRequestGuest,
     PilgrimVerificationController.createTransitionRequest
 );
 
@@ -48,6 +49,7 @@ pilgrimRouter.post(
     authMiddleware,
     authMiddleware.authorize('pilgrim'),
     uploadDocument.single('certificate'),
+    VerificationValidator.createTransitionRequestPilgrim,
     PilgrimVerificationController.createTransitionRequest
 );
 

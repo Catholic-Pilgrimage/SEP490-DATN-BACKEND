@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { AdminUserController, AdminDashboardController, AdminFinanceController } = require('../controllers/admin');
+const { AdminUserController, AdminDashboardController, AdminFinanceController, AiPromptController } = require('../controllers/admin');
 const ReportController = require('../controllers/ReportController');
 const AdminValidator = require('../validators/admin.validator');
 const authMiddleware = require('../middlewares/auth.middleware');
@@ -37,5 +37,9 @@ router.get('/reports', ReportController.getReports);
 router.get('/reports/:id', ReportController.getReportById);
 router.put('/reports/:id/resolve', ReportController.resolveReport);
 
-module.exports = router;
+// AI Prompt Management routes
+router.get('/ai-prompts', AiPromptController.getAllPrompts);
+router.get('/ai-prompts/:key', AdminValidator.getAiPromptByKey, handleValidationErrors, AiPromptController.getPromptByKey);
+router.put('/ai-prompts/:key', AdminValidator.updateAiPromptByKey, handleValidationErrors, AiPromptController.updatePromptByKey);
 
+module.exports = router;

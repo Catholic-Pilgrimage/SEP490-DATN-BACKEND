@@ -180,19 +180,18 @@ class PilgrimVerificationService {
                 throw new Error('existing_site_id is required');
             }
 
-            // Check if site exists and is active
+            // Site must exist; does NOT need to be active — admin-created placeholders are is_active=false
             const site = await Site.findOne({
                 where: {
-                    id: data.existing_site_id,
-                    is_active: true
+                    id: data.existing_site_id
                 }
             });
 
             if (!site) {
-                throw new Error('Site not found or not active');
+                throw new Error('Site not found');
             }
 
-            // Check if site has a current manager
+            // Check if site has a current manager (may be null for unassigned pre-created sites)
             const currentManager = await User.findOne({
                 where: {
                     site_id: data.existing_site_id,
@@ -201,9 +200,7 @@ class PilgrimVerificationService {
                 }
             });
 
-            if (!currentManager) {
-                throw new Error('This site does not have a manager. Use normal verification request instead.');
-            }
+            // NOTE: !currentManager is allowed — unassigned sites (admin pre-created) can be claimed here
 
             let user = null;
             let applicantEmail = null;
@@ -270,11 +267,6 @@ class PilgrimVerificationService {
                 throw new Error('This site already has a pending transition request');
             }
 
-            // Validate transition_reason
-            if (!data.transition_reason) {
-                throw new Error('transition_reason is required');
-            }
-
             // Generate code
             const code = await this.generateCode();
 
@@ -299,7 +291,7 @@ class PilgrimVerificationService {
                 status: 'pending'
             });
 
-            Logger.info(`Transition request created: ${request.code} for site ${site.name}`);
+            Logger.info(`Transition/Claim request created: ${request.code} for site ${site.name} (claim_type: ${currentManager ? 'transition' : 'unassigned'})`);
 
             // Notify all admins
             await NotificationService.notifyAllAdmins('verification_submitted', {
@@ -314,11 +306,12 @@ class PilgrimVerificationService {
                 existing_site: {
                     id: site.id,
                     name: site.name,
-                    current_manager: {
+                    current_manager: currentManager ? {
                         id: currentManager.id,
                         full_name: currentManager.full_name
-                    }
+                    } : null
                 },
+                claim_type: currentManager ? 'transition' : 'unassigned',
                 transition_reason: request.transition_reason,
                 certificate_url: request.certificate_url,
                 introduction: request.introduction,
@@ -336,8 +329,15 @@ class PilgrimVerificationService {
      */
     static async getMyRequest(userId) {
         try {
+            const { Site } = require('../../models');
+
             const request = await VerificationRequest.findOne({
                 where: { user_id: userId },
+                include: [{
+                    model: Site,
+                    as: 'existingSite',
+                    attributes: ['cover_image']
+                }],
                 order: [['created_at', 'DESC']]
             });
 
@@ -353,6 +353,7 @@ class PilgrimVerificationService {
                 site_province: request.site_province,
                 site_type: request.site_type,
                 site_region: request.site_region,
+                site_cover_image: request.existingSite?.cover_image || null,
                 certificate_url: request.certificate_url,
                 introduction: request.introduction,
                 status: request.status,

@@ -13,10 +13,13 @@
  * @swagger
  * /api/sites/available:
  *   get:
- *     summary: Danh sách địa điểm có thể xin quản lý (Manager Transition)
+ *     summary: Danh sách địa điểm có thể xin quản lý (Claim / Transition)
  *     description: |
- *       Lấy danh sách các địa điểm đang có Manager nhưng chưa có yêu cầu transition pending.
- *       Dùng cho flow xin thay thế Manager hiện tại.
+ *       Lấy danh sách các địa điểm có thể xin nhận quản lý.
+ *       Bao gồm 2 loại:
+ *       - **transition**: Site đang active, có Manager hiện tại → xin thay thế Manager.
+ *       - **unassigned**: Site do Admin tạo sẵn (is_active=false), chưa có Manager → xin nhận quản lý.
+ *       Cả 2 loại đều phải chưa có yêu cầu transition/claim pending.
  *     tags: [Public - Sites]
  *     parameters:
  *       - in: query
@@ -47,6 +50,12 @@
  *         schema:
  *           type: string
  *         description: Tìm theo tên địa điểm
+ *       - in: query
+ *         name: claim_type
+ *         schema:
+ *           type: string
+ *           enum: [transition, unassigned]
+ *         description: Lọc theo loại chuyển quyền (Manager hiện tại / Chỗ trống)
  *     responses:
  *       200:
  *         description: Thành công
@@ -77,6 +86,8 @@
  *                           name:
  *                             type: string
  *                             example: "Nhà thờ Đức Bà"
+ *                           address:
+ *                             type: string
  *                           province:
  *                             type: string
  *                           region:
@@ -85,13 +96,19 @@
  *                             type: string
  *                           cover_image:
  *                             type: string
- *                           manager:
+ *                           current_manager:
  *                             type: object
+ *                             nullable: true
+ *                             description: "null nếu site chưa có manager (unassigned)"
  *                             properties:
  *                               id:
  *                                 type: string
  *                               full_name:
  *                                 type: string
+ *                           claim_type:
+ *                             type: string
+ *                             enum: [transition, unassigned]
+ *                             description: "'transition' = site có manager, 'unassigned' = site admin tạo sẵn chưa có manager"
  *                     pagination:
  *                       type: object
  *                       properties:

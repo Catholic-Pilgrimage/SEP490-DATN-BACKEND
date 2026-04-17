@@ -29,14 +29,23 @@ class AdminVerificationService {
 
             const offset = (page - 1) * limit;
 
+            const { Site } = require('../../models');
+
             const { rows: requests, count: total } = await VerificationRequest.findAndCountAll({
                 where,
-                include: [{
-                    model: User,
-                    as: 'applicant',
-                    attributes: ['id', 'full_name', 'email', 'avatar_url'],
-                    required: false
-                }],
+                include: [
+                    {
+                        model: User,
+                        as: 'applicant',
+                        attributes: ['id', 'full_name', 'email', 'avatar_url'],
+                        required: false
+                    },
+                    {
+                        model: Site,
+                        as: 'existingSite',
+                        attributes: ['cover_image']
+                    }
+                ],
                 limit: parseInt(limit),
                 offset,
                 order: [['created_at', 'DESC']]
@@ -51,6 +60,7 @@ class AdminVerificationService {
                     site_province: r.site_province,
                     site_type: r.site_type,
                     site_region: r.site_region,
+                    site_cover_image: r.existingSite?.cover_image || null,
                     certificate_url: r.certificate_url,
                     introduction: r.introduction,
                     status: r.status,
@@ -163,6 +173,7 @@ class AdminVerificationService {
                     name: site?.name,
                     code: site?.code
                 };
+                response.site_cover_image = site?.cover_image || null;
             }
 
             return response;

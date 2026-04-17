@@ -425,6 +425,16 @@ const NOTIFICATION_TEMPLATES = {
             message: '{{managerName}} registered to manage site "{{siteName}}"'
         }
     },
+    site_ready_for_publish: {
+        vi: {
+            title: 'Địa điểm sẵn sàng Active',
+            message: 'Địa điểm "{{siteName}}" ({{siteCode}}) đã được cập nhật đủ thông tin cơ bản. Admin có thể xem xét Active.'
+        },
+        en: {
+            title: 'Site ready for Publish',
+            message: 'Site "{{siteName}}" ({{siteCode}}) is now fully populated. Admin can review and activate it.'
+        }
+    },
 
     // Manager notifications (content submitted by LocalGuide)
     media_submitted: {

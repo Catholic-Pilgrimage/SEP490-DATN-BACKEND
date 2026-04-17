@@ -22,10 +22,34 @@ const imageStorage = new CloudinaryStorage({
 // Document storage (for PDF, certificates, etc.)
 const documentStorage = new CloudinaryStorage({
     cloudinary: cloudinary,
-    params: {
-        folder: 'catholic_pilgrimage/documents',
-        allowed_formats: ['pdf', 'jpg', 'png', 'jpeg', 'webp'],
-        resource_type: 'auto'
+    params: async (req, file) => {
+        const isPdf = file.mimetype === 'application/pdf' ||
+            file.originalname.toLowerCase().endsWith('.pdf');
+        const isDoc = file.mimetype.includes('word') ||
+            file.originalname.toLowerCase().match(/\.(doc|docx)$/);
+
+        if (isPdf || isDoc) {
+            // Safely decode originalname in case it contains %20 instead of literal spaces
+            let safeName = file.originalname;
+            try { safeName = decodeURIComponent(file.originalname); } catch (e) { }
+
+            return {
+                folder: 'catholic_pilgrimage/documents',
+                resource_type: 'raw',     // Force raw for PDF/DOC — 'auto' puts them under /image/ which returns 401
+                type: 'upload',
+                access_mode: 'public',
+                // For 'raw', Cloudinary does NOT automatically add the extension back, so we MUST keep it!
+                public_id: safeName.replace(/\s+/g, '_')
+            };
+        }
+
+        // For images (certificates as JPG/PNG)
+        return {
+            folder: 'catholic_pilgrimage/documents',
+            allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+            resource_type: 'image',
+            transformation: [{ width: 1200, height: 1200, crop: 'limit' }]
+        };
     }
 });
 
