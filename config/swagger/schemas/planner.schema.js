@@ -103,6 +103,12 @@
  *           format: uuid
  *           example: "123e4567-e89b-12d3-a456-426614174000"
  *           description: "ID của địa điểm"
+ *         event_id:
+ *           type: string
+ *           format: uuid
+ *           nullable: true
+ *           example: "223e4567-e89b-12d3-a456-426614174000"
+ *           description: "ID của sự kiện gắn với điểm đến (nếu có)"
  *         leg_number:
  *           type: integer
  *           minimum: 1
@@ -278,6 +284,11 @@
  *         is_locked:
  *           type: boolean
  *           description: "Cho biết planner hiện đang bị khóa chỉnh sửa hay không"
+ *         last_closed_day:
+ *           type: integer
+ *           minimum: 0
+ *           example: 1
+ *           description: "Ngày đã chốt gần nhất của hành trình ongoing (0 = chưa chốt ngày nào)"
  *         share_token:
  *           type: string
  *         qr_code_url:
