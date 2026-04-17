@@ -971,6 +971,10 @@ class PlannerService {
                 throw new Error(`Cannot update ${planner.status} plan`);
             }
 
+            if (planner.status === 'ongoing') {
+                throw new Error('Cannot update ongoing plan');
+            }
+
             // Check final lock
             if (plannerState.editLocked) {
                 throw new Error('Planner is locked');
@@ -989,6 +993,14 @@ class PlannerService {
             const currentStartDate = this.normalizeDateOnlyValue(planner.start_date);
             const currentEndDate = this.normalizeDateOnlyValue(planner.end_date);
             const isUpdatingEndDate = requestedEndDate !== undefined && requestedEndDate !== currentEndDate;
+
+            const isChangingStartDate = requestedStartDate !== undefined && requestedStartDate !== currentStartDate;
+            const isChangingEndDate = requestedEndDate !== undefined && requestedEndDate !== currentEndDate;
+
+            if (planner.status === 'ongoing' && (isChangingStartDate || isChangingEndDate)) {
+                throw new Error('Planner dates can only be set during creation');
+            }
+
             const effectiveNumPeopleForDateRule = Number(updateData.number_of_people ?? planner.number_of_people ?? 1);
             const isGroupPlannerForDateRule = Number.isFinite(effectiveNumPeopleForDateRule)
                 ? effectiveNumPeopleForDateRule > 1
@@ -1632,32 +1644,51 @@ class PlannerService {
                     site_id = event.site_id;
                 }
 
-                // Calculate leg_number: use planner dates if available, otherwise use next available day
+                // Calculate leg_number: support manual day pinning and auto day range mapping
                 let calculatedLegNumber;
                 let eventStartDate = null;
                 let eventEndDate = null;
+                let plannerStartDate = null;
                 let plannerEndDate = null;
+                let effectiveEventStartDate = null;
+                let effectiveEventEndDate = null;
+                const requestedLegNumber = Number.parseInt(leg_number, 10);
+                const hasManualLegNumber = Number.isInteger(requestedLegNumber) && requestedLegNumber >= 1;
 
                 if (planner.start_date && planner.end_date) {
-                    // Calculate from planner dates (existing logic)
-                    const plannerStartDate = new Date(planner.start_date);
+                    plannerStartDate = new Date(planner.start_date);
+                    plannerEndDate = new Date(planner.end_date);
                     eventStartDate = new Date(event.start_date);
                     eventEndDate = event.end_date ? new Date(event.end_date) : new Date(event.start_date);
 
                     plannerStartDate.setHours(0, 0, 0, 0);
+                    plannerEndDate.setHours(0, 0, 0, 0);
                     eventStartDate.setHours(0, 0, 0, 0);
                     eventEndDate.setHours(0, 0, 0, 0);
 
-                    plannerEndDate = new Date(planner.end_date);
-                    plannerEndDate.setHours(0, 0, 0, 0);
+                    const totalDays = Math.ceil((plannerEndDate - plannerStartDate) / (1000 * 60 * 60 * 24)) + 1;
 
-                    // Validate event dates are within planner range
-                    if (eventStartDate < plannerStartDate || eventStartDate > plannerEndDate) {
-                        throw new Error(`Sự kiện "${event.name}" bắt đầu ngày ${event.start_date} không nằm trong lịch trình (${planner.start_date} - ${planner.end_date}).`);
+                    if (hasManualLegNumber) {
+                        if (requestedLegNumber > totalDays) {
+                            throw new Error(`Invalid day number. Must be between 1 and ${totalDays}`);
+                        }
+
+                        // User pins the event item to a specific day: create only that day.
+                        calculatedLegNumber = requestedLegNumber;
+                        effectiveEventStartDate = new Date(plannerStartDate);
+                        effectiveEventStartDate.setDate(effectiveEventStartDate.getDate() + (requestedLegNumber - 1));
+                        effectiveEventEndDate = new Date(effectiveEventStartDate);
+                    } else {
+                        // Auto map: use overlap between event range and planner range.
+                        if (eventEndDate < plannerStartDate || eventStartDate > plannerEndDate) {
+                            throw new Error(`Sự kiện "${event.name}" không giao với lịch trình (${planner.start_date} - ${planner.end_date}).`);
+                        }
+
+                        effectiveEventStartDate = eventStartDate > plannerStartDate ? new Date(eventStartDate) : new Date(plannerStartDate);
+                        effectiveEventEndDate = eventEndDate < plannerEndDate ? new Date(eventEndDate) : new Date(plannerEndDate);
+
+                        calculatedLegNumber = Math.ceil((effectiveEventStartDate - plannerStartDate) / (1000 * 60 * 60 * 24)) + 1;
                     }
-
-                    // Calculate leg_number (1-based)
-                    calculatedLegNumber = Math.ceil((eventStartDate - plannerStartDate) / (1000 * 60 * 60 * 24)) + 1;
                 } else {
                     // Không có ngày: dùng leg_number tiếp theo trong planner
                     const existingItems = await PlannerItem.findAll({
@@ -1712,16 +1743,15 @@ class PlannerService {
                     Logger.info(`Event ${event.name}: auto-calculated rest_duration = ${rest_duration}`);
                 }
 
-                // Check if event spans multiple days
-                const eventDays = Math.ceil((eventEndDate - eventStartDate) / (1000 * 60 * 60 * 24)) + 1;
+                // Check if event spans multiple days (manual day pinning always keeps a single item)
+                const effectiveStart = effectiveEventStartDate || eventStartDate;
+                const effectiveEnd = effectiveEventEndDate || eventEndDate;
+                const eventDays = (effectiveStart && effectiveEnd)
+                    ? (Math.ceil((effectiveEnd - effectiveStart) / (1000 * 60 * 60 * 24)) + 1)
+                    : 1;
 
-                if (eventDays > 1) {
-                    // Validate all event days are within planner range
-                    if (eventEndDate > plannerEndDate) {
-                        throw new Error(`Sự kiện "${event.name}" kết thúc ngày ${event.end_date} vượt quá lịch trình (kết thúc ${planner.end_date}).`);
-                    }
-
-                    // Prepare multi-day items
+                if (eventDays > 1 && !hasManualLegNumber) {
+                    // Prepare multi-day items based on overlap with planner range
                     multiDayItems = [];
                     for (let i = 0; i < eventDays; i++) {
                         multiDayItems.push({
@@ -1732,7 +1762,7 @@ class PlannerService {
                         });
                     }
 
-                    Logger.info(`Event ${event.name}: multi-day event (${eventDays} days), creating ${multiDayItems.length} items`);
+                    Logger.info(`Event ${event.name}: multi-day overlap (${eventDays} days), creating ${multiDayItems.length} items`);
                 }
 
                 // Set default note if not provided
@@ -3166,6 +3196,9 @@ class PlannerService {
             planner_lock_at: statusLockAt,
             edit_lock_at: effectiveEditLockAt,
             is_locked: this.isPlannerLocked(planner),
+            last_closed_day: Number.isInteger(Number(planner.last_closed_day))
+                ? Number(planner.last_closed_day)
+                : 0,
             share_token: planner.share_token,
             qr_code_url: planner.qr_code_url,
             owner: planner.owner ? {
@@ -3632,18 +3665,10 @@ class PlannerService {
                 throw new Error('Planner day has no items');
             }
 
-            if (normalizedDayNumber === currentClosedDay) {
-                const nextDayToClose = normalizedDayNumber + 1;
-                const hasNextDay = Boolean(dayProgress.dayStatsByLeg.get(nextDayToClose));
-
-                return {
-                    planner_id: plannerId,
-                    closed_day: normalizedDayNumber,
-                    next_day_to_close: hasNextDay ? nextDayToClose : null,
-                    has_next_day: hasNextDay,
-                    messageKey: 'planner.day_close_success',
-                    messageParams: { day: normalizedDayNumber }
-                };
+            if (normalizedDayNumber <= currentClosedDay) {
+                const error = new Error('Planner day already closed');
+                error.day = normalizedDayNumber;
+                throw error;
             }
 
             const expectedDay = currentClosedDay + 1;

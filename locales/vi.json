@@ -448,6 +448,7 @@
     "day_close_invalid": "Ngày chốt không hợp lệ.",
     "day_close_not_ongoing": "Chỉ có thể chốt ngày khi hành trình đang diễn ra.",
     "day_close_no_items": "Ngày này chưa có địa điểm để chốt.",
+    "day_close_already_closed": "Ngày {{day}} đã được chốt trước đó.",
     "day_close_incomplete": "Chưa thể chốt Ngày {{day}} vì còn {{remaining}} địa điểm chưa visited hoặc skipped. Vui lòng check-in hoặc skip hết rồi chốt lại.",
     "day_close_sequential": "Bạn cần chốt ngày {{day}} trước.",
     "day_close_sequential_incomplete_prev": "Vui lòng chốt xong Ngày {{day}} trước. Ngày này còn {{remaining}} địa điểm chưa visited hoặc skipped.",
