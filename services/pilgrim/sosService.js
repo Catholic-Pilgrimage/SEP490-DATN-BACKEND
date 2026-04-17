@@ -336,26 +336,8 @@ class PilgrimSOSService {
             for (const plannerId of activePlannerIds) {
                 try {
                     // Send an automated system message to the chat
-                    const sosMessageContent = JSON.stringify({
-                        code: sos.code,
-                        sender_name: user.full_name || 'N/A',
-                        message: message || null,
-                        default_message: {
-                            vi: 'Tôi cần hỗ trợ khẩn cấp, xin hãy giúp đỡ!',
-                            en: 'I need urgent help, please assist me!'
-                        },
-                        latitude,
-                        longitude,
-                        contact_phone: contact_phone || user.phone
-                    });
-
-
-                    await PlannerMessage.create({
-                        planner_id: plannerId,
-                        user_id: userId,
-                        message_type: 'sos_alert',
-                        content: sosMessageContent,
-                    });
+                    const sosAlertMessage = `🚨 Tín hiệu khẩn cấp (SOS)! ${user.full_name || 'Một thành viên'} đang cần hỗ trợ.${message ? ` Lời nhắn: ${message}` : ''}`;
+                    await PlannerChatService.sendSystemMessage(plannerId, sosAlertMessage);
 
                     Logger.info(`SOS alert broadcasted to planner: ${plannerId}`);
 
@@ -520,24 +502,10 @@ class PilgrimSOSService {
                 const { PlannerMessage, User } = require('../../models');
                 const user = await User.findByPk(userId);
 
-                const cancelMessage = JSON.stringify({
-                    message_key: 'sos.sos_cancelled_message',
-                    params: {
-                        pilgrimName: user?.full_name || 'N/A'
-                    },
-                    default_message: {
-                        vi: `Tín hiệu SOS từ ${user?.full_name} đã được hủy.`,
-                        en: `SOS signal from ${user?.full_name} has been cancelled.`
-                    }
-                });
+                const cancelMessage = `✅ Tín hiệu SOS từ ${user?.full_name || 'thành viên'} đã được hủy.`;
 
                 for (const plannerId of activePlannerIds) {
-                    await PlannerMessage.create({
-                        planner_id: plannerId,
-                        user_id: userId,
-                        message_type: 'text',
-                        content: cancelMessage
-                    });
+                    await PlannerChatService.sendSystemMessage(plannerId, cancelMessage);
                 }
             } catch (chatError) {
                 Logger.error('Failed to broadcast cancel message to planner chat:', chatError);
