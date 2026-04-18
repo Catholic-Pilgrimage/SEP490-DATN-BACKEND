@@ -245,7 +245,7 @@ Return JSON:
           "site_name": "For display only",
           "day_number": 1,
           "order_index": 1,
-          "estimated_time": "08:00 (ONLY for order_index 1. For others, return null)",
+          "estimated_time": "08:00 (Must strictly calculate HH:mm for ALL items)",
           "rest_duration": "1h30m",
           "travel_time_minutes": 45,
           "note": "Ghi chú tâm linh (tiếng Việt) - vd: Tham dự Thánh Lễ lúc 09:00"
@@ -253,7 +253,7 @@ Return JSON:
       ]
     }
   ],
-  "summary": "Tóm tắt lộ trình (tiếng Việt, 2-3 câu). Nếu có tham dự sự kiện/thánh lễ nổi bật, hãy nhắc tới.",
+  "summary": "Tóm tắt lộ trình (tiếng Việt, 3-4 câu). BẮT BUỘC CÓ 1 CÂU GIẢI THÍCH LÝ DO vì sao chọn số ngày này (đặc biệt khi số ngày đưa ra ít hơn max_days). Ví dụ: 'Dựa trên 3 địa điểm bạn chọn, hành trình 2 ngày là thời gian tối ưu nhất để trải nghiệm trọn vẹn...'. Nhắc tên các sự kiện/thánh lễ nổi bật nếu có.",
   "total_estimated_km": 450,
   "tips": ["Mẹo cho khách hành hương (tiếng Việt)"]
 }
@@ -261,8 +261,9 @@ Return JSON:
 Rules for items:
 - order_index starts at 1 for each day and increments sequentially
 - For the FIRST item of each day: travel_time_minutes = 0. MUST provide estimated_time (e.g. "08:00").
-- For SUBSEQUENT items (order_index > 1): DO NOT calculate estimated_time (set to null), the system will auto-calculate it based on travel_time_minutes and previous rest_duration.
-- rest_duration must use format like "1h", "1h30m", "45m"`;
+- For SUBSEQUENT items (order_index > 1): You MUST calculate and provide the exact estimated_time in HH:mm format. Arrival Time = Previous Stop Time + Previous rest_duration + travel_time_minutes. DO NOT return null.
+- rest_duration MUST use format like "1 hour", "1 hour 30 minutes", "45 minutes" (DO NOT use "1h", "1h30m", "45m")
+- CRITICAL SCHEDULING RULE: DO NOT schedule the same site more than once per day! If a site has an Event, you MUST COMBINE the visit and the event into ONE SINGLE item by extending the rest_duration to cover both activities.`;
 
     Logger.info(`Google AI: Route for ${sites.length} sites, mode=${transport_mode}, priority=${priority}, prompt_source=${promptConfig.source}`);
     const result = await generateJSON('route', prompt, { temperature: 0.7 });
@@ -283,6 +284,20 @@ Rules for items:
           throw new Error('AI returned invalid route schema: item missing site_id/day_number/order_index');
         }
       }
+    }
+
+    // Auto-correct AI's date miscalculations
+    const actualDays = result.daily_itinerary.length;
+    result.planner.estimated_days = actualDays;
+
+    if (result.planner.start_date && result.planner.start_date !== 'null') {
+      const startDateObj = new Date(result.planner.start_date);
+      if (!Number.isNaN(startDateObj.getTime())) {
+        startDateObj.setDate(startDateObj.getDate() + actualDays - 1);
+        result.planner.end_date = startDateObj.toISOString().split('T')[0];
+      }
+    } else {
+      result.planner.end_date = null;
     }
 
     return {

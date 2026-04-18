@@ -2025,9 +2025,10 @@ class PlannerService {
                     throw new Error(`Duplicate time in day: ${finalEstimatedTime}, day ${leg_number}`);
                 }
             } else if (previousItem && previousItem.estimated_time) {
-                // If there's a previous item but no user input, auto-calculate with 0 travel time
-                finalEstimatedTime = calculateEstimatedTime(previousItem, travelTimeMinutes, '09:00');
-                Logger.info(`Auto-calculated estimated_time: ${finalEstimatedTime} (from ${previousItem.estimated_time} + ${parseDurationToMinutes(previousItem.rest_duration)}min rest + ${travelTimeMinutes}min travel)`);
+                // If there's a previous item but no user input, auto-calculate with travel_time_minutes
+                const travelMins = travel_time_minutes || 0;
+                finalEstimatedTime = calculateEstimatedTime(previousItem, travelMins, '09:00');
+                Logger.info(`Auto-calculated estimated_time: ${finalEstimatedTime} (from ${previousItem.estimated_time} + ${parseDurationToMinutes(previousItem.rest_duration)}min rest + ${travelMins}min travel)`);
             } else {
                 // First item in the day and NO user input
                 finalEstimatedTime = '09:00';
