@@ -45,8 +45,6 @@ DO $$ BEGIN
     -- Journal & Community
     CREATE TYPE journal_privacy AS ENUM ('private', 'public');
     CREATE TYPE content_status AS ENUM ('draft', 'published', 'pending', 'approved', 'rejected');
-    CREATE TYPE group_privacy AS ENUM ('public', 'private');
-    CREATE TYPE group_member_role AS ENUM ('admin', 'member');
     -- Others
     CREATE TYPE report_reason AS ENUM ('spam', 'harassment', 'hate_speech', 'false_information', 'violence', 'inappropriate', 'scam', 'other');
     CREATE TYPE report_status AS ENUM ('pending', 'resolved', 'reject', 'cancelled');
@@ -745,23 +743,6 @@ ADD COLUMN IF NOT EXISTS photo_url TEXT;
 CREATE INDEX IF NOT EXISTS idx_user_checkins_user ON user_checkins(user_id);
 
 -- ============================================
--- 9. PRAYER NOTES (NEW - Prayer Offering)
--- ============================================
-CREATE TABLE IF NOT EXISTS prayer_notes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    site_id UUID NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
-    checkin_id UUID NOT NULL REFERENCES user_checkins(id) ON DELETE CASCADE,
-    content TEXT NOT NULL,
-    privacy journal_privacy DEFAULT 'private',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_prayer_notes_user ON prayer_notes(user_id);
-CREATE INDEX IF NOT EXISTS idx_prayer_notes_site ON prayer_notes(site_id);
-CREATE INDEX IF NOT EXISTS idx_prayer_notes_privacy ON prayer_notes(privacy) WHERE privacy = 'public';
-
--- ============================================
 -- 10. JOURNAL & COMMUNITY
 -- ============================================
 
@@ -797,84 +778,10 @@ CREATE TRIGGER update_journals_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- 10.2 Groups
-CREATE TABLE IF NOT EXISTS groups (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    privacy group_privacy DEFAULT 'public',
-    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
-    avatar_url TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Trigger
-DROP TRIGGER IF EXISTS update_groups_updated_at ON groups;
-CREATE TRIGGER update_groups_updated_at
-    BEFORE UPDATE ON groups
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TABLE IF NOT EXISTS group_members (
-    group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    role group_member_role DEFAULT 'member',
-    joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (group_id, user_id)
-);
-
--- 10.2.1 Group Invites
-CREATE TABLE IF NOT EXISTS group_invites (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-    inviter_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    email VARCHAR(255) NOT NULL,
-    token VARCHAR(100) UNIQUE NOT NULL,
-    role group_member_role DEFAULT 'member',
-    status invite_status DEFAULT 'pending',
-    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_group_invites_group ON group_invites(group_id);
-CREATE INDEX IF NOT EXISTS idx_group_invites_email ON group_invites(email);
-CREATE INDEX IF NOT EXISTS idx_group_invites_token ON group_invites(token);
-CREATE INDEX IF NOT EXISTS idx_group_invites_status ON group_invites(status) WHERE status = 'pending';
-
--- 10.2.2 Group Join Requests
-CREATE TABLE IF NOT EXISTS group_join_requests (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    message TEXT,
-    status invite_status DEFAULT 'pending',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_group_join_requests_group ON group_join_requests(group_id);
-CREATE INDEX IF NOT EXISTS idx_group_join_requests_user ON group_join_requests(user_id);
-CREATE INDEX IF NOT EXISTS idx_group_join_requests_status ON group_join_requests(status) WHERE status = 'pending';
-
--- Constraint: 1 user only 1 pending request per group
-CREATE UNIQUE INDEX IF NOT EXISTS uq_group_join_requests_pending
-ON group_join_requests(group_id, user_id)
-WHERE status = 'pending';
-
--- Trigger
-DROP TRIGGER IF EXISTS update_group_join_requests_updated_at ON group_join_requests;
-CREATE TRIGGER update_group_join_requests_updated_at
-    BEFORE UPDATE ON group_join_requests
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
-
 -- 10.3 Posts
 CREATE TABLE IF NOT EXISTS posts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
     title TEXT,
     image_urls TEXT[],
@@ -897,7 +804,6 @@ ALTER TABLE posts
 ADD COLUMN IF NOT EXISTS audio_url TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id);
-CREATE INDEX IF NOT EXISTS idx_posts_group ON posts(group_id);
 CREATE INDEX IF NOT EXISTS idx_posts_journal ON posts(journal_id) WHERE journal_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_posts_site ON posts(site_id) WHERE site_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_posts_planner ON posts(planner_id) WHERE planner_id IS NOT NULL;
