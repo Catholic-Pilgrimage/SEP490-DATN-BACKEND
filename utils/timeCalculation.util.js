@@ -91,7 +91,7 @@ function calculateEstimatedTime(previousItem, travelTimeMinutes = 0, defaultStar
  * @returns {Object} - { isOpen: boolean, message: string }
  */
 function isWithinOpeningHours(time, openingHours, date) {
-    if (!openingHours || typeof openingHours !== 'object') {
+    if (!openingHours) {
         // No opening hours specified, assume always open
         return { isOpen: true };
     }
@@ -101,15 +101,24 @@ function isWithinOpeningHours(time, openingHours, date) {
     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const dayName = dayNames[dayOfWeek];
 
-    // Get opening hours for this day
-    const hoursForDay = openingHours[dayName];
+    let hoursForDay;
 
-    if (!hoursForDay) {
-        // No hours specified for this day, assume closed
-        return {
-            isOpen: false,
-            message: `Site is closed on ${dayName}s`
-        };
+    if (typeof openingHours === 'string') {
+        hoursForDay = openingHours;
+    } else if (typeof openingHours === 'object') {
+        if (openingHours.open && openingHours.close) {
+            hoursForDay = `${openingHours.open}-${openingHours.close}`;
+        } else {
+            hoursForDay = openingHours[dayName];
+            if (!hoursForDay) {
+                return {
+                    isOpen: false,
+                    message: `Site is closed on ${dayName}s`
+                };
+            }
+        }
+    } else {
+        return { isOpen: true };
     }
 
     // Parse opening hours (format: "HH:MM-HH:MM" or "HH:MM - HH:MM")
@@ -133,7 +142,21 @@ function isWithinOpeningHours(time, openingHours, date) {
     const inputTimeMinutes = inputHour * 60 + inputMin;
 
     // Check if time is within opening hours
-    if (inputTimeMinutes < openTimeMinutes || inputTimeMinutes > closeTimeMinutes) {
+    let isClosed = false;
+    if (openTimeMinutes <= closeTimeMinutes) {
+        // Normal case: 06:00 - 18:00
+        if (inputTimeMinutes < openTimeMinutes || inputTimeMinutes > closeTimeMinutes) {
+            isClosed = true;
+        }
+    } else {
+        // Cross-midnight case: 22:00 - 04:00
+        // It's closed if inputTime > closeTime and inputTime < openTime
+        if (inputTimeMinutes > closeTimeMinutes && inputTimeMinutes < openTimeMinutes) {
+            isClosed = true;
+        }
+    }
+
+    if (isClosed) {
         return {
             isOpen: false,
             message: `Site is closed at ${time}. Opening hours: ${hoursForDay}`
