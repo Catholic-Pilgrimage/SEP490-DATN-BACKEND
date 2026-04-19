@@ -88,7 +88,18 @@ class PlannerCalendarService {
                 if (item.note) {
                     notes += `📝 ${item.note}\n`;
                 }
-                notes += `⏱️ Thời gian nghỉ: ${item.rest_duration}`;
+
+                // Format rest_duration: can be object {hours, minutes, ...} or string
+                let breakTimeStr = 'Không có';
+                const rd = item.rest_duration;
+                if (rd && typeof rd === 'object') {
+                    const h = Number(rd.hours) || 0;
+                    const m = Number(rd.minutes) || 0;
+                    breakTimeStr = h > 0 ? `${h} giờ ${m} phút` : `${m} phút`;
+                } else if (rd) {
+                    breakTimeStr = String(rd);
+                }
+                notes += `⏱️ Thời gian nghỉ: ${breakTimeStr}`;
 
                 // Add coordinates if available
                 const coordinates = (item.site.latitude && item.site.longitude) ? {
