@@ -548,8 +548,8 @@ class JournalService {
                     throw new Error('You must check-in at all selected locations before creating a journal.');
                 }
 
-                if (resolvedPlanner.status !== 'completed') {
-                    throw new Error('You can only create a journal for a completed journey.');
+                if (!['ongoing', 'completed'].includes(resolvedPlanner.status)) {
+                    throw new Error('You can only create a journal for an ongoing or completed journey.');
                 }
 
                 // Check for existing point journal
