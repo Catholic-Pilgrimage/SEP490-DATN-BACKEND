@@ -3694,8 +3694,9 @@ class PlannerService {
 
             await planner.update({ last_closed_day: normalizedDayNumber });
 
-            const nextDayToClose = normalizedDayNumber + 1;
-            const hasNextDay = Boolean(dayProgress.dayStatsByLeg.get(nextDayToClose));
+            const maxDay = Number(dayProgress.maxDay || 0);
+            const hasNextDay = normalizedDayNumber < maxDay;
+            const nextDayToClose = hasNextDay ? normalizedDayNumber + 1 : null;
 
             let plannerStatus = planner.status;
             if (!hasNextDay && planner.status === 'ongoing') {
@@ -3719,9 +3720,9 @@ class PlannerService {
             return {
                 planner_id: plannerId,
                 closed_day: normalizedDayNumber,
-                next_day_to_close: hasNextDay ? nextDayToClose : null,
+                next_day_to_close: nextDayToClose,
                 has_next_day: hasNextDay,
-                planner_status: plannerStatus,
+                   planner_status: plannerStatus,
                 messageKey: 'planner.day_close_success',
                 messageParams: { day: normalizedDayNumber }
             };
