@@ -903,6 +903,16 @@ class PlannerController {
                     'Trips can only start after the planner is in locked status.'
                 );
             }
+            if (error.message === 'Final planner day is not closed') {
+                const day = Number(error.requiredDay || 0);
+                return PlannerController.badRequestWithFallback(
+                    res,
+                    req,
+                    'planner.final_day_not_closed',
+                    `Please close Day ${day || '?'} before completing the planner.`,
+                    { day: Number.isInteger(day) && day > 0 ? day : '?' }
+                );
+            }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
@@ -937,15 +947,6 @@ class PlannerController {
             }
             if (error.message === 'Planner day has no items') {
                 return ResponseUtil.badRequest(res, req.__('planner.day_close_no_items'));
-            }
-            if (error.message === 'Planner day already closed') {
-                const day = Number(error.day || dayNumber || 0);
-                return ResponseUtil.badRequest(
-                    res,
-                    req.__('planner.day_close_already_closed', {
-                        day: Number.isInteger(day) && day > 0 ? day : '?'
-                    })
-                );
             }
             if (error.message === 'Planner day is not fully processed') {
                 const day = Number(error.day || dayNumber || 0);
