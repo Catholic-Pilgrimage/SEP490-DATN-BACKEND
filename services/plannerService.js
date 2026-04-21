@@ -4422,7 +4422,7 @@ class PlannerService {
 
         const statusLockAt = this.getPlannerStatusLockAt(planner);
         if (!this.isGroupPlanner(planner)) {
-            return Boolean(statusLockAt && now >= statusLockAt);
+            return Boolean(planner.is_locked || (statusLockAt && now >= statusLockAt));
         }
 
         return Boolean(planner.is_locked);
@@ -4508,12 +4508,8 @@ class PlannerService {
                 throw new Error('Forbidden');
             }
 
-            // Group journeys only (consistent with auto-lock)
-            if (planner.number_of_people < 2) {
-                throw new Error('Only group journeys can be locked');
-            }
-
             const plannerState = await this.getPlannerState(plannerId, planner);
+            const isGroupPlanner = this.isGroupPlanner(planner);
 
             if (isLocked) {
                 if (plannerState.editLocked) {
@@ -4524,7 +4520,7 @@ class PlannerService {
                     throw new Error('Edit lock requires complete schedule');
                 }
 
-                if (!plannerState.firstInviteAt) {
+                if (isGroupPlanner && !plannerState.firstInviteAt) {
                     throw new Error('Edit lock requires first invite');
                 }
 
