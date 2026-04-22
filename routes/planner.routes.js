@@ -104,6 +104,13 @@ router.patch(
 );
 
 router.post(
+    '/:id/emergency-stop',
+    authenticate,
+    PlannerValidator.emergencyStopPlanner,
+    PlannerController.emergencyStopPlanner
+);
+
+router.post(
     '/:id/days/:dayNumber/close',
     authenticate,
     PlannerValidator.validatePlannerId,

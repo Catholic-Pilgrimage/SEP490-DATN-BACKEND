@@ -260,6 +260,16 @@ const NOTIFICATION_TEMPLATES = {
             message: '{{memberName}} has left planner "{{plannerName}}"'
         }
     },
+    planner_emergency_stopped: {
+        vi: {
+            title: 'Hành trình đã dừng khẩn cấp',
+            message: 'Hành trình "{{plannerName}}" đã được dừng khẩn cấp. Lý do: {{reason}}'
+        },
+        en: {
+            title: 'Journey emergency stopped',
+            message: 'Journey "{{plannerName}}" has been emergency-stopped. Reason: {{reason}}'
+        }
+    },
 
     planner_first_checkin: {
         vi: {
