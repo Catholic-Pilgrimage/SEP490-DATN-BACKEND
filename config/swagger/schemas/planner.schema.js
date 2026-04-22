@@ -92,6 +92,18 @@
  *           example: "2026-04-30T00:00:00.000Z"
  *           description: "Mốc khóa chỉnh sửa cho planner nhóm. Chỉ được set sau 12 giờ từ invite đầu tiên và không được muộn hơn planner_lock_at. Gửi null để bỏ mốc custom và quay về lock_duration_hours mặc định"
  *
+ *     EmergencyStopPlannerRequest:
+ *       type: object
+ *       required:
+ *         - cancelled_reason
+ *       properties:
+ *         cancelled_reason:
+ *           type: string
+ *           minLength: 5
+ *           maxLength: 1000
+ *           example: "Mưa lớn và đường sạt lở, đoàn buộc phải dừng ngay"
+ *           description: "Lý do dừng khẩn cấp khi hành trình đang ongoing"
+ *
  *     AddPlannerItemRequest:
  *       type: object
  *       required:
@@ -271,6 +283,11 @@
  *         status:
  *           type: string
  *           enum: [planning, locked, ongoing, completed, cancelled]
+ *         cancelled_reason:
+ *           type: string
+ *           nullable: true
+ *           example: "Mưa lớn và đường sạt lở, đoàn buộc phải dừng ngay"
+ *           description: "Lý do hủy hành trình, có giá trị khi dừng khẩn cấp hoặc hủy có lý do"
  *         planner_lock_at:
  *           type: string
  *           format: date-time

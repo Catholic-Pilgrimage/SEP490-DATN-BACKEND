@@ -580,6 +580,7 @@ CREATE TABLE IF NOT EXISTS planners (
     status planner_status DEFAULT 'planning',
     started_at TIMESTAMP WITH TIME ZONE,
     completed_at TIMESTAMP WITH TIME ZONE,
+    cancelled_reason TEXT,
     is_active BOOLEAN DEFAULT TRUE NOT NULL,
     lock_duration_hours INTEGER DEFAULT 24,
     edit_lock_at TIMESTAMP WITH TIME ZONE,
@@ -595,6 +596,9 @@ ADD COLUMN IF NOT EXISTS lock_duration_hours INTEGER DEFAULT 24;
 
 ALTER TABLE planners
 ADD COLUMN IF NOT EXISTS edit_lock_at TIMESTAMP WITH TIME ZONE;
+
+ALTER TABLE planners
+ADD COLUMN IF NOT EXISTS cancelled_reason TEXT;
 
 ALTER TABLE planners
 ADD COLUMN IF NOT EXISTS last_closed_day INTEGER DEFAULT 0;

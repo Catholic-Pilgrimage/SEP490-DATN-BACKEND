@@ -74,6 +74,10 @@ const Planner = sequelize.define('Planner', {
         type: DataTypes.DATE,
         allowNull: true
     },
+    cancelled_reason: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
     is_active: {
         type: DataTypes.BOOLEAN,
         defaultValue: true,
