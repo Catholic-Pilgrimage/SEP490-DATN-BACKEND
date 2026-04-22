@@ -487,6 +487,7 @@
     "edit_lock_requires_discussion_period": "Bạn chỉ có thể đặt thời điểm khóa sau 12 giờ kể từ lời mời email đầu tiên.",
     "edit_lock_must_be_after_discussion_period": "Thời điểm khóa chỉnh sửa phải từ sau mốc thảo luận 12 giờ tính từ lời mời email đầu tiên.",
     "edit_lock_must_be_before_planner_lock": "Thời điểm khóa chỉnh sửa phải nhỏ hơn hoặc bằng thời điểm kế hoạch chuyển sang trạng thái khóa.",
+    "edit_lock_must_be_12h_before_planner_lock": "Thời điểm khóa chỉnh sửa phải sớm hơn thời điểm kế hoạch khóa ít nhất 12 giờ.",
     "manual_lock_requires_group": "Chỉ có thể khóa tay khi đã có ít nhất 2 thành viên thực sự tham gia.",
     "manual_lock_requires_complete_schedule": "Chỉ có thể khóa tay khi lịch trình đã đầy đủ cho tất cả các ngày.",
     "group_requires_two_joined": "Hành trình nhóm cần ít nhất 2 thành viên đã tham gia trước khi bắt đầu.",

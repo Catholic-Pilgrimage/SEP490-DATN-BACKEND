@@ -1083,7 +1083,8 @@ class PlannerService {
                         throw new Error('Edit lock requires first invite');
                     }
 
-                    if (plannerState.joinedMemberCount < effectiveMinPeopleForLock) {
+                    const isCurrentlyEditLocked = Boolean(planner.is_locked || plannerState.editLocked);
+                    if (!isCurrentlyEditLocked && plannerState.joinedMemberCount < effectiveMinPeopleForLock) {
                         const error = new Error('Edit lock requires minimum joined members');
                         error.requiredJoinedCount = effectiveMinPeopleForLock;
                         error.joinedCount = plannerState.joinedMemberCount;
@@ -1098,8 +1099,15 @@ class PlannerService {
                     }
 
                     const plannerLockAt = this.getPlannerStatusLockAt(plannerLockReference);
-                    if (plannerLockAt && requestedEditLockAt > plannerLockAt) {
-                        throw new Error('Edit lock must be on or before planner lock time');
+                    if (!isCurrentlyEditLocked && plannerLockAt) {
+                        const latestAllowedEditLockAt = new Date(plannerLockAt);
+                        latestAllowedEditLockAt.setUTCHours(latestAllowedEditLockAt.getUTCHours() - 12);
+
+                        if (requestedEditLockAt > latestAllowedEditLockAt) {
+                            const error = new Error('Edit lock must be at least 12 hours before planner lock time');
+                            error.latestAllowedEditLockAt = latestAllowedEditLockAt;
+                            throw error;
+                        }
                     }
 
                     dataToUpdate.edit_lock_at = requestedEditLockAt;
