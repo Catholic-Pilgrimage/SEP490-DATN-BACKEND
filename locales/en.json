@@ -498,6 +498,8 @@
     "manual_lock_requires_complete_schedule": "Manual lock requires a complete schedule for all trip days.",
     "group_requires_two_joined": "A group trip needs at least 2 joined members before it can start.",
     "group_edit_lock_required_before_lock": "Group planners must be edit-locked before locking the journey.",
+    "status_lock_requires_min_members": "Planner requires at least {{requiredJoinedCount}} joined members to lock. Currently: {{joinedCount}}.",
+    "cannot_reschedule_edit_lock_min_met": "Cannot reschedule edit lock when minimum members requirement is already met.",
     "start_requires_lock": "Trips can only start after the planner is in locked status.",
     "group_start_requires_lock": "Group trips can only start after the final schedule lock is in effect.",
     "is_locked_required": "`is_locked` is required (true/false)",

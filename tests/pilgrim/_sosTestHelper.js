@@ -103,6 +103,7 @@ function loadPilgrimSOSService(overrides = {}) {
     plannerFindAllCalls: [],
     plannerFindByPkCalls: [],
     plannerMessageCreateCalls: [],
+    plannerChatCalls: [],
     createNotificationCalls: [],
     notifySiteManagerCalls: [],
     infoLogs: [],
@@ -245,7 +246,15 @@ function loadPilgrimSOSService(overrides = {}) {
     timezone: 'Asia/Saigon',
   });
 
-  setMock(MODULES.PLANNER_CHAT_SERVICE, {});
+  setMock(MODULES.PLANNER_CHAT_SERVICE, {
+    sendSystemMessage: async (plannerId, content) => {
+      state.plannerChatCalls.push({ plannerId, content });
+      if (overrides.sendSystemMessage) {
+        return overrides.sendSystemMessage(plannerId, content, state);
+      }
+      return { id: 'planner-chat-message-id', plannerId, content };
+    },
+  });
 
   const PilgrimSOSService = require(MODULES.TARGET);
 

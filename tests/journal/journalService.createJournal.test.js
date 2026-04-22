@@ -210,30 +210,44 @@ test('UTCID05: createJournal throws when user has not checked in at all selected
   assert.equal(state.errorLogs[0][0], 'Create journal error:');
 });
 
-test('UTCID06: createJournal throws when journey is not completed', async () => {
-  const { JournalService, state } = loadJournalService({
+test('UTCID06: createJournal allows point journal when journey is ongoing and all selected locations were checked in', async () => {
+  let createdJournal = null;
+  const { JournalService, state, createJournalInstance } = loadJournalService({
     plannerItemFindAll: async () => ([
       createPlannerItemRecord({
         id: 'item-1',
         planner_id: 'planner-1',
+        site_id: 'site-1',
         planner: createPlannerRecord({ id: 'planner-1', status: 'ongoing' }),
       }),
     ]),
     userCheckinFindAll: async () => ([
       { planner_item_id: 'item-1' },
     ]),
+    journalCreate: async (data) => {
+      createdJournal = createJournalInstance({
+        id: 'journal-ongoing-id',
+        ...data,
+      });
+      return createdJournal;
+    },
+    journalFindByPk: async () => createdJournal,
   });
 
-  await assert.rejects(
-    JournalService.createJournal('user-id', {
-      title: 'Point journal',
-      content: 'Content',
-      planner_item_id: ['item-1'],
-    }),
-    { message: 'You can only create a journal for a completed journey.' }
-  );
+  stubBuildJournalResponse(JournalService);
 
-  assert.equal(state.errorLogs[0][0], 'Create journal error:');
+  const result = await JournalService.createJournal('user-id', {
+    title: 'Point journal',
+    content: 'Content',
+    planner_item_id: ['item-1'],
+  });
+
+  assert.equal(state.journalCreateCalls.length, 1);
+  assert.equal(state.journalCreateCalls[0].data.planner_id, 'planner-1');
+  assert.equal(state.journalCreateCalls[0].data.site_id, 'site-1');
+  assert.deepEqual(state.journalCreateCalls[0].data.planner_item_id, ['item-1']);
+  assert.equal(result.planner_id, 'planner-1');
+  assert.equal(state.errorLogs.length, 0);
 });
 
 test('UTCID07: createJournal throws conflict when an archived point journal already exists', async () => {

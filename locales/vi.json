@@ -492,6 +492,8 @@
     "manual_lock_requires_complete_schedule": "Chỉ có thể khóa tay khi lịch trình đã đầy đủ cho tất cả các ngày.",
     "group_requires_two_joined": "Hành trình nhóm cần ít nhất 2 thành viên đã tham gia trước khi bắt đầu.",
     "group_edit_lock_required_before_lock": "Kế hoạch nhóm phải được đóng chỉnh sửa trước khi khóa hành trình.",
+    "status_lock_requires_min_members": "Kế hoạch cần ít nhất {{requiredJoinedCount}} thành viên đã tham gia để khóa. Hiện tại: {{joinedCount}}.",
+    "cannot_reschedule_edit_lock_min_met": "Không thể dời thời gian khóa chỉnh sửa khi đã đủ số lượng thành viên tối thiểu.",
     "start_requires_lock": "Hành trình chỉ có thể bắt đầu khi kế hoạch đã ở trạng thái khóa.",
     "group_start_requires_lock": "Hành trình nhóm chỉ có thể bắt đầu khi lịch trình đã được khóa chốt cuối cùng.",
     "is_locked_required": "Thiếu trường `is_locked` (true/false)",

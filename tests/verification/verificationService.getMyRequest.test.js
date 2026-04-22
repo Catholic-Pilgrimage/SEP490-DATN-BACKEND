@@ -55,8 +55,8 @@ test('UTCID03: getMyRequest searches by user and orders by newest request first'
 
   await PilgrimVerificationService.getMyRequest('pilgrim-id');
 
-  assert.deepEqual(state.verificationRequestFindOneCalls[0], {
-    where: { user_id: 'pilgrim-id' },
-    order: [['created_at', 'DESC']],
-  });
+  assert.equal(state.verificationRequestFindOneCalls[0].where.user_id, 'pilgrim-id');
+  assert.deepEqual(state.verificationRequestFindOneCalls[0].order, [['created_at', 'DESC']]);
+  assert.equal(state.verificationRequestFindOneCalls[0].include[0].as, 'existingSite');
+  assert.deepEqual(state.verificationRequestFindOneCalls[0].include[0].attributes, ['cover_image']);
 });

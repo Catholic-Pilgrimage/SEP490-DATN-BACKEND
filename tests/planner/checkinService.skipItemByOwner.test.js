@@ -31,6 +31,7 @@ function createPlannerItemRecord(createUpdatableRecord, data = {}) {
 test('UTCID01: skipItemByOwner skips item successfully and notifies members when next stop exists', async () => {
   const { CheckinService, state, createUpdatableRecord } = loadCheckinService({
     plannerItemFindByPk: async () => createPlannerItemRecord(createUpdatableRecord),
+    plannerItemFindAll: async () => [{ id: 'item-2', leg_number: 1, order_index: 2 }],
     userCheckinCount: async () => 0,
     getCheckinStats: async () => ({ totalItems: 3, checkedInItems: 1, visitedCount: 1 }),
     getNextUpcomingPlannerItem: async () => ({
@@ -51,9 +52,10 @@ test('UTCID01: skipItemByOwner skips item successfully and notifies members when
   assert.equal(state.plannerUpdateCalls.length, 0);
 });
 
-test('UTCID02: skipItemByOwner auto-cancels planner when last item is skipped with zero visited count', async () => {
+test('UTCID02: skipItemByOwner marks the last item skipped without auto-cancelling planner', async () => {
   const { CheckinService, state, createUpdatableRecord } = loadCheckinService({
     plannerItemFindByPk: async () => createPlannerItemRecord(createUpdatableRecord),
+    plannerItemFindAll: async () => [{ id: 'item-2', leg_number: 1, order_index: 2 }],
     userCheckinCount: async () => 0,
     getCheckinStats: async () => ({ totalItems: 2, checkedInItems: 2, visitedCount: 0 }),
     getNextUpcomingPlannerItem: async () => null,
@@ -64,8 +66,7 @@ test('UTCID02: skipItemByOwner auto-cancels planner when last item is skipped wi
   assert.equal(result.message, 'Đã đánh dấu bỏ qua địa điểm này cho toàn đoàn');
   assert.equal(state.plannerServiceNotifyCalls.length, 1);
   assert.equal(state.plannerServiceNotifyCalls[0].type, 'planner_item_skipped_last');
-  assert.equal(state.plannerUpdateCalls.length, 1);
-  assert.equal(state.plannerUpdateCalls[0].values.status, 'cancelled');
+  assert.equal(state.plannerUpdateCalls.length, 0);
 });
 
 test('UTCID03: skipItemByOwner throws when planner item does not exist', async () => {
@@ -119,6 +120,7 @@ test('UTCID06: skipItemByOwner throws when planner item is already visited or sk
 test('UTCID07: skipItemByOwner throws when a member has already checked in', async () => {
   const { CheckinService, createUpdatableRecord } = loadCheckinService({
     plannerItemFindByPk: async () => createPlannerItemRecord(createUpdatableRecord),
+    plannerItemFindAll: async () => [{ id: 'item-2', leg_number: 1, order_index: 2 }],
     userCheckinCount: async () => 1,
   });
 
@@ -131,6 +133,7 @@ test('UTCID07: skipItemByOwner throws when a member has already checked in', asy
 test('UTCID08: skipItemByOwner throws when skip reason is missing', async () => {
   const { CheckinService, createUpdatableRecord } = loadCheckinService({
     plannerItemFindByPk: async () => createPlannerItemRecord(createUpdatableRecord),
+    plannerItemFindAll: async () => [{ id: 'item-2', leg_number: 1, order_index: 2 }],
     userCheckinCount: async () => 0,
   });
 

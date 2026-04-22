@@ -77,18 +77,19 @@ test('UTCID01: updateJournal updates journal successfully with merged uploaded m
   );
 
   assert.equal(state.journalUpdateCalls.length, 1);
-  assert.deepEqual(state.journalUpdateCalls[0].values, {
-    title: 'Updated title',
-    content: 'Updated content',
-    image_url: [
-      'https://cdn.example.com/requested-1.jpg',
-      'https://cdn.example.com/uploaded-1.jpg',
-      'https://cdn.example.com/uploaded-2.jpg',
-    ],
-    audio_url: 'https://cdn.example.com/new-audio.mp3',
-    video_url: 'https://cdn.example.com/new-video.mp4',
-    privacy: 'private',
-  });
+  assert.equal(state.journalUpdateCalls[0].values.title, 'Updated title');
+  assert.equal(state.journalUpdateCalls[0].values.content, 'Updated content');
+  assert.deepEqual(state.journalUpdateCalls[0].values.image_url, [
+    'https://cdn.example.com/requested-1.jpg',
+    'https://cdn.example.com/uploaded-1.jpg',
+    'https://cdn.example.com/uploaded-2.jpg',
+  ]);
+  assert.equal(state.journalUpdateCalls[0].values.audio_url, 'https://cdn.example.com/new-audio.mp3');
+  assert.equal(state.journalUpdateCalls[0].values.video_url, 'https://cdn.example.com/new-video.mp4');
+  assert.equal(state.journalUpdateCalls[0].values.privacy, 'private');
+  assert.equal(state.journalUpdateCalls[0].values.planner_id, 'planner-id');
+  assert.equal(state.journalUpdateCalls[0].values.site_id, 'site-id');
+  assert.deepEqual(state.journalUpdateCalls[0].values.planner_item_id, ['item-1']);
   assert.equal(result.title, 'Updated title');
   assert.equal(result.audio_url, 'https://cdn.example.com/new-audio.mp3');
   assert.equal(result.video_url, 'https://cdn.example.com/new-video.mp4');

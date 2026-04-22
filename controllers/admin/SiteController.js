@@ -160,8 +160,8 @@ exports.getSiteShifts = async (req, res) => {
 // Admin: Get media of a site
 exports.getSiteMedia = async (req, res) => {
     try {
-        const { page, limit, status, type } = req.query;
-        const result = await adminSiteService.getSiteMedia(req.params.siteId, { page, limit, status, type });
+        const { page, limit, status, type, is_active } = req.query;
+        const result = await adminSiteService.getSiteMedia(req.params.siteId, { page, limit, status, type, is_active });
         return ResponseUtil.success(res, result, req.__('site.get_media_success'));
     } catch (error) {
         if (error.message === 'Site not found') {
@@ -174,8 +174,8 @@ exports.getSiteMedia = async (req, res) => {
 // Admin: Get schedules of a site
 exports.getSiteSchedules = async (req, res) => {
     try {
-        const { page, limit, status } = req.query;
-        const result = await adminSiteService.getSiteSchedules(req.params.siteId, { page, limit, status });
+        const { page, limit, status, is_active } = req.query;
+        const result = await adminSiteService.getSiteSchedules(req.params.siteId, { page, limit, status, is_active });
         return ResponseUtil.success(res, result, req.__('site.get_schedules_success'));
     } catch (error) {
         if (error.message === 'Site not found') {
@@ -188,8 +188,8 @@ exports.getSiteSchedules = async (req, res) => {
 // Admin: Get events of a site
 exports.getSiteEvents = async (req, res) => {
     try {
-        const { page, limit, status } = req.query;
-        const result = await adminSiteService.getSiteEvents(req.params.siteId, { page, limit, status });
+        const { page, limit, status, is_active, time_state } = req.query;
+        const result = await adminSiteService.getSiteEvents(req.params.siteId, { page, limit, status, is_active, time_state });
         return ResponseUtil.success(res, result, req.__('site.get_events_success'));
     } catch (error) {
         if (error.message === 'Site not found') {
@@ -202,8 +202,8 @@ exports.getSiteEvents = async (req, res) => {
 // Admin: Get nearby places of a site
 exports.getSiteNearbyPlaces = async (req, res) => {
     try {
-        const { page, limit, status, category } = req.query;
-        const result = await adminSiteService.getSiteNearbyPlaces(req.params.siteId, { page, limit, status, category });
+        const { page, limit, status, category, is_active } = req.query;
+        const result = await adminSiteService.getSiteNearbyPlaces(req.params.siteId, { page, limit, status, category, is_active });
         return ResponseUtil.success(res, result, req.__('site.get_nearby_places_success'));
     } catch (error) {
         if (error.message === 'Site not found') {

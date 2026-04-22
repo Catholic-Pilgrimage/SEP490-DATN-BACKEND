@@ -51,7 +51,13 @@ class ManagerContentService {
 
             // Filter by is_active (true/false/all)
             if (filters.is_active !== undefined) {
-                where.is_active = filters.is_active === 'true' || filters.is_active === true;
+                if (filters.is_active === 'all') {
+                    delete where.is_active;
+                } else {
+                    where.is_active = filters.is_active === 'true' || filters.is_active === true;
+                }
+            } else {
+                where.is_active = true;
             }
 
             const totalItems = await SiteMedia.count({ where });
@@ -341,7 +347,13 @@ class ManagerContentService {
             }
             // Filter by is_active (true/false/all)
             if (filters.is_active !== undefined) {
-                where.is_active = filters.is_active === 'true' || filters.is_active === true;
+                if (filters.is_active === 'all') {
+                    delete where.is_active;
+                } else {
+                    where.is_active = filters.is_active === 'true' || filters.is_active === true;
+                }
+            } else {
+                where.is_active = true;
             }
 
             const totalItems = await MassSchedule.count({ where });
@@ -518,7 +530,13 @@ class ManagerContentService {
 
             // Filter by is_active (true/false/all)
             if (filters.is_active !== undefined) {
-                where.is_active = filters.is_active === 'true' || filters.is_active === true;
+                if (filters.is_active === 'all') {
+                    delete where.is_active;
+                } else {
+                    where.is_active = filters.is_active === 'true' || filters.is_active === true;
+                }
+            } else {
+                where.is_active = true;
             }
 
             const totalItems = await Event.count({ where });
@@ -687,7 +705,13 @@ class ManagerContentService {
             }
             // Filter by is_active (true/false/all)
             if (filters.is_active !== undefined) {
-                where.is_active = filters.is_active === 'true' || filters.is_active === true;
+                if (filters.is_active === 'all') {
+                    delete where.is_active;
+                } else {
+                    where.is_active = filters.is_active === 'true' || filters.is_active === true;
+                }
+            } else {
+                where.is_active = true;
             }
 
             const { count, rows } = await NearbyPlace.findAndCountAll({

@@ -43,9 +43,9 @@ test('UTCID01: cancelSOS cancels a pending SOS and broadcasts to active planner 
     status: 'cancelled',
   });
   assert.equal(result.status, 'cancelled');
-  assert.equal(state.plannerMessageCreateCalls.length, 2);
+  assert.equal(state.plannerChatCalls.length, 2);
   assert.deepEqual(
-    state.plannerMessageCreateCalls.map((call) => call.data.planner_id).sort(),
+    state.plannerChatCalls.map((call) => call.plannerId).sort(),
     ['planner-1', 'planner-2']
   );
   assert.equal(state.infoLogs.length, 1);
@@ -71,7 +71,7 @@ test('UTCID02: cancelSOS cancels a pending SOS even when the pilgrim has no ongo
   const result = await PilgrimSOSService.cancelSOS('user-id', 'sos-2');
 
   assert.equal(result.status, 'cancelled');
-  assert.equal(state.plannerMessageCreateCalls.length, 0);
+  assert.equal(state.plannerChatCalls.length, 0);
   assert.equal(state.errorLogs.length, 0);
 });
 
@@ -126,7 +126,7 @@ test('UTCID05: cancelSOS still succeeds when planner chat broadcast fails', asyn
       id: 'user-id',
       full_name: 'Pilgrim Five',
     }),
-    plannerMessageCreate: async () => {
+    sendSystemMessage: async () => {
       throw new Error('Chat unavailable');
     },
   });

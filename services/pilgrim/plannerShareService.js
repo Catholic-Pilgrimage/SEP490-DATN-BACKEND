@@ -507,39 +507,40 @@ class PlannerShareService {
                     throw new Error('Invite has expired');
                 }
 
-                // Not expired — user is re-requesting the payment link
-                // Since PayOS getPaymentInfo() doesn't return checkoutUrl,
-                // cancel old order + tx and fall through to create a fresh link
-                if (action === 'accept') {
-                    const existingTx = await Transaction.findOne({
-                        where: {
-                            reference_type: 'planner_deposit',
-                            reference_id: { [Op.like]: `${invite.planner_id}:${userId}:%` },
-                            type: 'escrow_lock',
-                            status: 'pending'
-                        },
-                        include: [{ model: require('../../models').Wallet, as: 'wallet', where: { user_id: userId }, required: true }]
-                    });
+                // Not expired — user is either re-requesting payment link or rejecting it
+                const existingTx = await Transaction.findOne({
+                    where: {
+                        reference_type: 'planner_deposit',
+                        reference_id: { [Op.like]: `${invite.planner_id}:${userId}:%` },
+                        type: 'escrow_lock',
+                        status: 'pending'
+                    },
+                    include: [{ model: require('../../models').Wallet, as: 'wallet', where: { user_id: userId }, required: true }]
+                });
 
-                    if (existingTx) {
-                        const existingOrderCode = Number(existingTx.reference_id.split(':')[2]);
-                        try {
-                            await PayOSService.cancelPaymentLink(existingOrderCode);
-                        } catch (e) {
-                            Logger.warn(`Could not cancel old PayOS order ${existingOrderCode}: ${e.message}`);
-                        }
-                        await existingTx.update({ status: 'cancelled' });
+                if (existingTx) {
+                    const existingOrderCode = Number(existingTx.reference_id.split(':')[2]);
+                    try {
+                        await PayOSService.cancelPaymentLink(existingOrderCode);
+                    } catch (e) {
+                        Logger.warn(`Could not cancel old PayOS order ${existingOrderCode}: ${e.message}`);
                     }
+                    await existingTx.update({ status: 'cancelled' });
+                }
 
+                if (action === 'accept') {
                     // Reset invite to pending so the main accept flow below creates a fresh link
                     await invite.update({ status: 'pending' });
                     Logger.info(`Re-accept: cancelled old payment, reset invite to pending for user=${userId}`);
                     // Fall through to the main accept flow below (invite.status is now 'pending')
-                }
-
-                if (invite.status === 'awaiting_payment') {
-                    // Only reach here if action was 'reject' on an awaiting_payment invite
-                    throw new Error('Invite already processed');
+                } else {
+                    // action === 'reject'
+                    await invite.update({ status: 'rejected' });
+                    Logger.info(`User ${userId} rejected awaiting_payment invite for planner ${invite.planner_id}`);
+                    return {
+                        messageKey: 'planner.invite_rejected',
+                        message: 'Invite rejected successfully'
+                    };
                 }
             }
 

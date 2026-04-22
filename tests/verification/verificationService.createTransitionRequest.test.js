@@ -101,32 +101,42 @@ test('UTCID04: createTransitionRequest rejects when site is not found or inactiv
       existing_site_id: 'missing-site',
       transition_reason: 'Take over management',
     }),
-    { message: 'Site not found or not active' }
+    { message: 'Site not found' }
   );
 
   assert.equal(state.verificationRequestCreateCalls.length, 0);
   assert.equal(state.errorLogs.length, 1);
 });
 
-test('UTCID05: createTransitionRequest rejects when the site has no current manager', async () => {
+test('UTCID05: createTransitionRequest allows claim flow when the site has no current manager', async () => {
   const { PilgrimVerificationService, state } = loadPilgrimVerificationService({
     siteFindOne: async () => ({
       id: 'site-5',
       is_active: true,
+      name: 'Holy Church',
+      address: '123 Street',
+      province: 'Da Nang',
+      type: 'church',
+      region: 'Central',
     }),
     userFindOne: async () => null,
+    userFindByPk: async () => ({
+      id: 'pilgrim-id',
+      role: 'pilgrim',
+      full_name: 'Pilgrim User',
+    }),
+    verificationRequestFindOne: async () => null,
   });
 
-  await assert.rejects(
-    PilgrimVerificationService.createTransitionRequest('pilgrim-id', {
-      existing_site_id: 'site-5',
-      transition_reason: 'Take over management',
-    }),
-    { message: 'This site does not have a manager. Use normal verification request instead.' }
-  );
+  const result = await PilgrimVerificationService.createTransitionRequest('pilgrim-id', {
+    existing_site_id: 'site-5',
+    transition_reason: 'Take over management',
+  });
 
-  assert.equal(state.verificationRequestCreateCalls.length, 0);
-  assert.equal(state.errorLogs.length, 1);
+  assert.equal(result.claim_type, 'unassigned');
+  assert.equal(result.existing_site.current_manager, null);
+  assert.equal(state.verificationRequestCreateCalls.length, 1);
+  assert.equal(state.errorLogs.length, 0);
 });
 
 test('UTCID06: createTransitionRequest rejects guest request when applicant email or name is missing', async () => {
@@ -223,7 +233,7 @@ test('UTCID08: createTransitionRequest rejects when the site already has a pendi
   assert.equal(state.errorLogs.length, 1);
 });
 
-test('UTCID09: createTransitionRequest rejects when transition reason is missing', async () => {
+test('UTCID09: createTransitionRequest allows missing transition reason when creating request', async () => {
   const { PilgrimVerificationService, state } = loadPilgrimVerificationService({
     siteFindOne: async () => ({
       id: 'site-9',
@@ -241,13 +251,12 @@ test('UTCID09: createTransitionRequest rejects when transition reason is missing
     verificationRequestFindOne: async () => null,
   });
 
-  await assert.rejects(
-    PilgrimVerificationService.createTransitionRequest('pilgrim-id', {
-      existing_site_id: 'site-9',
-    }),
-    { message: 'transition_reason is required' }
-  );
+  const result = await PilgrimVerificationService.createTransitionRequest('pilgrim-id', {
+    existing_site_id: 'site-9',
+  });
 
-  assert.equal(state.verificationRequestCreateCalls.length, 0);
-  assert.equal(state.errorLogs.length, 1);
+  assert.equal(result.status, 'pending');
+  assert.equal(result.transition_reason, undefined);
+  assert.equal(state.verificationRequestCreateCalls.length, 1);
+  assert.equal(state.errorLogs.length, 0);
 });

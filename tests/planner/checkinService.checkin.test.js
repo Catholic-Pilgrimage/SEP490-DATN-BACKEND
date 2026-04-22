@@ -94,7 +94,7 @@ test('UTCID01: checkin succeeds for planner owner and sends first-checkin notifi
   assert.equal(state.notificationCreateCalls[0].type, 'planner_first_checkin');
 });
 
-test('UTCID02: checkin succeeds at boundary distance and auto-completes planner for final participant', async () => {
+test('UTCID02: checkin succeeds at boundary distance and marks the item visited without auto-completing planner', async () => {
   const { CheckinService, state, createUpdatableRecord } = loadCheckinService({
     plannerItemFindByPk: async (itemId, options) => {
       if (options && options.include) {
@@ -138,12 +138,11 @@ test('UTCID02: checkin succeeds at boundary distance and auto-completes planner 
   );
 
   assert.equal(result.distance, 500);
-  assert.equal(result.planner_status, 'completed');
+  assert.equal(result.planner_status, 'ongoing');
   assert.equal(state.plannerItemUpdateCalls.length, 1);
   assert.equal(state.plannerItemUpdateCalls[0].values.status, 'visited');
-  assert.equal(state.plannerUpdateCalls.length, 1);
-  assert.equal(state.plannerUpdateCalls[0].values.status, 'completed');
-  assert.equal(state.antiFraudCalls.length, 1);
+  assert.equal(state.plannerUpdateCalls.length, 0);
+  assert.equal(state.antiFraudCalls.length, 0);
 });
 
 test('UTCID03: checkin rejects missing check-in photo', async () => {

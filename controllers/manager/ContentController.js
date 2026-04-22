@@ -309,9 +309,9 @@ exports.toggleScheduleActive = async (req, res) => {
  */
 exports.getEvents = async (req, res) => {
     try {
-        const { page, limit, status, is_active } = req.query;
+        const { page, limit, status, is_active, time_state } = req.query;
         const result = await ManagerContentService.getEvents(req.user.id, {
-            page, limit, status, is_active
+            page, limit, status, is_active, time_state
         });
         return ResponseUtil.success(res, result, req.__('manager.get_events_success'));
     } catch (error) {

@@ -106,7 +106,7 @@ test('UTCID03: completeItem records missed members after confirmation with skip 
   assert.equal(state.transactionCommitCalls, 1);
 });
 
-test('UTCID04: completeItem auto-completes planner when final item is finished', async () => {
+test('UTCID04: completeItem keeps planner ongoing until day closure when final item is finished', async () => {
   const { CheckinService, state, createUpdatableRecord } = loadCheckinService({
     plannerItemFindByPk: async () => createPlannerItemRecord(createUpdatableRecord),
     plannerMemberFindAll: async () => [{ user_id: 'member-1' }],
@@ -123,9 +123,9 @@ test('UTCID04: completeItem auto-completes planner when final item is finished',
   const result = await CheckinService.completeItem('owner-id', 'item-2');
 
   assert.equal(result.message, 'Đã hoàn thành điểm đến');
-  assert.equal(state.plannerUpdateCalls.length, 1);
-  assert.equal(state.plannerUpdateCalls[0].values.status, 'completed');
-  assert.equal(state.antiFraudCalls.length, 1);
+  assert.equal(state.plannerUpdateCalls.length, 0);
+  assert.equal(state.antiFraudCalls.length, 0);
+  assert.equal(state.transactionCommitCalls, 1);
 });
 
 test('UTCID05: completeItem throws when planner item does not exist', async () => {
