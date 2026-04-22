@@ -49,6 +49,9 @@
  *         number_of_people:
  *           type: integer
  *           example: 4
+ *         min_people_required:
+ *           type: integer
+ *           example: 2
  *         transportation:
  *           type: string
  *           example: "car"

@@ -43,6 +43,19 @@ class PlannerValidator {
             .optional()
             .isInt({ min: 1 }).withMessage('Số người phải lớn hơn hoặc bằng 1'),
 
+        body('min_people_required')
+            .optional()
+            .isInt({ min: 1 }).withMessage('Số người tối thiểu phải lớn hơn hoặc bằng 1')
+            .custom((value, { req }) => {
+                const maxPeople = req.body.number_of_people !== undefined
+                    ? parseInt(req.body.number_of_people)
+                    : 1;
+                if (parseInt(value) > maxPeople) {
+                    throw new Error('Số người tối thiểu không được lớn hơn số người tối đa');
+                }
+                return true;
+            }),
+
         body('transportation')
             .optional()
             .isIn(['motorbike', 'car', 'bus']).withMessage('Phương tiện phải là motorbike, car hoặc bus'),
@@ -102,6 +115,16 @@ class PlannerValidator {
         body('number_of_people')
             .optional()
             .isInt({ min: 1 }).withMessage('Số người phải lớn hơn hoặc bằng 1'),
+
+        body('min_people_required')
+            .optional()
+            .isInt({ min: 1 }).withMessage('Số người tối thiểu phải lớn hơn hoặc bằng 1')
+            .custom((value, { req }) => {
+                if (req.body.number_of_people !== undefined && parseInt(value) > parseInt(req.body.number_of_people)) {
+                    throw new Error('Số người tối thiểu không được lớn hơn số người tối đa');
+                }
+                return true;
+            }),
 
         body('transportation')
             .optional()

@@ -9,7 +9,6 @@ const { calculateEstimatedTime, parseDurationToMinutes, isWithinOpeningHours } =
 
 const PLANNER_STATUS_LOCK_HOURS = 12;
 const PLANNER_DEFAULT_LOCK_DURATION_HOURS = 24;
-const PLANNER_EDIT_LOCK_DISCUSSION_HOURS = 12;
 
 class PlannerService {
 
@@ -611,7 +610,7 @@ class PlannerService {
      */
     static async createPlanner(userId, plannerData) {
         try {
-            const { name, number_of_people = 1, transportation, start_date, end_date } = plannerData;
+            const { name, number_of_people = 1, min_people_required = 1, transportation, start_date, end_date } = plannerData;
 
             // Validate required fields
             if (!name || name.trim().length === 0) {
@@ -625,6 +624,15 @@ class PlannerService {
                 startDateObj.setHours(0, 0, 0, 0);
 
                 const numPeople = parseInt(number_of_people) || 1;
+                const minPeople = parseInt(min_people_required) || 1;
+
+                if (minPeople < 1) {
+                    throw new Error('Min people must be at least 1');
+                }
+
+                if (minPeople > numPeople) {
+                    throw new Error('Min people cannot exceed max people');
+                }
 
                 if (numPeople >= 2) {
                     // Group coordination lead time: 48h (2 days)
@@ -719,6 +727,14 @@ class PlannerService {
                 throw new Error('Number of people must be at least 1');
             }
 
+            if (min_people_required < 1) {
+                throw new Error('Min people must be at least 1');
+            }
+
+            if (min_people_required > number_of_people) {
+                throw new Error('Min people cannot exceed max people');
+            }
+
             // Financial fields — solo planners (number_of_people = 1) cannot have deposit or penalty
             const numPeople = parseInt(plannerData.number_of_people) || 1;
             const depositAmount = numPeople > 1 ? (parseFloat(plannerData.deposit_amount) || 0) : 0;
@@ -735,6 +751,7 @@ class PlannerService {
                     start_date: start_date || null,
                     end_date: end_date || null,
                     number_of_people,
+                    min_people_required,
                     transportation: transportation || null,
                     deposit_amount: depositAmount,
                     penalty_percentage: penaltyPercentage,
@@ -994,6 +1011,7 @@ class PlannerService {
             const requestedEndDate = this.normalizeDateOnlyValue(updateData.end_date);
             const currentStartDate = this.normalizeDateOnlyValue(planner.start_date);
             const currentEndDate = this.normalizeDateOnlyValue(planner.end_date);
+            const currentMinPeople = parseInt(planner.min_people_required) || 1;
             const isUpdatingEndDate = requestedEndDate !== undefined && requestedEndDate !== currentEndDate;
 
             const isChangingStartDate = requestedStartDate !== undefined && requestedStartDate !== currentStartDate;
@@ -1008,6 +1026,7 @@ class PlannerService {
                 ? effectiveNumPeopleForDateRule > 1
                 : false;
             const hasStartedSharingPlanner = Boolean(plannerState.firstInviteAt || plannerState.hasSharedCommitment);
+            const effectiveMinPeopleForLock = Number(updateData.min_people_required ?? planner.min_people_required ?? 1);
 
             if (requestedStartDate !== undefined && requestedStartDate !== currentStartDate) {
                 if (!isGroupPlannerForDateRule || hasStartedSharingPlanner) {
@@ -1057,15 +1076,16 @@ class PlannerService {
                         throw new Error('Edit lock requires first invite');
                     }
 
-                    const editLockAvailableAt = this.getPlannerEditLockAvailableAt(firstInviteAt);
-                    if (!editLockAvailableAt || requestNow < editLockAvailableAt) {
-                        const error = new Error('Edit lock requires discussion period');
-                        error.editLockAvailableAt = editLockAvailableAt;
+                    if (plannerState.joinedMemberCount < effectiveMinPeopleForLock) {
+                        const error = new Error('Edit lock requires minimum joined members');
+                        error.requiredJoinedCount = effectiveMinPeopleForLock;
+                        error.joinedCount = plannerState.joinedMemberCount;
                         throw error;
                     }
 
+                    const editLockAvailableAt = this.getPlannerEditLockAvailableAt(firstInviteAt);
                     if (requestedEditLockAt < editLockAvailableAt) {
-                        const error = new Error('Edit lock must be after discussion period');
+                        const error = new Error('Edit lock must be after first invite');
                         error.editLockAvailableAt = editLockAvailableAt;
                         throw error;
                     }
@@ -1125,6 +1145,13 @@ class PlannerService {
 
                 const currentNumPeople = parseInt(planner.number_of_people) || 1;
                 const requestedNumPeople = parseInt(updateData.number_of_people) || 1;
+                const requestedMinPeople = updateData.min_people_required !== undefined
+                    ? parseInt(updateData.min_people_required) || 1
+                    : currentMinPeople;
+
+                if (requestedNumPeople < requestedMinPeople) {
+                    throw new Error('Min people cannot exceed max people');
+                }
 
                 if (currentNumPeople <= 1 && requestedNumPeople >= 2 && planner.start_date) {
                     const now = new Date();
@@ -1145,6 +1172,20 @@ class PlannerService {
                     throw error;
                 }
                 dataToUpdate.number_of_people = updateData.number_of_people;
+            }
+
+            if (updateData.min_people_required !== undefined) {
+                if (updateData.min_people_required < 1) {
+                    throw new Error('Min people must be at least 1');
+                }
+
+                const effectiveMaxPeople = dataToUpdate.number_of_people ?? planner.number_of_people ?? 1;
+                const requestedMinPeople = parseInt(updateData.min_people_required) || 1;
+                if (requestedMinPeople > effectiveMaxPeople) {
+                    throw new Error('Min people cannot exceed max people');
+                }
+
+                dataToUpdate.min_people_required = requestedMinPeople;
             }
 
             if (updateData.transportation !== undefined) {
@@ -3192,6 +3233,9 @@ class PlannerService {
             end_date: planner.end_date,
             number_of_days: numberOfDays,
             number_of_people: planner.number_of_people,
+                min_people_required: Number.isInteger(Number(planner.min_people_required))
+                    ? Number(planner.min_people_required)
+                    : 1,
             transportation: planner.transportation,
             deposit_amount: planner.deposit_amount,
             penalty_percentage: planner.penalty_percentage,
@@ -4120,9 +4164,7 @@ class PlannerService {
             return null;
         }
 
-        const editLockAvailableAt = new Date(firstInviteAt);
-        editLockAvailableAt.setHours(editLockAvailableAt.getHours() + PLANNER_EDIT_LOCK_DISCUSSION_HOURS);
-        return editLockAvailableAt;
+        return new Date(firstInviteAt);
     }
 
     static getPlannerStartBoundary(planner) {
@@ -4284,6 +4326,7 @@ class PlannerService {
 
         const isRealGroup = joinedMemberCount >= 2;
         const hasSharedCommitment = activeInviteCount > 0 || joinedMemberCount > 1;
+        const minJoinedRequired = Number(currentPlanner.min_people_required) || 1;
         const hasDates = Boolean(currentPlanner.start_date && currentPlanner.end_date);
         const joinDeadline = this.getPlannerJoinDeadline(currentPlanner);
         const joinWindowClosed = this.isPlannerJoinWindowClosed(currentPlanner, now);
@@ -4295,6 +4338,7 @@ class PlannerService {
             this.isGroupPlanner(currentPlanner) &&
             hasDates &&
             scheduleState.isValid &&
+            joinedMemberCount >= minJoinedRequired &&
             !editLocked &&
             !joinWindowClosed &&
             editLockAvailableAt &&
@@ -4589,6 +4633,14 @@ class PlannerService {
 
                 if (isGroupPlanner && !plannerState.firstInviteAt) {
                     throw new Error('Edit lock requires first invite');
+                }
+
+                const minJoinedRequired = Number(planner.min_people_required) || 1;
+                if (plannerState.joinedMemberCount < minJoinedRequired) {
+                    const error = new Error('Edit lock requires minimum joined members');
+                    error.requiredJoinedCount = minJoinedRequired;
+                    error.joinedCount = plannerState.joinedMemberCount;
+                    throw error;
                 }
 
                 await planner.update({

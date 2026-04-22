@@ -1059,7 +1059,7 @@
  *       Tạo một community post gắn với planner đã hoàn thành.
  *       Response trả về luôn post đã enrich với `journey.items` và `journey.items_by_day`.
  *       Khi đọc community posts qua `/api/posts`, payload sẽ có thêm `journey` gồm:
- *       - `name`, `start_date`, `end_date`, `number_of_people`, `transportation`
+ *       - `name`, `start_date`, `end_date`, `number_of_people`, `min_people_required`, `transportation`
  *       - `summary` với số điểm `visited`, `skipped`, `upcoming`
  *       - `items` và `items_by_day` để hiển thị trạng thái từng điểm đến
  *     tags: [Planners - Pilgrim]
@@ -1141,6 +1141,10 @@
  *                 format: date
  *                 example: "2026-05-12"
  *               number_of_people:
+ *                 type: integer
+ *                 minimum: 1
+ *                 example: 2
+ *               min_people_required:
  *                 type: integer
  *                 minimum: 1
  *                 example: 2
