@@ -139,7 +139,7 @@ class AdminSiteService {
 
 
       const mediaStats = await SiteMedia.findAll({
-        where: { site_id: siteId },
+        where: { site_id: siteId, is_active: true },
         attributes: [
           'status',
           [fn('COUNT', col('id')), 'count']
@@ -161,7 +161,7 @@ class AdminSiteService {
 
 
       const schedulesStats = await MassSchedule.findAll({
-        where: { site_id: siteId },
+        where: { site_id: siteId, is_active: true },
         attributes: [
           'status',
           [fn('COUNT', col('id')), 'count']
@@ -183,7 +183,7 @@ class AdminSiteService {
 
 
       const eventsStats = await Event.findAll({
-        where: { site_id: siteId },
+        where: { site_id: siteId, is_active: true },
         attributes: [
           'status',
           [fn('COUNT', col('id')), 'count']
@@ -214,7 +214,7 @@ class AdminSiteService {
 
 
       const nearbyStats = await NearbyPlace.findAll({
-        where: { site_id: siteId },
+        where: { site_id: siteId, is_active: true },
         attributes: [
           'status',
           [fn('COUNT', col('id')), 'count']
@@ -473,6 +473,16 @@ class AdminSiteService {
         where.type = filters.type;
       }
 
+      if (filters.is_active !== undefined) {
+        if (filters.is_active === 'all') {
+          delete where.is_active;
+        } else {
+          where.is_active = filters.is_active === 'true' || filters.is_active === true;
+        }
+      } else {
+        where.is_active = true;
+      }
+
       const { count, rows } = await SiteMedia.findAndCountAll({
         where,
         include: [{
@@ -522,6 +532,16 @@ class AdminSiteService {
         where.status = filters.status;
       }
 
+      if (filters.is_active !== undefined) {
+        if (filters.is_active === 'all') {
+          delete where.is_active;
+        } else {
+          where.is_active = filters.is_active === 'true' || filters.is_active === true;
+        }
+      } else {
+        where.is_active = true;
+      }
+
       const { count, rows } = await MassSchedule.findAndCountAll({
         where,
         include: [{
@@ -569,6 +589,20 @@ class AdminSiteService {
       const where = { site_id: siteId };
       if (filters.status && ['pending', 'approved', 'rejected'].includes(filters.status)) {
         where.status = filters.status;
+      }
+
+      if (filters.is_active !== undefined) {
+        if (filters.is_active === 'all') {
+          delete where.is_active;
+        } else {
+          where.is_active = filters.is_active === 'true' || filters.is_active === true;
+        }
+      } else {
+        where.is_active = true;
+      }
+
+      if (filters.time_state && ['upcoming', 'ongoing', 'ended'].includes(filters.time_state)) {
+        where.time_state = filters.time_state;
       }
 
       const { count, rows } = await Event.findAndCountAll({
@@ -621,6 +655,16 @@ class AdminSiteService {
       }
       if (filters.category && ['food', 'lodging', 'medical'].includes(filters.category)) {
         where.category = filters.category;
+      }
+
+      if (filters.is_active !== undefined) {
+        if (filters.is_active === 'all') {
+          delete where.is_active;
+        } else {
+          where.is_active = filters.is_active === 'true' || filters.is_active === true;
+        }
+      } else {
+        where.is_active = true;
       }
 
       const { count, rows } = await NearbyPlace.findAndCountAll({

@@ -228,7 +228,12 @@ class ManagerSiteService {
 
       // Check readiness BEFORE update
       const checkReadiness = (s) => {
-        return Boolean(s.name && s.province && s.address && s.latitude && s.longitude && s.cover_image && s.description && s.description.length >= 20);
+        return Boolean(
+          s.name && s.province && s.address && s.latitude && s.longitude
+          && s.cover_image && s.description && s.description.length >= 20
+          && s.opening_hours && s.history && s.history.length >= 20
+          && s.contact_info
+        );
       };
       const wasReady = checkReadiness(site);
 

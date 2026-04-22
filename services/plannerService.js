@@ -1085,10 +1085,15 @@ class PlannerService {
 
                     const isCurrentlyEditLocked = Boolean(planner.is_locked || plannerState.editLocked);
                     if (!isCurrentlyEditLocked && plannerState.joinedMemberCount < effectiveMinPeopleForLock) {
-                        const error = new Error('Edit lock requires minimum joined members');
+                        const error = new Error('Planner status lock requires minimum joined members');
                         error.requiredJoinedCount = effectiveMinPeopleForLock;
                         error.joinedCount = plannerState.joinedMemberCount;
                         throw error;
+                    }
+
+                    // When already locked AND min_people is met, block rescheduling (fairness for committed members)
+                    if (isCurrentlyEditLocked && plannerState.joinedMemberCount >= effectiveMinPeopleForLock) {
+                        throw new Error('Cannot reschedule edit lock when minimum members requirement is already met');
                     }
 
                     const editLockAvailableAt = this.getPlannerEditLockAvailableAt(firstInviteAt);
@@ -3248,9 +3253,9 @@ class PlannerService {
             end_date: planner.end_date,
             number_of_days: numberOfDays,
             number_of_people: planner.number_of_people,
-                min_people_required: Number.isInteger(Number(planner.min_people_required))
-                    ? Number(planner.min_people_required)
-                    : 1,
+            min_people_required: Number.isInteger(Number(planner.min_people_required))
+                ? Number(planner.min_people_required)
+                : 1,
             transportation: planner.transportation,
             deposit_amount: planner.deposit_amount,
             penalty_percentage: planner.penalty_percentage,
@@ -3784,7 +3789,7 @@ class PlannerService {
                 closed_day: normalizedDayNumber,
                 next_day_to_close: nextDayToClose,
                 has_next_day: hasNextDay,
-                   planner_status: plannerStatus,
+                planner_status: plannerStatus,
                 messageKey: 'planner.day_close_success',
                 messageParams: { day: normalizedDayNumber }
             };
@@ -3827,6 +3832,16 @@ class PlannerService {
             if (status === 'locked') {
                 if (this.isGroupPlanner(planner) && !planner.is_locked) {
                     throw new Error('Group planner must be edit locked before locking');
+                }
+
+                // Check min_people_required
+                const plannerState = await this.getPlannerState(plannerId, planner, { transaction: t });
+                const minRequired = Number(planner.min_people_required) || 1;
+                if (plannerState.joinedMemberCount < minRequired) {
+                    const error = new Error('Planner status lock requires minimum joined members');
+                    error.requiredJoinedCount = minRequired;
+                    error.joinedCount = plannerState.joinedMemberCount;
+                    throw error;
                 }
 
                 await planner.update({
@@ -4603,8 +4618,24 @@ class PlannerService {
                     Object.assign(updateData, this.buildSoloFallbackUpdateData(planner, now));
                 }
             } else if (planner.status === 'planning') {
-                updateData.status = 'locked';
-                updateData.is_locked = true;
+                // Check min_people_required before auto-locking
+                const minRequired = Number(planner.min_people_required) || 1;
+                if (minRequired > 1) {
+                    const joinedCount = await this.getJoinedMemberCount(planner.id, options);
+                    if (joinedCount < minRequired) {
+                        // Not enough members — cancel the planner
+                        updateData.status = 'cancelled';
+                        updateData.is_locked = false;
+                        updateData.cancelled_reason = `Không đủ số người tối thiểu (${joinedCount}/${minRequired})`;
+                        Logger.info(`Planner ${planner.id} auto-cancelled: joined=${joinedCount} < min_required=${minRequired}`);
+                    } else {
+                        updateData.status = 'locked';
+                        updateData.is_locked = true;
+                    }
+                } else {
+                    updateData.status = 'locked';
+                    updateData.is_locked = true;
+                }
             }
         }
 

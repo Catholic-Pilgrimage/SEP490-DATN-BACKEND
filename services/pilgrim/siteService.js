@@ -372,6 +372,8 @@ class PilgrimSiteService {
           { end_date: { [Op.gte]: filters.start_date } },
           { end_date: null, start_date: { [Op.gte]: filters.start_date } }
         ];
+      } else if (filters.time_state && ['upcoming', 'ongoing', 'ended'].includes(filters.time_state)) {
+        where.time_state = filters.time_state;
       } else if (filters.upcoming === 'true') {
         where.time_state = { [Op.in]: ['upcoming', 'ongoing'] };
       }

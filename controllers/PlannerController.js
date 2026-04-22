@@ -246,7 +246,7 @@ class PlannerController {
             if (error.message === 'Edit lock requires first invite') {
                 return ResponseUtil.badRequest(res, req.__('planner.edit_lock_requires_first_invite'));
             }
-            if (error.message === 'Edit lock requires minimum joined members') {
+            if (error.message === 'Planner status lock requires minimum joined members' && error.requiredJoinedCount) {
                 return ResponseUtil.badRequest(
                     res,
                     req.__('planner.edit_lock_requires_min_joined_members', {
@@ -258,6 +258,9 @@ class PlannerController {
                         joined_count: error.joinedCount
                     }
                 );
+            }
+            if (error.message === 'Cannot reschedule edit lock when minimum members requirement is already met') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_reschedule_edit_lock_min_met'));
             }
             if (error.message === 'Planner status lock requires minimum joined members') {
                 return ResponseUtil.badRequest(
@@ -930,6 +933,15 @@ class PlannerController {
                     'Group planners must be edit-locked before locking the journey.'
                 );
             }
+            if (error.message === 'Planner status lock requires minimum joined members') {
+                return PlannerController.badRequestWithFallback(
+                    res,
+                    req,
+                    'planner.status_lock_requires_min_members',
+                    `Planner requires at least ${error.requiredJoinedCount || '?'} joined members to lock. Currently: ${error.joinedCount || 0}.`,
+                    { requiredJoinedCount: error.requiredJoinedCount, joinedCount: error.joinedCount }
+                );
+            }
             if (error.message === 'Planner must be locked before starting' || error.message === 'Planner must be fully locked before starting group trip') {
                 return PlannerController.badRequestWithFallback(
                     res,
@@ -1262,7 +1274,7 @@ class PlannerController {
             if (error.message === 'Edit lock requires first invite') {
                 return ResponseUtil.badRequest(res, req.__('planner.edit_lock_requires_first_invite'));
             }
-            if (error.message === 'Edit lock requires minimum joined members') {
+            if (error.message === 'Planner status lock requires minimum joined members') {
                 return ResponseUtil.badRequest(
                     res,
                     req.__('planner.edit_lock_requires_min_joined_members', {
@@ -1283,6 +1295,9 @@ class PlannerController {
             }
             if (error.message === 'Cannot unlock once the journey is locked') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_unlock_once_locked'));
+            }
+            if (error.message === 'Cannot reschedule edit lock when minimum members requirement is already met') {
+                return ResponseUtil.badRequest(res, req.__('planner.cannot_reschedule_edit_lock_min_met'));
             }
 
             return ResponseUtil.error(res, req.__('error.server_error'));

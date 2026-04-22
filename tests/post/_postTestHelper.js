@@ -82,6 +82,7 @@ function loadPostService(overrides = {}) {
     postCommentFindByPkCalls: [],
     postCommentFindOneCalls: [],
     postCommentFindAndCountAllCalls: [],
+    userFindByPkCalls: [],
     userCheckinFindOneCalls: [],
   };
 
@@ -172,7 +173,18 @@ function loadPostService(overrides = {}) {
         return { rows: [], count: 0 };
       },
     },
-    User: {},
+    User: {
+      findByPk: async (userId, options) => {
+        state.userFindByPkCalls.push({ userId, options });
+        if (overrides.userFindByPk) {
+          return overrides.userFindByPk(userId, options, state);
+        }
+        return {
+          id: userId,
+          full_name: 'Pilgrim User',
+        };
+      },
+    },
     Journal: {},
     Site: {},
     Planner: {},

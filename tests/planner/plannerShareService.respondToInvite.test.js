@@ -27,7 +27,7 @@ function buildInvite(data = {}) {
     invitee_user_id: null,
     status: 'pending',
     token: 'invite-token',
-    expires_at: new Date('2026-04-15T00:00:00.000Z'),
+    expires_at: new Date('2099-04-15T00:00:00.000Z'),
     planner: createPlannerRecord(),
     ...data,
   };

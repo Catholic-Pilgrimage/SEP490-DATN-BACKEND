@@ -90,9 +90,9 @@ test('UTCID01: createSOS creates pending SOS, notifies on-duty guides, and broad
   });
   assert.equal(state.createNotificationCalls.filter(([type]) => type === 'sos_created').length, 2);
   assert.equal(state.createNotificationCalls.filter(([type]) => type === 'sos_planner_alert').length, 2);
-  assert.equal(state.plannerMessageCreateCalls.length, 1);
-  assert.equal(state.plannerMessageCreateCalls[0].data.message_type, 'sos_alert');
-  assert.ok(state.plannerMessageCreateCalls[0].data.content.includes('SOS0410001'));
+  assert.equal(state.plannerChatCalls.length, 1);
+  assert.equal(state.plannerChatCalls[0].plannerId, 'planner-1');
+  assert.ok(state.plannerChatCalls[0].content.includes('Need urgent help'));
   assert.equal(state.notifySiteManagerCalls.length, 0);
   assert.equal(result.code, 'SOS0410001');
   assert.equal(result.site.name, 'La Vang Shrine');
@@ -145,7 +145,7 @@ test('UTCID02: createSOS falls back to notifying the site manager when no on-dut
   assert.equal(state.notifySiteManagerCalls.length, 1);
   assert.equal(state.notifySiteManagerCalls[0][0], 'site-2');
   assert.equal(state.notifySiteManagerCalls[0][1], 'sos_created');
-  assert.equal(state.plannerMessageCreateCalls.length, 0);
+  assert.equal(state.plannerChatCalls.length, 0);
   assert.equal(result.code, 'SOS0410002');
 });
 

@@ -11,10 +11,10 @@ class AdminDashboardService {
         try {
             const now = new Date();
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            
+
             // Calculate date range based on filter
             let startDate, endDate;
-            
+
             if (filters.period === 'custom' && filters.from_date && filters.to_date) {
                 // Custom date range
                 startDate = new Date(filters.from_date);
@@ -42,7 +42,7 @@ class AdminDashboardService {
                 startDate = null;
                 endDate = null;
             }
-            
+
             const thisWeekStart = new Date(today);
             thisWeekStart.setDate(today.getDate() - today.getDay());
             const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -52,7 +52,7 @@ class AdminDashboardService {
             if (startDate && endDate) {
                 userWhere.created_at = { [Op.between]: [startDate, endDate] };
             }
-            
+
             const totalUsers = await User.count({ where: userWhere });
 
             const usersByRole = await User.findAll({
@@ -133,7 +133,7 @@ class AdminDashboardService {
             if (startDate && endDate) {
                 plannerWhere.created_at = { [Op.between]: [startDate, endDate] };
             }
-            
+
             const totalPlanners = await Planner.count({ where: plannerWhere });
             const plannersByStatus = await Planner.findAll({
                 where: plannerWhere,
@@ -160,7 +160,7 @@ class AdminDashboardService {
             if (startDate && endDate) {
                 checkinWhere.checkin_date = { [Op.between]: [startDate, endDate] };
             }
-            
+
             const totalCheckins = await UserCheckin.count({ where: checkinWhere });
             const checkinsToday = await UserCheckin.count({
                 where: {
@@ -183,13 +183,13 @@ class AdminDashboardService {
             if (startDate && endDate) {
                 journalWhere.created_at = { [Op.between]: [startDate, endDate] };
             }
-            
+
             const totalJournals = await Journal.count({ where: journalWhere });
-            const publicJournals = await Journal.count({ 
-                where: { ...journalWhere, privacy: 'public' } 
+            const publicJournals = await Journal.count({
+                where: { ...journalWhere, privacy: 'public' }
             });
-            const privateJournals = await Journal.count({ 
-                where: { ...journalWhere, privacy: 'private' } 
+            const privateJournals = await Journal.count({
+                where: { ...journalWhere, privacy: 'private' }
             });
             const journalsThisMonth = await Journal.count({
                 where: {
@@ -202,7 +202,7 @@ class AdminDashboardService {
             if (startDate && endDate) {
                 postWhere.created_at = { [Op.between]: [startDate, endDate] };
             }
-            
+
             const totalPosts = await Post.count({ where: postWhere });
             const postsThisMonth = await Post.count({
                 where: {
@@ -216,7 +216,7 @@ class AdminDashboardService {
                 likeWhere.created_at = { [Op.between]: [startDate, endDate] };
                 commentWhere.created_at = { [Op.between]: [startDate, endDate] };
             }
-            
+
             const totalLikes = await PostLike.count({ where: likeWhere });
             const totalComments = await PostComment.count({ where: commentWhere });
 
@@ -225,7 +225,7 @@ class AdminDashboardService {
             if (startDate && endDate) {
                 sosWhere.created_at = { [Op.between]: [startDate, endDate] };
             }
-            
+
             const totalSOS = await SOSRequest.count({ where: sosWhere });
             const sosByStatus = await SOSRequest.findAll({
                 where: sosWhere,
@@ -281,7 +281,7 @@ class AdminDashboardService {
             if (startDate && endDate) {
                 resolvedSOSWhere.created_at = { [Op.between]: [startDate, endDate] };
             }
-            
+
             const resolvedSOS = await SOSRequest.findAll({
                 where: resolvedSOSWhere,
                 attributes: [
@@ -296,9 +296,9 @@ class AdminDashboardService {
             if (startDate && endDate) {
                 reportWhere.created_at = { [Op.between]: [startDate, endDate] };
             }
-            
+
             const totalReports = await Report.count({ where: reportWhere });
-            
+
             const reportsByStatus = await Report.findAll({
                 where: reportWhere,
                 attributes: [
@@ -340,10 +340,10 @@ class AdminDashboardService {
 
             // Content pending review (always current, not filtered by date)
             const pendingVerifications = await VerificationRequest.count({ where: { status: 'pending' } });
-            const pendingMedia = await SiteMedia.count({ where: { status: 'pending' } });
-            const pendingSchedules = await MassSchedule.count({ where: { status: 'pending' } });
-            const pendingEvents = await Event.count({ where: { status: 'pending' } });
-            const pendingNearbyPlaces = await NearbyPlace.count({ where: { status: 'pending' } });
+            const pendingMedia = await SiteMedia.count({ where: { status: 'pending', is_active: true } });
+            const pendingSchedules = await MassSchedule.count({ where: { status: 'pending', is_active: true } });
+            const pendingEvents = await Event.count({ where: { status: 'pending', is_active: true } });
+            const pendingNearbyPlaces = await NearbyPlace.count({ where: { status: 'pending', is_active: true } });
             const pendingShifts = await GuideShiftSubmission.count({ where: { status: 'pending' } });
 
             Logger.info(`Admin dashboard overview fetched successfully (period: ${filters.period || 'all'}, from: ${startDate || 'N/A'}, to: ${endDate || 'N/A'})`);
@@ -423,9 +423,9 @@ class AdminDashboardService {
         try {
             const now = new Date();
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            
+
             let startDate, endDate;
-            
+
             // Priority: period filter > days parameter
             if (filters.period === 'custom' && filters.from_date && filters.to_date) {
                 startDate = new Date(filters.from_date);
@@ -490,9 +490,9 @@ class AdminDashboardService {
         try {
             const now = new Date();
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            
+
             let startDate, endDate;
-            
+
             // Priority: period filter > days parameter
             if (filters.period === 'custom' && filters.from_date && filters.to_date) {
                 startDate = new Date(filters.from_date);
@@ -556,13 +556,13 @@ class AdminDashboardService {
     static async getPopularSites(filters = {}) {
         try {
             const { PlannerItem } = require('../../models');
-            
+
             const now = new Date();
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            
+
             let startDate, endDate;
             const plannerItemWhere = {};
-            
+
             // Calculate date range based on filter
             if (filters.period === 'custom' && filters.from_date && filters.to_date) {
                 startDate = new Date(filters.from_date);
@@ -635,10 +635,10 @@ class AdminDashboardService {
         try {
             const now = new Date();
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            
+
             let startDate, endDate;
             const sosWhere = {};
-            
+
             // Calculate date range based on filter
             if (filters.period === 'custom' && filters.from_date && filters.to_date) {
                 startDate = new Date(filters.from_date);
