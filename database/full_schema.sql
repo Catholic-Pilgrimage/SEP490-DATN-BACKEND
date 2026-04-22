@@ -574,6 +574,7 @@ CREATE TABLE IF NOT EXISTS planners (
     start_date DATE,                             -- Ngày bắt đầu
     end_date DATE,                               -- Ngày kết thúc
     number_of_people INT DEFAULT 1,
+    min_people_required INT DEFAULT 1,
     transportation VARCHAR(100),
     deposit_amount DECIMAL(15, 2) DEFAULT NULL CHECK (deposit_amount IS NULL OR deposit_amount >= 0),
     penalty_percentage INTEGER DEFAULT NULL CHECK (penalty_percentage IS NULL OR (penalty_percentage >= 0 AND penalty_percentage <= 100)),
@@ -598,6 +599,9 @@ ALTER TABLE planners
 ADD COLUMN IF NOT EXISTS edit_lock_at TIMESTAMP WITH TIME ZONE;
 
 ALTER TABLE planners
+ADD COLUMN IF NOT EXISTS min_people_required INT DEFAULT 1;
+
+ALTER TABLE planners
 ADD COLUMN IF NOT EXISTS cancelled_reason TEXT;
 
 ALTER TABLE planners
@@ -609,6 +613,20 @@ WHERE last_closed_day IS NULL;
 
 ALTER TABLE planners
 ALTER COLUMN last_closed_day SET DEFAULT 0;
+
+UPDATE planners
+SET min_people_required = 1
+WHERE min_people_required IS NULL;
+
+ALTER TABLE planners
+ALTER COLUMN min_people_required SET DEFAULT 1;
+
+ALTER TABLE planners
+DROP CONSTRAINT IF EXISTS chk_planners_people_bounds;
+
+ALTER TABLE planners
+ADD CONSTRAINT chk_planners_people_bounds
+CHECK (min_people_required >= 1 AND min_people_required <= number_of_people);
 
 ALTER TABLE planners
 DROP COLUMN IF EXISTS discussion_started_at;

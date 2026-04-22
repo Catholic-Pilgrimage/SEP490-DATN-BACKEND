@@ -36,6 +36,13 @@ const Planner = sequelize.define('Planner', {
             min: 1
         }
     },
+    min_people_required: {
+        type: DataTypes.INTEGER,
+        defaultValue: 1,
+        validate: {
+            min: 1
+        }
+    },
     transportation: {
         type: DataTypes.STRING(100),
         allowNull: true,

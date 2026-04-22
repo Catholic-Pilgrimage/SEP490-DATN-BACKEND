@@ -27,6 +27,12 @@
  *           default: 1
  *           example: 4
  *           description: "Số người (tối thiểu 1)"
+ *         min_people_required:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *           example: 2
+ *           description: "Số người tối thiểu cần đạt để được chốt kế hoạch. Không được lớn hơn number_of_people"
  *         transportation:
  *           type: string
  *           enum: [motorbike, car, bus]
@@ -43,12 +49,6 @@
  *           maximum: 100
  *           example: 10
  *           description: "Phần trăm phạt khi rút khỏi nhóm (0-100)"
- *         edit_lock_at:
- *           type: string
- *           format: date-time
- *           nullable: true
- *           example: "2026-04-30T00:00:00.000Z"
- *           description: "Field này hiển thị trên Swagger để FE biết cấu trúc dữ liệu. Backend chưa áp dụng edit_lock_at ở bước tạo mới; chỉ dùng khi cập nhật planner nhóm sau khi đủ điều kiện"
  *
  *     UpdatePlannerRequest:
  *       type: object
@@ -70,6 +70,10 @@
  *           type: integer
  *           minimum: 1
  *           example: 6
+ *         min_people_required:
+ *           type: integer
+ *           minimum: 1
+ *           example: 2
  *         transportation:
  *           type: string
  *           enum: [motorbike, car, bus]
@@ -270,6 +274,11 @@
  *           description: "Số ngày của chuyến đi = end_date - start_date + 1 (tự động tính)"
  *         number_of_people:
  *           type: integer
+ *         min_people_required:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *           example: 2
  *         transportation:
  *           type: string
  *         deposit_amount:

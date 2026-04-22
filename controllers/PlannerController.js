@@ -74,6 +74,18 @@ class PlannerController {
             if (error.message === 'Number of people must be at least 1') {
                 return ResponseUtil.badRequest(res, req.__('planner.invalid_people'));
             }
+            if (error.message === 'Min people must be at least 1') {
+                return ResponseUtil.badRequest(res, req.__('planner.invalid_min_people'));
+            }
+            if (error.message === 'Min people cannot exceed max people') {
+                return ResponseUtil.badRequest(res, req.__('planner.min_people_cannot_exceed_max_people'));
+            }
+            if (error.message === 'Min people must be at least 1') {
+                return ResponseUtil.badRequest(res, req.__('planner.invalid_min_people'));
+            }
+            if (error.message === 'Min people cannot exceed max people') {
+                return ResponseUtil.badRequest(res, req.__('planner.min_people_cannot_exceed_max_people'));
+            }
             if (error.message === 'Planner exceeds 30 days') {
                 return ResponseUtil.badRequest(res, req.__('planner.exceeds_max_days'));
             }
@@ -233,6 +245,19 @@ class PlannerController {
             }
             if (error.message === 'Edit lock requires first invite') {
                 return ResponseUtil.badRequest(res, req.__('planner.edit_lock_requires_first_invite'));
+            }
+            if (error.message === 'Edit lock requires minimum joined members') {
+                return ResponseUtil.badRequest(
+                    res,
+                    req.__('planner.edit_lock_requires_min_joined_members', {
+                        required: error.requiredJoinedCount || '?',
+                        joined: error.joinedCount || 0
+                    }),
+                    {
+                        required_joined_count: error.requiredJoinedCount,
+                        joined_count: error.joinedCount
+                    }
+                );
             }
             if (error.message === 'Edit lock must be after first invite') {
                 return ResponseUtil.badRequest(res, req.__('planner.edit_lock_must_be_after_first_invite'));
@@ -1223,6 +1248,19 @@ class PlannerController {
             }
             if (error.message === 'Edit lock requires first invite') {
                 return ResponseUtil.badRequest(res, req.__('planner.edit_lock_requires_first_invite'));
+            }
+            if (error.message === 'Edit lock requires minimum joined members') {
+                return ResponseUtil.badRequest(
+                    res,
+                    req.__('planner.edit_lock_requires_min_joined_members', {
+                        required: error.requiredJoinedCount || '?',
+                        joined: error.joinedCount || 0
+                    }),
+                    {
+                        required_joined_count: error.requiredJoinedCount,
+                        joined_count: error.joinedCount
+                    }
+                );
             }
             if (error.message === 'Edit lock must be after first invite') {
                 return ResponseUtil.badRequest(res, req.__('planner.edit_lock_must_be_after_first_invite'));
