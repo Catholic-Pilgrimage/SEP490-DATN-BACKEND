@@ -259,11 +259,24 @@ class PlannerController {
                     }
                 );
             }
+            if (error.message === 'Planner status lock requires minimum joined members') {
+                return ResponseUtil.badRequest(
+                    res,
+                    req.__('planner.manual_lock_requires_min_joined_members', {
+                        required: error.requiredJoinedCount || '?',
+                        joined: error.joinedCount || 0
+                    }),
+                    {
+                        required_joined_count: error.requiredJoinedCount,
+                        joined_count: error.joinedCount
+                    }
+                );
+            }
             if (error.message === 'Edit lock must be after first invite') {
                 return ResponseUtil.badRequest(res, req.__('planner.edit_lock_must_be_after_first_invite'));
             }
-            if (error.message === 'Edit lock must be on or before planner lock time') {
-                return ResponseUtil.badRequest(res, req.__('planner.edit_lock_must_be_before_planner_lock'));
+            if (error.message === 'Edit lock must be at least 12 hours before planner lock time') {
+                return ResponseUtil.badRequest(res, req.__('planner.edit_lock_must_be_12h_before_planner_lock'));
             }
             if (error.message === 'Invalid edit lock time') {
                 return ResponseUtil.badRequest(res, req.__('validation.failed'));

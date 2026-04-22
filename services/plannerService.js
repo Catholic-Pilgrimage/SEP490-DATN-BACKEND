@@ -9,6 +9,7 @@ const { calculateEstimatedTime, parseDurationToMinutes, isWithinOpeningHours } =
 
 const PLANNER_STATUS_LOCK_HOURS = 12;
 const PLANNER_DEFAULT_LOCK_DURATION_HOURS = 24;
+const PLANNER_TIMEZONE_OFFSET_HOURS = 7;
 
 class PlannerService {
 
@@ -1082,7 +1083,8 @@ class PlannerService {
                         throw new Error('Edit lock requires first invite');
                     }
 
-                    if (plannerState.joinedMemberCount < effectiveMinPeopleForLock) {
+                    const isCurrentlyEditLocked = Boolean(planner.is_locked || plannerState.editLocked);
+                    if (!isCurrentlyEditLocked && plannerState.joinedMemberCount < effectiveMinPeopleForLock) {
                         const error = new Error('Edit lock requires minimum joined members');
                         error.requiredJoinedCount = effectiveMinPeopleForLock;
                         error.joinedCount = plannerState.joinedMemberCount;
@@ -1097,8 +1099,15 @@ class PlannerService {
                     }
 
                     const plannerLockAt = this.getPlannerStatusLockAt(plannerLockReference);
-                    if (plannerLockAt && requestedEditLockAt > plannerLockAt) {
-                        throw new Error('Edit lock must be on or before planner lock time');
+                    if (!isCurrentlyEditLocked && plannerLockAt) {
+                        const latestAllowedEditLockAt = new Date(plannerLockAt);
+                        latestAllowedEditLockAt.setUTCHours(latestAllowedEditLockAt.getUTCHours() - 12);
+
+                        if (requestedEditLockAt > latestAllowedEditLockAt) {
+                            const error = new Error('Edit lock must be at least 12 hours before planner lock time');
+                            error.latestAllowedEditLockAt = latestAllowedEditLockAt;
+                            throw error;
+                        }
                     }
 
                     dataToUpdate.edit_lock_at = requestedEditLockAt;
@@ -4178,8 +4187,14 @@ class PlannerService {
             return null;
         }
 
-        const startBoundary = new Date(planner.start_date);
-        startBoundary.setHours(0, 0, 0, 0);
+        const [year, month, day] = String(planner.start_date).split('-').map(Number);
+        if ([year, month, day].some((value) => Number.isNaN(value))) {
+            return null;
+        }
+
+        const timezoneOffsetMs = PLANNER_TIMEZONE_OFFSET_HOURS * 60 * 60 * 1000;
+        const vietnamMidnightUtcMs = Date.UTC(year, month - 1, day, 0, 0, 0, 0) - timezoneOffsetMs;
+        const startBoundary = new Date(vietnamMidnightUtcMs);
         return Number.isNaN(startBoundary.getTime()) ? null : startBoundary;
     }
 
@@ -4190,9 +4205,7 @@ class PlannerService {
         }
 
         const statusLockAt = new Date(startBoundary);
-        if (this.isGroupPlanner(planner)) {
-            statusLockAt.setHours(statusLockAt.getHours() - PLANNER_STATUS_LOCK_HOURS);
-        }
+        statusLockAt.setUTCHours(statusLockAt.getUTCHours() - PLANNER_STATUS_LOCK_HOURS);
         return statusLockAt;
     }
 
@@ -4208,7 +4221,7 @@ class PlannerService {
             : PLANNER_DEFAULT_LOCK_DURATION_HOURS;
 
         const editLockAt = new Date(startBoundary);
-        editLockAt.setHours(editLockAt.getHours() - lockDurationHours);
+        editLockAt.setUTCHours(editLockAt.getUTCHours() - lockDurationHours);
         return editLockAt;
     }
 
@@ -4642,7 +4655,7 @@ class PlannerService {
 
                 const minJoinedRequired = Number(planner.min_people_required) || 1;
                 if (plannerState.joinedMemberCount < minJoinedRequired) {
-                    const error = new Error('Edit lock requires minimum joined members');
+                    const error = new Error('Planner status lock requires minimum joined members');
                     error.requiredJoinedCount = minJoinedRequired;
                     error.joinedCount = plannerState.joinedMemberCount;
                     throw error;
