@@ -4647,7 +4647,7 @@ class PlannerService {
 
                 const minJoinedRequired = Number(planner.min_people_required) || 1;
                 if (plannerState.joinedMemberCount < minJoinedRequired) {
-                    const error = new Error('Edit lock requires minimum joined members');
+                    const error = new Error('Planner status lock requires minimum joined members');
                     error.requiredJoinedCount = minJoinedRequired;
                     error.joinedCount = plannerState.joinedMemberCount;
                     throw error;

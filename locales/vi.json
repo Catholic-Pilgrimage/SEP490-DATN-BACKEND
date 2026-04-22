@@ -478,6 +478,7 @@
     "manual_unlock_success": "Đã hủy lịch khóa chỉnh sửa thành công.",
     "only_group_can_lock": "Chỉ có thể khóa hành trình nhóm (từ 2 người trở lên).",
     "cannot_unlock_once_locked": "Không thể mở khóa hành trình khi đã bị khóa (bởi trưởng đoàn hoặc tự động).",
+    "manual_lock_requires_min_joined_members": "Bạn chỉ có thể khóa hành trình khi đã có ít nhất {{required}} thành viên tham gia (hiện tại: {{joined}}).",
     "edit_lock_requires_group": "Chỉ hành trình nhóm (từ 2 người trở lên) mới có thể dùng khóa chỉnh sửa.",
     "edit_lock_requires_complete_schedule": "Bạn chỉ có thể đặt thời điểm khóa khi lịch trình đã đầy đủ cho tất cả các ngày.",
     "edit_lock_requires_first_invite": "Bạn chỉ có thể đặt thời điểm khóa sau khi đã gửi lời mời email đầu tiên.",

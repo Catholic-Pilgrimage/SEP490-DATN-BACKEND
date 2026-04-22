@@ -246,10 +246,10 @@ class PlannerController {
             if (error.message === 'Edit lock requires first invite') {
                 return ResponseUtil.badRequest(res, req.__('planner.edit_lock_requires_first_invite'));
             }
-            if (error.message === 'Edit lock requires minimum joined members') {
+            if (error.message === 'Planner status lock requires minimum joined members') {
                 return ResponseUtil.badRequest(
                     res,
-                    req.__('planner.edit_lock_requires_min_joined_members', {
+                    req.__('planner.manual_lock_requires_min_joined_members', {
                         required: error.requiredJoinedCount || '?',
                         joined: error.joinedCount || 0
                     }),

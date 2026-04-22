@@ -484,6 +484,7 @@
     "manual_unlock_success": "Scheduled edit lock removed successfully.",
     "only_group_can_lock": "Only group journeys (2+ people) can be locked.",
     "cannot_unlock_once_locked": "Cannot unlock once the journey is locked (either manually or automatically).",
+    "manual_lock_requires_min_joined_members": "You can only lock the journey after at least {{required}} members have joined (current: {{joined}}).",
     "edit_lock_requires_group": "Only group journeys (2+ people) can use edit lock.",
     "edit_lock_requires_complete_schedule": "You can only set an edit lock after the full trip schedule is complete.",
     "edit_lock_requires_first_invite": "You can only set an edit lock after the first email invite has been sent.",
