@@ -479,6 +479,7 @@
     "edit_lock_requires_group": "Chỉ hành trình nhóm (từ 2 người trở lên) mới có thể dùng khóa chỉnh sửa.",
     "edit_lock_requires_complete_schedule": "Bạn chỉ có thể đặt thời điểm khóa khi lịch trình đã đầy đủ cho tất cả các ngày.",
     "edit_lock_requires_first_invite": "Bạn chỉ có thể đặt thời điểm khóa sau khi đã gửi lời mời email đầu tiên.",
+    "edit_lock_must_be_after_first_invite": "Thời điểm khóa chỉnh sửa phải từ sau lời mời email đầu tiên.",
     "edit_lock_requires_discussion_period": "Bạn chỉ có thể đặt thời điểm khóa sau 12 giờ kể từ lời mời email đầu tiên.",
     "edit_lock_must_be_after_discussion_period": "Thời điểm khóa chỉnh sửa phải từ sau mốc thảo luận 12 giờ tính từ lời mời email đầu tiên.",
     "edit_lock_must_be_before_planner_lock": "Thời điểm khóa chỉnh sửa phải nhỏ hơn hoặc bằng thời điểm kế hoạch chuyển sang trạng thái khóa.",

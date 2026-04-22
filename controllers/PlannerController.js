@@ -234,11 +234,8 @@ class PlannerController {
             if (error.message === 'Edit lock requires first invite') {
                 return ResponseUtil.badRequest(res, req.__('planner.edit_lock_requires_first_invite'));
             }
-            if (error.message === 'Edit lock requires discussion period') {
-                return ResponseUtil.badRequest(res, req.__('planner.edit_lock_requires_discussion_period'));
-            }
-            if (error.message === 'Edit lock must be after discussion period') {
-                return ResponseUtil.badRequest(res, req.__('planner.edit_lock_must_be_after_discussion_period'));
+            if (error.message === 'Edit lock must be after first invite') {
+                return ResponseUtil.badRequest(res, req.__('planner.edit_lock_must_be_after_first_invite'));
             }
             if (error.message === 'Edit lock must be on or before planner lock time') {
                 return ResponseUtil.badRequest(res, req.__('planner.edit_lock_must_be_before_planner_lock'));
@@ -1227,11 +1224,8 @@ class PlannerController {
             if (error.message === 'Edit lock requires first invite') {
                 return ResponseUtil.badRequest(res, req.__('planner.edit_lock_requires_first_invite'));
             }
-            if (error.message === 'Edit lock requires discussion period') {
-                return ResponseUtil.badRequest(res, req.__('planner.edit_lock_requires_discussion_period'));
-            }
-            if (error.message === 'Edit lock must be after discussion period') {
-                return ResponseUtil.badRequest(res, req.__('planner.edit_lock_must_be_after_discussion_period'));
+            if (error.message === 'Edit lock must be after first invite') {
+                return ResponseUtil.badRequest(res, req.__('planner.edit_lock_must_be_after_first_invite'));
             }
             if (error.message === 'Edit lock must be on or before planner lock time') {
                 return ResponseUtil.badRequest(res, req.__('planner.edit_lock_must_be_before_planner_lock'));

@@ -485,6 +485,7 @@
     "edit_lock_requires_group": "Only group journeys (2+ people) can use edit lock.",
     "edit_lock_requires_complete_schedule": "You can only set an edit lock after the full trip schedule is complete.",
     "edit_lock_requires_first_invite": "You can only set an edit lock after the first email invite has been sent.",
+    "edit_lock_must_be_after_first_invite": "The edit lock time must be on or after the first email invite.",
     "edit_lock_requires_discussion_period": "You can only set an edit lock after 12 hours have passed from the first email invite.",
     "edit_lock_must_be_after_discussion_period": "The edit lock time must be on or after the 12-hour discussion period from the first email invite.",
     "edit_lock_must_be_before_planner_lock": "The edit lock time must be on or before the planner lock time.",

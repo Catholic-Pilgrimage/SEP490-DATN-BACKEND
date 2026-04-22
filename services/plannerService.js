@@ -9,7 +9,6 @@ const { calculateEstimatedTime, parseDurationToMinutes, isWithinOpeningHours } =
 
 const PLANNER_STATUS_LOCK_HOURS = 12;
 const PLANNER_DEFAULT_LOCK_DURATION_HOURS = 24;
-const PLANNER_EDIT_LOCK_DISCUSSION_HOURS = 12;
 
 class PlannerService {
 
@@ -1058,14 +1057,8 @@ class PlannerService {
                     }
 
                     const editLockAvailableAt = this.getPlannerEditLockAvailableAt(firstInviteAt);
-                    if (!editLockAvailableAt || requestNow < editLockAvailableAt) {
-                        const error = new Error('Edit lock requires discussion period');
-                        error.editLockAvailableAt = editLockAvailableAt;
-                        throw error;
-                    }
-
                     if (requestedEditLockAt < editLockAvailableAt) {
-                        const error = new Error('Edit lock must be after discussion period');
+                        const error = new Error('Edit lock must be after first invite');
                         error.editLockAvailableAt = editLockAvailableAt;
                         throw error;
                     }
@@ -4120,9 +4113,7 @@ class PlannerService {
             return null;
         }
 
-        const editLockAvailableAt = new Date(firstInviteAt);
-        editLockAvailableAt.setHours(editLockAvailableAt.getHours() + PLANNER_EDIT_LOCK_DISCUSSION_HOURS);
-        return editLockAvailableAt;
+        return new Date(firstInviteAt);
     }
 
     static getPlannerStartBoundary(planner) {
