@@ -9,6 +9,7 @@ const { calculateEstimatedTime, parseDurationToMinutes, isWithinOpeningHours } =
 
 const PLANNER_STATUS_LOCK_HOURS = 12;
 const PLANNER_DEFAULT_LOCK_DURATION_HOURS = 24;
+const PLANNER_TIMEZONE_OFFSET_HOURS = 7;
 
 class PlannerService {
 
@@ -4178,8 +4179,14 @@ class PlannerService {
             return null;
         }
 
-        const startBoundary = new Date(planner.start_date);
-        startBoundary.setHours(0, 0, 0, 0);
+        const [year, month, day] = String(planner.start_date).split('-').map(Number);
+        if ([year, month, day].some((value) => Number.isNaN(value))) {
+            return null;
+        }
+
+        const timezoneOffsetMs = PLANNER_TIMEZONE_OFFSET_HOURS * 60 * 60 * 1000;
+        const vietnamMidnightUtcMs = Date.UTC(year, month - 1, day, 0, 0, 0, 0) - timezoneOffsetMs;
+        const startBoundary = new Date(vietnamMidnightUtcMs);
         return Number.isNaN(startBoundary.getTime()) ? null : startBoundary;
     }
 
@@ -4190,9 +4197,7 @@ class PlannerService {
         }
 
         const statusLockAt = new Date(startBoundary);
-        if (this.isGroupPlanner(planner)) {
-            statusLockAt.setHours(statusLockAt.getHours() - PLANNER_STATUS_LOCK_HOURS);
-        }
+        statusLockAt.setUTCHours(statusLockAt.getUTCHours() - PLANNER_STATUS_LOCK_HOURS);
         return statusLockAt;
     }
 
@@ -4208,7 +4213,7 @@ class PlannerService {
             : PLANNER_DEFAULT_LOCK_DURATION_HOURS;
 
         const editLockAt = new Date(startBoundary);
-        editLockAt.setHours(editLockAt.getHours() - lockDurationHours);
+        editLockAt.setUTCHours(editLockAt.getUTCHours() - lockDurationHours);
         return editLockAt;
     }
 
