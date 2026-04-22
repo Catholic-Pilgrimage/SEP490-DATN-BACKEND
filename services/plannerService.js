@@ -994,9 +994,15 @@ class PlannerService {
                 throw new Error('Cannot update ongoing plan');
             }
 
-            // Check final lock
+            // When planner is locked, only allow rescheduling/removing edit_lock_at.
             if (plannerState.editLocked) {
-                throw new Error('Planner is locked');
+                const requestedKeys = Object.keys(updateData || {});
+                const hasEditLockUpdate = requestedKeys.includes('edit_lock_at');
+                const hasOtherUpdates = requestedKeys.some(key => key !== 'edit_lock_at');
+
+                if (!hasEditLockUpdate || hasOtherUpdates) {
+                    throw new Error('Planner is locked');
+                }
             }
 
             // Prepare update data
@@ -4339,7 +4345,6 @@ class PlannerService {
             hasDates &&
             scheduleState.isValid &&
             joinedMemberCount >= minJoinedRequired &&
-            !editLocked &&
             !joinWindowClosed &&
             editLockAvailableAt &&
             now >= editLockAvailableAt
