@@ -510,7 +510,10 @@
     "cannot_swap_completed": "Cannot swap items in a completed plan",
     "cannot_swap_cancelled": "Cannot swap items in a cancelled plan",
     "invalid_arrival_time_suggested": "Invalid estimated time: You arrive too early at {{time}}. The preceding stop departs at {{departureTime}} and travel takes {{travelTime}}, earliest arrival is {{suggestedTime}}",
-    "edit_lock_only_once": "The edit lock time can only be set once during the planning phase."
+    "edit_lock_only_once": "The edit lock time can only be set once during the planning phase.",
+    "deposit_min_error": "Deposit amount must be at least 2000 VNĐ",
+    "penalty_max_error": "Penalty percentage cannot exceed 50%",
+    "financials_immutable_after_share": "Financial settings (deposit/penalty) cannot be changed after the first share"
   },
   "chat": {
     "get_messages_success": "Messages retrieved successfully",

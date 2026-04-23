@@ -108,6 +108,13 @@ class PlannerController {
             if (error.message === 'Group lead time error') {
                 return ResponseUtil.badRequest(res, req.__('planner.group_lead_time_error'));
             }
+            if (error.name === 'SequelizeValidationError') {
+                return ResponseUtil.badRequest(
+                    res,
+                    req.__('validation.failed'),
+                    error.errors.map(e => ({ field: e.path, message: req.__(e.message) }))
+                );
+            }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
     }
@@ -287,8 +294,15 @@ class PlannerController {
             if (error.message === 'Invalid edit lock time') {
                 return ResponseUtil.badRequest(res, req.__('validation.failed'));
             }
-            if (error.message === 'Group lead time error') {
-                return ResponseUtil.badRequest(res, req.__('planner.group_lead_time_error'));
+            if (error.message === 'Financial settings cannot be changed after first share') {
+                return ResponseUtil.badRequest(res, req.__('planner.financials_immutable_after_share'));
+            }
+            if (error.name === 'SequelizeValidationError') {
+                return ResponseUtil.badRequest(
+                    res,
+                    req.__('validation.failed'),
+                    error.errors.map(e => ({ field: e.path, message: req.__(e.message) }))
+                );
             }
             return ResponseUtil.error(res, req.__('error.server_error'));
         }

@@ -1241,17 +1241,25 @@ class PlannerService {
             const effectiveNumPeople = dataToUpdate.number_of_people ?? planner.number_of_people ?? 1;
 
             if (updateData.deposit_amount !== undefined) {
-                if (effectiveNumPeople <= 1 && parseFloat(updateData.deposit_amount) > 0) {
+                const requestedDeposit = parseFloat(updateData.deposit_amount) || 0;
+                if (hasStartedSharingPlanner && requestedDeposit !== parseFloat(planner.deposit_amount)) {
+                    throw new Error('Financial settings cannot be changed after first share');
+                }
+                if (effectiveNumPeople <= 1 && requestedDeposit > 0) {
                     throw new Error('Solo planner cannot have a deposit amount');
                 }
-                dataToUpdate.deposit_amount = parseFloat(updateData.deposit_amount) || 0;
+                dataToUpdate.deposit_amount = requestedDeposit;
             }
 
             if (updateData.penalty_percentage !== undefined) {
+                const requestedPenalty = parseInt(updateData.penalty_percentage) || 0;
+                if (hasStartedSharingPlanner && requestedPenalty !== parseInt(planner.penalty_percentage)) {
+                    throw new Error('Financial settings cannot be changed after first share');
+                }
                 if (effectiveNumPeople <= 1 && parseInt(updateData.penalty_percentage) > 0) {
                     throw new Error('Solo planner cannot have a penalty percentage');
                 }
-                dataToUpdate.penalty_percentage = parseInt(updateData.penalty_percentage) || 0;
+                dataToUpdate.penalty_percentage = requestedPenalty;
             }
 
             // Edge case: downgrade to solo → clear existing deposit/penalty automatically
