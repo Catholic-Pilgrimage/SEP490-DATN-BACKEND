@@ -208,9 +208,9 @@ exports.toggleMediaActive = async (req, res) => {
  */
 exports.getSchedules = async (req, res) => {
     try {
-        const { page, limit, status, day_of_week } = req.query;
+        const { page, limit, status, day_of_week, is_active } = req.query;
         const result = await ManagerContentService.getSchedules(req.user.id, {
-            page, limit, status, day_of_week
+            page, limit, status, day_of_week, is_active
         });
         return ResponseUtil.success(res, result, req.__('manager.get_schedules_success'));
     } catch (error) {
@@ -409,9 +409,9 @@ exports.toggleEventActive = async (req, res) => {
  */
 exports.getNearbyPlaces = async (req, res) => {
     try {
-        const { page, limit, category, status } = req.query;
+        const { page, limit, category, status, is_active } = req.query;
         const result = await ManagerContentService.getNearbyPlaces(req.user.id, {
-            page, limit, category, status
+            page, limit, category, status, is_active
         });
         return ResponseUtil.success(res, result, req.__('manager.get_nearby_places_success'));
     } catch (error) {

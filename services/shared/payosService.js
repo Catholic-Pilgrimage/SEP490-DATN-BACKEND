@@ -1,6 +1,8 @@
 const { payosReceive, payosPayout, config } = require('../../config/payos.config');
 const Logger = require('../../utils/logger.util');
 
+const PAYMENT_LINK_EXPIRY_MINUTES = 15;
+
 class PayOSService {
     // ===================== TOPUP (Thu tiền) =====================
 
@@ -16,12 +18,16 @@ class PayOSService {
                 throw new Error(`Invalid PayOS orderCode: ${orderCode}`);
             }
 
+            // Auto-expire link after 15 minutes (Unix timestamp in seconds)
+            const expiredAt = Math.floor(Date.now() / 1000) + (PAYMENT_LINK_EXPIRY_MINUTES * 60);
+
             const paymentLink = await payosReceive.paymentRequests.create({
                 orderCode: normalizedOrderCode,
                 amount: Math.round(amount),
                 description: description.substring(0, 25),
                 returnUrl: returnUrl || config.returnUrl,
-                cancelUrl: cancelUrl || config.cancelUrl
+                cancelUrl: cancelUrl || config.cancelUrl,
+                expiredAt
             });
 
             Logger.info(`PayOS payment link created: orderCode=${orderCode}, amount=${amount}`);
