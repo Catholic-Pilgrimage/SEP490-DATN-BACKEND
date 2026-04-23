@@ -738,8 +738,8 @@ class PlannerService {
 
             // Financial fields — solo planners (number_of_people = 1) cannot have deposit or penalty
             const numPeople = parseInt(plannerData.number_of_people) || 1;
-            const depositAmount = numPeople > 1 ? (parseFloat(plannerData.deposit_amount) || 0) : 0;
-            const penaltyPercentage = numPeople > 1 ? (parseInt(plannerData.penalty_percentage) || 0) : 0;
+            const depositAmount = numPeople > 1 ? (parseFloat(plannerData.deposit_amount) || null) : null;
+            const penaltyPercentage = numPeople > 1 ? (parseInt(plannerData.penalty_percentage) || null) : null;
 
             // Wrap in transaction for atomic creation + deposit lock
             const t = await sequelize.transaction();
@@ -1245,7 +1245,7 @@ class PlannerService {
             const effectiveNumPeople = dataToUpdate.number_of_people ?? planner.number_of_people ?? 1;
 
             if (updateData.deposit_amount !== undefined) {
-                const requestedDeposit = parseFloat(updateData.deposit_amount) || 0;
+                const requestedDeposit = parseFloat(updateData.deposit_amount) || null;
                 if (hasStartedSharingPlanner && requestedDeposit !== parseFloat(planner.deposit_amount)) {
                     throw new Error('Financial settings cannot be changed after first share');
                 }
@@ -1256,7 +1256,7 @@ class PlannerService {
             }
 
             if (updateData.penalty_percentage !== undefined) {
-                const requestedPenalty = parseInt(updateData.penalty_percentage) || 0;
+                const requestedPenalty = parseInt(updateData.penalty_percentage) || null;
                 if (hasStartedSharingPlanner && requestedPenalty !== parseInt(planner.penalty_percentage)) {
                     throw new Error('Financial settings cannot be changed after first share');
                 }
@@ -1268,8 +1268,8 @@ class PlannerService {
 
             // Edge case: downgrade to solo → clear existing deposit/penalty automatically
             if (effectiveNumPeople <= 1) {
-                dataToUpdate.deposit_amount = 0;
-                dataToUpdate.penalty_percentage = 0;
+                dataToUpdate.deposit_amount = null;
+                dataToUpdate.penalty_percentage = null;
                 dataToUpdate.edit_lock_at = null;
                 dataToUpdate.is_locked = false;
             }
@@ -1638,8 +1638,8 @@ class PlannerService {
             const newPlanner = await Planner.create({
                 user_id: userId,
                 ...clonePlannerData,
-                deposit_amount: 0,
-                penalty_percentage: 0,
+                deposit_amount: null,
+                penalty_percentage: null,
                 status: 'planning',
                 is_locked: false,
                 edit_lock_at: null,
