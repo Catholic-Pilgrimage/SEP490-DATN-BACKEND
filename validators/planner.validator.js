@@ -342,12 +342,6 @@ class PlannerValidator {
             .notEmpty().withMessage('Lý do dừng khẩn cấp không được để trống')
             .isString().withMessage('Lý do dừng khẩn cấp phải là chuỗi')
             .trim()
-            .isLength({ min: 5, max: 1000 }).withMessage('Lý do dừng khẩn cấp phải từ 5 đến 1000 ký tự'),
-
-        body('reason')
-            .optional()
-            .isString().withMessage('Lý do dừng khẩn cấp phải là chuỗi')
-            .trim()
             .isLength({ min: 5, max: 1000 }).withMessage('Lý do dừng khẩn cấp phải từ 5 đến 1000 ký tự')
     ];
 

@@ -9,6 +9,7 @@ const PilgrimPlannerOfflineService = require('./plannerOfflineService');
 const PilgrimOfflineSyncService = require('./offlineSyncService');
 const PilgrimReviewService = require('./reviewService');
 const PilgrimFriendshipService = require('./friendshipService');
+const PlannerEmergencyService = require('./plannerEmergencyService');
 
 module.exports = {
     PilgrimVerificationService,
@@ -21,5 +22,6 @@ module.exports = {
     PilgrimPlannerOfflineService,
     PilgrimOfflineSyncService,
     PilgrimReviewService,
-    PilgrimFriendshipService
+    PilgrimFriendshipService,
+    PlannerEmergencyService
 };

@@ -5,7 +5,8 @@ const {
     PilgrimPlannerShareController,
     PilgrimPlannerCalendarController,
     PilgrimPlannerOfflineController,
-    PilgrimOfflineSyncController
+    PilgrimOfflineSyncController,
+    PilgrimPlannerEmergencyController
 } = require('../controllers/pilgrim');
 const PlannerValidator = require('../validators/planner.validator');
 const OfflineValidator = require('../validators/offline.validator');
@@ -107,7 +108,7 @@ router.post(
     '/:id/emergency-stop',
     authenticate,
     PlannerValidator.emergencyStopPlanner,
-    PlannerController.emergencyStopPlanner
+    PilgrimPlannerEmergencyController.emergencyStopPlanner
 );
 
 router.post(
