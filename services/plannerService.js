@@ -995,8 +995,15 @@ class PlannerService {
                 throw new Error('Cannot update ongoing plan');
             }
 
-            // When planner is locked, only allow rescheduling/removing edit_lock_at.
-            if (plannerState.editLocked) {
+            // When planner is locked, only block edits while the group still meets the minimum member requirement.
+            const effectiveMinPeopleForLock = Number(updateData.min_people_required ?? planner.min_people_required ?? 1);
+            const joinedMemberCount = Number(plannerState.joinedMemberCount);
+            const canBypassEditLock =
+                plannerState.editLocked &&
+                Number.isFinite(joinedMemberCount) &&
+                joinedMemberCount < effectiveMinPeopleForLock;
+
+            if (plannerState.editLocked && !canBypassEditLock) {
                 const requestedKeys = Object.keys(updateData || {});
                 const hasEditLockUpdate = requestedKeys.includes('edit_lock_at');
                 const hasOtherUpdates = requestedKeys.some(key => key !== 'edit_lock_at');
@@ -1033,7 +1040,6 @@ class PlannerService {
                 ? effectiveNumPeopleForDateRule > 1
                 : false;
             const hasStartedSharingPlanner = Boolean(plannerState.firstInviteAt || plannerState.hasSharedCommitment);
-            const effectiveMinPeopleForLock = Number(updateData.min_people_required ?? planner.min_people_required ?? 1);
 
             if (requestedStartDate !== undefined && requestedStartDate !== currentStartDate) {
                 if (!isGroupPlannerForDateRule || hasStartedSharingPlanner) {
