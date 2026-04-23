@@ -3984,69 +3984,6 @@ class PlannerService {
         }
     }
 
-    static async emergencyStopPlanner(plannerId, userId, reason) {
-        const t = await sequelize.transaction();
-        try {
-            const planner = await Planner.findByPk(plannerId, {
-                transaction: t,
-                lock: true
-            });
-
-            if (!planner) {
-                throw new Error('Planner not found');
-            }
-
-            if (planner.user_id !== userId) {
-                throw new Error('Forbidden');
-            }
-
-            if (planner.status !== 'ongoing') {
-                throw new Error('Planner is not ongoing');
-            }
-
-            const normalizedReason = typeof reason === 'string' ? reason.trim() : '';
-            if (!normalizedReason) {
-                throw new Error('Emergency reason is required');
-            }
-
-            const emergencySkipReason = `Emergency stop: ${normalizedReason}`;
-            await PlannerItem.update({
-                status: 'skipped',
-                skip_reason: emergencySkipReason,
-                skipped_at: new Date()
-            }, {
-                where: {
-                    planner_id: plannerId,
-                    status: 'upcoming'
-                },
-                transaction: t
-            });
-
-            await planner.update({
-                status: 'cancelled',
-                cancelled_reason: normalizedReason,
-                is_locked: false
-            }, { transaction: t });
-
-            const PlannerAntiFraudService = require('./pilgrim/plannerAntiFraudService');
-            await PlannerAntiFraudService.verifyAndSettlePlanner(plannerId, t);
-
-            await t.commit();
-
-            await this.notifyJoinedPlannerMembers(planner, 'planner_emergency_stopped', {
-                plannerId: planner.id,
-                plannerName: planner.name || 'Planner',
-                reason: normalizedReason
-            });
-
-            Logger.info(`Planner ${plannerId} emergency-stopped by user ${userId}`);
-            return this.formatPlannerResponse(planner);
-        } catch (error) {
-            await t.rollback();
-            Logger.error('Emergency stop planner error:', error);
-            throw error;
-        }
-    }
 
     /**
      * Auto complete or expire ongoing planners that have passed their end_date

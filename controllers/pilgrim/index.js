@@ -9,6 +9,7 @@ const PilgrimPlannerOfflineController = require('./PlannerOfflineController');
 const PilgrimOfflineSyncController = require('./OfflineSyncController');
 const PilgrimReviewController = require('./ReviewController');
 const PilgrimFriendshipController = require('./FriendshipController');
+const PilgrimPlannerEmergencyController = require('./PlannerEmergencyController');
 
 module.exports = {
     PilgrimSOSController,
@@ -21,5 +22,6 @@ module.exports = {
     PilgrimPlannerOfflineController,
     PilgrimOfflineSyncController,
     PilgrimReviewController,
-    PilgrimFriendshipController
+    PilgrimFriendshipController,
+    PilgrimPlannerEmergencyController
 };
