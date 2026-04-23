@@ -148,6 +148,7 @@ test('UTCID06: updatePlanner rejects updates when planner is edit-locked', async
 
   PlannerService.getPlannerState = async () => ({
     editLocked: true,
+    joinedMemberCount: 4,
     committedSlots: 1,
     hasSharedCommitment: false,
   });
@@ -160,7 +161,34 @@ test('UTCID06: updatePlanner rejects updates when planner is edit-locked', async
   assert.equal(state.errorLogs[0][0], 'Update planner error:');
 });
 
-test('UTCID07: updatePlanner rejects reducing capacity below committed slots', async () => {
+test('UTCID07: updatePlanner allows edits when locked planner drops below minimum members', async () => {
+  const { PlannerService, state, createPlannerInstance } = loadPlannerService({
+    plannerFindByPk: async () => createPlannerRecord(createPlannerInstance),
+  });
+
+  PlannerService.getPlannerState = async () => ({
+    editLocked: true,
+    joinedMemberCount: 3,
+    committedSlots: 1,
+    hasSharedCommitment: false,
+    firstInviteAt: new Date('2026-04-01T00:00:00.000Z'),
+  });
+  PlannerService.getPlannerFirstInviteAt = async () => new Date('2026-04-01T00:00:00.000Z');
+  PlannerService.getPlannerScheduleState = async () => ({ isValid: true });
+
+  const result = await PlannerService.updatePlanner('planner-id', 'owner-id', {
+    name: '  Reworked Planner  ',
+    edit_lock_at: '2099-04-11T00:00:00.000Z',
+  });
+
+  assert.equal(state.plannerInstanceUpdateCalls.length, 1);
+  assert.deepEqual(state.plannerInstanceUpdateCalls[0].values.name, 'Reworked Planner');
+  assert.equal(state.plannerInstanceUpdateCalls[0].values.is_locked, false);
+  assert.equal(state.plannerInstanceUpdateCalls[0].values.edit_lock_at instanceof Date, true);
+  assert.equal(result.name, 'Reworked Planner');
+});
+
+test('UTCID08: updatePlanner rejects reducing capacity below committed slots', async () => {
   const { PlannerService, state, createPlannerInstance } = loadPlannerService({
     plannerFindByPk: async () => createPlannerRecord(createPlannerInstance),
   });
@@ -182,7 +210,7 @@ test('UTCID07: updatePlanner rejects reducing capacity below committed slots', a
   assert.equal(state.errorLogs[0][0], 'Update planner error:');
 });
 
-test('UTCID08: updatePlanner rejects positive deposit for solo planner', async () => {
+test('UTCID09: updatePlanner rejects positive deposit for solo planner', async () => {
   const { PlannerService, state, createPlannerInstance } = loadPlannerService({
     plannerFindByPk: async () => createPlannerRecord(createPlannerInstance, {
       number_of_people: 1,
@@ -206,7 +234,7 @@ test('UTCID08: updatePlanner rejects positive deposit for solo planner', async (
   assert.equal(state.errorLogs[0][0], 'Update planner error:');
 });
 
-test('UTCID09: updatePlanner rejects upgrading to group when lead time is under 48 hours', async () => {
+test('UTCID10: updatePlanner rejects upgrading to group when lead time is under 48 hours', async () => {
   const { PlannerService, state, createPlannerInstance } = loadPlannerService({
     plannerFindByPk: async () => createPlannerRecord(createPlannerInstance, {
       start_date: '2026-04-08',
