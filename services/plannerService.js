@@ -1094,16 +1094,30 @@ class PlannerService {
                     }
 
                     const isCurrentlyEditLocked = Boolean(planner.is_locked || plannerState.editLocked);
-                    if (!isCurrentlyEditLocked && plannerState.joinedMemberCount < effectiveMinPeopleForLock) {
-                        const error = new Error('Planner status lock requires minimum joined members');
-                        error.requiredJoinedCount = effectiveMinPeopleForLock;
-                        error.joinedCount = plannerState.joinedMemberCount;
-                        throw error;
-                    }
 
-                    // When already locked AND min_people is met, block rescheduling (fairness for committed members)
-                    if (isCurrentlyEditLocked && plannerState.joinedMemberCount >= effectiveMinPeopleForLock) {
-                        throw new Error('Cannot reschedule edit lock when minimum members requirement is already met');
+                    // 1. Giai đoạn chưa khóa: Chỉ cho đặt một lần duy nhất kể từ khi bắt đầu có người tham gia
+                    if (!isCurrentlyEditLocked) {
+                        // Nếu đã đặt rồi mà định sửa lại thời gian khác (không phải xóa đi)
+                        if (planner.edit_lock_at !== null && updateData.edit_lock_at !== undefined && updateData.edit_lock_at !== null) {
+                            const newTime = new Date(updateData.edit_lock_at).getTime();
+                            const oldTime = new Date(planner.edit_lock_at).getTime();
+                            if (newTime !== oldTime) {
+                                throw new Error('Edit lock time can only be set once during planning phase');
+                            }
+                        }
+
+                        // Kiểm tra điều kiện tối thiểu để được đặt lock lần đầu
+                        if (plannerState.joinedMemberCount < effectiveMinPeopleForLock) {
+                            const error = new Error('Planner status lock requires minimum joined members');
+                            error.requiredJoinedCount = effectiveMinPeopleForLock;
+                            error.joinedCount = plannerState.joinedMemberCount;
+                            throw error;
+                        }
+                    } else {
+                        // 2. Giai đoạn đã khóa: Chỉ cho phép gia hạn nếu chưa đạt số người tối thiểu
+                        if (plannerState.joinedMemberCount >= effectiveMinPeopleForLock) {
+                            throw new Error('Cannot reschedule edit lock when minimum members requirement is already met');
+                        }
                     }
 
                     const editLockAvailableAt = this.getPlannerEditLockAvailableAt(firstInviteAt);
@@ -1231,17 +1245,25 @@ class PlannerService {
             const effectiveNumPeople = dataToUpdate.number_of_people ?? planner.number_of_people ?? 1;
 
             if (updateData.deposit_amount !== undefined) {
-                if (effectiveNumPeople <= 1 && parseFloat(updateData.deposit_amount) > 0) {
+                const requestedDeposit = parseFloat(updateData.deposit_amount) || 0;
+                if (hasStartedSharingPlanner && requestedDeposit !== parseFloat(planner.deposit_amount)) {
+                    throw new Error('Financial settings cannot be changed after first share');
+                }
+                if (effectiveNumPeople <= 1 && requestedDeposit > 0) {
                     throw new Error('Solo planner cannot have a deposit amount');
                 }
-                dataToUpdate.deposit_amount = parseFloat(updateData.deposit_amount) || 0;
+                dataToUpdate.deposit_amount = requestedDeposit;
             }
 
             if (updateData.penalty_percentage !== undefined) {
+                const requestedPenalty = parseInt(updateData.penalty_percentage) || 0;
+                if (hasStartedSharingPlanner && requestedPenalty !== parseInt(planner.penalty_percentage)) {
+                    throw new Error('Financial settings cannot be changed after first share');
+                }
                 if (effectiveNumPeople <= 1 && parseInt(updateData.penalty_percentage) > 0) {
                     throw new Error('Solo planner cannot have a penalty percentage');
                 }
-                dataToUpdate.penalty_percentage = parseInt(updateData.penalty_percentage) || 0;
+                dataToUpdate.penalty_percentage = requestedPenalty;
             }
 
             // Edge case: downgrade to solo → clear existing deposit/penalty automatically

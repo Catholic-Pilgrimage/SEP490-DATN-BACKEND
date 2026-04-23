@@ -1,4 +1,4 @@
-﻿{
+{
   "auth": {
     "register_success": "Đăng ký thành công",
     "login_success": "Đăng nhập thành công",
@@ -503,7 +503,11 @@
     "cannot_swap_ongoing": "Không thể đổi chỗ địa điểm khi hành trình đang diễn ra",
     "cannot_swap_completed": "Không thể đổi chỗ địa điểm của kế hoạch đã hoàn thành",
     "cannot_swap_cancelled": "Không thể đổi chỗ địa điểm của kế hoạch đã bị hủy",
-    "invalid_arrival_time_suggested": "Thời gian ước tính không hợp lệ theo bản đồ: Bạn tới điểm này quá sớm lúc {{time}}. Do điểm trước đó rời đi lúc {{departureTime}} và mất {{travelTime}} đi đường, bạn có thể tới nơi sớm nhất vào lúc {{suggestedTime}}"
+    "invalid_arrival_time_suggested": "Thời gian ước tính không hợp lệ theo bản đồ: Bạn tới điểm này quá sớm lúc {{time}}. Do điểm trước đó rời đi lúc {{departureTime}} và mất {{travelTime}} đi đường, bạn có thể tới nơi sớm nhất vào lúc {{suggestedTime}}",
+    "edit_lock_only_once": "Thời gian khóa chỉnh sửa chỉ được đặt một lần duy nhất trước khi kích hoạt",
+    "deposit_min_error": "Số tiền cọc phải từ 2000 VNĐ trở lên",
+    "penalty_max_error": "Phần trăm phạt không được vượt quá 50%",
+    "financials_immutable_after_share": "Không thể thay đổi tiền cọc hoặc mức phạt sau khi đã bắt đầu chia sẻ kế hoạch"
   },
   "chat": {
     "get_messages_success": "Lấy tin nhắn thành công",
