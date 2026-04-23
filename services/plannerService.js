@@ -849,24 +849,28 @@ class PlannerService {
                 ]
             });
 
-            await Promise.all(planners.map(planner => this.syncPlannerLockState(planner)));
+            const formattedPlanners = await Promise.all(planners.map(async (planner) => {
+                const plannerState = await this.getPlannerState(planner.id, planner);
+                const formatted = this.formatPlannerResponse(planner);
+                this.attachPlannerStateMeta(formatted, plannerState);
+
+                const isOwner = planner.user_id === userId;
+                if (isOwner) {
+                    formatted.viewer_join_status = 'owner';
+                    formatted.viewer_deposit_status = null;
+                    formatted.is_read_only = false;
+                } else {
+                    const memberRecord = memberMap.get(planner.id);
+                    formatted.viewer_join_status = memberRecord?.join_status || null;
+                    formatted.viewer_deposit_status = memberRecord?.deposit_status || null;
+                    formatted.is_read_only = memberRecord?.join_status !== 'joined';
+                }
+
+                return formatted;
+            }));
 
             return {
-                planners: planners.map(p => {
-                    const formatted = this.formatPlannerResponse(p);
-                    const isOwner = p.user_id === userId;
-                    if (isOwner) {
-                        formatted.viewer_join_status = 'owner';
-                        formatted.viewer_deposit_status = null;
-                        formatted.is_read_only = false;
-                    } else {
-                        const memberRecord = memberMap.get(p.id);
-                        formatted.viewer_join_status = memberRecord?.join_status || null;
-                        formatted.viewer_deposit_status = memberRecord?.deposit_status || null;
-                        formatted.is_read_only = memberRecord?.join_status !== 'joined';
-                    }
-                    return formatted;
-                }),
+                planners: formattedPlanners,
                 pagination: {
                     page: parseInt(page),
                     limit: parseInt(limit),
@@ -926,14 +930,13 @@ class PlannerService {
 
             await this.syncPlannerLockState(planner);
 
-            let plannerState = null;
+            let plannerState = await this.getPlannerState(plannerId, planner);
 
             // Auto-update status to 'ongoing' based on first task time (Trigger: 2 hours before first task)
             if (['planning', 'locked'].includes(planner.status) && planner.start_date) {
-                plannerState = await this.getPlannerState(plannerId, planner);
+                // Once the journey is finally locked, allow auto-start even if members dropped below 2 later.
                 const canAutoStart = plannerState.scheduleComplete
-                    && plannerState.finalLocked
-                    && (planner.number_of_people <= 1 || plannerState.isRealGroup);
+                    && plannerState.finalLocked;
 
                 if (canAutoStart) {
                     const shouldBeOngoing = await this.shouldPlannerBeOngoing(planner);
@@ -945,8 +948,9 @@ class PlannerService {
             }
 
             const response = this.formatPlannerWithItems(planner);
+            this.attachPlannerStateMeta(response, plannerState);
 
-            if (plannerState && ['planning', 'locked'].includes(planner.status)) {
+            if (['planning', 'locked'].includes(planner.status)) {
                 response.first_invite_at = plannerState.firstInviteAt;
                 response.edit_lock_available_at = plannerState.editLockAvailableAt;
                 response.can_set_edit_lock_at = plannerState.canSetEditLockAt;
@@ -3546,7 +3550,7 @@ class PlannerService {
                     continue;
                 }
 
-                if (planner.number_of_people > 1 && !plannerState.isRealGroup) {
+                if (planner.number_of_people > 1 && !plannerState.isRealGroup && planner.status !== 'locked') {
                     continue;
                 }
 
@@ -3685,7 +3689,7 @@ class PlannerService {
                 throw new Error(`Incomplete schedule: missing days ${missingDaysStr}, total days ${plannerState.scheduleState.totalDays}`);
             }
 
-            if (planner.number_of_people > 1 && !plannerState.isRealGroup) {
+            if (planner.number_of_people > 1 && !plannerState.isRealGroup && planner.status !== 'locked') {
                 throw new Error('Group trip requires at least 2 joined members');
             }
             if (!plannerState.finalLocked) {
@@ -3784,7 +3788,7 @@ class PlannerService {
                 await planner.update(updateData);
                 plannerStatus = finalStatus;
 
-                if (finalStatus === 'completed') {
+                if (finalStatus === 'completed' || finalStatus === 'cancelled') {
                     const PlannerAntiFraudService = require('./pilgrim/plannerAntiFraudService');
                     await PlannerAntiFraudService.verifyAndSettlePlanner(plannerId);
                 }
@@ -4173,9 +4177,6 @@ class PlannerService {
         return {
             status: hasReachedSoloLock ? 'locked' : 'planning',
             is_locked: hasReachedSoloLock,
-            number_of_people: 1,
-            deposit_amount: 0,
-            penalty_percentage: 0,
             edit_lock_at: null
         };
     }
@@ -4184,11 +4185,17 @@ class PlannerService {
         return {
             status: 'locked',
             is_locked: true,
-            number_of_people: 1,
-            deposit_amount: 0,
-            penalty_percentage: 0,
             edit_lock_at: null
         };
+    }
+
+    static attachPlannerStateMeta(response, plannerState) {
+        response.current_members = Number(plannerState.joinedMemberCount) || 0;
+        response.active_invite_count = Number(plannerState.activeInviteCount) || 0;
+        response.committed_slots = Number(plannerState.committedSlots) || 0;
+        response.has_shared_commitment = Boolean(plannerState.hasSharedCommitment);
+        response.is_real_group = Boolean(plannerState.isRealGroup);
+        return response;
     }
 
     static isGroupPlanner(planner) {
