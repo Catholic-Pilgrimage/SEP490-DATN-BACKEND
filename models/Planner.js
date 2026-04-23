@@ -54,6 +54,12 @@ const Planner = sequelize.define('Planner', {
         type: DataTypes.DECIMAL(15, 2),
         defaultValue: null,
         allowNull: true,
+        validate: {
+            min: {
+                args: [2000],
+                msg: 'planner.deposit_min_error'
+            }
+        },
         comment: 'Số tiền cọc mỗi thành viên phải đóng (null = không yêu cầu cọc)'
     },
     penalty_percentage: {
@@ -62,9 +68,12 @@ const Planner = sequelize.define('Planner', {
         allowNull: true,
         validate: {
             min: 0,
-            max: 100
+            max: {
+                args: [50],
+                msg: 'planner.penalty_max_error'
+            }
         },
-        comment: 'Phần trăm phạt khi tự rời nhóm (null = không phạt, 0-100)'
+        comment: 'Phần trăm phạt khi tự rời nhóm (null = không phạt, 0-50)'
     },
     status: {
         type: DataTypes.STRING,
