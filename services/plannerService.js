@@ -1090,16 +1090,30 @@ class PlannerService {
                     }
 
                     const isCurrentlyEditLocked = Boolean(planner.is_locked || plannerState.editLocked);
-                    if (!isCurrentlyEditLocked && plannerState.joinedMemberCount < effectiveMinPeopleForLock) {
-                        const error = new Error('Planner status lock requires minimum joined members');
-                        error.requiredJoinedCount = effectiveMinPeopleForLock;
-                        error.joinedCount = plannerState.joinedMemberCount;
-                        throw error;
-                    }
 
-                    // When already locked AND min_people is met, block rescheduling (fairness for committed members)
-                    if (isCurrentlyEditLocked && plannerState.joinedMemberCount >= effectiveMinPeopleForLock) {
-                        throw new Error('Cannot reschedule edit lock when minimum members requirement is already met');
+                    // 1. Giai đoạn chưa khóa: Chỉ cho đặt một lần duy nhất kể từ khi bắt đầu có người tham gia
+                    if (!isCurrentlyEditLocked) {
+                        // Nếu đã đặt rồi mà định sửa lại thời gian khác (không phải xóa đi)
+                        if (planner.edit_lock_at !== null && updateData.edit_lock_at !== undefined && updateData.edit_lock_at !== null) {
+                            const newTime = new Date(updateData.edit_lock_at).getTime();
+                            const oldTime = new Date(planner.edit_lock_at).getTime();
+                            if (newTime !== oldTime) {
+                                throw new Error('Edit lock time can only be set once during planning phase');
+                            }
+                        }
+
+                        // Kiểm tra điều kiện tối thiểu để được đặt lock lần đầu
+                        if (plannerState.joinedMemberCount < effectiveMinPeopleForLock) {
+                            const error = new Error('Planner status lock requires minimum joined members');
+                            error.requiredJoinedCount = effectiveMinPeopleForLock;
+                            error.joinedCount = plannerState.joinedMemberCount;
+                            throw error;
+                        }
+                    } else {
+                        // 2. Giai đoạn đã khóa: Chỉ cho phép gia hạn nếu chưa đạt số người tối thiểu
+                        if (plannerState.joinedMemberCount >= effectiveMinPeopleForLock) {
+                            throw new Error('Cannot reschedule edit lock when minimum members requirement is already met');
+                        }
                     }
 
                     const editLockAvailableAt = this.getPlannerEditLockAvailableAt(firstInviteAt);

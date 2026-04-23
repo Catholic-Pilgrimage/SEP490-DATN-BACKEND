@@ -1,4 +1,4 @@
-﻿const PlannerService = require('../services/plannerService');
+const PlannerService = require('../services/plannerService');
 const ResponseUtil = require('../utils/response.util');
 const { validationResult } = require('express-validator');
 const { formatValidationErrors } = require('../utils/validation.util');
@@ -261,6 +261,9 @@ class PlannerController {
             }
             if (error.message === 'Cannot reschedule edit lock when minimum members requirement is already met') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_reschedule_edit_lock_min_met'));
+            }
+            if (error.message === 'Edit lock time can only be set once during planning phase') {
+                return ResponseUtil.badRequest(res, req.__('planner.edit_lock_only_once'));
             }
             if (error.message === 'Planner status lock requires minimum joined members') {
                 return ResponseUtil.badRequest(
