@@ -68,14 +68,21 @@ class PlannerAntiFraudService {
                     }
 
                     const hasCheckin = checkedInUserIds.has(member.user_id);
+                    const isEmergencyStop = planner.status === 'cancelled';
 
-                    if (hasCheckin) {
-                        // ===== CHECKED-IN: Hoàn cọc 100% =====
+                    // Rule: Nếu dừng khẩn cấp (cancelled), tất cả thành viên đangjoined đều được hoàn 100%
+                    // bất kể họ có kịp check-in tại những điểm đã đi qua hay chưa.
+                    if (hasCheckin || isEmergencyStop) {
+                        // ===== CHECKED-IN HOẶC DỪNG KHẨN CẤP: Hoàn cọc 100% =====
+                        const refundReason = isEmergencyStop 
+                            ? `Hoàn cọc ${depositAmount.toLocaleString('vi-VN')} VND do dừng hành trình khẩn cấp: ${planner.name}`
+                            : `Hoàn cọc ${depositAmount.toLocaleString('vi-VN')} VND sau khi hoàn thành chuyến đi: ${planner.name}`;
+
                         await this._refundDeposit(
                             member.user_id,
                             depositAmount,
                             plannerId,
-                            `Hoàn cọc ${depositAmount.toLocaleString('vi-VN')} VND sau khi hoàn thành chuyến đi: ${planner.name}`,
+                            refundReason,
                             t
                         );
 
