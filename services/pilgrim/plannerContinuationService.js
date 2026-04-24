@@ -1,4 +1,4 @@
-const { Planner, PlannerItem, PlannerMember, PlannerMessage, sequelize } = require('../../models');
+const { Planner, PlannerItem, PlannerMember, PlannerMessage, CheckIn, sequelize } = require('../../models');
 const { Op } = require('sequelize');
 const Logger = require('../../utils/logger.util');
 
@@ -41,7 +41,26 @@ class PlannerContinuationService {
 
             if (continuation) {
                 // JOIN EXISTING
+                // RULE: Cannot join if the continuation itself is already finished or cancelled
+                if (['completed', 'cancelled', 'expired'].includes(continuation.status)) {
+                    throw new Error('Continuation journey is no longer active');
+                }
+
                 if (continuation.user_id !== userId) {
+                    // RULE: Cannot join if someone has already checked in at any site in the continuation
+                    const checkInCount = await CheckIn.count({
+                        include: [{
+                            model: PlannerItem,
+                            where: { planner_id: continuation.id },
+                            required: true
+                        }],
+                        transaction: t
+                    });
+
+                    if (checkInCount > 0) {
+                        throw new Error('Continuation journey already started');
+                    }
+
                     await PlannerMember.findOrCreate({
                         where: { planner_id: continuation.id, user_id: userId },
                         defaults: { 
