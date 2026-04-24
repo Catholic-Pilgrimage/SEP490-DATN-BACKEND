@@ -160,6 +160,10 @@ PlannerMessage.belongsTo(Planner, { foreignKey: 'planner_id', as: 'planner' });
 User.hasMany(PlannerMessage, { foreignKey: 'user_id', as: 'plannerMessages' });
 PlannerMessage.belongsTo(User, { foreignKey: 'user_id', as: 'sender' });
 
+// Planner - Planner (Continuation)
+Planner.hasMany(Planner, { foreignKey: 'continuation_of_id', as: 'continuations' });
+Planner.belongsTo(Planner, { foreignKey: 'continuation_of_id', as: 'continuationOf' });
+
 // PlannerItem - Site
 PlannerItem.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
 Site.hasMany(PlannerItem, { foreignKey: 'site_id', as: 'plannerItems' });

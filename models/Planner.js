@@ -122,6 +122,14 @@ const Planner = sequelize.define('Planner', {
         validate: {
             min: 0
         }
+    },
+    continuation_of_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'planners',
+            key: 'id'
+        }
     }
 }, {
     tableName: 'planners',

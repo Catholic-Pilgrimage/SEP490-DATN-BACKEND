@@ -508,7 +508,11 @@
     "edit_lock_only_once": "Thời gian khóa chỉnh sửa chỉ được đặt một lần duy nhất trước khi kích hoạt",
     "deposit_min_error": "Số tiền cọc phải từ 2000 VNĐ trở lên",
     "penalty_max_error": "Phần trăm phạt không được vượt quá 50%",
-    "financials_immutable_after_share": "Không thể thay đổi tiền cọc hoặc mức phạt sau khi đã bắt đầu chia sẻ kế hoạch"
+    "financials_immutable_after_share": "Không thể thay đổi tiền cọc hoặc mức phạt sau khi đã bắt đầu chia sẻ kế hoạch",
+    "continuation_not_cancelled": "Chỉ có thể tiếp nối các kế hoạch đã bị dừng khẩn cấp/hủy",
+    "continuation_not_member": "Chỉ thành viên tích cực của đoàn cũ mới có thể tiếp nối hành trình",
+    "continuation_no_items": "Không còn địa điểm nào chưa đi để tiếp tục hành trình",
+    "continuation_owner_restricted": "Chủ đoàn cũ không được phép đứng ra khởi tạo hành trình tiếp nối. Vui lòng đợi thành viên khác khởi tạo."
   },
   "chat": {
     "get_messages_success": "Lấy tin nhắn thành công",

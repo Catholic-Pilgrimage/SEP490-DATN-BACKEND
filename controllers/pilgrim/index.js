@@ -23,5 +23,6 @@ module.exports = {
     PilgrimOfflineSyncController,
     PilgrimReviewController,
     PilgrimFriendshipController,
-    PilgrimPlannerEmergencyController
+    PilgrimPlannerEmergencyController,
+    PilgrimPlannerContinuationController: require('./PlannerContinuationController')
 };
