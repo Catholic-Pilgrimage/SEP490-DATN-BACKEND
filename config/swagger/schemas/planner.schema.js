@@ -303,6 +303,11 @@
  *           minimum: 0
  *           example: 1
  *           description: "Ngày đã chốt gần nhất của hành trình ongoing (0 = chưa chốt ngày nào)"
+ *         continuation_of_id:
+ *           type: string
+ *           format: uuid
+ *           nullable: true
+ *           description: "ID của hành trình cũ nếu đây là hành trình tiếp nối"
  *         share_token:
  *           type: string
  *         qr_code_url:

@@ -514,7 +514,11 @@
     "edit_lock_only_once": "The edit lock time can only be set once during the planning phase.",
     "deposit_min_error": "Deposit amount must be at least 2000 VNĐ",
     "penalty_max_error": "Penalty percentage cannot exceed 50%",
-    "financials_immutable_after_share": "Financial settings (deposit/penalty) cannot be changed after the first share"
+    "financials_immutable_after_share": "Financial settings (deposit/penalty) cannot be changed after the first share",
+    "continuation_not_cancelled": "Continuation is only available for emergency-stopped/cancelled planners",
+    "continuation_not_member": "Only active members of the original planner can continue the journey",
+    "continuation_no_items": "No remaining items to continue",
+    "continuation_owner_restricted": "The original owner cannot initiate the continuation. Please wait for another member to lead."
   },
   "chat": {
     "get_messages_success": "Messages retrieved successfully",

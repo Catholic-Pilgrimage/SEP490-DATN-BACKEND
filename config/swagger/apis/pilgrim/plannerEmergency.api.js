@@ -53,3 +53,69 @@
  *       404:
  *         description: Không tìm thấy kế hoạch
  */
+
+/**
+ * @swagger
+ * /api/planners/{id}/continue:
+ *   post:
+ *     summary: "Tiếp nối hành trình sau khi dừng khẩn cấp"
+ *     description: |
+ *       Thành viên của hành trình bị dừng khẩn cấp (cancelled) có thể bấm để tiếp tục phần lịch trình chưa đi.
+ *       
+ *       - Người đầu tiên bấm sẽ trở thành Chủ đoàn của hành trình mới.
+ *       - Hành trình mới chỉ chứa các điểm chưa đi từ hành trình cũ (đã bị skipped do emergency stop).
+ *       - Các điểm này được đánh lại số ngày bắt đầu từ Ngày 1.
+ *       - Tiền cọc (deposit) và phí phạt (penalty) cho hành trình mới là 0.
+ *       - Những người khác bấm sau sẽ được tự động join vào hành trình mới này.
+ *     tags: [Planners - Pilgrim]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID của kế hoạch cũ (đã bị dừng)
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Tên mới cho hành trình tiếp nối (tùy chọn)
+ *                 example: "Hành trình chữa lành phần 2"
+ *     responses:
+ *       200:
+ *         description: Tiếp nối hành trình thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     status:
+ *                       type: string
+ *                     continuation_of_id:
+ *                       type: string
+ *       400:
+ *         description: Planner không bị cancelled hoặc không còn điểm nào để đi tiếp
+ *       403:
+ *         description: Không phải thành viên của hành trình cũ
+ *       404:
+ *         description: Không tìm thấy kế hoạch
+ */

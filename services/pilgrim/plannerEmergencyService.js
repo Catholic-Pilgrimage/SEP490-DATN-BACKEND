@@ -63,11 +63,19 @@ class PlannerEmergencyService {
 
             // Notify after commit (lazy require to avoid circular deps)
             const PlannerService = require('../plannerService');
+            const PlannerChatService = require('./plannerChatService');
+            
             await PlannerService.notifyJoinedPlannerMembers(planner, 'planner_emergency_stopped', {
                 plannerId: planner.id,
                 plannerName: planner.name || 'Planner',
                 reason: normalizedReason
             });
+
+            // Send system message explaining continuation option
+            await PlannerChatService.sendSystemMessage(
+                plannerId,
+                'Hành trình đã bị dừng khẩn cấp. Các thành viên có thể chọn "Tiếp nối hành trình" để tiếp tục phần lịch trình còn lại với một kế hoạch mới (không yêu cầu tiền cọc).'
+            );
 
             Logger.info(`Planner ${plannerId} emergency-stopped by user ${userId}`);
             return PlannerService.formatPlannerResponse(planner);

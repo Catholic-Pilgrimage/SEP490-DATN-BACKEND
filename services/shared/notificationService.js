@@ -270,6 +270,16 @@ const NOTIFICATION_TEMPLATES = {
             message: 'Journey "{{plannerName}}" has been emergency-stopped. Reason: {{reason}}'
         }
     },
+    planner_continuation_available: {
+        vi: {
+            title: 'Hành trình tiếp nối đã sẵn sàng',
+            message: '{{creatorName}} đã khởi tạo hành trình tiếp nối cho "{{plannerName}}". Nhấn để tham gia ngay!'
+        },
+        en: {
+            title: 'Continuation journey available',
+            message: '{{creatorName}} has started a continuation for "{{plannerName}}". Join now!'
+        }
+    },
 
     planner_first_checkin: {
         vi: {
