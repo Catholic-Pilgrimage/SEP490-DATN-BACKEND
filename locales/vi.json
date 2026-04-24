@@ -95,7 +95,8 @@
     "get_nearby_places_success": "Lấy danh sách địa điểm lân cận thành công",
     "get_guides_success": "Lấy danh sách hướng dẫn viên thành công",
     "get_shifts_success": "Lấy danh sách lịch trực thành công",
-    "available_sites_success": "Lấy danh sách địa điểm có thể xin quản lý thành công"
+    "available_sites_success": "Lấy danh sách địa điểm có thể xin quản lý thành công",
+    "no_manager": "Không thể kích hoạt địa điểm khi chưa có quản lý"
   },
   "manager_site": {
     "create_success": "Tạo địa điểm thành công",

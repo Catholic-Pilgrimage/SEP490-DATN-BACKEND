@@ -95,7 +95,8 @@
     "get_nearby_places_success": "Get nearby places successfully",
     "get_guides_success": "Get local guides successfully",
     "get_shifts_success": "Get shift submissions successfully",
-    "available_sites_success": "Get available sites for transition successfully"
+    "available_sites_success": "Get available sites for transition successfully",
+    "no_manager": "Cannot activate site without a manager"
   },
   "manager_site": {
     "create_success": "Site created successfully",

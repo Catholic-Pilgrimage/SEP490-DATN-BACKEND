@@ -281,7 +281,7 @@ class AdminSiteService {
       const allowedFields = [
         'name', 'description', 'history', 'address', 'province', 'district',
         'latitude', 'longitude', 'region', 'type', 'patron_saint',
-        'cover_image', 'opening_hours', 'contact_info'
+        'cover_image', 'opening_hours', 'contact_info', 'is_active'
       ];
 
       const dataToUpdate = {};
@@ -307,6 +307,18 @@ class AdminSiteService {
           }
         });
         if (existingSite) throw new Error('Site already exists');
+      }
+
+      // Handle is_active specifically
+      if (dataToUpdate.is_active !== undefined) {
+        dataToUpdate.is_active = dataToUpdate.is_active === true || dataToUpdate.is_active === 'true';
+
+        if (dataToUpdate.is_active === true) {
+          const manager = await User.findOne({ where: { site_id: siteId, role: 'manager' } });
+          if (!manager) {
+            throw new Error('Cannot activate site without a manager');
+          }
+        }
       }
 
       await site.update(dataToUpdate);
@@ -346,6 +358,11 @@ class AdminSiteService {
       const site = await Site.findByPk(siteId);
       if (!site) throw new Error('Site not found');
       if (site.is_active) throw new Error('Site is not deleted');
+
+      const manager = await User.findOne({ where: { site_id: siteId, role: 'manager' } });
+      if (!manager) {
+        throw new Error('Cannot activate site without a manager');
+      }
 
       await site.update({ is_active: true });
       Logger.info(`Site restored: ${site.code}`);
@@ -485,11 +502,23 @@ class AdminSiteService {
 
       const { count, rows } = await SiteMedia.findAndCountAll({
         where,
-        include: [{
-          model: User,
-          as: 'creator',
-          attributes: ['id', 'full_name', 'email']
-        }],
+        include: [
+          {
+            model: User,
+            as: 'creator',
+            attributes: ['id', 'full_name', 'email']
+          },
+          {
+            model: User,
+            as: 'mediaReviewer',
+            attributes: ['id', 'full_name', 'email']
+          },
+          {
+            model: User,
+            as: 'narrativeReviewer',
+            attributes: ['id', 'full_name', 'email']
+          }
+        ],
         order: [['created_at', 'DESC']],
         limit,
         offset

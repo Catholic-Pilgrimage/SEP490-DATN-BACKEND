@@ -202,7 +202,11 @@ class SiteValidator {
           }
         }
         return true;
-      })
+      }),
+
+    body('is_active')
+      .optional()
+      .isBoolean().withMessage('is_active phải là boolean')
   ];
 
   // Validate site ID parameter

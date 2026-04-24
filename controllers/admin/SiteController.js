@@ -93,6 +93,9 @@ exports.updateSite = async (req, res) => {
         if (error.message === 'Site already exists') {
             return ResponseUtil.conflict(res, req.__('site.already_exists'));
         }
+        if (error.message === 'Cannot activate site without a manager') {
+            return ResponseUtil.badRequest(res, req.__('site.no_manager'));
+        }
         return ResponseUtil.error(res, req.__('error.server_error'));
     }
 };
@@ -124,6 +127,9 @@ exports.restoreSite = async (req, res) => {
         }
         if (error.message === 'Site is not deleted') {
             return ResponseUtil.badRequest(res, req.__('site.not_deleted'));
+        }
+        if (error.message === 'Cannot activate site without a manager') {
+            return ResponseUtil.badRequest(res, req.__('site.no_manager'));
         }
         return ResponseUtil.error(res, req.__('error.server_error'));
     }
