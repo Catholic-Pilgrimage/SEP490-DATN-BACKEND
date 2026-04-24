@@ -31,6 +31,12 @@ class PlannerContinuationController {
             if (error.message === 'Original owner cannot initiate continuation') {
                 return ResponseUtil.badRequest(res, req.__('planner.continuation_owner_restricted'));
             }
+            if (error.message === 'Continuation journey is no longer active') {
+                return ResponseUtil.badRequest(res, req.__('planner.continuation_inactive'));
+            }
+            if (error.message === 'Continuation journey already started') {
+                return ResponseUtil.badRequest(res, req.__('planner.continuation_already_started'));
+            }
             if (error.message === 'No remaining items to continue') {
                 return ResponseUtil.badRequest(res, req.__('planner.continuation_no_items'));
             }
