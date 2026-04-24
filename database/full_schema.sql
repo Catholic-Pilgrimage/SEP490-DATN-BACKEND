@@ -66,6 +66,13 @@ EXCEPTION
 END $$;
 
 DO $$ BEGIN
+    ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'local_guide';
+    ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'manager';
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
     ALTER TYPE planner_status ADD VALUE IF NOT EXISTS 'locked';
 EXCEPTION
     WHEN duplicate_object THEN null;
@@ -197,10 +204,10 @@ WHERE role = 'manager';
 ALTER TABLE users
 ADD CONSTRAINT chk_users_role_site
 CHECK (
-  (role = 'manager')
-  OR (role = 'local_guide' AND site_id IS NOT NULL)
-  OR (role = 'pilgrim' AND site_id IS NULL)
-  OR (role = 'admin')
+  (role::text = 'manager')
+  OR (role::text = 'local_guide' AND site_id IS NOT NULL)
+  OR (role::text = 'pilgrim' AND site_id IS NULL)
+  OR (role::text = 'admin')
 );
 
 -- ============================================
@@ -590,50 +597,9 @@ CREATE TABLE IF NOT EXISTS planners (
     continuation_of_id UUID REFERENCES planners(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT chk_planner_dates CHECK (end_date IS NULL OR end_date >= start_date)
+    CONSTRAINT chk_planner_dates CHECK (end_date IS NULL OR end_date >= start_date),
+    CONSTRAINT chk_planners_people_bounds CHECK (min_people_required >= 1 AND min_people_required <= number_of_people)
 );
-
-ALTER TABLE planners
-ADD COLUMN IF NOT EXISTS continuation_of_id UUID REFERENCES planners(id) ON DELETE SET NULL;
-
-ALTER TABLE planners
-ADD COLUMN IF NOT EXISTS lock_duration_hours INTEGER DEFAULT 24;
-
-ALTER TABLE planners
-ADD COLUMN IF NOT EXISTS edit_lock_at TIMESTAMP WITH TIME ZONE;
-
-ALTER TABLE planners
-ADD COLUMN IF NOT EXISTS min_people_required INT DEFAULT 1;
-
-ALTER TABLE planners
-ADD COLUMN IF NOT EXISTS cancelled_reason TEXT;
-
-ALTER TABLE planners
-ADD COLUMN IF NOT EXISTS last_closed_day INTEGER DEFAULT 0;
-
-UPDATE planners
-SET last_closed_day = 0
-WHERE last_closed_day IS NULL;
-
-ALTER TABLE planners
-ALTER COLUMN last_closed_day SET DEFAULT 0;
-
-UPDATE planners
-SET min_people_required = 1
-WHERE min_people_required IS NULL;
-
-ALTER TABLE planners
-ALTER COLUMN min_people_required SET DEFAULT 1;
-
-ALTER TABLE planners
-DROP CONSTRAINT IF EXISTS chk_planners_people_bounds;
-
-ALTER TABLE planners
-ADD CONSTRAINT chk_planners_people_bounds
-CHECK (min_people_required >= 1 AND min_people_required <= number_of_people);
-
-ALTER TABLE planners
-DROP COLUMN IF EXISTS discussion_started_at;
 
 CREATE INDEX IF NOT EXISTS idx_planners_user ON planners(user_id);
 
@@ -678,13 +644,11 @@ CREATE TABLE IF NOT EXISTS planner_items (
     estimated_time TIME, -- Giờ dự kiến đến địa điểm
     rest_duration INTERVAL, -- Thời gian nghỉ ngơi (e.g., '1 hour', '30 minutes')
     travel_time_minutes INT, -- Travel time from previous site in minutes
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    skip_reason TEXT,
+    skipped_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
-
-ALTER TABLE public.planner_items
-    ADD COLUMN IF NOT EXISTS skip_reason TEXT,
-    ADD COLUMN IF NOT EXISTS skipped_at TIMESTAMP WITH TIME ZONE,
-    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
 
 CREATE INDEX IF NOT EXISTS idx_planner_items_planner ON planner_items(planner_id);
 ALTER TABLE planner_items
@@ -763,9 +727,6 @@ CREATE TABLE IF NOT EXISTS user_checkins (
     UNIQUE (user_id, planner_item_id)
 );
 
-ALTER TABLE user_checkins
-ADD COLUMN IF NOT EXISTS photo_url TEXT;
-
 CREATE INDEX IF NOT EXISTS idx_user_checkins_user ON user_checkins(user_id);
 
 -- ============================================
@@ -822,12 +783,6 @@ CREATE TABLE IF NOT EXISTS posts (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
-
-ALTER TABLE posts
-ADD COLUMN IF NOT EXISTS title TEXT;
-
-ALTER TABLE posts
-ADD COLUMN IF NOT EXISTS audio_url TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id);
 CREATE INDEX IF NOT EXISTS idx_posts_journal ON posts(journal_id) WHERE journal_id IS NOT NULL;
