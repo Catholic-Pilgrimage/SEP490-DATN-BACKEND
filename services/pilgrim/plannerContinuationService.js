@@ -1,4 +1,4 @@
-const { Planner, PlannerItem, PlannerMember, PlannerMessage, CheckIn, sequelize } = require('../../models');
+const { Planner, PlannerItem, PlannerMember, PlannerMessage, UserCheckin, User, sequelize } = require('../../models');
 const { Op } = require('sequelize');
 const Logger = require('../../utils/logger.util');
 
@@ -13,7 +13,10 @@ class PlannerContinuationService {
         const t = await sequelize.transaction();
         try {
             // 1. Validate old planner
-            const oldPlanner = await Planner.findByPk(oldPlannerId, { transaction: t });
+            const oldPlanner = await Planner.findByPk(oldPlannerId, { 
+                transaction: t,
+                lock: true // Prevent multiple users from creating continuations simultaneously
+            });
             if (!oldPlanner) {
                 throw new Error('Planner not found');
             }
@@ -22,19 +25,26 @@ class PlannerContinuationService {
                 throw new Error('Continuation is only available for cancelled planners');
             }
 
-            // 2. Ensure user was a member or owner of the old planner
+            // 2. Ensure user was a member and NOT the owner of the old planner
+            if (oldPlanner.user_id === userId) {
+                throw new Error('Original owner cannot participate in continuation');
+            }
+
             const oldMember = await PlannerMember.findOne({
                 where: { planner_id: oldPlannerId, user_id: userId },
                 transaction: t
             });
 
-            if (oldPlanner.user_id !== userId && (!oldMember || oldMember.join_status !== 'joined')) {
+            if (!oldMember || oldMember.join_status !== 'joined') {
                 throw new Error('Only active members of the original planner can continue');
             }
 
             // 3. Check if continuation already exists
             let continuation = await Planner.findOne({
-                where: { continuation_of_id: oldPlannerId },
+                where: { 
+                    continuation_of_id: oldPlannerId,
+                    status: { [Op.notIn]: ['cancelled', 'expired'] }
+                },
                 transaction: t,
                 lock: true
             });
@@ -46,11 +56,14 @@ class PlannerContinuationService {
                     throw new Error('Continuation journey is no longer active');
                 }
 
+                Logger.info(`User ${userId} joined existing continuation planner ${continuation.id} for old planner ${oldPlannerId}`);
+                
                 if (continuation.user_id !== userId) {
                     // RULE: Cannot join if someone has already checked in at any site in the continuation
-                    const checkInCount = await CheckIn.count({
+                    const checkInCount = await UserCheckin.count({
                         include: [{
                             model: PlannerItem,
+                            as: 'plannerItem',
                             where: { planner_id: continuation.id },
                             required: true
                         }],
@@ -73,14 +86,10 @@ class PlannerContinuationService {
                 }
                 
                 await t.commit();
-                return this._formatContinuationResponse(continuation);
+                return this._formatContinuationResponse(continuation, true);
             }
 
             // 4. CREATE NEW (First person to continue)
-            // RULE: The original owner cannot be the one to initiate the continuation.
-            if (oldPlanner.user_id === userId) {
-                throw new Error('Original owner cannot initiate continuation');
-            }
 
             // Get remaining items (those skipped due to emergency stop)
             const remainingItems = await PlannerItem.findAll({
@@ -109,6 +118,16 @@ class PlannerContinuationService {
 
             // Estimate new end_date based on duration
             const maxOldDay = Math.max(...remainingItems.map(i => i.leg_number));
+            // Generate default name if not provided
+            const dateSuffix = new Date().toLocaleDateString('vi-VN', { 
+                day: '2-digit', 
+                month: '2-digit' 
+            }).replace('/', ''); // "2504" for April 25
+            
+            const newPlannerName = continuationData.name || `${oldPlanner.name} (Tiếp nối ${dateSuffix})`;
+            
+            Logger.info(`User ${userId} creating new continuation planner for old planner ${oldPlannerId} with name: ${newPlannerName}`);
+
             const durationDays = maxOldDay - minOldDay;
             const endDate = new Date(today);
             endDate.setDate(endDate.getDate() + durationDays);
@@ -116,7 +135,7 @@ class PlannerContinuationService {
 
             continuation = await Planner.create({
                 user_id: userId, // First person becomes new owner
-                name: (continuationData.name || `[Tiếp nối] ${oldPlanner.name}`).trim(),
+                name: newPlannerName,
                 start_date: startStr,
                 end_date: endStr,
                 transportation: oldPlanner.transportation,
@@ -165,20 +184,19 @@ class PlannerContinuationService {
                 joined_at: new Date()
             }, { transaction: t });
 
-            // System message in the OLD planner's chat to notify everyone
-            await PlannerMessage.create({
-                planner_id: oldPlannerId,
-                user_id: null, // System
-                message_type: 'system',
-                content: 'planner.continuation_created_system_msg' // FE or hooks should handle this, or we just put the text
-            }, { transaction: t });
-
             await t.commit();
 
             // 5. NOTIFY MEMBERS (Async, out of transaction)
             try {
                 const creator = await User.findByPk(userId, { attributes: ['full_name'] });
                 const PlannerService = require('../plannerService');
+                const PlannerChatService = require('./plannerChatService');
+
+                // System message in the OLD planner's chat to notify everyone
+                await PlannerChatService.sendSystemMessage(
+                    oldPlannerId,
+                    `Thành viên ${creator ? creator.full_name : 'một người'} đã khởi tạo hành trình tiếp nối. Các thành viên có thể nhấn vào nút "Tiếp nối hành trình" ở trên để tham gia.`
+                );
                 await PlannerService.notifyJoinedPlannerMembers(oldPlanner, 'planner_continuation_available', {
                     plannerId: continuation.id, // ID of the NEW planner
                     oldPlannerId: oldPlanner.id,
@@ -191,7 +209,7 @@ class PlannerContinuationService {
                 Logger.warn(`Failed to notify members about continuation: ${notifyErr.message}`);
             }
             
-            return this._formatContinuationResponse(continuation);
+            return this._formatContinuationResponse(continuation, false);
         } catch (error) {
             await t.rollback();
             Logger.error('Create continuation planner error:', error);
@@ -199,14 +217,16 @@ class PlannerContinuationService {
         }
     }
 
-    static _formatContinuationResponse(planner) {
+    static _formatContinuationResponse(planner, isJoined = false) {
         return {
             id: planner.id,
             name: planner.name,
             status: planner.status,
             continuation_of_id: planner.continuation_of_id,
             owner_id: planner.user_id,
-            message: 'Đã sẵn sàng tiếp nối hành trình'
+            message_key: isJoined 
+                ? 'planner.continuation_join_success'
+                : 'planner.continuation_create_success'
         };
     }
 }

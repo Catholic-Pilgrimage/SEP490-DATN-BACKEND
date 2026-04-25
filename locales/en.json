@@ -520,7 +520,11 @@
     "continuation_no_items": "No remaining items to continue",
     "continuation_owner_restricted": "The original owner cannot initiate the continuation. Please wait for another member to lead.",
     "continuation_inactive": "This continuation journey is no longer active or has already finished",
-    "continuation_already_started": "The group has already started check-in activities, late joining is not allowed"
+    "continuation_already_started": "The group has already started check-in activities, late joining is not allowed",
+    "continuation_create_success": "Continuation journey is ready",
+    "continuation_join_success": "You have joined the ongoing continuation journey of the group",
+    "emergency_stop_no_upcoming": "There are no upcoming stops left in the journey to trigger an emergency stop.",
+    "emergency_stop_last_point_started": "Cannot trigger emergency stop as at least one member has already started visiting the final destination."
   },
   "chat": {
     "get_messages_success": "Messages retrieved successfully",

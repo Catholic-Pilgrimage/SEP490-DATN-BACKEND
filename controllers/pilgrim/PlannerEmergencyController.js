@@ -65,6 +65,22 @@ class PlannerEmergencyController {
                     'Emergency stop reason is required.'
                 );
             }
+            if (error.message === 'Hành trình không còn địa điểm sắp tới để dừng khẩn cấp') {
+                return PlannerEmergencyController.badRequestWithFallback(
+                    res,
+                    req,
+                    'planner.emergency_stop_no_upcoming',
+                    'Hành trình không còn địa điểm sắp tới để dừng khẩn cấp.'
+                );
+            }
+            if (error.message === 'Không thể dừng khẩn cấp vì đã có thành viên bắt đầu thăm địa điểm cuối cùng') {
+                return PlannerEmergencyController.badRequestWithFallback(
+                    res,
+                    req,
+                    'planner.emergency_stop_last_point_started',
+                    'Không thể dừng khẩn cấp vì đã có thành viên bắt đầu thăm địa điểm cuối cùng.'
+                );
+            }
 
             return ResponseUtil.error(res, req.__('error.server_error'));
         }
