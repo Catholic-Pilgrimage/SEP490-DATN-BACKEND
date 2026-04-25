@@ -514,7 +514,11 @@
     "continuation_no_items": "Không còn địa điểm nào chưa đi để tiếp tục hành trình",
     "continuation_owner_restricted": "Chủ đoàn cũ không được phép đứng ra khởi tạo hành trình tiếp nối. Vui lòng đợi thành viên khác khởi tạo.",
     "continuation_inactive": "Hành trình tiếp nối này hiện đã kết thúc hoặc không còn hoạt động",
-    "continuation_already_started": "Đoàn đã bắt đầu thực hiện các hoạt động tham quan, không thể tham gia thêm thành viên mới"
+    "continuation_already_started": "Đoàn đã bắt đầu thực hiện các hoạt động tham quan, không thể tham gia thêm thành viên mới",
+    "continuation_create_success": "Đã sẵn sàng tiếp nối hành trình",
+    "continuation_join_success": "Bạn đã tham gia vào hành trình tiếp nối đang diễn ra của đoàn",
+    "emergency_stop_no_upcoming": "Hành trình không còn địa điểm sắp tới để dừng khẩn cấp.",
+    "emergency_stop_last_point_started": "Không thể dừng khẩn cấp vì đã có thành viên bắt đầu thăm địa điểm cuối cùng."
   },
   "chat": {
     "get_messages_success": "Lấy tin nhắn thành công",

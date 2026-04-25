@@ -1,4 +1,4 @@
-const { Planner, PlannerItem } = require('../../models');
+const { Planner, PlannerItem, UserCheckin } = require('../../models');
 const { sequelize } = require('../../models');
 const Logger = require('../../utils/logger.util');
 
@@ -30,6 +30,33 @@ class PlannerEmergencyService {
 
             if (planner.status !== 'ongoing') {
                 throw new Error('Planner is not ongoing');
+            }
+
+            // RULE: Must have at least 1 upcoming item to emergency stop
+            const upcomingItems = await PlannerItem.findAll({
+                where: {
+                    planner_id: plannerId,
+                    status: 'upcoming'
+                },
+                transaction: t
+            });
+
+            if (upcomingItems.length === 0) {
+                throw new Error('Hành trình không còn địa điểm sắp tới để dừng khẩn cấp');
+            }
+
+            // EXTRA RULE: If only ONE upcoming item remains, ensure NO ONE has checked in yet
+            // This allows emergency stop on the last point ONLY IF no one reached it.
+            if (upcomingItems.length === 1) {
+                const lastItem = upcomingItems[0];
+                const checkInCount = await UserCheckin.count({
+                    where: { planner_item_id: lastItem.id },
+                    transaction: t
+                });
+
+                if (checkInCount > 0) {
+                    throw new Error('Không thể dừng khẩn cấp vì đã có thành viên bắt đầu thăm địa điểm cuối cùng');
+                }
             }
 
             const normalizedReason = typeof reason === 'string' ? reason.trim() : '';

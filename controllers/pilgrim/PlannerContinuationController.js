@@ -13,10 +13,14 @@ class PlannerContinuationController {
                 req.body
             );
 
+            const message = req.__(result.message_key);
+            delete result.message_key;
+            result.message = message;
+
             return ResponseUtil.success(
                 res,
                 result,
-                req.__('planner.continuation_success') || 'Bắt đầu hành trình tiếp nối thành công.'
+                message
             );
         } catch (error) {
             if (error.message === 'Planner not found') {
@@ -28,8 +32,8 @@ class PlannerContinuationController {
             if (error.message === 'Only active members of the original planner can continue') {
                 return ResponseUtil.forbidden(res, req.__('planner.continuation_not_member'));
             }
-            if (error.message === 'Original owner cannot initiate continuation') {
-                return ResponseUtil.badRequest(res, req.__('planner.continuation_owner_restricted'));
+            if (error.message === 'Original owner cannot participate in continuation') {
+                return ResponseUtil.badRequest(res, req.__('planner.continuation_owner_restricted') || 'Người chủ cũ không được phép tham gia hành trình tiếp nối.');
             }
             if (error.message === 'Continuation journey is no longer active') {
                 return ResponseUtil.badRequest(res, req.__('planner.continuation_inactive'));
