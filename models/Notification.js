@@ -56,6 +56,8 @@ const Notification = sequelize.define('Notification', {
                 'planner_edit_locked',
                 'planner_started',
                 'planner_locked',
+                'planner_emergency_stopped',
+                'planner_continuation_available',
                 'favorite_site_update',
                 'sos_planner_alert',
                 'narrative_approved',
