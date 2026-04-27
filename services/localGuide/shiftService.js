@@ -85,7 +85,7 @@ class LocalGuideShiftService {
                 const dayName = weekdayMap[dayIndex];
                 const hoursStr = site.opening_hours[dayName];
                 if (hoursStr && typeof hoursStr === 'string') {
-                    const parts = hoursStr.split('-');
+                    const parts = hoursStr.split(/[-–—]/);
                     if (parts.length === 2) {
                         const open = norm(parts[0].trim());
                         const close = norm(parts[1].trim());
@@ -101,7 +101,7 @@ class LocalGuideShiftService {
                 const yesterdayName = weekdayMap[(dayIndex + 6) % 7];
                 const yHoursStr = site.opening_hours[yesterdayName];
                 if (yHoursStr && typeof yHoursStr === 'string') {
-                    const yParts = yHoursStr.split('-');
+                    const yParts = yHoursStr.split(/[-–—]/);
                     if (yParts.length === 2) {
                         const yOpen = norm(yParts[0].trim());
                         const yClose = norm(yParts[1].trim());
