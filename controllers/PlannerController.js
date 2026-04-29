@@ -212,6 +212,9 @@ class PlannerController {
             if (error.message === 'Planner dates overlap') {
                 return ResponseUtil.badRequest(res, req.__('planner.dates_overlap', { dates: error.conflictDates.join(', ') }), { conflict_dates: error.conflictDates });
             }
+            if (error.message === 'Group lead time error') {
+                return ResponseUtil.badRequest(res, req.__('planner.group_lead_time_error'));
+            }
             if (error.message === 'Cannot reduce capacity below committed slots') {
                 return ResponseUtil.badRequest(res, req.__('planner.cannot_reduce_capacity_below_committed', { count: error.requiredSlots || '?' }));
             }

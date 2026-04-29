@@ -1046,7 +1046,7 @@ class PlannerService {
             const hasStartedSharingPlanner = Boolean(plannerState.firstInviteAt || plannerState.hasSharedCommitment);
 
             if (requestedStartDate !== undefined && requestedStartDate !== currentStartDate) {
-                if (!isGroupPlannerForDateRule || hasStartedSharingPlanner) {
+                if (hasStartedSharingPlanner) {
                     throw new Error('Start date cannot be changed after first share');
                 }
 
@@ -1189,17 +1189,21 @@ class PlannerService {
 
                 const currentNumPeople = parseInt(planner.number_of_people) || 1;
                 const requestedNumPeople = parseInt(updateData.number_of_people) || 1;
-                const requestedMinPeople = updateData.min_people_required !== undefined
-                    ? parseInt(updateData.min_people_required) || 1
-                    : currentMinPeople;
+                // When downgrading to solo, auto-reset min_people_required to 1
+                const requestedMinPeople = requestedNumPeople <= 1
+                    ? 1
+                    : (updateData.min_people_required !== undefined
+                        ? parseInt(updateData.min_people_required) || 1
+                        : currentMinPeople);
 
                 if (requestedNumPeople < requestedMinPeople) {
                     throw new Error('Min people cannot exceed max people');
                 }
 
-                if (currentNumPeople <= 1 && requestedNumPeople >= 2 && planner.start_date) {
+                const effectiveStartDate = dataToUpdate.start_date ?? planner.start_date;
+                if (currentNumPeople <= 1 && requestedNumPeople >= 2 && effectiveStartDate) {
                     const now = new Date();
-                    const startDateObj = new Date(planner.start_date);
+                    const startDateObj = new Date(effectiveStartDate);
                     startDateObj.setHours(0, 0, 0, 0);
 
                     const minLeadTime = new Date(now);
@@ -4191,8 +4195,11 @@ class PlannerService {
             return null;
         }
 
+        const isGroup = this.isGroupPlanner(planner);
+        const lockHours = isGroup ? PLANNER_STATUS_LOCK_HOURS : 0;
+
         const statusLockAt = new Date(startBoundary);
-        statusLockAt.setUTCHours(statusLockAt.getUTCHours() - PLANNER_STATUS_LOCK_HOURS);
+        statusLockAt.setUTCHours(statusLockAt.getUTCHours() - lockHours);
         return statusLockAt;
     }
 
@@ -4588,26 +4595,22 @@ class PlannerService {
                         await this.expireActivePlannerInvites(planner.id, options);
                     }
                     Object.assign(updateData, this.buildSoloFallbackUpdateData(planner, now));
-                }
-            } else if (planner.status === 'planning') {
-                // Check min_people_required before auto-locking
-                const minRequired = Number(planner.min_people_required) || 1;
-                if (minRequired > 1) {
-                    const joinedCount = await this.getJoinedMemberCount(planner.id, options);
-                    if (joinedCount < minRequired) {
+                } else {
+                    const minRequired = Number(planner.min_people_required) || 1;
+                    if (joinedMemberCount < minRequired) {
                         // Not enough members — cancel the planner
                         updateData.status = 'cancelled';
                         updateData.is_locked = false;
-                        updateData.cancelled_reason = `Không đủ số người tối thiểu (${joinedCount}/${minRequired})`;
-                        Logger.info(`Planner ${planner.id} auto-cancelled: joined=${joinedCount} < min_required=${minRequired}`);
+                        updateData.cancelled_reason = `Không đủ số người tối thiểu (${joinedMemberCount}/${minRequired})`;
+                        Logger.info(`Planner ${planner.id} auto-cancelled: joined=${joinedMemberCount} < min_required=${minRequired}`);
                     } else {
                         updateData.status = 'locked';
                         updateData.is_locked = true;
                     }
-                } else {
-                    updateData.status = 'locked';
-                    updateData.is_locked = true;
                 }
+            } else if (planner.status === 'planning') {
+                updateData.status = 'locked';
+                updateData.is_locked = true;
             }
         }
 

@@ -32,8 +32,11 @@ class PlannerContinuationController {
             if (error.message === 'Only active members of the original planner can continue') {
                 return ResponseUtil.forbidden(res, req.__('planner.continuation_not_member'));
             }
-            if (error.message === 'Original owner cannot participate in continuation') {
-                return ResponseUtil.badRequest(res, req.__('planner.continuation_owner_restricted') || 'Người chủ cũ không được phép tham gia hành trình tiếp nối.');
+            if (error.message === 'Original owner cannot create continuation') {
+                return ResponseUtil.badRequest(res, req.__('planner.continuation_owner_cannot_create'));
+            }
+            if (error.message === 'Original owner cannot join continuation') {
+                return ResponseUtil.badRequest(res, req.__('planner.continuation_owner_cannot_join'));
             }
             if (error.message === 'Continuation journey is no longer active') {
                 return ResponseUtil.badRequest(res, req.__('planner.continuation_inactive'));

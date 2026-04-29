@@ -25,10 +25,7 @@ class PlannerContinuationService {
                 throw new Error('Continuation is only available for cancelled planners');
             }
 
-            // 2. Ensure user was a member and NOT the owner of the old planner
-            if (oldPlanner.user_id === userId) {
-                throw new Error('Original owner cannot participate in continuation');
-            }
+            // 2. Ensure user was a member of the old planner
 
             const oldMember = await PlannerMember.findOne({
                 where: { planner_id: oldPlannerId, user_id: userId },
@@ -51,6 +48,9 @@ class PlannerContinuationService {
 
             if (continuation) {
                 // JOIN EXISTING
+                if (oldPlanner.user_id === userId) {
+                    throw new Error('Original owner cannot join continuation');
+                }
                 // RULE: Cannot join if the continuation itself is already finished or cancelled
                 if (['completed', 'cancelled', 'expired'].includes(continuation.status)) {
                     throw new Error('Continuation journey is no longer active');
@@ -90,6 +90,9 @@ class PlannerContinuationService {
             }
 
             // 4. CREATE NEW (First person to continue)
+            if (oldPlanner.user_id === userId) {
+                throw new Error('Original owner cannot create continuation');
+            }
 
             // Get remaining items (those skipped due to emergency stop)
             const remainingItems = await PlannerItem.findAll({

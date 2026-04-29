@@ -35,8 +35,8 @@ const cleanupExpiredPayments = async () => {
         const { Op } = require('sequelize');
         const PayOSService = require('../services/shared/payosService');
 
-        // Chỉ quét giao dịch pending > 20 phút (buffer cho webhook delay)
-        const expiryThreshold = new Date(Date.now() - 20 * 60 * 1000);
+        // Chỉ quét giao dịch pending > 15 phút (khớp với PayOS link expiry)
+        const expiryThreshold = new Date(Date.now() - 15 * 60 * 1000);
 
         const staleTransactions = await Transaction.findAll({
             where: {
@@ -143,8 +143,8 @@ const startCronJobs = () => {
         }
     }, TZ_OPTIONS);
 
-    // 4. Dọn dẹp giao dịch PayOS pending quá hạn (Mỗi 15 phút)
-    cron.schedule('*/15 * * * *', async () => {
+    // 4. Dọn dẹp giao dịch PayOS pending quá hạn (Mỗi 5 phút)
+    cron.schedule('*/5 * * * *', async () => {
         try {
             await cleanupExpiredPayments();
         } catch (error) {
@@ -152,7 +152,7 @@ const startCronJobs = () => {
         }
     }, TZ_OPTIONS);
 
-    Logger.info(`Cron jobs scheduled (tz=${appConfig.timezone}): start=15m, complete=24h, eventSync=24h, paymentCleanup=15m`);
+    Logger.info(`Cron jobs scheduled (tz=${appConfig.timezone}): start=15m, complete=24h, eventSync=24h, paymentCleanup=5m`);
 };
 
 module.exports = {
