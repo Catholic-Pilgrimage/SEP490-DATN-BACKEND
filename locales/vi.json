@@ -569,7 +569,8 @@
     "skip_success": "Đã đánh dấu bỏ qua địa điểm này cho toàn đoàn",
     "complete_item_success": "Đã hoàn thành điểm đến",
     "get_progress_success": "Lấy tiến độ thành công",
-    "get_history_success": "Lấy danh sách check-in thành công"
+    "get_history_success": "Lấy danh sách check-in thành công",
+    "member_has_active_sos": "Không thể chốt/bỏ qua điểm đến vì thành viên {{memberName}} đang có yêu cầu SOS ({{sosCode}}) chưa được xử lý. Vui lòng đợi SOS được giải quyết hoặc hủy trước."
   },
   "journal": {
     "create_success": "Đã tạo nhật ký hành hương",

@@ -60,6 +60,7 @@ function loadCheckinService(overrides = {}) {
     userCheckinUpdateCalls: [],
     plannerUpdateCalls: [],
     userFindAllCalls: [],
+    sosRequestFindOneCalls: [],
     osrmCalls: [],
     notificationCreateCalls: [],
     antiFraudCalls: [],
@@ -185,6 +186,15 @@ function loadCheckinService(overrides = {}) {
           return overrides.userFindAll(options, state);
         }
         return [];
+      },
+    },
+    SOSRequest: {
+      findOne: async (options) => {
+        state.sosRequestFindOneCalls.push(options);
+        if (overrides.sosRequestFindOne) {
+          return overrides.sosRequestFindOne(options, state);
+        }
+        return null;
       },
     },
   });

@@ -1,4 +1,4 @@
-const { PlannerItem, Site, UserCheckin, Planner, PlannerMember, User } = require('../models');
+const { PlannerItem, Site, UserCheckin, Planner, PlannerMember, User, SOSRequest } = require('../models');
 const OSRMUtil = require('../utils/osrm.util');
 const Logger = require('../utils/logger.util');
 
@@ -74,6 +74,34 @@ class CheckinService {
             ownerId,
             ...joinedMembers.map(member => member.user_id)
         ].filter(Boolean))];
+    }
+
+    /**
+     * Check if any joined participant has an active SOS request (pending or accepted).
+     * Throws if found — owner must wait for SOS to be resolved/cancelled before proceeding.
+     */
+    static async checkActiveSOS(participantIds, options = {}) {
+        const activeSOS = await SOSRequest.findOne({
+            where: {
+                user_id: participantIds,
+                status: ['pending', 'accepted']
+            },
+            include: [{
+                model: User,
+                as: 'pilgrim',
+                attributes: ['id', 'full_name']
+            }],
+            ...(options.transaction ? { transaction: options.transaction } : {})
+        });
+
+        if (activeSOS) {
+            const memberName = activeSOS.pilgrim?.full_name || 'Thành viên';
+            const error = new Error('Member has active SOS');
+            error.memberName = memberName;
+            error.sosCode = activeSOS.code;
+            error.sosStatus = activeSOS.status;
+            throw error;
+        }
     }
 
     static normalizeReason(reason) {
@@ -396,6 +424,10 @@ class CheckinService {
             }
         }
 
+        // Block skip if any member has active SOS
+        const skipParticipantIds = await this.getJoinedParticipantIds(planner.id, planner.user_id);
+        await this.checkActiveSOS(skipParticipantIds);
+
         const checkedInCount = await UserCheckin.count({
             where: {
                 planner_item_id: plannerItemId,
@@ -505,6 +537,9 @@ class CheckinService {
             const allUserIds = await this.getJoinedParticipantIds(planner.id, planner.user_id, {
                 transaction: t
             });
+
+            // Block complete if any member has active SOS
+            await this.checkActiveSOS(allUserIds, { transaction: t });
 
             // Lấy những người đã check-in
             const checkedInUsers = await UserCheckin.findAll({

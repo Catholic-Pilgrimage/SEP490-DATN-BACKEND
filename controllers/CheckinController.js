@@ -181,6 +181,12 @@ class CheckinController {
                 const day = err.requiredDay || '?';
                 return ResponseUtil.badRequest(res, req.__('checkin.previous_day_not_closed', { day }));
             }
+            if (err.message === 'Member has active SOS') {
+                return ResponseUtil.badRequest(res, req.__('checkin.member_has_active_sos', {
+                    memberName: err.memberName || 'Thành viên',
+                    sosCode: err.sosCode || ''
+                }));
+            }
             return ResponseUtil.error(res, err.message || req.__('error.server_error'), 500);
         }
     }

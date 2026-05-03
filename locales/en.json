@@ -575,7 +575,8 @@
     "skip_success": "Marked site as skipped for the whole group",
     "complete_item_success": "Site completed successfully",
     "get_progress_success": "Progress retrieved successfully",
-    "get_history_success": "Check-in history retrieved successfully"
+    "get_history_success": "Check-in history retrieved successfully",
+    "member_has_active_sos": "Cannot complete/skip this site because member {{memberName}} has an active SOS request ({{sosCode}}) that has not been resolved yet. Please wait until the SOS is resolved or cancelled."
   },
   "journal": {
     "create_success": "Journal created successfully",

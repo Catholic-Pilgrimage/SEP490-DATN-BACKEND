@@ -137,6 +137,13 @@ class PilgrimSOSService {
                 const yesterdayWeekday = weekdayMap[(localizedDayIndex + 6) % 7];
 
                 if (site.opening_hours) {
+                    // Normalize time to HH:MM (pad single-digit hour)
+                    const padTime = (t) => {
+                        if (!t || typeof t !== 'string') return t;
+                        const [h, m] = t.split(':');
+                        return `${h.padStart(2, '0')}:${m || '00'}`;
+                    };
+
                     const parseWeekdayWindow = (dayName) => {
                         const hoursForDay = site.opening_hours[dayName];
                         if (!hoursForDay || typeof hoursForDay !== 'string') {
@@ -148,8 +155,8 @@ class PilgrimSOSService {
                             return null;
                         }
 
-                        const open = parts[0].trim();
-                        const close = parts[1].trim();
+                        const open = padTime(parts[0].trim());
+                        const close = padTime(parts[1].trim());
                         return {
                             open,
                             close,
@@ -159,8 +166,8 @@ class PilgrimSOSService {
 
                     if (site.opening_hours.open && site.opening_hours.close) {
                         // Unified format: { open: "06:00", close: "18:00" }
-                        const openTime = site.opening_hours.open;
-                        const closeTime = site.opening_hours.close;
+                        const openTime = padTime(site.opening_hours.open);
+                        const closeTime = padTime(site.opening_hours.close);
 
                         if (openTime <= closeTime) {
                             isSiteOpen = currentTime >= openTime && currentTime <= closeTime;

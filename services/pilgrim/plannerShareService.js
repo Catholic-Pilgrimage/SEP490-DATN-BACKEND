@@ -925,11 +925,11 @@ class PlannerShareService {
                     through: {
                         attributes: ['joined_at', 'deposit_status', 'join_status']
                     },
-                    attributes: ['id', 'full_name', 'email', 'avatar_url']
+                    attributes: ['id', 'full_name', 'email', 'avatar_url', 'phone']
                 }, {
                     model: User,
                     as: 'owner',
-                    attributes: ['id', 'full_name', 'email', 'avatar_url']
+                    attributes: ['id', 'full_name', 'email', 'avatar_url', 'phone']
                 }]
             });
 
