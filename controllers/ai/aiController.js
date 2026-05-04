@@ -11,6 +11,12 @@ function isQuotaError(error) {
 }
 const QUOTA_MSG = 'AI service quota exceeded. Please try again later.';
 
+// Helper: Check if error is a 503 overload error from Gemini
+function isOverloadError(error) {
+    return error.message.includes('503') || error.message.includes('Service Unavailable') || error.message.includes('high demand') || error.message.includes('overloaded');
+}
+const OVERLOAD_MSG = 'AI đang quá tải, vui lòng thử lại sau.';
+
 // Helper: Check if error is an AI schema/parse error (output guard or JSON parse failure)
 function isInvalidAiSchemaError(error) {
     return error.message.includes('AI returned invalid JSON') || error.message.includes('AI returned invalid');
@@ -56,6 +62,9 @@ exports.suggestRoute = async (req, res) => {
         }
         if (isQuotaError(error)) {
             return ResponseUtil.error(res, QUOTA_MSG, 429);
+        }
+        if (isOverloadError(error)) {
+            return ResponseUtil.error(res, OVERLOAD_MSG, 503);
         }
         return ResponseUtil.error(res, req.__('error.server_error'));
     }
@@ -105,6 +114,9 @@ exports.suggestPrayer = async (req, res) => {
         }
         if (isQuotaError(error)) {
             return ResponseUtil.error(res, QUOTA_MSG, 429);
+        }
+        if (isOverloadError(error)) {
+            return ResponseUtil.error(res, OVERLOAD_MSG, 503);
         }
         return ResponseUtil.error(res, req.__('error.server_error'));
     }
@@ -183,6 +195,9 @@ exports.generateArticle = async (req, res) => {
         if (isQuotaError(error)) {
             return ResponseUtil.error(res, QUOTA_MSG, 429);
         }
+        if (isOverloadError(error)) {
+            return ResponseUtil.error(res, OVERLOAD_MSG, 503);
+        }
         return ResponseUtil.error(res, req.__('error.server_error') || 'Server error');
     }
 };
@@ -225,6 +240,9 @@ exports.summarizeReviews = async (req, res) => {
         if (isQuotaError(error)) {
             return ResponseUtil.error(res, QUOTA_MSG, 429);
         }
+        if (isOverloadError(error)) {
+            return ResponseUtil.error(res, OVERLOAD_MSG, 503);
+        }
         return ResponseUtil.error(res, req.__('error.server_error') || 'Server error');
     }
 };
@@ -265,6 +283,9 @@ exports.suggestEvents = async (req, res) => {
         }
         if (isQuotaError(error)) {
             return ResponseUtil.error(res, QUOTA_MSG, 429);
+        }
+        if (isOverloadError(error)) {
+            return ResponseUtil.error(res, OVERLOAD_MSG, 503);
         }
         return ResponseUtil.error(res, req.__('error.server_error') || 'Server error');
     }

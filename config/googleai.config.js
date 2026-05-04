@@ -28,29 +28,31 @@ Object.entries(AI_KEYS).forEach(([feature, key]) => {
     if (!key) console.warn(`⚠️  GOOGLE_AI_KEY_${feature.toUpperCase()} not found in .env`);
 });
 
-// Cache: one GenAI instance + JSON model per feature
-const modelCache = {};
+// Cache: one GenAI instance per feature
+const clientCache = {};
+
+const FALLBACK_MODELS = [
+    'gemini-3-flash-preview',
+    'gemini-2.0-flash',
+    'gemini-2.5-flash'
+];
 
 /**
- * Get JSON model for a specific feature
+ * Get GenAI client for a specific feature
  * @param {'route'|'article'|'review_summary'|'events'|'prayer'|'translation'} feature
- * @returns {GenerativeModel}
+ * @returns {GoogleGenerativeAI}
  */
-function getModelForFeature(feature) {
+function getGenAIForFeature(feature) {
     const key = AI_KEYS[feature];
     if (!key) {
         throw new Error(`GOOGLE_AI_KEY_${feature.toUpperCase()} is not configured`);
     }
 
-    if (!modelCache[feature]) {
-        const genAI = new GoogleGenerativeAI(key);
-        modelCache[feature] = genAI.getGenerativeModel({
-            model: 'gemini-2.5-flash'
-        });
-        Logger.info(`Google AI: Model initialized for feature [${feature}]`);
+    if (!clientCache[feature]) {
+        clientCache[feature] = new GoogleGenerativeAI(key);
     }
 
-    return modelCache[feature];
+    return clientCache[feature];
 }
 
 /**
@@ -67,7 +69,7 @@ async function withRetry(fn, maxRetries = 3) {
     let lastError;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-            return await fn();
+            return await fn(attempt);
         } catch (error) {
             lastError = error;
             const isRetryable =
@@ -124,7 +126,7 @@ function extractJSON(text) {
  * @returns {Promise<object>}
  */
 async function generateJSON(feature, prompt, options = {}) {
-    const aiModel = getModelForFeature(feature);
+    const genAI = getGenAIForFeature(feature);
 
     const generationConfig = {
         responseMimeType: 'application/json',
@@ -133,7 +135,13 @@ async function generateJSON(feature, prompt, options = {}) {
         maxOutputTokens: options.maxTokens || 16384,
     };
 
-    return withRetry(async () => {
+    return withRetry(async (attempt) => {
+        // Fallback sequentially through models based on retry attempt
+        const modelName = FALLBACK_MODELS[Math.min(attempt - 1, FALLBACK_MODELS.length - 1)];
+        const aiModel = genAI.getGenerativeModel({ model: modelName });
+        
+        Logger.info(`Google AI [${feature}]: Calling model ${modelName} (attempt ${attempt})`);
+        
         const result = await aiModel.generateContent({
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
             generationConfig
@@ -156,4 +164,4 @@ async function generateJSON(feature, prompt, options = {}) {
     });
 }
 
-module.exports = { getModelForFeature, generateJSON };
+module.exports = { getGenAIForFeature, generateJSON };
