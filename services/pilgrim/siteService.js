@@ -172,7 +172,7 @@ class PilgrimSiteService {
             WHERE sr.site_id = "Site".id AND sr.is_active = true
           )`), 'review_count']
         ],
-        order: [['name', 'ASC']],
+        order: [['created_at', 'DESC']],
         limit,
         offset,
         distinct: true // Required when using limit and offset with include
