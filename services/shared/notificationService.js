@@ -447,8 +447,8 @@ const NOTIFICATION_TEMPLATES = {
     },
     site_ready_for_publish: {
         vi: {
-            title: 'Địa điểm sẵn sàng Active',
-            message: 'Địa điểm "{{siteName}}" ({{siteCode}}) đã được cập nhật đủ thông tin cơ bản. Admin có thể xem xét Active.'
+            title: 'Địa điểm sẵn sàng kích hoạt',
+            message: 'Địa điểm "{{siteName}}" ({{siteCode}}) đã được cập nhật đủ thông tin cơ bản. Admin có thể xem xét kích hoạt.'
         },
         en: {
             title: 'Site ready for Publish',
