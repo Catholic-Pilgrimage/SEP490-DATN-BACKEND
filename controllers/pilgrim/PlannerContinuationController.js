@@ -29,6 +29,9 @@ class PlannerContinuationController {
             if (error.message === 'Continuation is only available for cancelled planners') {
                 return ResponseUtil.badRequest(res, req.__('planner.continuation_not_cancelled'));
             }
+            if (error.message === 'Continuation is no longer available because the original journey period has ended') {
+                return ResponseUtil.badRequest(res, req.__('planner.continuation_expired'));
+            }
             if (error.message === 'Only active members of the original planner can continue') {
                 return ResponseUtil.forbidden(res, req.__('planner.continuation_not_member'));
             }
