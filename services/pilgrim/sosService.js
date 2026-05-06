@@ -289,33 +289,33 @@ class PilgrimSOSService {
 
             Logger.info(`SOS created: ${sos.code} by user ${userId}`);
 
-            // Notify LocalGuides on duty at this site
+            // Notify ALL LocalGuides at this site + Manager (SOS is emergency, notify everyone)
             if (site_id) {
-                const onDutyGuides = await this.findOnDutyGuides(site_id);
                 const site = await Site.findByPk(site_id);
+                const sosNotificationData = {
+                    siteName: site?.name || '',
+                    sosCode: sos.code,
+                    pilgrimName: user.full_name || 'Người hành hương',
+                    message: message || ''
+                };
 
-                if (onDutyGuides.length > 0) {
-                    const notificationPromises = onDutyGuides.map(guide =>
-                        NotificationService.createNotification('sos_created', guide.id, {
-                            siteName: site?.name || '',
-                            sosCode: sos.code,
-                            pilgrimName: user.full_name || 'Người hành hương',
-                            message: message || ''
-                        })
+                // 1. Notify all Local Guides belonging to this site
+                const allGuides = await User.findAll({
+                    where: { site_id, role: 'local_guide', status: 'active' },
+                    attributes: ['id']
+                });
+
+                if (allGuides.length > 0) {
+                    const guidePromises = allGuides.map(guide =>
+                        NotificationService.createNotification('sos_created', guide.id, sosNotificationData)
                     );
-
-                    await Promise.all(notificationPromises);
-                    Logger.info(`Notified ${onDutyGuides.length} on-duty guides for SOS ${sos.code}`);
-                } else {
-                    // No guides on duty, notify site manager as fallback
-                    await NotificationService.notifySiteManager(site_id, 'sos_created', {
-                        siteName: site?.name || '',
-                        sosCode: sos.code,
-                        pilgrimName: user.full_name || 'Người hành hương',
-                        message: message || ''
-                    });
-                    Logger.warn(`No on-duty guides found for site ${site_id}, notified manager instead`);
+                    await Promise.all(guidePromises);
+                    Logger.info(`Notified ${allGuides.length} local guides for SOS ${sos.code}`);
                 }
+
+                // 2. Always notify Manager as well
+                await NotificationService.notifySiteManager(site_id, 'sos_created', sosNotificationData);
+                Logger.info(`Notified manager for SOS ${sos.code}`);
             }
 
             // GFind if the user is currently in an ongoing Planner trip
