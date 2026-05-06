@@ -524,6 +524,7 @@
     "continuation_already_started": "The group has already started check-in activities, late joining is not allowed",
     "continuation_create_success": "Continuation journey is ready",
     "continuation_join_success": "You have joined the ongoing continuation journey of the group",
+    "continuation_expired": "Continuation is no longer available because the original journey period has ended",
     "emergency_stop_no_upcoming": "There are no upcoming stops left in the journey to trigger an emergency stop.",
     "emergency_stop_last_point_started": "Cannot trigger emergency stop as at least one member has already started visiting the final destination."
   },

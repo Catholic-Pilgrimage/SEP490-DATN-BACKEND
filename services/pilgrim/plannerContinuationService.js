@@ -25,6 +25,15 @@ class PlannerContinuationService {
                 throw new Error('Continuation is only available for cancelled planners');
             }
 
+            // Check if the original planner's end_date has passed
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const endDate = new Date(oldPlanner.end_date);
+            endDate.setHours(23, 59, 59, 999); // Allow until end of the last day
+            if (today > endDate) {
+                throw new Error('Continuation is no longer available because the original journey period has ended');
+            }
+
             // 2. Ensure user was a member of the old planner
 
             const oldMember = await PlannerMember.findOne({
@@ -112,15 +121,23 @@ class PlannerContinuationService {
                 throw new Error('No remaining items to continue');
             }
 
-            // Re-indexing days
+            // Re-index days: reset leg_number to start from 1
             const minOldDay = Math.min(...remainingItems.map(i => i.leg_number));
-            
-            // Calculate start_date for the new planner (today)
-            const today = new Date();
-            const startStr = today.toISOString().split('T')[0];
-
-            // Estimate new end_date based on duration
             const maxOldDay = Math.max(...remainingItems.map(i => i.leg_number));
+
+            // Calculate new start_date = old start_date + (minOldDay - 1) days
+            // e.g. old start = May 1, emergency at Day 3 → new start = May 3
+            const oldStart = new Date(oldPlanner.start_date);
+            const newStart = new Date(oldStart);
+            newStart.setDate(newStart.getDate() + (minOldDay - 1));
+            const startStr = newStart.toISOString().split('T')[0];
+
+            // Calculate new end_date based on remaining duration
+            const durationDays = maxOldDay - minOldDay;
+            const newEnd = new Date(newStart);
+            newEnd.setDate(newEnd.getDate() + durationDays);
+            const endStr = newEnd.toISOString().split('T')[0];
+
             // Generate default name if not provided
             const dateSuffix = new Date().toLocaleDateString('vi-VN', { 
                 day: '2-digit', 
@@ -130,11 +147,6 @@ class PlannerContinuationService {
             const newPlannerName = continuationData.name || `${oldPlanner.name} (Tiếp nối ${dateSuffix})`;
             
             Logger.info(`User ${userId} creating new continuation planner for old planner ${oldPlannerId} with name: ${newPlannerName}`);
-
-            const durationDays = maxOldDay - minOldDay;
-            const endDate = new Date(today);
-            endDate.setDate(endDate.getDate() + durationDays);
-            const endStr = endDate.toISOString().split('T')[0];
 
             continuation = await Planner.create({
                 user_id: userId, // First person becomes new owner
@@ -153,7 +165,7 @@ class PlannerContinuationService {
                 number_of_people: oldPlanner.number_of_people
             }, { transaction: t });
 
-            // Clone items
+            // Clone items with reset leg_number (Day 3 → Day 1, Day 4 → Day 2, ...)
             for (const item of remainingItems) {
                 await PlannerItem.create({
                     planner_id: continuation.id,

@@ -518,6 +518,7 @@
     "continuation_already_started": "Đoàn đã bắt đầu thực hiện các hoạt động tham quan, không thể tham gia thêm thành viên mới",
     "continuation_create_success": "Đã sẵn sàng tiếp nối hành trình",
     "continuation_join_success": "Bạn đã tham gia vào hành trình tiếp nối đang diễn ra của đoàn",
+    "continuation_expired": "Không thể tiếp nối hành trình vì thời gian chuyến đi gốc đã kết thúc",
     "emergency_stop_no_upcoming": "Hành trình không còn địa điểm sắp tới để dừng khẩn cấp.",
     "emergency_stop_last_point_started": "Không thể dừng khẩn cấp vì đã có thành viên bắt đầu thăm địa điểm cuối cùng."
   },
