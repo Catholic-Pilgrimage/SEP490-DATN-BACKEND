@@ -160,7 +160,7 @@ class PilgrimSiteService {
         where,
         include,
         attributes: [
-          'id', 'code', 'name', 'description', 'address', 'province', 'district', 'region', 'type', 'patron_saint', 'cover_image', 'opening_hours', 'latitude', 'longitude',
+          'id', 'code', 'name', 'description', 'address', 'province', 'district', 'region', 'type', 'patron_saint', 'cover_image', 'opening_hours', 'latitude', 'longitude', 'created_at',
           [sequelize.literal(`(
             SELECT ROUND(AVG(sr.rating)::numeric, 1)
             FROM site_reviews sr
