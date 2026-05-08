@@ -120,7 +120,8 @@ class PlannerAiService {
       throw new Error(`Invalid site ID format: ${invalidIds.join(', ')}`);
     }
 
-    const { start_date, max_days, transport_mode = 'car', priority = 'balanced', number_of_people = 1, patron_saint } = params;
+    const { start_date, max_days: rawMaxDays, transport_mode = 'car', priority = 'balanced', number_of_people = 1, patron_saint } = params;
+    const max_days = rawMaxDays ? Math.min(Number(rawMaxDays), 30) : undefined;
 
     // Filter events starting today or later (or within planner dates)
     const eventDateFilter = start_date ? new Date(start_date) : new Date();
@@ -221,6 +222,7 @@ Parameters:
 - Priority: ${priority} (shortest_distance = minimize travel, most_spiritual = significance first, balanced = mix)
 ${start_date ? `- Start date: ${start_date}` : ''}
 ${max_days ? `- Max days: ${max_days}` : '- Suggest optimal number of days'}
+- HARD LIMIT: The total itinerary MUST NOT exceed 30 days. If max_days is not specified, choose the optimal number but never more than 30.
 ${patron_saint ? `- Pilgrim's Patron Saint (Bổn mạng): ${patron_saint}. IMPORTANT: Prioritize sites related to this saint. Add spiritual connections to this patron saint in the notes.` : ''}
 
 IMPORTANT: The output must use these EXACT field names to be compatible with our Planner API:
@@ -284,6 +286,11 @@ Rules for items:
           throw new Error('AI returned invalid route schema: item missing site_id/day_number/order_index');
         }
       }
+    }
+
+    // Output guard: AI must not exceed 30-day planner limit
+    if (result.daily_itinerary.length > 30) {
+      throw new Error('AI returned invalid route schema: itinerary exceeds 30 days');
     }
 
     // Auto-correct AI's date miscalculations

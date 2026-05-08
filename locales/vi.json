@@ -788,6 +788,7 @@
     "transport_mode_invalid": "transport_mode phải là car, bus, hoặc motorbike",
     "priority_invalid": "priority phải là shortest_distance, most_spiritual, hoặc balanced",
     "number_of_people_invalid": "number_of_people phải là số nguyên dương",
+    "max_days_invalid": "Số ngày tối đa phải từ 1 đến 30",
     "start_date_invalid": "start_date phải là ngày hợp lệ (ISO 8601)",
     "topic_required": "Chủ đề bài viết là bắt buộc",
     "topic_length": "Chủ đề phải từ 2 đến 255 ký tự",
