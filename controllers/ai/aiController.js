@@ -57,6 +57,12 @@ exports.suggestRoute = async (req, res) => {
         if (error.message.includes('At least 2') || error.message.includes('Maximum 15') || error.message.includes('Could not find enough') || error.message.includes('Invalid site ID format')) {
             return ResponseUtil.badRequest(res, error.message);
         }
+        if (error.message === 'Group lead time error') {
+            return ResponseUtil.badRequest(res, req.__('planner.group_lead_time_error'));
+        }
+        if (error.message === 'Start date must be from tomorrow') {
+            return ResponseUtil.badRequest(res, req.__('planner.start_date_from_tomorrow'));
+        }
         if (isInvalidAiSchemaError(error)) {
             return ResponseUtil.error(res, SCHEMA_MSG, 502);
         }
