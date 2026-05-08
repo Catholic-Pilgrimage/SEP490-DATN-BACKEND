@@ -123,6 +123,30 @@ class PlannerAiService {
     const { start_date, max_days: rawMaxDays, transport_mode = 'car', priority = 'balanced', number_of_people = 1, patron_saint } = params;
     const max_days = rawMaxDays ? Math.min(Number(rawMaxDays), 30) : undefined;
 
+    // Validate start_date (same rules as PlannerService.createPlanner)
+    if (start_date) {
+      const now = new Date();
+      const startDateObj = new Date(start_date);
+      startDateObj.setHours(0, 0, 0, 0);
+      const numPeople = parseInt(number_of_people) || 1;
+
+      if (numPeople >= 2) {
+        // Group: must be at least 48h ahead
+        const minLeadTime = new Date(now);
+        minLeadTime.setHours(minLeadTime.getHours() + 48);
+        if (startDateObj < minLeadTime) {
+          throw new Error('Group lead time error');
+        }
+      } else {
+        // Solo: must be from tomorrow
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (startDateObj <= today) {
+          throw new Error('Start date must be from tomorrow');
+        }
+      }
+    }
+
     // Filter events starting today or later (or within planner dates)
     const eventDateFilter = start_date ? new Date(start_date) : new Date();
 
