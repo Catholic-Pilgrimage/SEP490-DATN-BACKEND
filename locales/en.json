@@ -721,6 +721,7 @@
     "transport_mode_invalid": "transport_mode must be car, bus, or motorbike",
     "priority_invalid": "priority must be shortest_distance, most_spiritual, or balanced",
     "number_of_people_invalid": "number_of_people must be a positive integer",
+    "max_days_invalid": "max_days must be between 1 and 30",
     "start_date_invalid": "start_date must be a valid ISO 8601 date",
     "topic_required": "Topic is required",
     "topic_length": "Topic must be between 2 and 255 characters",

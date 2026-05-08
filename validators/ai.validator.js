@@ -38,6 +38,13 @@ const aiValidator = {
                 req.__ ? req.__('ai.number_of_people_invalid') : 'number_of_people must be a positive integer'
             ),
 
+        body('max_days')
+            .optional()
+            .isInt({ min: 1, max: 30 })
+            .withMessage((value, { req }) =>
+                req.__ ? req.__('ai.max_days_invalid') : 'max_days must be between 1 and 30'
+            ),
+
         body('start_date')
             .optional()
             .isISO8601()
