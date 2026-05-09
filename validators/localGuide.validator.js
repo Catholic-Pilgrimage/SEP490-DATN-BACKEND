@@ -116,7 +116,16 @@ class LocalGuideValidator {
 
         body('start_date')
             .notEmpty().withMessage('Ngày bắt đầu không được để trống')
-            .isDate().withMessage('Ngày bắt đầu phải đúng định dạng YYYY-MM-DD'),
+            .isDate().withMessage('Ngày bắt đầu phải đúng định dạng YYYY-MM-DD')
+            .custom((value) => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const startDate = new Date(value);
+                if (startDate < today) {
+                    throw new Error('Ngày bắt đầu không được ở trong quá khứ');
+                }
+                return true;
+            }),
 
         body('end_date')
             .optional()
@@ -172,7 +181,16 @@ class LocalGuideValidator {
 
         body('start_date')
             .optional()
-            .isDate().withMessage('Ngày bắt đầu phải đúng định dạng YYYY-MM-DD'),
+            .isDate().withMessage('Ngày bắt đầu phải đúng định dạng YYYY-MM-DD')
+            .custom((value) => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const startDate = new Date(value);
+                if (startDate < today) {
+                    throw new Error('Ngày bắt đầu không được ở trong quá khứ');
+                }
+                return true;
+            }),
 
         body('end_date')
             .optional()
