@@ -62,7 +62,6 @@ flowchart TD
     B -->|Routing & Geocoding| G[Vietmap API]
     B -->|Push Notifications| H[Expo / Firebase]
     B -->|Storage| I[Cloudinary]
-</div>
 ```
 
 * **Google Gemini AI**:
