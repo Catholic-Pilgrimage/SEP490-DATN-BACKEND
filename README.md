@@ -15,9 +15,9 @@
 
 <p align="center">
   <a href="https://ai.google.dev"><img src="https://img.shields.io/badge/Gemini%20AI-8E24AA?style=for-the-badge&logo=googlegemini&logoColor=white" alt="Gemini AI"></a>
-  <a href="https://payos.vn"><img src="https://img.shields.io/badge/PayOS-FF5722?style=for-the-badge&logo=convertio&logoColor=white" alt="PayOS"></a>
-  <a href="https://vietmap.vn"><img src="https://img.shields.io/badge/Vietmap-E53935?style=for-the-badge&logo=googlemaps&logoColor=white" alt="Vietmap"></a>
-  <a href="https://vbee.vn"><img src="https://img.shields.io/badge/VBee%20TTS-FFB300?style=for-the-badge&logo=soundcharts&logoColor=black" alt="VBee TTS"></a>
+  <a href="https://payos.vn"><img src="https://img.shields.io/badge/PayOS-FF5722?style=for-the-badge&logo=stripe&logoColor=white" alt="PayOS"></a>
+  <a href="https://vietmap.vn"><img src="https://img.shields.io/badge/Vietmap-E53935?style=for-the-badge&logo=mapbox&logoColor=white" alt="Vietmap"></a>
+  <a href="https://vbee.vn"><img src="https://img.shields.io/badge/VBee%20TTS-FFB300?style=for-the-badge&logo=dolby&logoColor=black" alt="VBee TTS"></a>
   <a href="https://socket.io"><img src="https://img.shields.io/badge/Socket.io-010101?style=for-the-badge&logo=socketdotio&logoColor=white" alt="Socket.io"></a>
 </p>
 
